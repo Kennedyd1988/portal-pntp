@@ -1,0 +1,449 @@
+// =====================================================================
+// Painel SOFT+ · Portal PNTP — app.js
+// Login, recuperação de senha, escolha do órgão e menu por permissão.
+// =====================================================================
+(function () {
+  'use strict';
+
+  const cfg = window.CONFIG_PNTP;
+  const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseChave);
+
+  // Estado da sessão no navegador
+  const estado = {
+    usuario: null,      // ficha de public.usuarios
+    orgaos: [],         // resultado de meus_orgaos()
+    orgao: null,        // órgão aberto
+    modulos: [],        // catálogo de módulos
+    permissoes: {}      // { codigo: {ver, editar, publicar, excluir} }
+  };
+
+  // Fase em que cada módulo será construído (só para a tela "em construção").
+  const FASE_MODULO = {
+    noticias: 1, institucional: 1, servicos: 1, publicacoes: 1, aparencia: 1, usuarios: 1, historico: 1,
+    licitacoes: 2, financeiro: 2, pessoal: 2, convenios: 2, obras: 2, setoriais: 2, importacoes: 2,
+    atendimento: 3
+  };
+
+  const TIPO_ORGAO = {
+    prefeitura: 'Prefeitura', camara: 'Câmara Municipal', rpps: 'Previdência (RPPS)',
+    consorcio: 'Consórcio Público', autarquia: 'Autarquia', outro: 'Outro'
+  };
+
+  // ---------- utilidades ----------
+  const $ = (id) => document.getElementById(id);
+
+  // Cria elementos sem usar innerHTML com dados vindos do banco (evita injeção de código).
+  function el(tag, attrs, ...filhos) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === 'class') e.className = v;
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v === true ? '' : v);
+    }
+    for (const f of filhos.flat()) {
+      if (f === null || f === undefined || f === false) continue;
+      e.append(f instanceof Node ? f : document.createTextNode(String(f)));
+    }
+    return e;
+  }
+
+  function guardar(chave, valor) { try { localStorage.setItem(chave, valor); } catch (e) { /* navegador sem armazenamento */ } }
+  function ler(chave) { try { return localStorage.getItem(chave); } catch (e) { return null; } }
+
+  function mostrarTela(id) {
+    for (const t of document.querySelectorAll('.tela')) t.hidden = (t.id !== id);
+  }
+
+  function toast(texto, erro) {
+    const t = $('toast');
+    t.textContent = texto;
+    t.classList.toggle('erro', !!erro);
+    t.hidden = false;
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => { t.hidden = true; }, 4500);
+  }
+
+  function msg(id, texto, tipo) {
+    const m = $(id);
+    if (!texto) { m.hidden = true; return; }
+    m.textContent = texto;
+    m.className = 'msg msg-' + (tipo || 'erro');
+    m.hidden = false;
+  }
+
+  // Destaque vermelho + mensagem curta no campo (regra do projeto: nunca só um alerta genérico).
+  function erroCampo(inputId, texto) {
+    const i = $(inputId);
+    const span = $(inputId + '-erro');
+    i.classList.toggle('invalido', !!texto);
+    i.setAttribute('aria-invalid', texto ? 'true' : 'false');
+    if (span) span.textContent = texto || '';
+    if (texto) i.focus();
+    return !texto;
+  }
+
+  function ocupado(btn, texto) {
+    if (texto) { btn.dataset.textoOriginal = btn.textContent; btn.textContent = texto; btn.disabled = true; }
+    else { btn.textContent = btn.dataset.textoOriginal || btn.textContent; btn.disabled = false; }
+  }
+
+  // Traduz as mensagens da Supabase para algo que o usuário entenda.
+  function traduzirErro(e) {
+    const t = (e && (e.message || e.error_description || String(e))) || '';
+    if (/invalid login credentials/i.test(t)) return 'E-mail ou senha incorretos.';
+    if (/email not confirmed/i.test(t)) return 'Este e-mail ainda não foi confirmado.';
+    if (/rate limit|too many/i.test(t)) return 'Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.';
+    if (/password should be at least/i.test(t)) return 'A senha precisa ter pelo menos 8 caracteres.';
+    if (/same.*password|different from the old/i.test(t)) return 'A nova senha precisa ser diferente da anterior.';
+    if (/failed to fetch|network/i.test(t)) return 'Sem conexão com o servidor. Verifique a internet.';
+    if (/jwt|session/i.test(t)) return 'Sua sessão expirou. Entre novamente.';
+    return 'Não foi possível concluir: ' + t;
+  }
+
+  const emailValido = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+
+  function siglaDe(o) {
+    if (o.sigla) return o.sigla.slice(0, 4).toUpperCase();
+    const palavras = o.nome.split(/\s+/).filter((p) => p.length > 2 && !/^(de|da|do|dos|das)$/i.test(p));
+    return palavras.slice(0, 3).map((p) => p[0]).join('').toUpperCase();
+  }
+
+  // ---------- versão ----------
+  function mostrarVersao() {
+    for (const s of document.querySelectorAll('.versao-app')) s.textContent = window.VERSAO_APP || '—';
+  }
+
+  // Confere a cada 5 minutos (e ao voltar para a aba) se há versão nova publicada.
+  async function conferirVersao() {
+    try {
+      const r = await fetch('versao.json?t=' + Date.now(), { cache: 'no-store' });
+      const v = await r.json();
+      if (v.versao && v.versao !== window.VERSAO_APP) {
+        $('aviso-versao-texto').textContent = 'Nova versão ' + v.versao + ' disponível.' +
+          (v.notas && v.notas[0] ? ' ' + v.notas[0] : '');
+        $('aviso-versao').hidden = false;
+      }
+    } catch (e) { /* sem internet: tenta na próxima */ }
+  }
+  $('btn-atualizar-versao').addEventListener('click', () => location.reload());
+  setInterval(conferirVersao, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) conferirVersao(); });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+  }
+
+  // ---------- login ----------
+  for (const b of document.querySelectorAll('.btn-ver-senha')) {
+    b.addEventListener('click', () => {
+      const i = $(b.dataset.alvo);
+      const mostrar = i.type === 'password';
+      i.type = mostrar ? 'text' : 'password';
+      b.textContent = mostrar ? 'Ocultar' : 'Mostrar';
+      b.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+    });
+  }
+
+  function mostrarForm(id) {
+    for (const f of ['form-login', 'form-recuperar', 'form-nova-senha']) $(f).hidden = (f !== id);
+    mostrarTela('tela-login');
+  }
+
+  $('form-login').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    msg('login-msg');
+    const email = $('login-email').value.trim();
+    const senha = $('login-senha').value;
+    if (!erroCampo('login-email', emailValido(email) ? '' : 'Informe um e-mail válido.')) return;
+    if (!erroCampo('login-senha', senha ? '' : 'Informe a senha.')) return;
+
+    const btn = $('btn-entrar');
+    ocupado(btn, 'Entrando…');
+    const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+    ocupado(btn);
+    if (error) { msg('login-msg', traduzirErro(error)); return; }
+    $('login-senha').value = '';
+    await carregarContexto();
+  });
+
+  $('link-esqueci').addEventListener('click', () => {
+    $('rec-email').value = $('login-email').value;
+    msg('rec-msg');
+    mostrarForm('form-recuperar');
+    $('rec-email').focus();
+  });
+  $('link-voltar-login').addEventListener('click', () => mostrarForm('form-login'));
+
+  $('form-recuperar').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const email = $('rec-email').value.trim();
+    if (!erroCampo('rec-email', emailValido(email) ? '' : 'Informe um e-mail válido.')) return;
+    const btn = $('btn-recuperar');
+    ocupado(btn, 'Enviando…');
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: location.origin + location.pathname
+    });
+    ocupado(btn);
+    // Mesmo texto com ou sem conta: não revela quais e-mails estão cadastrados.
+    if (error && !/rate limit/i.test(error.message)) { msg('rec-msg', traduzirErro(error)); return; }
+    msg('rec-msg', 'Se este e-mail estiver cadastrado, você receberá o link em alguns minutos. Confira também a caixa de spam.', 'ok');
+  });
+
+  $('form-nova-senha').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const s1 = $('nova-senha').value;
+    const s2 = $('nova-senha2').value;
+    const forte = s1.length >= 8 && /[a-z]/i.test(s1) && /\d/.test(s1);
+    if (!erroCampo('nova-senha', forte ? '' : 'Use pelo menos 8 caracteres, com letras e números.')) return;
+    if (!erroCampo('nova-senha2', s1 === s2 ? '' : 'As duas senhas não são iguais.')) return;
+    const btn = $('btn-salvar-senha');
+    ocupado(btn, 'Salvando…');
+    const { error } = await sb.auth.updateUser({ password: s1 });
+    ocupado(btn);
+    if (error) { msg('nova-msg', traduzirErro(error)); return; }
+    $('nova-senha').value = '';
+    $('nova-senha2').value = '';
+    history.replaceState(null, '', location.pathname);
+    toast('Senha alterada com sucesso.');
+    await carregarContexto();
+  });
+
+  async function sair() {
+    await sb.auth.signOut();
+    estado.usuario = null; estado.orgao = null; estado.orgaos = [];
+    mostrarForm('form-login');
+  }
+  $('btn-sair').addEventListener('click', sair);
+  $('btn-sair-orgaos').addEventListener('click', sair);
+
+  // ---------- contexto: usuário e órgãos ----------
+  async function carregarContexto() {
+    mostrarTela('tela-carregando');
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) { mostrarForm('form-login'); return; }
+
+    const [ficha, orgaos, modulos] = await Promise.all([
+      sb.from('usuarios').select('id, nome, email, suporte_softplus').eq('id', user.id).maybeSingle(),
+      sb.rpc('meus_orgaos'),
+      sb.from('modulos').select('codigo, nome, grupo, ordem').order('ordem')
+    ]);
+    const falha = ficha.error || orgaos.error || modulos.error;
+    if (falha) { toast(traduzirErro(falha), true); mostrarForm('form-login'); return; }
+
+    estado.usuario = ficha.data || { nome: '', email: user.email };
+    estado.orgaos = orgaos.data || [];
+    estado.modulos = modulos.data || [];
+
+    if (estado.orgaos.length === 0) {
+      mostrarListaOrgaos();
+      msg('orgaos-msg', 'Seu usuário ainda não está vinculado a nenhum órgão. Fale com o administrador do seu órgão ou com o suporte da SOFT+.', 'info');
+      return;
+    }
+    if (estado.orgaos.length === 1) { await abrirOrgao(estado.orgaos[0]); return; }
+
+    // Reabre o último órgão usado neste navegador, se ainda tiver acesso.
+    const ultimo = estado.orgaos.find((o) => o.id === ler('pntp_ultimo_orgao'));
+    if (ultimo) { await abrirOrgao(ultimo); return; }
+    mostrarListaOrgaos();
+  }
+
+  function mostrarListaOrgaos() {
+    mostrarTela('tela-orgaos');
+    msg('orgaos-msg');
+    const nome = estado.usuario.nome || estado.usuario.email;
+    $('orgaos-sub').textContent = 'Olá, ' + nome + '. Você tem acesso a ' + estado.orgaos.length +
+      (estado.orgaos.length === 1 ? ' órgão.' : ' órgãos.');
+    const busca = $('busca-orgao');
+    busca.hidden = estado.orgaos.length < 6;
+    busca.value = '';
+    desenharListaOrgaos('');
+  }
+
+  function desenharListaOrgaos(filtro) {
+    const normal = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const f = normal(filtro);
+    const lista = $('lista-orgaos');
+    lista.replaceChildren();
+    // Ordem alfabética, com os subsites logo abaixo do órgão-pai.
+    const pais = estado.orgaos.filter((o) => !o.orgao_pai_id || !estado.orgaos.some((p) => p.id === o.orgao_pai_id));
+    const ordenados = [];
+    for (const p of pais.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))) {
+      ordenados.push(p);
+      ordenados.push(...estado.orgaos.filter((s) => s.orgao_pai_id === p.id).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
+    }
+    for (const o of ordenados) {
+      if (f && !normal(o.nome).includes(f)) continue;
+      const subsite = !!o.orgao_pai_id;
+      lista.append(el('li', null,
+        el('button', { type: 'button', class: 'item-orgao', style: subsite ? 'margin-left:28px;width:calc(100% - 28px)' : null, onclick: () => abrirOrgao(o) },
+          el('span', { class: 'item-orgao-sigla', 'aria-hidden': 'true' }, siglaDe(o)),
+          el('span', { class: 'item-orgao-texto' },
+            el('span', { class: 'item-orgao-nome' }, o.nome),
+            el('span', { class: 'item-orgao-det' }, (subsite ? 'Subsite · ' : '') + (TIPO_ORGAO[o.tipo] || o.tipo) + ' · ' + o.perfil)
+          ),
+          o.ativo ? null : el('span', { class: 'etiqueta etiqueta-inativo' }, 'Inativo')
+        )
+      ));
+    }
+  }
+  $('busca-orgao').addEventListener('input', (ev) => desenharListaOrgaos(ev.target.value));
+
+  async function abrirOrgao(o) {
+    mostrarTela('tela-carregando');
+    const { data, error } = await sb.rpc('minhas_permissoes', { p_orgao: o.id });
+    if (error) { toast(traduzirErro(error), true); mostrarListaOrgaos(); return; }
+    estado.orgao = o;
+    estado.permissoes = {};
+    for (const p of data || []) {
+      estado.permissoes[p.modulo] = { ver: p.pode_ver, editar: p.pode_editar, publicar: p.pode_publicar, excluir: p.pode_excluir };
+    }
+    guardar('pntp_ultimo_orgao', o.id);
+    montarPainel();
+  }
+
+  // ---------- painel ----------
+  function montarPainel() {
+    const o = estado.orgao;
+    $('topo-orgao-nome').textContent = o.nome;
+    $('topo-orgao-perfil').textContent = (TIPO_ORGAO[o.tipo] || o.tipo) + ' · Seu perfil: ' + o.perfil;
+    $('topo-usuario').textContent = estado.usuario.nome || estado.usuario.email;
+    $('btn-trocar-orgao').hidden = estado.orgaos.length < 2;
+
+    // Menu: só módulos que o perfil pode ver, agrupados e na ordem do catálogo.
+    const menu = $('menu');
+    menu.replaceChildren(el('a', { href: '#/inicio', 'data-rota': 'inicio' }, 'Início'));
+    let grupoAtual = null;
+    for (const m of estado.modulos) {
+      if (!(estado.permissoes[m.codigo] && estado.permissoes[m.codigo].ver)) continue;
+      if (m.grupo !== grupoAtual) {
+        grupoAtual = m.grupo;
+        menu.append(el('span', { class: 'menu-grupo' }, m.grupo));
+      }
+      menu.append(el('a', { href: '#/m/' + m.codigo, 'data-rota': m.codigo }, m.nome));
+    }
+    mostrarTela('tela-painel');
+    rotear();
+  }
+
+  $('btn-trocar-orgao').addEventListener('click', () => { estado.orgao = null; mostrarListaOrgaos(); });
+  $('btn-menu').addEventListener('click', () => {
+    const aberta = $('lateral').classList.toggle('aberta');
+    $('btn-menu').setAttribute('aria-expanded', aberta ? 'true' : 'false');
+  });
+  $('menu').addEventListener('click', (ev) => {
+    if (ev.target.tagName === 'A') { $('lateral').classList.remove('aberta'); $('btn-menu').setAttribute('aria-expanded', 'false'); }
+  });
+
+  function rotear() {
+    if (!estado.orgao) return;
+    const hash = location.hash || '#/inicio';
+    const m = hash.match(/^#\/m\/([a-z_]+)$/);
+    const rota = m ? m[1] : 'inicio';
+    for (const a of $('menu').querySelectorAll('a')) {
+      if (a.dataset.rota === rota) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    }
+    const conteudo = $('conteudo');
+    if (rota === 'inicio') telaInicio(conteudo);
+    else telaModulo(conteudo, rota);
+    conteudo.focus({ preventScroll: true });
+  }
+  window.addEventListener('hashchange', rotear);
+
+  function telaInicio(c) {
+    const o = estado.orgao;
+    const nome = (estado.usuario.nome || '').split(' ')[0];
+    c.replaceChildren(
+      el('h1', null, nome ? 'Olá, ' + nome : 'Início'),
+      el('p', { class: 'sub' }, 'Painel de gestão · ' + o.nome),
+      el('div', { class: 'grade' },
+        el('section', { class: 'cartao' },
+          el('h2', null, 'Órgão'),
+          el('dl', { class: 'dados' },
+            el('dt', null, 'Nome'), el('dd', null, o.nome),
+            el('dt', null, 'Tipo'), el('dd', null, TIPO_ORGAO[o.tipo] || o.tipo),
+            el('dt', null, 'Situação'), el('dd', null, o.ativo ? 'Ativo' : 'Inativo'),
+            el('dt', null, 'Seu perfil'), el('dd', null, o.perfil)
+          )
+        ),
+        el('section', { class: 'cartao' },
+          el('h2', null, 'Fase 0 · Fundação'),
+          el('ul', { class: 'lista-check' },
+            el('li', null, 'Login e recuperação de senha'),
+            el('li', null, 'Separação de dados entre órgãos'),
+            el('li', null, 'Menu conforme as permissões do perfil'),
+            el('li', null, 'Histórico automático de alterações'),
+            el('li', null, 'Controle de versões do painel')
+          )
+        ),
+        el('section', { class: 'cartao' },
+          el('h2', null, 'Próximos passos (Fase 1)'),
+          el('ul', { class: 'lista-check lista-proximos' },
+            el('li', null, 'Aparência, menu e links do site'),
+            el('li', null, 'Unidades, gestores e páginas institucionais'),
+            el('li', null, 'Notícias, banners e avisos'),
+            el('li', null, 'Carta de Serviços'),
+            el('li', null, 'Usuários e permissões')
+          )
+        )
+      )
+    );
+  }
+
+  function telaModulo(c, codigo) {
+    const mod = estado.modulos.find((m) => m.codigo === codigo);
+    const p = estado.permissoes[codigo];
+    if (!mod || !p || !p.ver) {
+      c.replaceChildren(el('h1', null, 'Acesso não permitido'),
+        el('p', { class: 'sub' }, 'Seu perfil não tem acesso a este módulo.'));
+      return;
+    }
+    const chip = (rotulo, ok) => el('span', { class: 'chip ' + (ok ? 'chip-sim' : 'chip-nao') }, rotulo);
+    c.replaceChildren(
+      el('h1', null, mod.nome),
+      el('p', { class: 'sub' }, mod.grupo),
+      el('div', { class: 'grade' },
+        el('section', { class: 'cartao' },
+          el('h2', null, 'Em construção'),
+          el('p', null, 'Este módulo será construído na Fase ' + (FASE_MODULO[codigo] || '—') + '.')
+        ),
+        el('section', { class: 'cartao' },
+          el('h2', null, 'O que o seu perfil pode fazer aqui'),
+          el('div', { class: 'chips' },
+            chip('Ver', p.ver), chip('Cadastrar e editar', p.editar),
+            chip('Aprovar e publicar', p.publicar), chip('Excluir', p.excluir))
+        )
+      )
+    );
+  }
+
+  // ---------- início ----------
+  // Link de recuperação de senha: a Supabase abre a página já com sessão e avisa por este evento.
+  sb.auth.onAuthStateChange((evento) => {
+    if (evento === 'PASSWORD_RECOVERY') { mostrarForm('form-nova-senha'); $('nova-senha').focus(); }
+    if (evento === 'SIGNED_OUT') { estado.usuario = null; estado.orgao = null; mostrarForm('form-login'); }
+  });
+
+  async function iniciar() {
+    mostrarVersao();
+    // Se veio pelo link de recuperação, espera o evento PASSWORD_RECOVERY em vez de abrir o painel.
+    if (/type=recovery/.test(location.hash) || /type=recovery|code=/.test(location.search)) {
+      mostrarTela('tela-carregando');
+      // Se o link estiver vencido o evento não chega: depois de 6 s segue o fluxo normal.
+      setTimeout(async () => {
+        if (!$('tela-carregando').hidden) {
+          history.replaceState(null, '', location.pathname);
+          const { data: { session } } = await sb.auth.getSession();
+          if (session) await carregarContexto();
+          else { mostrarForm('form-login'); msg('login-msg', 'O link de recuperação expirou ou já foi usado. Peça um novo em "Esqueci minha senha".', 'info'); }
+        }
+      }, 6000);
+      return;
+    }
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) await carregarContexto();
+    else mostrarForm('form-login');
+  }
+
+  iniciar();
+})();

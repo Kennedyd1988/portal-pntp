@@ -1,0 +1,7 @@
+{
+  "versao": "0.1.0",
+  "data": "2026-11-11",
+  "notas": [
+    "Primeira versão do painel: login, recuperação de senha, escolha do órgão e menu conforme as permissões do perfil."
+  ]
+}

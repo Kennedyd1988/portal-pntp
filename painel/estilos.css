@@ -1,0 +1,138 @@
+/* =========================================================
+   Painel SOFT+ · Portal PNTP — design system oficial SOFT+
+   ========================================================= */
+:root {
+  --brand: #0d4fc4;
+  --brand-escuro: #0a3d99;
+  --text: #0f2947;
+  --text-dim: #5c7692;
+  --line: #d7e4f0;
+  --ink: #eef4fb;
+  --green: #16875a;
+  --red: #c73f3f;
+  --amber: #b3790f;
+  --raio: 10px;
+  --fonte: 'Inter', system-ui, sans-serif;
+  --fonte-titulo: 'Source Serif 4', Georgia, serif;
+  --fonte-num: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+body { visibility: visible; margin: 0; font-family: var(--fonte); color: var(--text); background: var(--ink); font-size: 15px; line-height: 1.5; }
+h1, h2 { font-family: var(--fonte-titulo); margin: 0; line-height: 1.2; }
+a { color: var(--brand); }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pular { position: absolute; left: -9999px; top: 8px; background: #fff; padding: 8px 12px; border-radius: var(--raio); z-index: 100; }
+.pular:focus { left: 8px; }
+:focus-visible { outline: 3px solid #f2b33d; outline-offset: 2px; }
+
+/* ---------- Botões e campos ---------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 16px; border-radius: var(--raio); border: 1px solid transparent; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+.btn-primario { background: var(--brand); color: #fff; }
+.btn-primario:hover:not(:disabled) { background: var(--brand-escuro); }
+.btn-claro { background: #fff; color: var(--text); border-color: var(--line); }
+.btn-claro:hover:not(:disabled) { border-color: #a9bdd3; }
+.btn-largo { width: 100%; height: 46px; }
+.link { background: none; border: 0; padding: 8px 0; color: var(--brand); font: inherit; font-weight: 600; cursor: pointer; }
+
+.campo { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.campo label { font-size: 14px; font-weight: 600; }
+.campo input { height: 44px; border: 1px solid var(--line); border-radius: var(--raio); padding: 0 12px; font: inherit; color: var(--text); background: #fff; }
+.campo input.invalido { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); }
+.erro-campo { font-size: 13px; color: var(--red); min-height: 0; }
+.erro-campo:empty { display: none; }
+.campo-senha { display: flex; gap: 6px; }
+.campo-senha input { flex: 1; min-width: 0; }
+.btn-ver-senha { border: 1px solid var(--line); background: #fff; border-radius: var(--raio); padding: 0 12px; font: inherit; font-size: 13px; color: var(--text-dim); cursor: pointer; }
+
+.msg { border-radius: var(--raio); padding: 10px 12px; font-size: 14px; margin-bottom: 14px; }
+.msg-erro { background: #fbeaea; color: #8f2626; }
+.msg-ok { background: #e6f4ee; color: #0f5f40; }
+.msg-info { background: #fff5e0; color: #6e4a06; }
+
+/* ---------- Telas ---------- */
+.tela-centro { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-dim); }
+
+.tela-dividida { min-height: 100vh; display: flex; flex-wrap: wrap; }
+.lado-marca { flex: 1 1 420px; background: var(--brand); color: #fff; padding: 56px 48px; display: flex; flex-direction: column; justify-content: center; gap: 18px; }
+.lado-marca h1 { font-size: 36px; max-width: 460px; }
+.lado-marca p { margin: 0; max-width: 460px; color: #dce8fb; font-size: 16px; }
+.lista-marca { margin: 6px 0 0; padding-left: 20px; color: #dce8fb; display: flex; flex-direction: column; gap: 6px; }
+.marca { display: flex; align-items: center; gap: 12px; }
+.marca-simbolo { background: #fff; border-radius: 12px; padding: 4px; }
+.marca-nome { font-weight: 700; font-size: 20px; letter-spacing: .02em; }
+.lado-form { flex: 1 1 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; background: #fff; }
+.cartao-form { width: 100%; max-width: 380px; display: flex; flex-direction: column; }
+.cartao-form h2 { font-size: 26px; margin-bottom: 6px; }
+.sub { color: var(--text-dim); margin: 0 0 20px; }
+.rodape-versao { margin-top: 28px; font-size: 12px; color: var(--text-dim); font-family: var(--fonte-num); }
+
+/* Escolha do órgão */
+.tela-orgaos { min-height: 100vh; }
+.topo-simples { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; background: #fff; border-bottom: 1px solid var(--line); }
+.marca-escura .marca-nome { color: var(--text); font-size: 18px; }
+.caixa-orgaos { max-width: 720px; margin: 0 auto; padding: 40px 20px; }
+.caixa-orgaos h1 { font-size: 28px; margin-bottom: 6px; }
+.busca { width: 100%; height: 44px; border: 1px solid var(--line); border-radius: var(--raio); padding: 0 12px; font: inherit; margin-bottom: 14px; }
+.lista-orgaos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.item-orgao { width: 100%; text-align: left; display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid var(--line); border-radius: var(--raio); padding: 14px 16px; font: inherit; color: var(--text); cursor: pointer; }
+.item-orgao:hover { border-color: var(--brand); }
+.item-orgao-sigla { width: 44px; height: 44px; flex: none; border-radius: var(--raio); background: var(--ink); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+.item-orgao-texto { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.item-orgao-nome { font-weight: 700; }
+.item-orgao-det { font-size: 13px; color: var(--text-dim); }
+.etiqueta { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--ink); color: var(--text-dim); }
+.etiqueta-inativo { background: #fbeaea; color: #8f2626; }
+
+/* Painel */
+.tela-painel { min-height: 100vh; display: flex; flex-wrap: wrap; }
+.lateral { flex: 0 0 256px; background: #0f2947; color: #fff; padding: 18px 12px; display: flex; flex-direction: column; gap: 12px; }
+.marca-clara .marca-nome { font-size: 16px; }
+.menu { display: flex; flex-direction: column; gap: 1px; flex: 1; overflow-y: auto; }
+.menu-grupo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #8ea6c2; margin: 14px 10px 4px; }
+.menu a { display: block; padding: 8px 10px; border-radius: 8px; color: #d2deeb; text-decoration: none; font-size: 14px; }
+.menu a:hover { background: #18385f; color: #fff; }
+.menu a[aria-current="page"] { background: #24497a; color: #fff; font-weight: 600; }
+.lateral-versao { margin: 0; font-size: 12px; color: #8ea6c2; font-family: var(--fonte-num); padding: 0 10px; }
+
+.area { flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; }
+.topo { display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap; background: #fff; border-bottom: 1px solid var(--line); padding: 10px 24px; }
+.btn-menu { display: none; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: var(--raio); background: #fff; font-size: 18px; cursor: pointer; }
+.topo-orgao { display: flex; flex-direction: column; flex: 1 1 260px; min-width: 0; }
+.topo-orgao-nome { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topo-orgao-perfil { font-size: 13px; color: var(--text-dim); }
+.topo-usuario { font-size: 14px; color: var(--text-dim); }
+.conteudo { padding: 26px 24px 40px; max-width: 1200px; width: 100%; outline: none; }
+.conteudo h1 { font-size: 28px; margin-bottom: 6px; }
+
+.grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 20px; }
+.cartao { background: #fff; border: 1px solid var(--line); border-radius: var(--raio); padding: 20px; }
+.cartao h2 { font-size: 18px; margin-bottom: 10px; }
+.lista-check { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lista-check li::before { content: "✓ "; color: var(--green); font-weight: 700; }
+.lista-proximos li::before { content: "• "; color: var(--amber); font-weight: 700; }
+.dados { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; }
+.dados dt { color: var(--text-dim); }
+.dados dd { margin: 0; font-weight: 600; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+.chip-sim { background: #e6f4ee; color: #0f5f40; }
+.chip-nao { background: #f1f4f8; color: #8193a8; text-decoration: line-through; }
+
+/* Aviso de versão e toast */
+.aviso-versao { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; background: var(--text); color: #fff; padding: 12px 14px 12px 18px; border-radius: var(--raio); box-shadow: 0 8px 24px rgba(15, 41, 71, .25); max-width: calc(100% - 24px); }
+.toast { position: fixed; right: 20px; top: 20px; z-index: 60; background: var(--text); color: #fff; padding: 12px 16px; border-radius: var(--raio); box-shadow: 0 8px 24px rgba(15, 41, 71, .25); max-width: 360px; }
+.toast.erro { background: var(--red); }
+
+/* Celular */
+@media (max-width: 860px) {
+  .lado-marca { padding: 32px 24px; flex-basis: 100%; }
+  .lado-marca h1 { font-size: 26px; }
+  .lista-marca { display: none; }
+  .lateral { position: fixed; inset: 0 auto 0 0; width: 270px; z-index: 40; transform: translateX(-100%); transition: transform .2s; }
+  .lateral.aberta { transform: translateX(0); box-shadow: 0 0 0 9999px rgba(15, 41, 71, .4); }
+  .btn-menu { display: inline-flex; align-items: center; justify-content: center; }
+  .topo-usuario { display: none; }
+}
