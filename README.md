@@ -38,6 +38,8 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | --- | --- |
 | `supabase/01_fundacao.sql` | órgãos, unidades, usuários, perfis, permissões, histórico, regras de acesso e dados iniciais |
 | `supabase/02_painel_e_piloto.sql` | funções `meus_orgaos()` e `minhas_permissoes()` usadas pelo painel + órgão piloto (Prefeitura de Riacho da Cruz/RN) |
+| `supabase/03_lote1_estrutura.sql` | tabela `gestores`, norma de criação nas unidades, alcance setorial em unidades e gestores, bucket `arquivos` e suas regras |
+| `supabase/04_dados_riacho_da_cruz.sql` | carga inicial do piloto: contatos gerais, 15 unidades e 14 responsáveis (fonte: site oficial, 11/11/2026) |
 
 ## Estrutura de arquivos
 
@@ -48,7 +50,9 @@ painel/
   index.html            → telas: login, recuperar senha, nova senha, escolha do órgão, painel
   estilos.css           → design system SOFT+
   config.js             → URL e chave pública da Supabase
-  app.js                → lógica do painel
+  app.js                → núcleo: login, órgãos, menu, rotas e utilidades comuns (window.PNTP)
+  modulo-aparencia.js   → tela "Aparência e contatos"
+  modulo-institucional.js → tela "Unidades e gestores"
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
   manifest.json         → instalação como aplicativo (PWA)
@@ -78,12 +82,44 @@ supabase/               → scripts SQL, rodar em ordem
    GitHub Pages em **Site URL** e `https://<usuário>.github.io/portal-pntp/painel/`
    em **Redirect URLs** (necessário para o link de recuperação de senha).
 
+## Arquivos (brasão, fotos, PDFs)
+
+- Bucket público `arquivos` na Supabase, caminho `<órgão>/<módulo>/<aleatório>.<ext>`.
+  O banco confere a permissão pelo caminho: só grava quem pode editar aquele módulo
+  naquele órgão. SVG não é aceito (pode conter código).
+- Imagens são reduzidas no navegador antes do envio (brasão 600 px, fotos 400 px) e
+  convertidas para WebP. PDFs até 10 MB.
+- Todo envio passa por `PNTP.enviarArquivo()` em `app.js`: é o único ponto a trocar
+  quando os arquivos forem para o Cloudflare R2.
+- Ao substituir um arquivo, o antigo é apagado.
+
 ## Limitações conhecidas
 
 - Excluir um órgão ou o login de uma pessoa apaga os vínculos em cascata, mesmo que
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.2.0 — 11/11/2026 — Lote 1 da Fase 1**
+- Tela "Aparência e contatos": brasão (reduzido automaticamente), nome exibido, cor
+  principal com verificação de contraste (mínimo 4,5:1), endereço, CEP, telefone,
+  e-mail, horário, Instagram/Facebook/YouTube (validação de endereço) e WhatsApp, domínio.
+- Tela "Unidades e gestores" com abas: cadastro de unidades (organograma "fica dentro
+  de", competências, norma de criação com PDF, contatos, horário) e de gestores (foto,
+  cargo, unidade, currículo PDF, destaque e ordem no bloco "Gestão" da capa).
+  Listas em ordem alfabética, busca sem diferenciar acento, aviso de pendências do PNTP
+  (unidade sem responsável ou sem horário).
+- Exclusão de unidade bloqueada com explicação quando há gestores ou unidades dentro
+  dela (também bloqueado no banco). Exclusão de gestor sugere "inativar".
+- Alcance setorial aplicado no banco: o usuário de uma secretaria só altera a própria
+  unidade e os gestores dela; criar e excluir unidades exige alcance total. O painel
+  avisa quando uma gravação não alterou nada por falta de alcance.
+- Campo em vermelho volta ao normal assim que o usuário digita. Avisos (toast) passam
+  para o canto inferior.
+- Carga inicial de Riacho da Cruz (script 04).
+- Testado: scripts no PostgreSQL local (duas execuções, sem duplicar; permissões de
+  administrador, setorial e anônimo; envio de arquivo por caminho) e telas em
+  navegador automatizado com a Supabase simulada.
 
 **0.1.0 — 11/11/2026** — Primeira versão do painel: login com e-mail e senha,
 recuperação de senha por e-mail, escolha do órgão (com subsites abaixo do

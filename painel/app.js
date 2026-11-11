@@ -17,6 +17,9 @@
     permissoes: {}      // { codigo: {ver, editar, publicar, excluir} }
   };
 
+  // Registro das telas de cada módulo (preenchido pelos arquivos modulo-*.js).
+  const telas = {};
+
   // Fase em que cada módulo será construído (só para a tela "em construção").
   const FASE_MODULO = {
     noticias: 1, institucional: 1, servicos: 1, publicacoes: 1, aparencia: 1, usuarios: 1, historico: 1,
@@ -100,6 +103,17 @@
     if (/jwt|session/i.test(t)) return 'Sua sessão expirou. Entre novamente.';
     return 'Não foi possível concluir: ' + t;
   }
+
+  // Ao digitar num campo marcado em vermelho, a marca e a mensagem somem.
+  document.addEventListener('input', (ev) => {
+    const i = ev.target;
+    if (i.classList && i.classList.contains('invalido')) {
+      i.classList.remove('invalido');
+      i.setAttribute('aria-invalid', 'false');
+      const span = i.id && document.getElementById(i.id + '-erro');
+      if (span) span.textContent = '';
+    }
+  });
 
   const emailValido = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
@@ -377,10 +391,14 @@
           )
         ),
         el('section', { class: 'cartao' },
-          el('h2', null, 'Próximos passos (Fase 1)'),
-          el('ul', { class: 'lista-check lista-proximos' },
-            el('li', null, 'Aparência, menu e links do site'),
-            el('li', null, 'Unidades, gestores e páginas institucionais'),
+          el('h2', null, 'Fase 1 · Conteúdo do site'),
+          el('ul', { class: 'lista-check' },
+            el('li', null, 'Aparência e contatos do órgão'),
+            el('li', null, 'Unidades e gestores')
+          ),
+          el('ul', { class: 'lista-check lista-proximos', style: 'margin-top:8px' },
+            el('li', null, 'Menu e links do site'),
+            el('li', null, 'Páginas institucionais'),
             el('li', null, 'Notícias, banners e avisos'),
             el('li', null, 'Carta de Serviços'),
             el('li', null, 'Usuários e permissões')
@@ -398,6 +416,7 @@
         el('p', { class: 'sub' }, 'Seu perfil não tem acesso a este módulo.'));
       return;
     }
+    if (telas[codigo]) { telas[codigo](c, mod, p); return; }
     const chip = (rotulo, ok) => el('span', { class: 'chip ' + (ok ? 'chip-sim' : 'chip-nao') }, rotulo);
     c.replaceChildren(
       el('h1', null, mod.nome),
@@ -445,5 +464,92 @@
     else mostrarForm('form-login');
   }
 
-  iniciar();
+  // ---------- utilidades compartilhadas com os módulos ----------
+
+  // Caixa de diálogo padrão (formulários e confirmações).
+  function abrirDialogo(titulo, corpo, acoes) {
+    const d = el('dialog', { class: 'dialogo', 'aria-label': titulo },
+      el('div', { class: 'dialogo-topo' },
+        el('h2', null, titulo),
+        el('button', { type: 'button', class: 'dialogo-fechar', 'aria-label': 'Fechar', onclick: () => d.close() }, '×')
+      ),
+      el('div', { class: 'dialogo-corpo' }, corpo),
+      el('div', { class: 'dialogo-acoes' }, acoes || [])
+    );
+    d.addEventListener('close', () => d.remove());
+    document.body.append(d);
+    d.showModal();
+    return d;
+  }
+
+  function confirmar(titulo, texto, rotuloOk, perigo) {
+    return new Promise((resolver) => {
+      let resposta = false;
+      const btnOk = el('button', { type: 'button', class: 'btn ' + (perigo ? 'btn-perigo' : 'btn-primario') }, rotuloOk || 'Confirmar');
+      const d = abrirDialogo(titulo, el('p', null, texto), [
+        el('button', { type: 'button', class: 'btn btn-claro', onclick: () => d.close() }, 'Cancelar'),
+        btnOk
+      ]);
+      btnOk.addEventListener('click', () => { resposta = true; d.close(); });
+      d.addEventListener('close', () => resolver(resposta));
+    });
+  }
+
+  function aviso(titulo, texto) {
+    const d = abrirDialogo(titulo, el('p', null, texto), [
+      el('button', { type: 'button', class: 'btn btn-primario', onclick: () => d.close() }, 'Entendi')
+    ]);
+  }
+
+  // Reduz a imagem no navegador antes de enviar (regra do projeto: nada de arquivo gigante).
+  function reduzirImagem(arquivo, ladoMaximo) {
+    return new Promise((resolver, rejeitar) => {
+      const img = new Image();
+      img.onload = () => {
+        const escala = Math.min(1, ladoMaximo / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * escala);
+        c.height = Math.round(img.height * escala);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(img.src);
+        // WebP mantém transparência (brasão) e fica bem menor; PNG se o navegador não gerar WebP.
+        c.toBlob((b) => {
+          if (b && b.type === 'image/webp') resolver({ blob: b, ext: 'webp' });
+          else c.toBlob((p) => p ? resolver({ blob: p, ext: 'png' }) : rejeitar(new Error('Não foi possível ler a imagem.')), 'image/png');
+        }, 'image/webp', 0.9);
+      };
+      img.onerror = () => rejeitar(new Error('Arquivo de imagem inválido.'));
+      img.src = URL.createObjectURL(arquivo);
+    });
+  }
+
+  // PONTO ÚNICO DE ENVIO DE ARQUIVOS.
+  // Hoje grava no Storage da Supabase; na produção, trocar só esta função para o Cloudflare R2.
+  // Caminho: <órgão>/<módulo>/<nome aleatório>.<ext> — as regras do banco conferem a permissão pelo caminho.
+  const BUCKET = 'arquivos';
+  async function enviarArquivo(modulo, blob, ext, tipo) {
+    const caminho = estado.orgao.id + '/' + modulo + '/' + crypto.randomUUID() + '.' + ext;
+    const { error } = await sb.storage.from(BUCKET).upload(caminho, blob, { contentType: tipo || blob.type, upsert: false });
+    if (error) throw error;
+    return sb.storage.from(BUCKET).getPublicUrl(caminho).data.publicUrl;
+  }
+
+  // Apaga um arquivo antigo do nosso bucket (quando substituído). Falha silenciosa: não trava o salvamento.
+  async function apagarArquivo(url) {
+    if (!url) return;
+    const marca = '/storage/v1/object/public/' + BUCKET + '/';
+    const i = url.indexOf(marca);
+    if (i < 0) return;
+    try { await sb.storage.from(BUCKET).remove([url.slice(i + marca.length)]); } catch (e) { /* ignora */ }
+  }
+
+  const normalizar = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const ordemAlfabetica = (a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' });
+
+  // Registro das telas de cada módulo (preenchido pelos arquivos modulo-*.js).
+  window.PNTP = {
+    sb, estado, el, $, toast, msg, ocupado, erroCampo, traduzirErro, emailValido,
+    abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
+    normalizar, ordemAlfabetica, telas, iniciar, rotear
+  };
 })();

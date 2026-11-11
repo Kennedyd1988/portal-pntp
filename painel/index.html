@@ -37,7 +37,8 @@
         css.href = 'estilos.css' + q;
         document.head.appendChild(css);
         // Carrega em sequência: app.js depende de config.js.
-        ['config.js', 'app.js'].reduce(function (anterior, arq) {
+        // app.js primeiro (núcleo), depois as telas de cada módulo; no fim, inicia o painel.
+        ['config.js', 'app.js', 'modulo-aparencia.js', 'modulo-institucional.js'].reduce(function (anterior, arq) {
           return anterior.then(function () {
             return new Promise(function (ok, erro) {
               var s = document.createElement('script');
@@ -47,7 +48,7 @@
               document.body.appendChild(s);
             });
           });
-        }, Promise.resolve());
+        }, Promise.resolve()).then(function () { window.PNTP.iniciar(); });
       });
   })();
 </script>
