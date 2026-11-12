@@ -300,3 +300,17 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .checklist-pntp .futuro::before { content: "…"; color: var(--text-dim); font-weight: 700; }
 .seletor-outra { display: flex; flex-direction: column; gap: 6px; }
 .lista-noticias { width: 100%; margin-top: 6px; border: 1px solid var(--line); border-radius: var(--raio); padding: 4px; font: inherit; font-size: 14px; }
+
+/* Escolha da notícia do banner: cartões clicáveis em vez da lista nativa de várias linhas. */
+.escolha-atual { margin-bottom: 8px; }
+.escolha-noticias { margin-top: 8px; border: 1px solid var(--line); border-radius: var(--raio); max-height: 290px; overflow-y: auto; background: #fff; }
+.escolha-item { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; background: #fff; border: 0; border-bottom: 1px solid var(--line); padding: 10px 12px; font: inherit; cursor: pointer; color: var(--text); }
+.escolha-noticias .escolha-item:last-child { border-bottom: 0; }
+.escolha-item:hover { background: var(--ink); }
+.escolha-item:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.escolha-marcada { background: #e8f0fc !important; box-shadow: inset 4px 0 0 var(--brand); }
+.escolha-atual .escolha-item { border: 1px solid #b9cdf0; border-radius: var(--raio); cursor: default; }
+.escolha-foto { width: 72px; height: 44px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: var(--ink); border: 1px solid var(--line); }
+.escolha-foto-vazia { display: inline-block; }
+.escolha-textos { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.escolha-textos strong { font-size: 14px; line-height: 1.3; }

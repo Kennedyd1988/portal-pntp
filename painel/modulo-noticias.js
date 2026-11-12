@@ -284,37 +284,61 @@
       el('option', { value: 'nada', selected: tipoInicial === 'nada' }, 'Não abre nada'),
       el('option', { value: 'noticia', selected: tipoInicial === 'noticia' }, 'Abre uma notícia cadastrada'),
       el('option', { value: 'link', selected: tipoInicial === 'link' }, 'Abre um endereço (outro site, serviço…)'));
-    const busca = el('input', { type: 'search', placeholder: 'Digite parte do título', 'aria-label': 'Buscar notícia' });
-    const lista = el('select', { size: 6, class: 'lista-noticias' });
+    // Escolha da notícia: campo de busca + lista de cartões clicáveis (com foto, título e data).
+    // Substitui a lista nativa de várias linhas, que ficava minúscula dentro da janela.
+    const busca = el('input', { type: 'search', placeholder: 'Pesquisar pelo título', 'aria-label': 'Pesquisar notícia', 'aria-controls': 'bn-noticia-lista' });
+    const lista = el('div', { class: 'escolha-noticias', id: 'bn-noticia-lista', role: 'listbox', 'aria-label': 'Notícias' });
+    const escolhidaCaixa = el('div', { class: 'escolha-atual' });
     let escolhida = b.noticia_id || null;
+    let escolhidaDados = null;
+    const linhaNoticia = (n) => [
+      n.capa_url ? el('img', { src: n.capa_url, alt: '', class: 'escolha-foto' }) : el('span', { class: 'escolha-foto escolha-foto-vazia', 'aria-hidden': 'true' }),
+      el('span', { class: 'escolha-textos' }, el('strong', null, n.titulo),
+        el('span', { class: 'sub-linha' }, n.situacao === 'publicado' ? 'Publicada em ' + P.dataBR(n.publicado_em) : 'Rascunho (só abre depois de publicada)'))];
+    function mostrarEscolhida() {
+      if (!escolhidaDados) { escolhidaCaixa.replaceChildren(el('span', { class: 'ajuda' }, 'Nenhuma notícia escolhida. Clique em uma da lista abaixo.')); return; }
+      escolhidaCaixa.replaceChildren(el('div', { class: 'escolha-item escolha-marcada' }, ...linhaNoticia(escolhidaDados),
+        el('span', { class: 'etiqueta etiqueta-publicado' }, '✓ Escolhida')));
+    }
     async function buscar() {
-      let q = sb.from('noticias').select('id, titulo, publicado_em, situacao').eq('orgao_id', P.estado.orgao.id);
+      lista.replaceChildren(el('p', { class: 'ajuda', style: 'padding:10px' }, 'Carregando…'));
+      let q = sb.from('noticias').select('id, titulo, publicado_em, situacao, capa_url').eq('orgao_id', P.estado.orgao.id);
       const t = busca.value.trim();
       if (t) q = q.ilike('busca', '%' + normalizar(t).replace(/[%_]/g, '') + '%');
-      const { data } = await q.order('data_ordem', { ascending: false }).limit(20);
-      let itens = data || [];
-      // Mantém a notícia já escolhida visível mesmo fora dos 20 resultados.
-      if (escolhida && !itens.some((n) => n.id === escolhida)) {
-        const { data: atual } = await sb.from('noticias').select('id, titulo, publicado_em, situacao').eq('id', escolhida).maybeSingle();
-        if (atual) itens = [atual].concat(itens);
+      const { data } = await q.order('data_ordem', { ascending: false }).limit(12);
+      const itens = data || [];
+      if (escolhida && !escolhidaDados) {
+        escolhidaDados = itens.find((n) => n.id === escolhida) ||
+          (await sb.from('noticias').select('id, titulo, publicado_em, situacao, capa_url').eq('id', escolhida).maybeSingle()).data;
+        mostrarEscolhida();
       }
-      lista.replaceChildren(...itens.map((n) => el('option', { value: n.id, selected: n.id === escolhida },
-        n.titulo + ' — ' + (n.situacao === 'publicado' ? P.dataBR(n.publicado_em) : 'rascunho'))));
-      if (!itens.length) lista.replaceChildren(el('option', { disabled: true }, 'Nenhuma notícia encontrada'));
+      lista.replaceChildren(...itens.map((n) => {
+        const item = el('button', { type: 'button', role: 'option', class: 'escolha-item' + (n.id === escolhida ? ' escolha-marcada' : ''),
+          'aria-selected': n.id === escolhida ? 'true' : 'false' }, ...linhaNoticia(n));
+        item.addEventListener('click', () => {
+          escolhida = n.id; escolhidaDados = n;
+          lista.querySelectorAll('.escolha-item').forEach((x) => { x.classList.remove('escolha-marcada'); x.setAttribute('aria-selected', 'false'); });
+          item.classList.add('escolha-marcada'); item.setAttribute('aria-selected', 'true');
+          erroCampo('bn-noticia', '');
+          mostrarEscolhida();
+        });
+        return item;
+      }));
+      if (!itens.length) lista.replaceChildren(el('p', { class: 'ajuda', style: 'padding:10px' }, t ? 'Nenhuma notícia com "' + t + '".' : 'Nenhuma notícia cadastrada.'));
     }
     let espera;
     busca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(buscar, 300); });
-    lista.addEventListener('change', () => { escolhida = lista.value; });
-    lista.id = 'bn-noticia';
+    busca.id = 'bn-noticia';
+    mostrarEscolhida();
     const blocoNoticia = el('div', { class: 'campo' },
-      el('label', { for: 'bn-noticia' }, 'Notícia'), busca, lista,
-      el('span', { class: 'ajuda' }, 'Notícia em rascunho só abre no site depois de publicada.'),
+      el('label', { for: 'bn-noticia' }, 'Notícia'), escolhidaCaixa, busca, lista,
+      el('span', { class: 'ajuda' }, 'Mostra as 12 mais recentes; pesquise para achar outras.'),
       el('span', { class: 'erro-campo', id: 'bn-noticia-erro' }));
     const blocoLink = campo('bn-link', 'Endereço', inputLink);
     const alternar = () => {
       blocoNoticia.hidden = sel.value !== 'noticia';
       blocoLink.hidden = sel.value !== 'link';
-      if (sel.value === 'noticia' && !lista.options.length) buscar();
+      if (sel.value === 'noticia' && !lista.children.length) buscar();
     };
     sel.addEventListener('change', alternar);
     alternar();

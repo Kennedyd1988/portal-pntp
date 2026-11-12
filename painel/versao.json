@@ -1,7 +1,7 @@
 {
-  "versao": "0.6.3",
+  "versao": "0.6.4",
   "data": "2026-11-12",
   "notas": [
-    "Site: notícia em destaque sem espaço em branco (foto em 16:9 e trecho do texto ao lado)."
+    "Banner: escolha da notícia agora em lista de cartões com foto, título e data."
   ]
 }

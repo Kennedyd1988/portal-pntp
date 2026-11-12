@@ -205,6 +205,11 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 
 ## Histórico de mudanças
 
+**0.6.4 — 12/11/2026 — escolha da notícia no banner**
+- A notícia ligada ao banner era escolhida numa lista nativa de várias linhas, que ficava
+  minúscula dentro da janela. Agora: campo de pesquisa + lista de cartões clicáveis (foto, título,
+  data/situação), com a notícia escolhida em destaque no alto, marcada com "✓ Escolhida".
+
 **0.6.3 — 12/11/2026 — ajuste da notícia em destaque**
 - A foto de capa passava a definir a altura do cartão pela proporção original (fotos quadradas
   deixavam uma faixa branca grande embaixo do texto). Agora a foto fica sempre em 16:9, o texto
