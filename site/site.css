@@ -258,6 +258,12 @@ html.contraste .banner-pontos button[aria-current="true"] { background: #ffe600 
 :root { --destaque: #f2b33d; --destaque-escuro: #e0a01f; --destaque-texto: #1a2433; }
 .btn-transparencia { display: inline-flex; align-items: center; gap: 8px; background: var(--destaque); color: var(--destaque-texto) !important; border-radius: 10px; }
 .btn-transparencia:hover { background: var(--destaque-escuro); }
+/* Celular: a regra acima (display:inline-flex) vinha depois da que escondia o botão e
+   o trazia de volta por cima do nome do órgão. Agora ele desce para uma linha própria. */
+@media (max-width: 960px) {
+  .cabecalho-int { flex-wrap: wrap; row-gap: 12px; }
+  .btn-transparencia { order: 3; flex: 1 1 100%; justify-content: center; padding: 10px 14px; }
+}
 .faixa-transparencia { background: var(--destaque); color: var(--destaque-texto); }
 .faixa-transparencia h2, .faixa-transparencia p { color: var(--destaque-texto); }
 .faixa-transparencia .botao.botao-transparencia { background: var(--destaque-texto) !important; color: #fff !important; }
@@ -328,10 +334,6 @@ html.contraste .noticia-h, html.contraste .noticia-h-topo, html.contraste .notic
 
 /* ---------- Últimas publicações (página inicial) ---------- */
 .pub-barra { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.pub-abas { display: flex; gap: 6px; flex-wrap: wrap; }
-.pub-aba { border: 1px solid var(--linha); background: #fff; color: var(--texto); font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 999px; cursor: pointer; }
-.pub-aba:hover { border-color: var(--cor); color: var(--cor); }
-.pub-aba[aria-selected="true"] { background: var(--cor); border-color: var(--cor); color: #fff; }
 .pub-diario { padding: 8px 14px; }
 .pub-cartao { display: flex; gap: 14px; background: #fff; border: 1px solid var(--linha); border-radius: 14px; padding: 14px; }
 .pub-data { flex-shrink: 0; width: 64px; border-radius: 10px; background: var(--cor-clara); color: var(--cor-escura); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0; line-height: 1.1; align-self: flex-start; }
@@ -344,15 +346,9 @@ html.contraste .noticia-h, html.contraste .noticia-h-topo, html.contraste .notic
 .pub-texto p { margin: 0 0 8px; color: var(--texto-suave); font-size: .92rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pub-ver { margin-top: auto; font-weight: 600; text-decoration: none; font-size: .92rem; }
 .pub-ver:hover { text-decoration: underline; }
-html.contraste .pub-cartao, html.contraste .pub-data, html.contraste .pub-aba { background: #000 !important; border-color: #fff !important; }
-html.contraste .pub-aba[aria-selected="true"] { border: 2px solid #ffe600 !important; }
+html.contraste .pub-cartao, html.contraste .pub-data { background: #000 !important; border-color: #fff !important; }
 
 /* ---------- Planejamento e prestação de contas (v0.7.0) ---------- */
-/* Abas: rolam na horizontal em tela pequena (nenhuma fica inacessível). */
-.abas-contas { position: relative; display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 10px; margin: 8px 0 18px; border-bottom: 1px solid var(--linha); scrollbar-width: thin; }
-.aba-contas { flex: none; border: 1px solid var(--linha); background: #fff; color: var(--texto); font-weight: 600; padding: 8px 14px; border-radius: 999px; text-decoration: none; white-space: nowrap; }
-.aba-contas:hover { border-color: var(--cor); color: var(--cor); }
-.aba-contas[aria-selected="true"] { background: var(--cor); border-color: var(--cor); color: #fff; }
 .titulo-aba { margin: 0 0 4px; font-size: 1.35rem; }
 .exercicio-contas { margin-bottom: 26px; }
 .exercicio-contas h3 { font-size: 1.15rem; border-bottom: 2px solid var(--linha); padding-bottom: 6px; }
@@ -389,7 +385,44 @@ html.contraste .pub-aba[aria-selected="true"] { border: 2px solid #ffe600 !impor
 .transp-sem { color: var(--texto-suave, #6b7684); }
 .transp-cod { flex: none; align-self: center; font-size: .75rem; color: #4a5565; background: #f3f5f8; border-radius: 6px; padding: 2px 7px; }
 .transp-nota { margin-top: 18px; }
-html.contraste .transp-topo, html.contraste .transp-grupo, html.contraste .transp-status, html.contraste .transp-icone, html.contraste .transp-cod, html.contraste .aba-contas { background: #000 !important; border-color: #fff !important; color: #fff !important; }
-html.contraste .aba-contas[aria-selected="true"] { background: #ff0 !important; color: #000 !important; }
+html.contraste .transp-topo, html.contraste .transp-grupo, html.contraste .transp-status, html.contraste .transp-icone, html.contraste .transp-cod { background: #000 !important; border-color: #fff !important; color: #fff !important; }
 .transp-fundo { background: #f3f5f8; }
 html.contraste .transp-fundo { background: #000 !important; }
+
+/* ---------- Abas no estilo de navegador (v0.7.2) ----------
+   Usadas em "Últimas publicações" e em Planejamento e contas. A aba aberta tem a
+   mesma cor do painel e "cobre" a linha de baixo (margin-bottom: -1px), como uma
+   guia de navegador; as fechadas ficam recuadas e mais apagadas. Em tela pequena a
+   faixa rola de lado em vez de quebrar linha (nenhuma aba fica inacessível). */
+.abas-guia { position: relative; display: flex; align-items: flex-end; gap: 2px; overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid var(--linha); padding: 6px 4px 0; scrollbar-width: thin; }
+.aba-guia { position: relative; flex: none; display: inline-flex; align-items: center; height: 40px; padding: 0 18px; margin-bottom: -1px;
+  border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; background: transparent;
+  color: var(--texto-suave); font: inherit; font-size: .95rem; font-weight: 600; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.aba-guia:hover { background: #eef2f6; color: var(--texto); }
+/* separador fino entre abas fechadas, como no navegador */
+.aba-guia + .aba-guia::before { content: ""; position: absolute; left: -2px; top: 11px; bottom: 11px; width: 1px; background: var(--linha); }
+.aba-guia[aria-selected="true"]::before, .aba-guia[aria-selected="true"] + .aba-guia::before, .aba-guia:hover::before, .aba-guia:hover + .aba-guia::before { display: none; }
+.aba-guia[aria-selected="true"] { height: 44px; background: var(--fundo); border-color: var(--linha); color: var(--texto); z-index: 1;
+  box-shadow: inset 0 3px 0 var(--cor); padding-bottom: 1px; }
+.aba-guia[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--fundo); }
+.aba-guia:focus-visible { outline: 3px solid var(--cor); outline-offset: -3px; }
+.painel-guia { background: var(--fundo); border: 1px solid var(--linha); border-top: 0; border-radius: 0 0 12px 12px; padding: 22px; }
+.painel-guia:focus { outline: none; }
+.painel-guia .filtros select, .painel-guia .filtros input { background: #fff; }
+.pub-links { display: inline-flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+@media (max-width: 600px) { .aba-guia { padding: 0 14px; } .painel-guia { padding: 14px; border-radius: 0 0 10px 10px; } }
+html.contraste .aba-guia { background: #000 !important; color: #fff !important; border-color: #fff !important; }
+html.contraste .aba-guia[aria-selected="true"] { color: #ffe600 !important; box-shadow: inset 0 3px 0 #ffe600; }
+html.contraste .aba-guia[aria-selected="true"]::after { background: #000; }
+html.contraste .painel-guia { background: #000 !important; border-color: #fff !important; }
+
+/* Abas dentro de abas (exercícios em Planejamento e contas, v0.7.3): menores, e a
+   aba aberta e o painel interno ficam brancos para destacar do painel cinza de fora. */
+.abas-guia-interna { margin-top: 6px; }
+.aba-guia-p { height: 34px; padding: 0 14px; font-size: .88rem; }
+.aba-guia-p[aria-selected="true"] { height: 38px; background: #fff; box-shadow: inset 0 2px 0 var(--cor); }
+.aba-guia-p[aria-selected="true"]::after { background: #fff; }
+.painel-guia-interno { background: #fff; padding: 18px; }
+.painel-guia-interno .bloco-contas { background: var(--fundo); border-color: var(--linha); }
+.painel-guia-interno .bloco-contas:last-child { margin-bottom: 0; }
+html.contraste .aba-guia-p[aria-selected="true"]::after { background: #000; }

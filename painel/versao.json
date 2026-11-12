@@ -1,8 +1,7 @@
 {
-  "versao": "0.7.1",
+  "versao": "0.7.3",
   "data": "2026-11-12",
   "notas": [
-    "Site: capa do Portal da Transparência organizada pelos grupos do PNTP, com o número do critério em cada item.",
-    "Site: Planejamento e prestação de contas dividido em abas, uma para cada documento."
+    "Site: em Planejamento e prestação de contas, cada documento tem uma segunda faixa de abas com os exercícios."
   ]
 }

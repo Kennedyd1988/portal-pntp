@@ -227,12 +227,13 @@
   }
   function secaoPublicacoes(grupos) {
     const abas = grupos.filter((g) => g.itens.length);
-    const painel = el('div', { class: 'grade g3 pub-grade', role: 'tabpanel', id: 'painel-pub', tabindex: '0' });
-    const botoes = abas.map((g) => el('button', { type: 'button', role: 'tab', class: 'pub-aba', id: 'aba-pub-' + g.id, 'aria-controls': 'painel-pub' }, g.rotulo));
+    const grade = el('div', { class: 'grade g3 pub-grade' });
+    const painel = el('div', { class: 'painel-guia', role: 'tabpanel', id: 'painel-pub', tabindex: '0' }, grade);
+    const botoes = abas.map((g) => el('button', { type: 'button', role: 'tab', class: 'aba-guia', id: 'aba-pub-' + g.id, 'aria-controls': 'painel-pub' }, g.rotulo));
     function abrir(k) {
       botoes.forEach((b, i) => { b.setAttribute('aria-selected', i === k ? 'true' : 'false'); b.tabIndex = i === k ? 0 : -1; });
       painel.setAttribute('aria-labelledby', botoes[k].id);
-      painel.replaceChildren(...abas[k].itens.map(cartaoPublicacao));
+      grade.replaceChildren(...abas[k].itens.map(cartaoPublicacao));
     }
     botoes.forEach((b, k) => {
       b.addEventListener('click', () => abrir(k));
@@ -246,11 +247,12 @@
     abrir(0);
     const c = S.conf;
     return el('section', { class: 'secao', 'aria-labelledby': 'tit-pub' }, el('div', { class: 'limite' },
-      el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-pub' }, 'Últimas publicações'), el('a', { href: '#/publicacoes' }, 'Todas as publicações →')),
-      el('div', { class: 'pub-barra' },
-        el('div', { class: 'pub-abas', role: 'tablist', 'aria-label': 'Tipo de publicação' }, botoes),
-        c.diario_oficial_url ? el('a', { class: 'botao botao-claro pub-diario', href: c.diario_oficial_url, target: '_blank', rel: 'noopener' },
-          'Diário Oficial', el('span', { class: 'sr' }, ' (abre em nova aba)'), el('span', { 'aria-hidden': 'true' }, ' ↗')) : null),
+      el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-pub' }, 'Últimas publicações'),
+        el('span', { class: 'pub-links' },
+          c.diario_oficial_url ? el('a', { class: 'botao botao-claro pub-diario', href: c.diario_oficial_url, target: '_blank', rel: 'noopener' },
+            'Diário Oficial', el('span', { class: 'sr' }, ' (abre em nova aba)'), el('span', { 'aria-hidden': 'true' }, ' ↗')) : null,
+          el('a', { href: '#/publicacoes' }, 'Todas as publicações →'))),
+      el('div', { class: 'abas-guia', role: 'tablist', 'aria-label': 'Tipo de publicação' }, botoes),
       painel));
   }
 
@@ -899,12 +901,12 @@
     let tipo = partes[0] || ABAS_CONTAS[0][0];
     if (!CONTAS[tipo]) return R['*'](main);
     S.titulo('Planejamento e prestação de contas');
-    const conteudo = el('div', { id: 'painel-contas', role: 'tabpanel', tabindex: '-1' });
+    const conteudo = el('div', { id: 'painel-contas', class: 'painel-guia', role: 'tabpanel', tabindex: '-1' });
     // Aba trocada no lugar (sem recarregar a página nem voltar ao topo); o endereço
     // muda por replaceState para o link continuar compartilhável (#/planejamento/rreo).
-    const abas = ABAS_CONTAS.map(([t, rot]) => el('a', { class: 'aba-contas', href: '#/planejamento/' + t, role: 'tab', id: 'aba-' + t,
+    const abas = ABAS_CONTAS.map(([t, rot]) => el('a', { class: 'aba-guia', href: '#/planejamento/' + t, role: 'tab', id: 'aba-' + t,
       'aria-selected': t === tipo ? 'true' : 'false', 'aria-controls': 'painel-contas', tabindex: t === tipo ? '0' : '-1' }, rot));
-    const lista = el('div', { class: 'abas-contas', role: 'tablist', 'aria-label': 'Documentos' }, abas);
+    const lista = el('div', { class: 'abas-guia', role: 'tablist', 'aria-label': 'Documentos' }, abas);
     function escolher(t, focar) {
       tipo = t;
       for (const a of abas) { const sel = a.id === 'aba-' + t; a.setAttribute('aria-selected', sel ? 'true' : 'false'); a.tabIndex = sel ? 0 : -1; if (sel && focar) { a.focus(); a.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } }
@@ -916,7 +918,7 @@
       S.trilha(['Transparência', '#/transparencia'], ['Planejamento e contas', '#/planejamento'], [curtoContas(t)]);
       secaoContas(conteudo, t, t === partes[0] ? params : new URLSearchParams()).catch((e) => { console.error(e); conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); });
     }
-    lista.addEventListener('click', (e) => { const a = e.target.closest('a.aba-contas'); if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); escolher(a.id.slice(4), false); });
+    lista.addEventListener('click', (e) => { const a = e.target.closest('a.aba-guia'); if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); escolher(a.id.slice(4), false); });
     lista.addEventListener('keydown', (e) => {
       const i = ABAS_CONTAS.findIndex((x) => x[0] === tipo);
       const n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? ABAS_CONTAS.length - 1 : null;
@@ -929,104 +931,90 @@
     escolher(tipo, false);
   };
 
-  // Conteúdo de uma aba: série do tipo, agrupada por exercício (4 exercícios por vez).
+  // Conteúdo de uma aba de documento: segunda faixa de abas, uma por exercício
+  // (abas dentro de abas). Cada exercício é buscado só quando a aba é aberta.
   async function secaoContas(alvo, tipo, params) {
     const [nome, descricao] = CONTAS[tipo];
     const comPeriodo = tipo === 'rreo' || tipo === 'rgf';
-    const f = { exercicio: params.get('ano') || '', periodo: '', busca: '' };
-    const BLOCO = 4;
-    let ate = null, docs = [];   // ate = exercício mais recente do próximo bloco a buscar
-    let versao = 0;              // descarta respostas de uma busca anterior (filtro trocado rápido)
-    const montar = (sel, op) => {
-      let q = sb.from('documentos_contas').select(sel || CAMPOS_CONTAS, op).eq('orgao_id', org()).eq('tipo', tipo);
-      if (f.exercicio) q = q.eq('exercicio', parseInt(f.exercicio, 10));
-      if (f.periodo) q = q.eq('periodo', parseInt(f.periodo, 10));
-      if (f.busca) q = q.ilike('busca', termo(f.busca));
-      return q;
-    };
-    const lista = el('div', null, el('p', { class: 'carregando' }, 'Carregando…'));
-    const mais = el('div', { class: 'mais' });
-    const totalTxt = el('span', { class: 'meta', role: 'status' });
-
-    function desenhar() {
-      if (!docs.length) { lista.replaceChildren(el('p', { class: 'vazio' }, 'Nenhum documento publicado' + (f.exercicio || f.periodo || f.busca ? ' com esses filtros.' : ' ainda.'))); return; }
-      const anos = [...new Set(docs.map((d) => d.exercicio))].sort((a, b) => b - a);
-      lista.replaceChildren(...anos.map((a) => {
-        const doAno = docs.filter((d) => d.exercicio === a);
-        // Agrupa as partes (lei e anexos) do mesmo período.
-        const chaves = [...new Set(doAno.map((d) => (d.periodicidade || '') + ':' + (d.periodo || 0)))];
-        return el('section', { class: 'exercicio-contas' },
-          el('h3', null, doAno[0].exercicio_fim ? a + ' a ' + doAno[0].exercicio_fim : (tipo === 'parecer_tce' || tipo === 'julgamento_camara' ? 'Contas de ' + a : 'Exercício ' + a)),
-          chaves.map((ch) => {
-            const grupo = doAno.filter((d) => (d.periodicidade || '') + ':' + (d.periodo || 0) === ch).sort((x, y) => x.ordem - y.ordem);
-            const res = grupo.find((d) => d.resultado);
-            return el('div', { class: 'cartao bloco-contas' },
-              comPeriodo || res ? el('div', { class: 'cabeca-contas' },
-                comPeriodo ? el('strong', null, periodoContas(grupo[0])) : null,
-                res ? el('span', { class: 'etiqueta ' + RESULTADO_CONTAS[res.resultado][1] }, RESULTADO_CONTAS[res.resultado][0]) : null,
-                res && res.numero_ato ? el('span', { class: 'meta' }, res.numero_ato) : null) : null,
-              el('ul', { class: 'partes-contas' }, grupo.map((d) => {
-                const doc = d.arquivo_url || d.link_externo;
-                return el('li', null,
-                  doc ? el('a', { href: doc, target: '_blank', rel: 'noopener' }, d.parte, el('span', { class: 'sr' }, ' — ' + curtoContas(tipo) + ' ' + periodoContas(d) + (comPeriodo ? ' de ' + d.exercicio : '') + ' (abre em nova aba)'))
-                    : el('span', null, d.resultado === 'pendente' ? 'Contas ainda não apreciadas' : d.parte),
-                  el('span', { class: 'meta' }, (doc ? (d.arquivo_url ? 'PDF' : 'Link') + ' · ' : '') + 'publicado em ' + dataBR(d.data_publicacao) + (d.descricao ? ' · ' + d.descricao : '')));
-              })));
-          }));
-      }));
-    }
-
-    async function carregar(reiniciar) {
-      const minha = reiniciar ? ++versao : versao;
-      if (reiniciar) {
-        const [{ count }, topo] = await Promise.all([
-          montar('id', { count: 'exact', head: true }),
-          montar('exercicio').order('exercicio', { ascending: false }).limit(1)
-        ]);
-        if (minha !== versao) return;
-        docs = [];
-        const t = (topo.data || [])[0];
-        ate = t ? t.exercicio : null;
-        totalTxt.textContent = (count || 0) + (count === 1 ? ' documento encontrado' : ' documentos encontrados');
-      }
-      if (ate === null) { desenhar(); mais.replaceChildren(); return; }
-      const [pag, prox] = await Promise.all([
-        montar().lte('exercicio', ate).gt('exercicio', ate - BLOCO).order('exercicio', { ascending: false }).order('periodo', { ascending: true }).order('ordem').limit(1000),
-        montar('exercicio').lte('exercicio', ate - BLOCO).order('exercicio', { ascending: false }).limit(1)
-      ]);
-      if (pag.error) throw pag.error;
-      if (minha !== versao) return;
-      docs = docs.concat(pag.data || []);
-      const p = (prox.data || [])[0];
-      ate = p ? p.exercicio : null;
-      desenhar();
-      const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Exercícios anteriores');
-      btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
-      mais.replaceChildren(ate !== null ? btn : '');
-    }
-
-    const anoAtual = new Date().getFullYear();
-    const fAno = el('select', null, el('option', { value: '' }, 'Todos'),
-      Array.from({ length: 15 }, (_, k) => anoAtual + 1 - k).map((a) => el('option', { value: a, selected: String(a) === f.exercicio }, String(a))));
-    const fPer = el('select', null, el('option', { value: '' }, 'Todos'),
-      (tipo === 'rreo' ? [1, 2, 3, 4, 5, 6].map((b) => [b, b + 'º bimestre']) : [[1, '1º quadrimestre ou semestre'], [2, '2º quadrimestre ou semestre'], [3, '3º quadrimestre']])
-        .map(([v, t]) => el('option', { value: v }, t)));
-    const fBusca = el('input', { type: 'search', placeholder: 'Ex.: anexo, metas fiscais' });
-    let espera;
-    const aplicar = () => { Object.assign(f, { exercicio: fAno.value, periodo: comPeriodo ? fPer.value : '', busca: fBusca.value.trim() }); lista.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…')); carregar(true); };
-    [fAno, fPer].forEach((x) => x.addEventListener('change', aplicar));
-    fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
-    const exportar = S.botoesExportar(tipo.replace('_', '-'), COLUNAS_CONTAS, async (de, ate2) => {
-      const { data } = await montar().order('exercicio', { ascending: false }).order('periodo').order('ordem').order('id').range(de, ate2);
+    const exportar = S.botoesExportar(tipo.replace('_', '-'), COLUNAS_CONTAS, async (de, ate) => {
+      const { data } = await sb.from('documentos_contas').select(CAMPOS_CONTAS).eq('orgao_id', org()).eq('tipo', tipo)
+        .order('exercicio', { ascending: false }).order('periodo').order('ordem').order('id').range(de, ate);
       return data || [];
     });
-    alvo.replaceChildren(
-      el('h2', { class: 'titulo-aba' }, nome), el('p', { class: 'meta' }, descricao),
-      el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
-        el('label', null, 'Exercício', fAno), comPeriodo ? el('label', null, 'Período', fPer) : null, el('label', null, 'Pesquisar', fBusca)),
-      el('div', { class: 'barra-lista' }, totalTxt, exportar),
-      lista, mais);
-    await carregar(true);
+    alvo.replaceChildren(el('h2', { class: 'titulo-aba' }, nome), el('p', { class: 'meta' }, descricao), el('p', { class: 'carregando' }, 'Carregando…'));
+
+    // Lista de exercícios: só a coluna "exercicio" deste tipo (poucas linhas por ano),
+    // sem repetição. Não há "distinct" na API, por isso a deduplicação aqui.
+    const { data: anosBrutos, error } = await sb.from('documentos_contas').select('exercicio, exercicio_fim')
+      .eq('orgao_id', org()).eq('tipo', tipo).order('exercicio', { ascending: false }).limit(2000);
+    if (error) throw error;
+    const fimDe = {};
+    for (const r of anosBrutos || []) if (!(r.exercicio in fimDe)) fimDe[r.exercicio] = r.exercicio_fim;
+    const anos = Object.keys(fimDe).map(Number).sort((a, b) => b - a);
+    const cabecalho = el('div', { class: 'barra-lista' },
+      el('span', { class: 'meta' }, anos.length ? anos.length + (anos.length === 1 ? ' exercício publicado' : ' exercícios publicados') : ''), anos.length ? exportar : '');
+    if (!anos.length) {
+      alvo.replaceChildren(el('h2', { class: 'titulo-aba' }, nome), el('p', { class: 'meta' }, descricao), el('p', { class: 'vazio' }, 'Nenhum documento publicado ainda.'));
+      return;
+    }
+    const rotuloAno = (a) => fimDe[a] ? a + '–' + fimDe[a] : String(a);
+    const pedido = parseInt(params.get('ano'), 10);
+    let ano = anos.includes(pedido) ? pedido : anos[0];
+    const painel = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel', id: 'painel-ano', tabindex: '-1' });
+    const abas = anos.map((a) => el('a', { class: 'aba-guia aba-guia-p', href: '#/planejamento/' + tipo + '?ano=' + a, role: 'tab', id: 'aba-ano-' + a,
+      'aria-controls': 'painel-ano' }, rotuloAno(a)));
+    const lista = el('div', { class: 'abas-guia abas-guia-interna', role: 'tablist', 'aria-label': 'Exercício' }, abas);
+    let versao = 0;   // descarta resposta de um ano anterior se a aba for trocada rápido
+
+    async function abrirAno(a, focar) {
+      ano = a;
+      for (const x of abas) { const sel = x.id === 'aba-ano-' + a; x.setAttribute('aria-selected', sel ? 'true' : 'false'); x.tabIndex = sel ? 0 : -1; if (sel && focar) x.focus(); }
+      const ativa = abas.find((x) => x.id === 'aba-ano-' + a);
+      if (ativa.offsetLeft < lista.scrollLeft || ativa.offsetLeft + ativa.offsetWidth > lista.scrollLeft + lista.clientWidth) lista.scrollLeft = ativa.offsetLeft - 8;
+      painel.setAttribute('aria-labelledby', 'aba-ano-' + a);
+      history.replaceState(null, '', '#/planejamento/' + tipo + '?ano=' + a);
+      const minha = ++versao;
+      painel.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
+      const { data, error: e } = await sb.from('documentos_contas').select(CAMPOS_CONTAS).eq('orgao_id', org()).eq('tipo', tipo).eq('exercicio', a)
+        .order('periodo', { ascending: true }).order('ordem').order('id').limit(500);
+      if (minha !== versao) return;
+      if (e) { painel.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+      desenhar(data || []);
+    }
+
+    function desenhar(docs) {
+      if (!docs.length) { painel.replaceChildren(el('p', { class: 'vazio' }, 'Nenhum documento neste exercício.')); return; }
+      // Agrupa as partes (lei e anexos) do mesmo período.
+      const chaves = [...new Set(docs.map((d) => (d.periodicidade || '') + ':' + (d.periodo || 0)))];
+      painel.replaceChildren(
+        el('h3', { class: 'sr' }, (tipo === 'parecer_tce' || tipo === 'julgamento_camara' ? 'Contas de ' : 'Exercício ') + rotuloAno(ano)),
+        ...chaves.map((ch) => {
+          const grupo = docs.filter((d) => (d.periodicidade || '') + ':' + (d.periodo || 0) === ch).sort((x, y) => x.ordem - y.ordem);
+          const res = grupo.find((d) => d.resultado);
+          return el('div', { class: 'cartao bloco-contas' },
+            comPeriodo || res ? el('div', { class: 'cabeca-contas' },
+              comPeriodo ? el('strong', null, periodoContas(grupo[0])) : null,
+              res ? el('span', { class: 'etiqueta ' + RESULTADO_CONTAS[res.resultado][1] }, RESULTADO_CONTAS[res.resultado][0]) : null,
+              res && res.numero_ato ? el('span', { class: 'meta' }, res.numero_ato) : null) : null,
+            el('ul', { class: 'partes-contas' }, grupo.map((d) => {
+              const doc = d.arquivo_url || d.link_externo;
+              return el('li', null,
+                doc ? el('a', { href: doc, target: '_blank', rel: 'noopener' }, d.parte, el('span', { class: 'sr' }, ' — ' + curtoContas(tipo) + ' ' + periodoContas(d) + (comPeriodo ? ' de ' + d.exercicio : '') + ' (abre em nova aba)'))
+                  : el('span', null, d.resultado === 'pendente' ? 'Contas ainda não apreciadas' : d.parte),
+                el('span', { class: 'meta' }, (doc ? (d.arquivo_url ? 'PDF' : 'Link') + ' · ' : '') + 'publicado em ' + dataBR(d.data_publicacao) + (d.descricao ? ' · ' + d.descricao : '')));
+            })));
+        }));
+    }
+
+    lista.addEventListener('click', (e) => { const x = e.target.closest('a.aba-guia'); if (!x || e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); abrirAno(Number(x.id.slice(8)), false); });
+    lista.addEventListener('keydown', (e) => {
+      const i = anos.indexOf(ano);
+      const n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? anos.length - 1 : null;
+      if (n === null) return;
+      e.preventDefault(); abrirAno(anos[(n + anos.length) % anos.length], true);
+    });
+    alvo.replaceChildren(el('h2', { class: 'titulo-aba' }, nome), el('p', { class: 'meta' }, descricao), cabecalho, lista, painel);
+    await abrirAno(ano, false);
   }
 
   // ===================================================================

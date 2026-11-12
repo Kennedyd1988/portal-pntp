@@ -206,6 +206,28 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 
 ## Histórico de mudanças
 
+**0.7.3 — 12/11/2026 — exercícios em abas (abas dentro de abas)**
+- Em Planejamento e prestação de contas, dentro da aba de cada documento há uma segunda faixa
+  de abas, uma por exercício publicado (PPA e Plano Estratégico mostram o período, ex.:
+  "2026–2029"). Abre no exercício mais recente; cada exercício é buscado só quando a aba é aberta.
+- As abas internas são menores e brancas, para não se confundirem com as de fora.
+- O endereço guarda o exercício (`#/planejamento/rreo?ano=2025`): o link abre direto naquele ano
+  e os resultados da busca geral levam ao ano certo.
+- Saíram os filtros de exercício, período e pesquisa e o botão "Exercícios anteriores": as duas
+  faixas de abas fazem esse papel. O "Baixar CSV/JSON" continua e traz a série completa do documento.
+- A lista de exercícios vem de uma consulta só com a coluna `exercicio` daquele documento (a API
+  não tem "distinct"; os anos repetidos são removidos no navegador).
+
+**0.7.2 — 12/11/2026 — abas no estilo de navegador**
+- As abas em forma de pílula (pareciam botões) viraram guias de navegador: a aba aberta tem
+  cantos arredondados em cima, faixa colorida no topo e a mesma cor do painel de conteúdo,
+  "encaixada" nele; as fechadas ficam recuadas, sem fundo, separadas por um traço fino.
+  Estilo único (`.abas-guia`, `.aba-guia`, `.painel-guia`) usado em "Últimas publicações"
+  (página inicial) e em Planejamento e prestação de contas.
+- "Últimas publicações": o botão do Diário Oficial subiu para a linha do título, ao lado de
+  "Todas as publicações", para as abas ficarem coladas no conteúdo.
+- No alto contraste, a aba aberta fica com texto e faixa amarelos.
+
 **0.7.1 — 12/11/2026 — capa da transparência e abas de planejamento**
 - `#/transparencia` passa a ser a capa do Portal da Transparência no layout combinado: faixa azul
   com busca e "mais acessados", faixa de situação (última atualização, exercícios disponíveis,
