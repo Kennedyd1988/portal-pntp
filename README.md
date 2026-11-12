@@ -205,6 +205,16 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 
 ## Histórico de mudanças
 
+**0.6.5 — 12/11/2026 — "Últimas publicações" na página inicial**
+- Substitui a lista simples "Publicações oficiais": cartões com bloco de data (dia/mês/ano), tipo,
+  situação do ato quando não está vigente, número/ano, ementa em duas linhas e "Ver documento".
+- Abas Todas, Leis, Decretos, Portarias e Editais (só aparecem as que têm publicação), com troca
+  pelas setas do teclado; uma consulta pequena (6 itens) por aba. Atalho para o Diário Oficial.
+- "Gestão" passa a ter faixa própria logo abaixo.
+- `supabase/teste_publicacoes_ficticias.sql`: 19 publicações fictícias para ver o layout (não faz
+  parte da instalação; têm o link terminado em "?teste=1" e há um comando no fim para apagá-las).
+- Licitações e contratos entram nesta seção como novas abas na Fase 2.
+
 **0.6.4 — 12/11/2026 — escolha da notícia no banner**
 - A notícia ligada ao banner era escolhida numa lista nativa de várias linhas, que ficava
   minúscula dentro da janela. Agora: campo de pesquisa + lista de cartões clicáveis (foto, título,

@@ -325,3 +325,24 @@ html.contraste .noticia-h, html.contraste .noticia-h-topo, html.contraste .notic
 .noticia-h-grande .noticia-h-mais { margin-top: 6px; }
 .noticia-h-trecho { -webkit-line-clamp: 4 !important; color: var(--texto) !important; }
 .noticia-h:not(.noticia-h-grande) .noticia-h-mais { margin-top: 4px; }
+
+/* ---------- Últimas publicações (página inicial) ---------- */
+.pub-barra { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.pub-abas { display: flex; gap: 6px; flex-wrap: wrap; }
+.pub-aba { border: 1px solid var(--linha); background: #fff; color: var(--texto); font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 999px; cursor: pointer; }
+.pub-aba:hover { border-color: var(--cor); color: var(--cor); }
+.pub-aba[aria-selected="true"] { background: var(--cor); border-color: var(--cor); color: #fff; }
+.pub-diario { padding: 8px 14px; }
+.pub-cartao { display: flex; gap: 14px; background: #fff; border: 1px solid var(--linha); border-radius: 14px; padding: 14px; }
+.pub-data { flex-shrink: 0; width: 64px; border-radius: 10px; background: var(--cor-clara); color: var(--cor-escura); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0; line-height: 1.1; align-self: flex-start; }
+.pub-dia { font-size: 1.6rem; font-weight: 800; }
+.pub-mes { font-size: .8rem; font-weight: 700; text-transform: uppercase; }
+.pub-ano { font-size: .72rem; opacity: .8; }
+.pub-texto { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.pub-etiquetas { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.pub-texto h3 { font-size: 1rem; margin: 0 0 4px; }
+.pub-texto p { margin: 0 0 8px; color: var(--texto-suave); font-size: .92rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pub-ver { margin-top: auto; font-weight: 600; text-decoration: none; font-size: .92rem; }
+.pub-ver:hover { text-decoration: underline; }
+html.contraste .pub-cartao, html.contraste .pub-data, html.contraste .pub-aba { background: #000 !important; border-color: #fff !important; }
+html.contraste .pub-aba[aria-selected="true"] { border: 2px solid #ffe600 !important; }

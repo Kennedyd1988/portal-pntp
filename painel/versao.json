@@ -1,7 +1,7 @@
 {
-  "versao": "0.6.4",
+  "versao": "0.6.5",
   "data": "2026-11-12",
   "notas": [
-    "Banner: escolha da notícia agora em lista de cartões com foto, título e data."
+    "Site: seção \"Últimas publicações\" na página inicial, com abas por tipo de ato e atalho para o Diário Oficial."
   ]
 }

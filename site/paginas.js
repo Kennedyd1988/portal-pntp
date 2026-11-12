@@ -120,13 +120,12 @@
       sb.from('banners').select('*').eq('orgao_id', org()).eq('ativo', true).order('ordem').limit(8),
       sb.from('noticias').select('id, titulo, resumo, conteudo, capa_url, capa_legenda, categoria, publicado_em, destaque').eq('orgao_id', org())
         .lte('publicado_em', agora).order('publicado_em', { ascending: false }).limit(7),
-      sb.from('publicacoes').select('id, tipo, numero, ano, data_publicacao, ementa').eq('orgao_id', org())
-        .order('data_publicacao', { ascending: false }).limit(5),
+      ultimasPublicacoes(),
       sb.from('gestores').select('*').eq('orgao_id', org()).eq('destaque_capa', true).order('ordem').limit(8),
       sb.from('servicos').select('id, nome, categoria, link_digital').eq('orgao_id', org())
         .in('forma_prestacao', ['digital', 'presencial_digital']).order('nome').limit(6)
     ]);
-    const banners = bn.data || [], noticias = nt.data || [], pubs = pb.data || [], gestores = gs.data || [], digitais = sv.data || [];
+    const banners = bn.data || [], noticias = nt.data || [], pubs = pb, gestores = gs.data || [], digitais = sv.data || [];
     // A notícia grande é a mais recente; se alguma das recentes foi marcada como
     // "Destacar na página inicial", ela ocupa o lugar.
     const destaque = noticias.find((n) => n.destaque) || noticias[0];
@@ -174,19 +173,13 @@
           el('strong', null, s.nome), el('span', { class: 'meta', style: 'display:block' }, (s.categoria ? s.categoria + ' · ' : '') + 'Pedido sem ir ao balcão')))))));
     }
 
-    const colunas = [];
-    if (pubs.length) colunas.push(el('div', null,
-      el('div', { class: 'secao-titulo' }, el('h2', null, 'Publicações oficiais'), el('a', { href: '#/publicacoes' }, 'Ver todas →')),
-      el('ul', { style: 'list-style:none;padding:0;margin:0' }, pubs.map((p) => el('li', { style: 'padding:10px 0;border-bottom:1px solid var(--linha)' },
-        el('a', { href: '#/publicacoes?q=' + encodeURIComponent((p.numero || '') + ' ' + p.ano) }, el('strong', null, ato(p))),
-        el('span', { class: 'meta', style: 'display:block' }, dataBR(p.data_publicacao) + ' · ' + p.ementa))))));
+    if (pubs.some((g) => g.itens.length)) blocos.push(secaoPublicacoes(pubs));
     if (gestores.length) {
       await S.carregarUnidades();
-      colunas.push(el('div', null,
-        el('div', { class: 'secao-titulo' }, el('h2', null, 'Gestão'), el('a', { href: '#/gestores' }, 'Todos os gestores →')),
-        el('div', { class: 'grade g2' }, gestores.map(cartaoGestor))));
+      blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-gestao' }, el('div', { class: 'limite' },
+        el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-gestao' }, 'Gestão'), el('a', { href: '#/gestores' }, 'Todos os gestores →')),
+        el('div', { class: 'grade g4' }, gestores.map(cartaoGestor)))));
     }
-    if (colunas.length) blocos.push(el('section', { class: 'secao' }, el('div', { class: 'limite grade ' + (colunas.length > 1 ? 'g2' : '') }, colunas)));
 
     const redes = S.redesDoOrgao(c);
     if (redes.length) blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-redes' }, el('div', { class: 'limite' },
@@ -195,6 +188,71 @@
 
     main.replaceChildren(...blocos);
   };
+
+  // ---------- ÚLTIMAS PUBLICAÇÕES (abas por tipo de ato) ----------
+  // Uma consulta pequena por aba (6 itens), para cada aba trazer os seus mais recentes
+  // mesmo que outro tipo seja muito mais frequente. Aba sem publicação não aparece.
+  const ABAS_PUB = [
+    ['todas', 'Todas', null],
+    ['leis', 'Leis', ['lei', 'lei_complementar', 'lei_organica', 'emenda_lei_organica']],
+    ['decretos', 'Decretos', ['decreto']],
+    ['portarias', 'Portarias', ['portaria']],
+    ['editais', 'Editais', ['edital']]
+  ];
+  async function ultimasPublicacoes() {
+    return Promise.all(ABAS_PUB.map(async ([id, rotulo, tipos]) => {
+      let q = sb.from('publicacoes').select('id, tipo, numero, ano, data_publicacao, ementa, vigencia, arquivo_url, link_externo').eq('orgao_id', org());
+      if (tipos) q = q.in('tipo', tipos);
+      const { data } = await q.order('data_publicacao', { ascending: false }).order('id', { ascending: false }).limit(6);
+      return { id, rotulo, itens: data || [] };
+    }));
+  }
+  const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  function cartaoPublicacao(p) {
+    const d = new Date(p.data_publicacao + 'T12:00:00');
+    const doc = p.arquivo_url || p.link_externo;
+    return el('article', { class: 'pub-cartao' },
+      el('div', { class: 'pub-data', 'aria-hidden': 'true' },
+        el('span', { class: 'pub-dia' }, String(d.getDate()).padStart(2, '0')),
+        el('span', { class: 'pub-mes' }, MESES[d.getMonth()]), el('span', { class: 'pub-ano' }, String(d.getFullYear()))),
+      el('div', { class: 'pub-texto' },
+        el('div', { class: 'pub-etiquetas' }, el('span', { class: 'etiqueta' }, TIPOS[p.tipo] || p.tipo),
+          p.vigencia !== 'vigente' ? el('span', { class: 'etiqueta ' + COR_VIG[p.vigencia] }, VIGENCIA[p.vigencia]) : null),
+        el('h3', null, ato(p)),
+        el('span', { class: 'sr' }, 'Publicado em ' + dataBR(p.data_publicacao) + '. '),
+        el('p', null, p.ementa),
+        doc ? el('a', { class: 'pub-ver', href: doc, target: '_blank', rel: 'noopener' }, 'Ver documento',
+          el('span', { class: 'sr' }, ' de ' + ato(p) + ' (abre em nova aba)'), el('span', { 'aria-hidden': 'true' }, ' →'))
+          : el('a', { class: 'pub-ver', href: '#/publicacoes?q=' + encodeURIComponent((p.numero || '') + ' ' + p.ano) }, 'Ver na lista →')));
+  }
+  function secaoPublicacoes(grupos) {
+    const abas = grupos.filter((g) => g.itens.length);
+    const painel = el('div', { class: 'grade g3 pub-grade', role: 'tabpanel', id: 'painel-pub', tabindex: '0' });
+    const botoes = abas.map((g) => el('button', { type: 'button', role: 'tab', class: 'pub-aba', id: 'aba-pub-' + g.id, 'aria-controls': 'painel-pub' }, g.rotulo));
+    function abrir(k) {
+      botoes.forEach((b, i) => { b.setAttribute('aria-selected', i === k ? 'true' : 'false'); b.tabIndex = i === k ? 0 : -1; });
+      painel.setAttribute('aria-labelledby', botoes[k].id);
+      painel.replaceChildren(...abas[k].itens.map(cartaoPublicacao));
+    }
+    botoes.forEach((b, k) => {
+      b.addEventListener('click', () => abrir(k));
+      // Setas do teclado trocam de aba (padrão de abas acessíveis).
+      b.addEventListener('keydown', (ev) => {
+        if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft') return;
+        const n = (k + (ev.key === 'ArrowRight' ? 1 : -1) + botoes.length) % botoes.length;
+        abrir(n); botoes[n].focus();
+      });
+    });
+    abrir(0);
+    const c = S.conf;
+    return el('section', { class: 'secao', 'aria-labelledby': 'tit-pub' }, el('div', { class: 'limite' },
+      el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-pub' }, 'Últimas publicações'), el('a', { href: '#/publicacoes' }, 'Todas as publicações →')),
+      el('div', { class: 'pub-barra' },
+        el('div', { class: 'pub-abas', role: 'tablist', 'aria-label': 'Tipo de publicação' }, botoes),
+        c.diario_oficial_url ? el('a', { class: 'botao botao-claro pub-diario', href: c.diario_oficial_url, target: '_blank', rel: 'noopener' },
+          'Diário Oficial', el('span', { class: 'sr' }, ' (abre em nova aba)'), el('span', { 'aria-hidden': 'true' }, ' ↗')) : null),
+      painel));
+  }
 
   // Carrossel acessível: pausa ao passar o mouse/focar, botão de pausa, sem rodar se o usuário pede menos movimento.
   // Banners deslizam para o lado (trilho com translateX). Os que estão fora da tela
