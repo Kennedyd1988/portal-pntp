@@ -206,6 +206,20 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 
 ## Histórico de mudanças
 
+**0.7.1 — 12/11/2026 — capa da transparência e abas de planejamento**
+- `#/transparencia` passa a ser a capa do Portal da Transparência no layout combinado: faixa azul
+  com busca e "mais acessados", faixa de situação (última atualização, exercícios disponíveis,
+  formatos, dados abertos) e cartões por grupo do PNTP, cada item com o número do critério.
+  Os grupos mudam conforme o tipo de órgão (Prefeitura, Câmara, Consórcio). Itens que já existem
+  no portal abrem a página interna; receitas, despesas, pessoal, diárias, convênios e obras abrem
+  o sistema externo (`transparencia_url`); licitações e contratos usam `licitacoes_url`. Item sem
+  endereço aparece sem link, para não levar a página quebrada.
+- `#/planejamento` dividido em abas, uma por documento (PPA, LDO, LOA, Plano Estratégico, RREO,
+  RGF, Balanço, Relatório de Gestão, Parecer TCE, Julgamento Câmara). A troca de aba acontece no
+  lugar (sem voltar ao topo) e o endereço muda para `#/planejamento/<tipo>`, que continua valendo
+  como link direto. Setas do teclado trocam de aba; no celular a faixa de abas rola de lado e a
+  aba escolhida é trazida para a área visível.
+
 **0.7.0 — 12/11/2026 — Fase 2 · Lote 6: planejamento e prestação de contas (PNTP 11.1 a 11.10)**
 - Novo módulo no painel, com um cadastro só para os dez instrumentos. Cada linha é um arquivo: a
   lei e os anexos do mesmo instrumento são linhas com a mesma identificação e "parte" diferente, e

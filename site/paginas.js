@@ -878,7 +878,6 @@
     julgamento_camara: ['Julgamento das contas pela Câmara', 'Resultado do julgamento das contas anuais pelo Poder Legislativo.', 'Prestação de contas']
   };
   const RESULTADO_CONTAS = { aprovadas: ['Aprovadas', 'etiqueta-verde'], aprovadas_ressalvas: ['Aprovadas com ressalvas', 'etiqueta-ambar'], rejeitadas: ['Rejeitadas', 'etiqueta-vermelha'], pendente: ['Pendente de apreciação', 'etiqueta-ambar'] };
-  const GRUPOS_CONTAS = ['Planejamento', 'Gestão fiscal', 'Prestação de contas'];
   const curtoContas = (t) => CONTAS[t][0].split(' – ')[0];
   function periodoContas(d) {
     if (d.tipo === 'rreo') return d.periodo + 'º bimestre';
@@ -892,35 +891,52 @@
     ['numero_ato', 'Número do ato'], ['data_publicacao', 'Data de publicação'], ['descricao', 'Observação'], ['documento', 'Documento', (v, r) => r.arquivo_url || r.link_externo || '']];
   const CAMPOS_CONTAS = 'id, tipo, exercicio, exercicio_fim, periodicidade, periodo, parte, descricao, resultado, numero_ato, data_publicacao, arquivo_url, link_externo, ordem';
 
-  R.planejamento = async function (main, partes, params) {
-    const tipo = partes[0];
-    if (tipo && !CONTAS[tipo]) return R['*'](main);
-    if (!tipo) {
-      S.titulo('Planejamento e prestação de contas'); S.trilha(['Transparência', '#/transparencia'], ['Planejamento e prestação de contas']);
-      // Último exercício publicado de cada tipo (uma consulta curta por tipo, em paralelo).
-      const ultimos = await Promise.all(Object.keys(CONTAS).map((t) => sb.from('documentos_contas').select('exercicio, exercicio_fim, periodo, periodicidade, tipo')
-        .eq('orgao_id', org()).eq('tipo', t).order('exercicio', { ascending: false }).order('periodo', { ascending: false, nullsFirst: false }).limit(1)));
-      const ult = {}; Object.keys(CONTAS).forEach((t, k) => { ult[t] = (ultimos[k].data || [])[0]; });
-      const exportar = S.botoesExportar('planejamento-e-contas', COLUNAS_CONTAS, async (de, ate) => {
-        const { data } = await sb.from('documentos_contas').select(CAMPOS_CONTAS).eq('orgao_id', org()).order('tipo').order('exercicio', { ascending: false }).order('periodo').order('ordem').order('id').range(de, ate);
-        return data || [];
-      });
-      pagina(main, el('h1', null, 'Planejamento e prestação de contas'),
-        el('p', { class: 'sub' }, 'Leis do orçamento, relatórios fiscais da LRF e as contas anuais, com o parecer do Tribunal de Contas e o julgamento pela Câmara.'),
-        el('div', { class: 'barra-lista' }, el('span', { class: 'meta' }, 'Escolha o documento para ver a série completa.'), exportar),
-        GRUPOS_CONTAS.map((g) => el('section', { style: 'margin-bottom:28px' }, el('h2', null, g),
-          el('div', { class: 'grade g3' }, Object.entries(CONTAS).filter(([, v]) => v[2] === g).map(([t, v]) => el('a', { class: 'cartao cartao-contas', href: '#/planejamento/' + t },
-            el('strong', null, v[0]), el('span', { class: 'meta', style: 'display:block;margin-top:6px' }, v[1]),
-            el('span', { class: 'ultimo-contas' }, ult[t] ? 'Mais recente: ' + (ult[t].periodo ? periodoContas(ult[t]) + ' de ' + ult[t].exercicio : ult[t].exercicio_fim ? ult[t].exercicio + '–' + ult[t].exercicio_fim : ult[t].exercicio) : 'Nenhum documento publicado')))))));
-      return;
-    }
+  // Abas de Planejamento e contas: uma por tipo, na ordem dos grupos.
+  const ABAS_CONTAS = [['ppa', 'PPA'], ['ldo', 'LDO'], ['loa', 'LOA'], ['plano_estrategico', 'Plano Estratégico'], ['rreo', 'RREO'], ['rgf', 'RGF'],
+    ['balanco', 'Balanço'], ['relatorio_gestao', 'Relatório de Gestão'], ['parecer_tce', 'Parecer TCE'], ['julgamento_camara', 'Julgamento Câmara']];
 
+  R.planejamento = async function (main, partes, params) {
+    let tipo = partes[0] || ABAS_CONTAS[0][0];
+    if (!CONTAS[tipo]) return R['*'](main);
+    S.titulo('Planejamento e prestação de contas');
+    const conteudo = el('div', { id: 'painel-contas', role: 'tabpanel', tabindex: '-1' });
+    // Aba trocada no lugar (sem recarregar a página nem voltar ao topo); o endereço
+    // muda por replaceState para o link continuar compartilhável (#/planejamento/rreo).
+    const abas = ABAS_CONTAS.map(([t, rot]) => el('a', { class: 'aba-contas', href: '#/planejamento/' + t, role: 'tab', id: 'aba-' + t,
+      'aria-selected': t === tipo ? 'true' : 'false', 'aria-controls': 'painel-contas', tabindex: t === tipo ? '0' : '-1' }, rot));
+    const lista = el('div', { class: 'abas-contas', role: 'tablist', 'aria-label': 'Documentos' }, abas);
+    function escolher(t, focar) {
+      tipo = t;
+      for (const a of abas) { const sel = a.id === 'aba-' + t; a.setAttribute('aria-selected', sel ? 'true' : 'false'); a.tabIndex = sel ? 0 : -1; if (sel && focar) { a.focus(); a.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } }
+      // No celular as abas rolam de lado: traz a escolhida para dentro da faixa visível.
+      const ativa = abas.find((x) => x.id === 'aba-' + t);
+      if (ativa.offsetLeft < lista.scrollLeft || ativa.offsetLeft + ativa.offsetWidth > lista.scrollLeft + lista.clientWidth) lista.scrollLeft = ativa.offsetLeft - 8;
+      conteudo.setAttribute('aria-labelledby', 'aba-' + t);
+      history.replaceState(null, '', '#/planejamento/' + t);
+      S.trilha(['Transparência', '#/transparencia'], ['Planejamento e contas', '#/planejamento'], [curtoContas(t)]);
+      secaoContas(conteudo, t, t === partes[0] ? params : new URLSearchParams()).catch((e) => { console.error(e); conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); });
+    }
+    lista.addEventListener('click', (e) => { const a = e.target.closest('a.aba-contas'); if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); escolher(a.id.slice(4), false); });
+    lista.addEventListener('keydown', (e) => {
+      const i = ABAS_CONTAS.findIndex((x) => x[0] === tipo);
+      const n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? ABAS_CONTAS.length - 1 : null;
+      if (n === null) return;
+      e.preventDefault(); escolher(ABAS_CONTAS[(n + ABAS_CONTAS.length) % ABAS_CONTAS.length][0], true);
+    });
+    pagina(main, el('h1', null, 'Planejamento e prestação de contas'),
+      el('p', { class: 'sub' }, 'Leis do orçamento, relatórios fiscais da LRF e as contas anuais, com o parecer do Tribunal de Contas e o julgamento pela Câmara.'),
+      lista, conteudo);
+    escolher(tipo, false);
+  };
+
+  // Conteúdo de uma aba: série do tipo, agrupada por exercício (4 exercícios por vez).
+  async function secaoContas(alvo, tipo, params) {
     const [nome, descricao] = CONTAS[tipo];
-    S.titulo(curtoContas(tipo)); S.trilha(['Transparência', '#/transparencia'], ['Planejamento e contas', '#/planejamento'], [curtoContas(tipo)]);
     const comPeriodo = tipo === 'rreo' || tipo === 'rgf';
     const f = { exercicio: params.get('ano') || '', periodo: '', busca: '' };
     const BLOCO = 4;
     let ate = null, docs = [];   // ate = exercício mais recente do próximo bloco a buscar
+    let versao = 0;              // descarta respostas de uma busca anterior (filtro trocado rápido)
     const montar = (sel, op) => {
       let q = sb.from('documentos_contas').select(sel || CAMPOS_CONTAS, op).eq('orgao_id', org()).eq('tipo', tipo);
       if (f.exercicio) q = q.eq('exercicio', parseInt(f.exercicio, 10));
@@ -928,7 +944,7 @@
       if (f.busca) q = q.ilike('busca', termo(f.busca));
       return q;
     };
-    const lista = el('div');
+    const lista = el('div', null, el('p', { class: 'carregando' }, 'Carregando…'));
     const mais = el('div', { class: 'mais' });
     const totalTxt = el('span', { class: 'meta', role: 'status' });
 
@@ -940,7 +956,7 @@
         // Agrupa as partes (lei e anexos) do mesmo período.
         const chaves = [...new Set(doAno.map((d) => (d.periodicidade || '') + ':' + (d.periodo || 0)))];
         return el('section', { class: 'exercicio-contas' },
-          el('h2', null, doAno[0].exercicio_fim ? a + ' a ' + doAno[0].exercicio_fim : (tipo === 'parecer_tce' || tipo === 'julgamento_camara' ? 'Contas de ' + a : 'Exercício ' + a)),
+          el('h3', null, doAno[0].exercicio_fim ? a + ' a ' + doAno[0].exercicio_fim : (tipo === 'parecer_tce' || tipo === 'julgamento_camara' ? 'Contas de ' + a : 'Exercício ' + a)),
           chaves.map((ch) => {
             const grupo = doAno.filter((d) => (d.periodicidade || '') + ':' + (d.periodo || 0) === ch).sort((x, y) => x.ordem - y.ordem);
             const res = grupo.find((d) => d.resultado);
@@ -961,23 +977,26 @@
     }
 
     async function carregar(reiniciar) {
+      const minha = reiniciar ? ++versao : versao;
       if (reiniciar) {
-        docs = [];
         const [{ count }, topo] = await Promise.all([
           montar('id', { count: 'exact', head: true }),
           montar('exercicio').order('exercicio', { ascending: false }).limit(1)
         ]);
+        if (minha !== versao) return;
+        docs = [];
         const t = (topo.data || [])[0];
         ate = t ? t.exercicio : null;
         totalTxt.textContent = (count || 0) + (count === 1 ? ' documento encontrado' : ' documentos encontrados');
       }
       if (ate === null) { desenhar(); mais.replaceChildren(); return; }
-      // Bloco de 4 exercícios: o filtro por exercício já limita a 1 ano.
-      const { data, error } = await montar().lte('exercicio', ate).gt('exercicio', ate - BLOCO)
-        .order('exercicio', { ascending: false }).order('periodo', { ascending: true }).order('ordem').limit(1000);
-      if (error) throw error;
-      docs = docs.concat(data || []);
-      const prox = await montar('exercicio').lte('exercicio', ate - BLOCO).order('exercicio', { ascending: false }).limit(1);
+      const [pag, prox] = await Promise.all([
+        montar().lte('exercicio', ate).gt('exercicio', ate - BLOCO).order('exercicio', { ascending: false }).order('periodo', { ascending: true }).order('ordem').limit(1000),
+        montar('exercicio').lte('exercicio', ate - BLOCO).order('exercicio', { ascending: false }).limit(1)
+      ]);
+      if (pag.error) throw pag.error;
+      if (minha !== versao) return;
+      docs = docs.concat(pag.data || []);
       const p = (prox.data || [])[0];
       ate = p ? p.exercicio : null;
       desenhar();
@@ -1001,35 +1020,139 @@
       const { data } = await montar().order('exercicio', { ascending: false }).order('periodo').order('ordem').order('id').range(de, ate2);
       return data || [];
     });
-    pagina(main, el('h1', null, nome), el('p', { class: 'sub' }, descricao),
+    alvo.replaceChildren(
+      el('h2', { class: 'titulo-aba' }, nome), el('p', { class: 'meta' }, descricao),
       el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
         el('label', null, 'Exercício', fAno), comPeriodo ? el('label', null, 'Período', fPer) : null, el('label', null, 'Pesquisar', fBusca)),
       el('div', { class: 'barra-lista' }, totalTxt, exportar),
-      lista, mais,
-      el('p', { class: 'meta', style: 'margin-top:24px' }, 'Outros documentos: ',
-        Object.keys(CONTAS).filter((t) => t !== tipo).map((t, k) => [k ? ' · ' : '', el('a', { href: '#/planejamento/' + t }, curtoContas(t))])));
+      lista, mais);
     await carregar(true);
-  };
+  }
 
-  // Transparência: o que já está no portal + o sistema externo (receitas, despesas, folha).
-  R.transparencia = async function (main) {
-    S.titulo('Transparência'); S.trilha(['Transparência']);
+  // ===================================================================
+  // TRANSPARÊNCIA: capa organizada pelos grupos do PNTP (Atricon).
+  // Cada item leva à seção do portal quando ela já existe aqui; o resto
+  // (receitas, despesas, pessoal…) vai para o sistema externo informado
+  // no painel. O número do critério aparece ao lado de cada item.
+  // ===================================================================
+  const IC_T = {
+    receita: 'M12 3v18 M16.5 7.5c0-1.7-2-2.8-4.5-2.8S7.5 5.8 7.5 7.5s2 2.4 4.5 2.8 4.5 1.4 4.5 3.2-2 3-4.5 3-4.5-1.2-4.5-3',
+    despesa: 'M3 6h18v13H3z M3 10h18 M7 15h4',
+    licit: 'M9 3h6v4H9z M7 5H5v16h14V5h-2 M8 12h8 M8 16h5',
+    contrato: 'M6 3h9l4 4v14H6z M9 14l2 2 4-4',
+    pessoas: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M2 21c0-3.9 3.1-6 7-6s7 2.1 7 6 M16 4a3.5 3.5 0 0 1 0 7 M22 20c0-2.6-1.6-4.4-4-5',
+    viagem: 'M3 11l18-7-6 17-3-7z',
+    obra: 'M3 21h18 M5 21V10l7-5 7 5v11 M10 21v-5h4v5',
+    convenio: 'M8 12l3 3 5-6 M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0',
+    chat: 'M4 5h16v11H9l-5 4z M8 9h8 M8 12h5',
+    ouvido: 'M4 13a8 8 0 0 1 16 0v5a2 2 0 0 1-2 2h-1v-6h3 M4 14h3v6H6a2 2 0 0 1-2-2z',
+    lock: 'M6 11h12v10H6z M8 11V7a4 4 0 0 1 8 0v4',
+    saude: 'M12 20s-8-4.8-8-10.5A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 8 2.5C20 15.2 12 20 12 20z',
+    edu: 'M2 9l10-5 10 5-10 5z M6 11v5c3.5 2.5 8.5 2.5 12 0v-5',
+    legis: 'M4 21h10 M9 17V8 M4 8h10 M5 8l2-4h4l2 4 M17 6v15 M15 21h4',
+    play: 'M3 5h18v14H3z M10 9v6l5-3z',
+    banco: 'M3 10l9-6 9 6 M5 10v8 M9.5 10v8 M14.5 10v8 M19 10v8 M3 21h18',
+    grafico: 'M4 19V10 M10 19V5 M16 19v-7 M21 19H3'
+  };
+  function iconeT(nome) {
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', '22'); s.setAttribute('height', '22'); s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '1.8'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC_T[nome]); s.append(p);
+    return s;
+  }
+  function gruposTransparencia() {
     const c = S.conf;
-    const internos = [
-      ['Planejamento e prestação de contas', 'PPA, LDO, LOA, RREO, RGF, Balanço Geral, pareceres e julgamentos das contas.', '#/planejamento'],
-      ['Publicações oficiais', 'Leis, decretos, portarias e demais atos normativos.', '#/publicacoes'],
-      ['Estrutura e gestores', 'Organograma, competências, endereços e responsáveis.', '#/estrutura'],
-      ['Dados abertos', 'Baixe as informações do portal em CSV ou JSON.', '#/dados-abertos']
+    const tipo = S.orgao.tipo;
+    const exec = tipo === 'prefeitura', cam = tipo === 'camara', cons = tipo === 'consorcio';
+    const ext = c.transparencia_url || null;        // sistema externo (receitas, despesas, folha…)
+    const lic = c.licitacoes_url || ext;
+    // L(texto, critério, destino): destino '#/…' é página do portal; null = sistema externo.
+    const L = (t, cod, h) => ({ t, cod, h: h === undefined ? ext : h });
+    const plan = [];
+    if (exec || cam) plan.push(L('Plano Plurianual (PPA)', '11.8', '#/planejamento/ppa'), L('Lei de Diretrizes Orçamentárias (LDO)', '11.9', '#/planejamento/ldo'), L('Lei Orçamentária Anual (LOA)', '11.10', '#/planejamento/loa'));
+    if (exec || cons) plan.push(L('RREO', '11.6', '#/planejamento/rreo'));
+    plan.push(L('RGF', '11.5', '#/planejamento/rgf'), L('Prestação de contas anual (Balanço)', '11.1', '#/planejamento/balanco'),
+      L('Relatório de gestão ou atividades', '11.2', '#/planejamento/relatorio_gestao'), L('Parecer do Tribunal de Contas', '11.3', '#/planejamento/parecer_tce'));
+    if (exec) plan.push(L('Julgamento das contas pela Câmara', '11.4', '#/planejamento/julgamento_camara'));
+    plan.push(L('Plano estratégico institucional', '11.7', '#/planejamento/plano_estrategico'));
+    const receita = [L('Receitas previstas e arrecadadas', '3.1')];
+    if (exec) receita.push(L('Receita por natureza (classificação)', '3.2'), L('Inscritos em dívida ativa', '3.3'));
+    const g = [
+      ['Informações institucionais', 'banco', [L('Estrutura organizacional', '2.1', '#/estrutura'), L('Competências e atribuições', '2.2', '#/estrutura'), L('Gestores responsáveis', '2.3', '#/gestores'),
+        L('Endereços, telefones e horários', '2.4–2.5', '#/estrutura'), L('Atos normativos', '2.6', '#/publicacoes'), L('Perguntas frequentes', '2.7', '#/faq')]],
+      ['Receitas', 'receita', receita],
+      ['Despesas', 'despesa', [L('Empenhos, liquidações e pagamentos', '4.1 / 4.3'), L('Despesas por classificação', '4.2'), L('Ordem cronológica de pagamentos', '9.4')]],
+      ['Convênios e transferências', 'convenio', [L('Transferências recebidas', '5.1'), L('Transferências realizadas', '5.2'), L('Acordos sem repasse de recursos', '5.3')]],
+      ['Pessoal', 'pessoas', [L('Servidores e lotação', '6.1'), L('Remuneração nominal', '6.2'), L('Tabela de cargos e salários', '6.3'), L('Estagiários', '6.4'), L('Terceirizados', '6.5'), L('Concursos e seleções', '6.6–6.7')]],
+      ['Diárias', 'viagem', [L('Diárias concedidas', '7.1'), L('Tabela de valores das diárias', '7.2')]],
+      ['Licitações', 'licit', [L('Licitações e editais', '8.1–8.3', lic), L('Dispensas e inexigibilidades', '8.4', lic), L('Atas de adesão (SRP)', '8.5', lic), L('Plano de contratações anual', '8.6', lic), L('Licitantes sancionados', '8.7', lic)]],
+      ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', lic), L('Fiscais de contratos', '9.3', lic)]],
+      ['Obras', 'obra', [L('Obras e situação atual', '10.1'), L('Quantitativos e preços', '10.2–10.3'), L('Obras paralisadas', '10.4')]],
+      ['Planejamento e prestação de contas', 'grafico', plan],
+      ['Serviço de Informação ao Cidadão', 'chat', [L('e-SIC: fazer pedido', '12.1–12.4', '#/esic'), L('Regulamentação da LAI', '12.5', '#/publicacoes?q=acesso a informacao'),
+        L('Prazos e autoridades', '12.6', '#/esic'), L('Relatório estatístico anual', '12.7', '#/esic'), L('Informações classificadas', '12.8', '#/esic'), L('Informações desclassificadas', '12.9', '#/esic')]],
+      ['Ouvidoria e serviços', 'ouvido', [L('Ouvidoria: atendimento presencial', '14.1', '#/ouvidoria'), L('Ouvidoria: canal eletrônico', '14.2', '#/ouvidoria'),
+        L('Carta de Serviços ao Usuário', '14.3', '#/servicos'), L('Serviços digitais', '15.3', '#/servicos'), L('Pesquisa de satisfação', '15.6', '#/ouvidoria')]],
+      ['Privacidade e dados abertos', 'lock', [L('Encarregado de dados (LGPD)', '15.1', '#/lgpd'), L('Política de privacidade', '15.2', '#/lgpd'), L('Dados abertos e API', '15.4', '#/dados-abertos'), L('Regulamentação do Governo Digital', '15.5', '#/lgpd')]]
     ];
-    pagina(main, el('h1', null, 'Transparência'),
-      el('p', { class: 'sub' }, 'Informações sobre a gestão, o orçamento e as contas públicas.'),
-      el('div', { class: 'grade g2' }, internos.map(([t, d, h]) => el('a', { class: 'cartao', href: h }, el('strong', null, t), el('span', { class: 'meta', style: 'display:block;margin-top:6px' }, d)))),
-      el('section', { class: 'cartao', style: 'margin-top:24px' },
-        el('h2', null, 'Receitas, despesas e folha de pagamento'),
-        el('p', null, 'A execução do orçamento (receitas, despesas, empenhos e pagamentos) e a folha de pagamento estão no Portal da Transparência.'),
-        c.transparencia_url ? el('a', { class: 'botao', href: c.transparencia_url, target: '_blank', rel: 'noopener' }, 'Acessar o Portal da Transparência', el('span', { class: 'sr' }, ' (abre em nova aba)'))
-          : el('p', { class: 'meta' }, 'Endereço ainda não informado. Fale com o órgão: ', c.telefone || '', c.telefone && c.email ? ' · ' : '', c.email ? el('a', { href: 'mailto:' + c.email }, c.email) : '')),
-      el('p', { style: 'margin-top:20px' }, el('a', { class: 'botao botao-claro', href: RADAR, target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))));
+    if (exec) {
+      g.push(['Renúncias de receita', 'receita', [L('Desonerações e fundamento legal', '16.1'), L('Renúncia prevista e realizada', '16.2'), L('Beneficiários', '16.3'), L('Incentivo à cultura e ao esporte', '16.4')]],
+        ['Emendas parlamentares', 'legis', [L('Emendas federais', '17.1'), L('Emendas estaduais e municipais', '17.2'), L('Execução das emendas', '17.3')]],
+        ['Saúde', 'saude', [L('Plano, programação e relatório', '18.1'), L('Serviços, horários e profissionais', '18.2'), L('Lista de espera da regulação', '18.3'), L('Medicamentos do SUS', '18.4'), L('Estoque das farmácias', '18.5'), L('Conselho de Saúde', '18.6')]],
+        ['Educação e assistência social', 'edu', [L('Plano de educação e resultados', '19.1'), L('Lista de espera em creches', '19.2'), L('Conselho do Fundeb', '19.3'), L('Conselho de Assistência Social', '19.4')]]);
+    }
+    if (cam) {
+      g.push(['Atividade legislativa', 'legis', [L('Vereadores e biografias', '20.1'), L('Leis e atos produzidos', '20.2', '#/publicacoes'), L('Projetos e tramitação', '20.3'), L('Pauta do plenário e comissões', '20.4–20.5'),
+        L('Atas e presenças', '20.6'), L('Votações nominais', '20.7'), L('Julgamento das contas do Executivo', '20.8', '#/planejamento/julgamento_camara')]],
+        ['Participação e verbas', 'play', [L('Transmissão das sessões', '20.9'), L('Cota parlamentar / verba indenizatória', '20.10'), L('Atividades dos vereadores', '20.11')]]);
+    }
+    if (cons) {
+      g.push(['Atividades do consórcio', 'banco', [L('Protocolo de intenções', '25.1'), L('Estatuto', '25.2'), L('Contratos de rateio', '25.3'), L('Contrato de programa', '25.4'),
+        L('Ata de eleição dos dirigentes', '25.5'), L('Atas da assembleia geral', '25.6'), L('Municípios consorciados', '25.7')]]);
+    }
+    return g;
+  }
+
+  R.transparencia = async function (main) {
+    S.titulo('Portal da Transparência'); S.trilha(['Portal da Transparência']);
+    const c = S.conf;
+    // Faixa de situação: última atualização e exercícios disponíveis (consultas de 1 linha cada).
+    const tabelas = ['noticias', 'publicacoes', 'servicos', 'paginas', 'unidades', 'documentos_contas'];
+    const [datas, menor, maior] = await Promise.all([
+      Promise.all(tabelas.map((t) => sb.from(t).select('atualizado_em').eq('orgao_id', org()).order('atualizado_em', { ascending: false }).limit(1))),
+      sb.from('documentos_contas').select('exercicio').eq('orgao_id', org()).order('exercicio').limit(1),
+      sb.from('documentos_contas').select('exercicio').eq('orgao_id', org()).order('exercicio', { ascending: false }).limit(1)
+    ]);
+    const ultima = datas.flatMap((x) => (x.data || []).map((d) => d.atualizado_em)).sort().pop();
+    const ex1 = ((menor.data || [])[0] || {}).exercicio, ex2 = Math.min(((maior.data || [])[0] || {}).exercicio || 0, new Date().getFullYear());
+    const campoBusca = el('input', { id: 'busca-transp', type: 'search', placeholder: 'Pesquise: lei, LOA, RREO, serviço, secretaria…' });
+    const externo = (h) => h && /^https?:/.test(h);
+    main.replaceChildren(
+      el('section', { class: 'transp-topo' }, el('div', { class: 'limite' },
+        el('h1', null, 'Portal da Transparência'),
+        el('p', null, 'Informações sobre a gestão dos recursos públicos, organizadas conforme a Lei de Acesso à Informação, a Lei de Responsabilidade Fiscal e o Programa Nacional de Transparência Pública.'),
+        el('form', { class: 'transp-busca', role: 'search', onsubmit: (e) => { e.preventDefault(); const q = campoBusca.value.trim(); if (q) location.hash = '#/busca?q=' + encodeURIComponent(q); } },
+          el('label', { for: 'busca-transp', class: 'sr' }, 'Pesquisar no Portal da Transparência'), campoBusca, el('button', { type: 'submit' }, 'Pesquisar')),
+        el('div', { class: 'transp-atalhos' }, el('span', null, 'Mais acessados:'),
+          [['Despesas', ext()], ['Servidores', ext()], ['Licitações', c.licitacoes_url || ext()], ['Planejamento e contas', '#/planejamento'], ['Leis e decretos', '#/publicacoes']]
+            .filter((x) => x[1]).map(([t, h]) => el('a', { href: h, target: externo(h) ? '_blank' : null, rel: externo(h) ? 'noopener' : null }, t))))),
+      el('div', { class: 'transp-fundo' }, el('div', { class: 'limite pagina transp-corpo' },
+        el('div', { class: 'transp-status' },
+          el('span', null, el('b', null, 'Última atualização dos dados: '), ultima ? dataBR(ultima) : '—'),
+          ex1 ? el('span', null, el('b', null, 'Exercícios disponíveis: '), ex1 === ex2 ? String(ex1) : ex1 + ' a ' + ex2) : null,
+          el('span', null, el('b', null, 'Formatos: '), 'CSV, JSON e PDF'),
+          el('a', { href: '#/dados-abertos' }, 'Dados abertos e API →')),
+        el('div', { class: 'grade g3 transp-grupos' }, gruposTransparencia().map(([titulo, ic, links]) => el('section', { class: 'transp-grupo' },
+          el('div', { class: 'transp-grupo-topo' }, el('span', { class: 'transp-icone' }, iconeT(ic)), el('h2', null, titulo)),
+          el('ul', null, links.map((l) => el('li', null, l.h
+            ? el('a', { href: l.h, target: externo(l.h) ? '_blank' : null, rel: externo(l.h) ? 'noopener' : null },
+              el('span', null, l.t, externo(l.h) ? el('span', { class: 'sr' }, ' (abre em nova aba, no sistema de transparência)') : null),
+              el('span', { class: 'transp-cod', title: 'Critério ' + l.cod + ' do PNTP' }, l.cod))
+            : el('span', { class: 'transp-sem' }, el('span', null, l.t, el('span', { class: 'sr' }, ' (endereço ainda não informado)')), el('span', { class: 'transp-cod' }, l.cod)))))))),
+        el('p', { class: 'meta transp-nota' }, 'Os itens de receitas, despesas, pessoal, diárias, convênios e obras abrem o sistema de transparência do órgão em nova aba.',
+          ' ', el('a', { href: RADAR, target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))))));
+    function ext() { return c.transparencia_url || null; }
   };
   R.licitacoes = externo('licitacoes', 'Licitações e contratos', 'Editais, avisos, resultados, atas e contratos.', 'licitacoes_url');
   R.ouvidoria = externo('ouvidoria', 'Ouvidoria', 'Elogios, sugestões, reclamações, solicitações e denúncias sobre os serviços.', 'ouvidoria_url');

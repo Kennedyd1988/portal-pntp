@@ -1,8 +1,8 @@
 {
-  "versao": "0.7.0",
+  "versao": "0.7.1",
   "data": "2026-11-12",
   "notas": [
-    "Novo módulo: Planejamento e prestação de contas (PPA, LDO, LOA, RREO, RGF, Balanço, pareceres e julgamentos), com quadro do que falta no PNTP.",
-    "Site: páginas de Planejamento e contas e nova página de Transparência."
+    "Site: capa do Portal da Transparência organizada pelos grupos do PNTP, com o número do critério em cada item.",
+    "Site: Planejamento e prestação de contas dividido em abas, uma para cada documento."
   ]
 }
