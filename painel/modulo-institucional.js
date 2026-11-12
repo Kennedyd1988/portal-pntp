@@ -26,6 +26,16 @@
     dados = { unidades: u.data, gestores: g.data };
   }
 
+  // Alcance setorial: quem é limitado a uma unidade vê tudo (é público), mas só altera
+  // a própria unidade e os gestores dela. O banco bloqueia de qualquer forma;
+  // aqui só escondemos os botões para não oferecer o que vai falhar.
+  const alcance = () => P.estado.alcanceUnidade;
+  const podeEditarUnidade = (u) => perm.editar && (!alcance() || u.id === alcance());
+  const podeExcluirUnidade = () => perm.excluir && !alcance();
+  const podeCriarUnidade = () => perm.editar && !alcance();
+  const podeEditarGestor = (g) => perm.editar && (!alcance() || g.unidade_id === alcance());
+  const podeExcluirGestor = (g) => perm.excluir && (!alcance() || g.unidade_id === alcance());
+
   const nomeUnidade = (id) => (dados.unidades.find((u) => u.id === id) || {}).nome || '';
 
   // ---------- campos de formulário ----------
@@ -199,8 +209,8 @@
         el('td', null, u.telefone || '—', u.email ? el('span', { class: 'sub-linha' }, u.email) : null),
         el('td', null, u.horario_atendimento || el('span', { class: 'falta' }, 'Sem horário')),
         el('td', { class: 'acoes' },
-          perm.editar ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formUnidade(u) }, 'Editar') : null,
-          perm.excluir ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirUnidade(u) }, 'Excluir') : null
+          podeEditarUnidade(u) ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formUnidade(u) }, 'Editar') : null,
+          podeExcluirUnidade() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirUnidade(u) }, 'Excluir') : null
         )
       );
     });
@@ -221,7 +231,9 @@
     const f = {
       nome: entrada(g.nome, { maxlength: 160 }),
       cargo: entrada(g.cargo, { maxlength: 120, placeholder: 'Ex.: Secretária Municipal de Saúde' }),
-      unidade: seletorUnidade(g.unidade_id),
+      unidade: alcance()
+        ? el('select', { disabled: true }, el('option', { value: alcance() }, nomeUnidade(alcance())))
+        : seletorUnidade(g.unidade_id),
       email: entrada(g.email, { type: 'email' }),
       telefone: entrada(g.telefone, { inputmode: 'tel' }),
       foto: el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp' }),
@@ -337,8 +349,8 @@
           el('td', null, g.email || '—', g.telefone ? el('span', { class: 'sub-linha' }, g.telefone) : null),
           el('td', null, g.destaque_capa ? 'Sim (' + g.ordem + 'º)' : '—'),
           el('td', { class: 'acoes' },
-            perm.editar ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formGestor(g) }, 'Editar') : null,
-            perm.excluir ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirGestor(g) }, 'Excluir') : null
+            podeEditarGestor(g) ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formGestor(g) }, 'Editar') : null,
+            podeExcluirGestor(g) ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirGestor(g) }, 'Excluir') : null
           )
         )))
       )
@@ -375,9 +387,12 @@
           el('h1', null, 'Unidades e gestores'),
           el('p', { class: 'sub' }, 'Estrutura organizacional, contatos, horários e responsáveis. Tudo aparece no site.')
         ),
-        perm.editar ? el('button', { type: 'button', class: 'btn btn-primario', onclick: () => aba === 'unidades' ? formUnidade() : formGestor() },
-          aba === 'unidades' ? '+ Nova unidade' : '+ Novo gestor') : null
+        (aba === 'unidades' ? podeCriarUnidade() : perm.editar)
+          ? el('button', { type: 'button', class: 'btn btn-primario', onclick: () => aba === 'unidades' ? formUnidade() : formGestor() },
+            aba === 'unidades' ? '+ Nova unidade' : '+ Novo gestor') : null
       ),
+      alcance() && perm.editar ? el('p', { class: 'msg msg-info' }, 'Seu acesso é limitado a "' + nomeUnidade(alcance()) +
+        '": você altera só essa unidade e os gestores dela. As demais aparecem apenas para consulta.') : null,
       pendencias.length ? el('p', { class: 'msg msg-info' }, 'Pendências: ' + pendencias.join(' · ') + '.') : null,
       el('div', { class: 'abas', role: 'tablist' },
         botaoAba('unidades', 'Unidades', dados.unidades.length),

@@ -73,6 +73,10 @@
 
   function toast(texto, erro) {
     const t = $('toast');
+    // Janela aberta (dialog) fica numa camada acima de tudo: o aviso precisa ir para
+    // dentro dela, senão aparece escondido atrás do fundo escurecido.
+    const janela = [...document.querySelectorAll('dialog[open]')].pop();
+    if (t.parentElement !== (janela || document.body)) (janela || document.body).append(t);
     t.textContent = texto;
     t.classList.toggle('erro', !!erro);
     t.hidden = false;
@@ -392,6 +396,18 @@
     for (const p of data || []) {
       estado.permissoes[p.modulo] = { ver: p.pode_ver, editar: p.pode_editar, publicar: p.pode_publicar, excluir: p.pode_excluir };
     }
+    // Alcance: unidade à qual o vínculo está limitado (null = órgão todo).
+    // Usado para esconder botões de registros de outras unidades (o banco também bloqueia).
+    estado.alcanceUnidade = null;
+    estado.alcanceNome = null;
+    if (estado.usuario && estado.usuario.id) {
+      const v = await sb.from('usuarios_orgaos').select('unidade_id, unidades(nome)')
+        .eq('orgao_id', o.id).eq('usuario_id', estado.usuario.id).maybeSingle();
+      if (v.data && v.data.unidade_id) {
+        estado.alcanceUnidade = v.data.unidade_id;
+        estado.alcanceNome = v.data.unidades ? v.data.unidades.nome : null;
+      }
+    }
     guardar('pntp_ultimo_orgao', o.id);
     montarPainel();
   }
@@ -400,7 +416,8 @@
   function montarPainel() {
     const o = estado.orgao;
     $('topo-orgao-nome').textContent = o.nome;
-    $('topo-orgao-perfil').textContent = (TIPO_ORGAO[o.tipo] || o.tipo) + ' · Seu perfil: ' + o.perfil;
+    $('topo-orgao-perfil').textContent = (TIPO_ORGAO[o.tipo] || o.tipo) + ' · Seu perfil: ' + o.perfil +
+      (estado.alcanceNome ? ' · ' + estado.alcanceNome : '');
     $('topo-usuario').textContent = estado.usuario.nome || estado.usuario.email;
     $('btn-trocar-orgao').hidden = estado.orgaos.length < 2;
 
@@ -562,7 +579,12 @@
       el('div', { class: 'dialogo-corpo' }, corpo),
       el('div', { class: 'dialogo-acoes' }, acoes || [])
     );
-    d.addEventListener('close', () => d.remove());
+    d.addEventListener('close', () => {
+      // Devolve o aviso para a página antes de apagar a janela (senão ele some junto).
+      const t = $('toast');
+      if (d.contains(t)) document.body.append(t);
+      d.remove();
+    });
     document.body.append(d);
     d.showModal();
     return d;

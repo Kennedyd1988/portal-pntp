@@ -1,7 +1,7 @@
 {
-  "versao": "0.3.0",
+  "versao": "0.3.1",
   "data": "2026-11-11",
   "notas": [
-    "Lote 2: usuários e convites por link ou e-mail, perfis próprios do órgão, histórico de alterações e tela Minha conta."
+    "Usuário de uma secretaria vê só o botão Editar da própria unidade; avisos de erro agora aparecem por cima das janelas."
   ]
 }

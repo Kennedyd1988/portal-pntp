@@ -142,6 +142,14 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 
 ## Histórico de mudanças
 
+**0.3.1 — 11/11/2026 — ajustes do teste do Lote 2**
+- Usuário com alcance numa unidade continua vendo todas as unidades e gestores (dados
+  públicos), mas os botões Editar/Excluir só aparecem na própria unidade e nos gestores
+  dela; "+ Nova unidade" some; no cadastro de gestor a unidade vem travada na dele. Aviso
+  no topo da tela explica o limite, e o topo do painel mostra a unidade ao lado do perfil.
+- Correção: os avisos (toast) ficavam escondidos atrás do fundo escuro das janelas;
+  agora aparecem por cima delas.
+
 **0.3.0 — 11/11/2026 — Lote 2 da Fase 1**
 - Tela "Usuários e permissões", aba Pessoas: lista com perfil, alcance, situação
   (ativo, convite pendente, desativado) e último acesso, com um filtro por coluna.
