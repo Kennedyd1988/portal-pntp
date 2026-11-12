@@ -201,7 +201,7 @@
         ),
         el('section', { class: 'cartao cartao-largo' },
           el('h2', null, 'Selos e certificações'),
-          el('p', { class: 'ajuda' }, 'Selos de transparência e outras certificações do órgão (ex.: Selo PNTP da Atricon). Aparecem numa faixa no alto da página inicial do site. Até ' + MAX_SELOS + '.'),
+          el('p', { class: 'ajuda' }, 'Selos de transparência e outras certificações do órgão (ex.: Selo PNTP da Atricon). No alto da página inicial aparece só o símbolo de cada selo, à direita; o nome e o detalhe surgem ao passar o mouse e o link abre ao clicar. Use a imagem do selo em formato quadrado (o site mostra em círculo). Até ' + MAX_SELOS + '.'),
           listaSelos, btnAddSelo),
         el('section', { class: 'cartao' },
           el('h2', null, 'Endereço do site'),

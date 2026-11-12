@@ -1,9 +1,7 @@
 {
-  "versao": "0.7.4",
+  "versao": "0.7.5",
   "data": "2026-11-12",
   "notas": [
-    "Avisos com título e texto do botão de ação, no layout padrão (ícone, título, texto, ação e fechar).",
-    "Selos e certificações: cadastro em Aparência e faixa no alto da página inicial.",
-    "Abas do painel no estilo de guia de navegador, iguais às do site."
+    "Site: selos só com o símbolo, alinhados à direita; nome ao passar o mouse e link ao clicar."
   ]
 }

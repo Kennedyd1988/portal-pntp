@@ -236,14 +236,16 @@
       p.setAttribute('d', 'M12 3l2.5 2 3.2-.3.8 3.1 2.6 1.9-1.3 2.9 1.3 3-2.6 1.8-.8 3.1-3.2-.3L12 21l-2.5-2-3.2.3-.8-3.1-2.6-1.8 1.3-3-1.3-2.9 2.6-1.9.8-3.1 3.2.3z M9 12l2 2 4-4');
       sv.append(p); return sv;
     };
+    // Só os símbolos, alinhados à direita. O nome e o detalhe aparecem num balão ao
+    // passar o mouse ou focar pelo teclado; o leitor de tela lê o texto escondido.
     return el('section', { class: 'faixa-selos', 'aria-labelledby': 'tit-selos' }, el('div', { class: 'limite' },
-      el('h2', { id: 'tit-selos' }, 'Selos e certificações'),
+      el('h2', { id: 'tit-selos', class: 'sr' }, 'Selos e certificações'),
       el('ul', { class: 'selos' }, selos.map((x) => {
         const conteudo = [
           el('span', { class: 'selo-marca' + (x.imagem_url ? ' com-imagem' : '') }, x.imagem_url ? el('img', { src: x.imagem_url, alt: '', loading: 'lazy' }) : seloIcone()),
-          el('span', { class: 'selo-texto' }, el('strong', null, x.titulo), x.descricao ? el('span', null, x.descricao) : null)];
+          el('span', { class: 'selo-balao', role: 'tooltip' }, el('strong', null, x.titulo), x.descricao ? el('span', null, x.descricao) : null)];
         return el('li', null, x.url ? el('a', { class: 'selo', href: x.url, target: '_blank', rel: 'noopener' }, ...conteudo, el('span', { class: 'sr' }, ' (abre em nova aba)'))
-          : el('span', { class: 'selo' }, ...conteudo));
+          : el('span', { class: 'selo', tabindex: '0' }, ...conteudo));
       }))));
   }
 

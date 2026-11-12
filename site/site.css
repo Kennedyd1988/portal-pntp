@@ -438,21 +438,23 @@ html.contraste .painel-guia { background: #000 !important; border-color: #fff !i
 .painel-guia-interno .bloco-contas:last-child { margin-bottom: 0; }
 html.contraste .aba-guia-p[aria-selected="true"]::after { background: #000; }
 
-/* ---------- Selos e certificações (alto da página inicial, v0.7.4) ----------
-   Faixa compacta para não empurrar o banner: título à esquerda e os selos ao lado;
-   no celular os selos rolam de lado. */
-.faixa-selos { background: var(--fundo); border-bottom: 1px solid var(--linha); }
-.faixa-selos .limite { display: flex; align-items: center; gap: 10px 24px; padding-top: 12px; padding-bottom: 12px; }
-.faixa-selos h2 { margin: 0; font-size: .95rem; font-weight: 800; flex: none; }
-.selos { list-style: none; margin: 0; padding: 2px; display: flex; gap: 10px; overflow-x: auto; scrollbar-width: thin; }
-.selos li { flex: none; }
-.selo { display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; background: #fff; border: 1px solid var(--linha); border-radius: 12px; color: var(--texto); text-decoration: none; }
-a.selo:hover { border-color: var(--cor); box-shadow: var(--sombra); }
-.selo-marca { width: 40px; height: 40px; flex: none; border-radius: 50%; border: 1px dashed #9fb3c8; color: var(--cor); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.selo-marca.com-imagem { border: 0; border-radius: 6px; }
-.selo-marca img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.selo-texto { display: flex; flex-direction: column; line-height: 1.25; }
-.selo-texto strong { font-size: .88rem; }
-.selo-texto span { font-size: .76rem; color: var(--texto-suave); }
-@media (max-width: 760px) { .faixa-selos .limite { flex-direction: column; align-items: stretch; } }
-html.contraste .faixa-selos, html.contraste .selo { background: #000 !important; border-color: #fff !important; color: #fff !important; }
+/* ---------- Selos e certificações (alto da página inicial, v0.7.5) ----------
+   Só os símbolos, redondos, alinhados à direita. Nome e detalhe aparecem num balão
+   ao passar o mouse ou ao focar pelo teclado; com link, o clique abre a página. */
+.faixa-selos .limite { display: flex; justify-content: flex-end; padding-top: 14px; padding-bottom: 2px; }
+.selos { list-style: none; margin: 0; padding: 4px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.selo { position: relative; display: block; border-radius: 50%; color: var(--cor); text-decoration: none; outline-offset: 3px; }
+.selo-marca { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #fff; border: 2px solid var(--linha); box-shadow: 0 2px 6px rgba(15, 27, 43, .12); transition: transform .15s; }
+.selo-marca.com-imagem { border: 0; background: transparent; box-shadow: none; }
+.selo-marca img { width: 100%; height: 100%; object-fit: contain; }
+.selo-marca svg { width: 30px; height: 30px; }
+.selo:hover .selo-marca, .selo:focus-visible .selo-marca { transform: scale(1.08); }
+.selo-balao { position: absolute; top: calc(100% + 10px); right: 0; z-index: 20; width: max-content; max-width: 240px; padding: 8px 12px; border-radius: 8px;
+  background: #1a2433; color: #fff; font-size: .82rem; line-height: 1.35; box-shadow: var(--sombra);
+  display: flex; flex-direction: column; opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .15s, transform .15s; pointer-events: none; }
+.selo-balao::before { content: ""; position: absolute; top: -6px; right: 26px; border: 6px solid transparent; border-top: 0; border-bottom-color: #1a2433; }
+.selo-balao span { color: #cfd8e3; }
+.selo:hover .selo-balao, .selo:focus-visible .selo-balao, .selo:focus .selo-balao { opacity: 1; visibility: visible; transform: none; }
+@media (max-width: 600px) { .faixa-selos .limite { justify-content: center; } .selos { justify-content: center; } .selo-marca { width: 52px; height: 52px; } }
+html.contraste .selo-marca { background: #000 !important; border-color: #fff !important; }
+html.contraste .selo-balao { background: #000; border: 1px solid #fff; }

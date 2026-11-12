@@ -207,6 +207,13 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 
 ## Histórico de mudanças
 
+**0.7.5 — 12/11/2026 — selos só com o símbolo**
+- A faixa de selos da página inicial mostra só o símbolo de cada selo, redondo e alinhado à
+  direita (centralizado no celular). Ao passar o mouse, ou ao focar pelo teclado, aparece um balão
+  com o nome e o detalhe; se o selo tiver link, o clique abre a página em nova aba. O leitor de tela
+  lê o nome. Selo sem imagem mostra o ícone padrão dentro de um círculo branco.
+- Painel (Aparência): orientação para enviar a imagem do selo em formato quadrado.
+
 **0.7.4 — 12/11/2026 — avisos, selos e abas do painel**
 - Padrões do projeto, a seguir em qualquer tela nova:
   - Abas: sempre no estilo de guia de navegador (`.abas-guia/.aba-guia/.painel-guia` no site,
