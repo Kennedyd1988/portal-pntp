@@ -1,7 +1,9 @@
 {
-  "versao": "0.7.3",
+  "versao": "0.7.4",
   "data": "2026-11-12",
   "notas": [
-    "Site: em Planejamento e prestação de contas, cada documento tem uma segunda faixa de abas com os exercícios."
+    "Avisos com título e texto do botão de ação, no layout padrão (ícone, título, texto, ação e fechar).",
+    "Selos e certificações: cadastro em Aparência e faixa no alto da página inicial.",
+    "Abas do painel no estilo de guia de navegador, iguais às do site."
   ]
 }

@@ -454,7 +454,9 @@
   function formAviso(a) {
     a = a || {};
     const f = {
+      titulo: el('input', { type: 'text', maxlength: 60, value: a.titulo || '', placeholder: 'Ex.: IPTU 2026' }),
       texto: el('textarea', { rows: 3, maxlength: 300 }),
+      rotulo: el('input', { type: 'text', maxlength: 30, value: a.link_rotulo || '', placeholder: 'Saiba mais' }),
       nivel: el('select', null, Object.entries(NIVEIS).map(([k, v]) => el('option', { value: k, selected: (a.nivel || 'informativo') === k }, v))),
       link: el('input', { type: 'url', value: a.link_url || '', placeholder: 'https://…' }),
       inicio: el('input', { type: 'datetime-local', value: P.paraDataHoraLocal(a.inicio) }),
@@ -463,8 +465,10 @@
     };
     f.texto.value = a.texto || '';
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
+      campo('av-titulo', 'Título (opcional)', f.titulo, 'Aparece em negrito antes do texto. Até 60 caracteres.'),
       campo('av-texto', 'Texto do aviso', f.texto, 'Até 300 caracteres. Aparece numa faixa no topo de todas as páginas.', true),
-      el('div', { class: 'grade-campos' }, campo('av-nivel', 'Nível', f.nivel, 'Urgente aparece em vermelho.'), campo('av-link', 'Link "Saiba mais"', f.link)),
+      campo('av-nivel', 'Nível', f.nivel, 'Muda só a cor e o ícone; o formato da faixa é o mesmo.'),
+      el('div', { class: 'grade-campos' }, campo('av-link', 'Link do botão (opcional)', f.link), campo('av-rotulo', 'Texto do botão', f.rotulo, 'Ex.: Emitir guia. Em branco: "Saiba mais".')),
       el('div', { class: 'grade-campos' }, campo('av-inicio', 'Início', f.inicio), campo('av-fim', 'Fim', f.fim, 'Em branco = até ser desativado')),
       el('label', { class: 'checkbox' }, f.ativo, ' Ativo'));
     const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
@@ -477,7 +481,8 @@
       ocupado(btn, 'Salvando…');
       try {
         await P.gravarRegistro('avisos', {
-          texto: f.texto.value.trim(), nivel: f.nivel.value, link_url: f.link.value.trim() || null,
+          titulo: f.titulo.value.trim() || null, texto: f.texto.value.trim(), nivel: f.nivel.value, link_url: f.link.value.trim() || null,
+          link_rotulo: f.link.value.trim() && f.rotulo.value.trim() ? f.rotulo.value.trim() : null,
           inicio: new Date(f.inicio.value || Date.now()).toISOString(), fim: f.fim.value ? new Date(f.fim.value).toISOString() : null,
           ativo: f.ativo.checked
         }, a.id);
@@ -504,7 +509,7 @@
         el('tbody', null, avisos.map((a) => {
           const [cls, rot] = sit(a);
           return el('tr', null,
-            el('td', null, a.texto),
+            el('td', null, a.titulo ? el('strong', null, a.titulo + ': ') : null, a.texto),
             el('td', null, el('span', { class: 'etiqueta etiqueta-nivel-' + a.nivel }, NIVEIS[a.nivel])),
             el('td', { class: 'num' }, P.dataHoraBR(a.inicio) + ' → ' + (a.fim ? P.dataHoraBR(a.fim) : 'sem fim')),
             el('td', null, el('span', { class: 'etiqueta etiqueta-' + cls }, rot)),
@@ -547,7 +552,7 @@
         botaoNovo),
       alcance() && aba !== 'noticias' ? el('p', { class: 'msg msg-info' }, 'Banners e avisos valem para o órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
       el('div', { class: 'abas', role: 'tablist' }, botaoAba('noticias', 'Notícias'), botaoAba('banners', 'Banners'), botaoAba('avisos', 'Avisos')),
-      area
+      el('div', { class: 'painel-guia' }, area)
     ].filter(Boolean));
   }
 

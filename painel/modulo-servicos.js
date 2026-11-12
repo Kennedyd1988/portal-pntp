@@ -294,7 +294,7 @@
           el('p', { class: 'sub' }, 'Serviços prestados, como pedir, prazos e onde reclamar (Lei 13.460/2017 · PNTP 14.3 e 15.3).')),
         aba === 'servicos' && perm.editar ? el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form() }, '+ Novo serviço') : null),
       el('div', { class: 'abas', role: 'tablist' }, botaoAba('servicos', 'Serviços'), botaoAba('textos', 'Textos da Carta')),
-      areaTela);
+      el('div', { class: 'painel-guia' }, areaTela));
   }
 
   async function recarregar() {

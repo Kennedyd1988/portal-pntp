@@ -513,8 +513,7 @@
       el('div', { class: 'abas', role: 'tablist' },
         botaoAba('pessoas', 'Pessoas', d.pessoas.length),
         botaoAba('perfis', 'Perfis', d.perfis.length)),
-      aba === 'pessoas' ? barraFiltrosPessoas(redesenharPessoas) : null,
-      area
+      el('div', { class: 'painel-guia' }, aba === 'pessoas' ? barraFiltrosPessoas(redesenharPessoas) : null, area)
     ].filter(Boolean));
   }
 

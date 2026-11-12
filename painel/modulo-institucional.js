@@ -417,8 +417,7 @@
         botaoAba('unidades', 'Unidades', dados.unidades.length),
         botaoAba('gestores', 'Gestores', dados.gestores.length)
       ),
-      busca,
-      area
+      el('div', { class: 'painel-guia' }, busca, area)
     ].filter(Boolean));
   }
 

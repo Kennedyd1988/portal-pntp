@@ -133,6 +133,9 @@
     const vis = await visualizacoes(noticias.map((n) => n.id));
 
     const blocos = [];
+    // Selos e certificações: faixa compacta no alto da página inicial (cadastro em Aparência).
+    const selos = (Array.isArray(c.selos) ? c.selos : []).filter((x) => x && x.titulo).slice(0, 6);
+    if (selos.length) blocos.push(faixaSelos(selos));
     if (banners.length) blocos.push(el('div', { class: 'limite banner-limite' }, carrossel(banners)));
 
     const acessos = [
@@ -225,6 +228,25 @@
           el('span', { class: 'sr' }, ' de ' + ato(p) + ' (abre em nova aba)'), el('span', { 'aria-hidden': 'true' }, ' →'))
           : el('a', { class: 'pub-ver', href: '#/publicacoes?q=' + encodeURIComponent((p.numero || '') + ' ' + p.ano) }, 'Ver na lista →')));
   }
+  function faixaSelos(selos) {
+    const seloIcone = () => {
+      const sv = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      for (const [k, v] of Object.entries({ viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.9, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' })) sv.setAttribute(k, v);
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('d', 'M12 3l2.5 2 3.2-.3.8 3.1 2.6 1.9-1.3 2.9 1.3 3-2.6 1.8-.8 3.1-3.2-.3L12 21l-2.5-2-3.2.3-.8-3.1-2.6-1.8 1.3-3-1.3-2.9 2.6-1.9.8-3.1 3.2.3z M9 12l2 2 4-4');
+      sv.append(p); return sv;
+    };
+    return el('section', { class: 'faixa-selos', 'aria-labelledby': 'tit-selos' }, el('div', { class: 'limite' },
+      el('h2', { id: 'tit-selos' }, 'Selos e certificações'),
+      el('ul', { class: 'selos' }, selos.map((x) => {
+        const conteudo = [
+          el('span', { class: 'selo-marca' + (x.imagem_url ? ' com-imagem' : '') }, x.imagem_url ? el('img', { src: x.imagem_url, alt: '', loading: 'lazy' }) : seloIcone()),
+          el('span', { class: 'selo-texto' }, el('strong', null, x.titulo), x.descricao ? el('span', null, x.descricao) : null)];
+        return el('li', null, x.url ? el('a', { class: 'selo', href: x.url, target: '_blank', rel: 'noopener' }, ...conteudo, el('span', { class: 'sr' }, ' (abre em nova aba)'))
+          : el('span', { class: 'selo' }, ...conteudo));
+      }))));
+  }
+
   function secaoPublicacoes(grupos) {
     const abas = grupos.filter((g) => g.itens.length);
     const grade = el('div', { class: 'grade g3 pub-grade' });

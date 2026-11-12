@@ -267,9 +267,24 @@
   }
 
   // ---------- avisos de topo ----------
+  // Ícones da faixa de aviso (SVG em traço, herdam a cor do texto).
+  const ICONE_AVISO = {
+    informativo: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 11v6', 'M12 7.5h.01'],
+    importante: ['M12 3l10 18H2z', 'M12 10v5', 'M12 18h.01'],
+    urgente: ['M8.5 2h7L22 8.5v7L15.5 22h-7L2 15.5v-7z', 'M12 7.5v5.5', 'M12 16.5h.01'],
+    fechar: ['M6 6l12 12', 'M18 6L6 18']
+  };
+  function iconeAviso(nome) {
+    const s = document.createElementNS(SVG, 'svg');
+    for (const [k, v] of Object.entries({ viewBox: '0 0 24 24', width: nome === 'fechar' ? 18 : 22, height: nome === 'fechar' ? 18 : 22, fill: 'none', stroke: 'currentColor',
+      'stroke-width': nome === 'fechar' ? 2.2 : 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' })) s.setAttribute(k, v);
+    for (const d of ICONE_AVISO[nome] || ICONE_AVISO.informativo) { const p = document.createElementNS(SVG, 'path'); p.setAttribute('d', d); s.append(p); }
+    return s;
+  }
+
   async function montarAvisos() {
     const agora = new Date().toISOString();
-    const { data } = await sb.from('avisos').select('id, texto, link_url, nivel, atualizado_em').eq('orgao_id', S.orgao.id).eq('ativo', true)
+    const { data } = await sb.from('avisos').select('*').eq('orgao_id', S.orgao.id).eq('ativo', true)
       .lte('inicio', agora).or('fim.is.null,fim.gt.' + agora).limit(5);
     const peso = { urgente: 0, importante: 1, informativo: 2 };
     // Aviso fechado pelo cidadão não volta neste navegador — a não ser que o órgão
@@ -281,14 +296,16 @@
       .sort((a, b) => peso[a.nivel] - peso[b.nivel]).slice(0, 3);
     $('faixa-avisos').replaceChildren(...visiveis.map((a) => {
       const caixa = el('div', { class: 'aviso aviso-' + a.nivel, role: a.nivel === 'urgente' ? 'alert' : 'status' });
-      const fechar = el('button', { type: 'button', class: 'aviso-fechar', 'aria-label': 'Fechar aviso' }, '×');
+      const fechar = el('button', { type: 'button', class: 'aviso-fechar', 'aria-label': 'Fechar aviso' }, iconeAviso('fechar'));
       fechar.addEventListener('click', () => {
         fechados = fechados.concat(chave(a)).slice(-50);
         guardar('site_avisos_fechados', JSON.stringify(fechados));
         caixa.remove();
       });
-      caixa.append(el('div', { class: 'limite' }, el('span', { class: 'aviso-texto' }, a.texto),
-        a.link_url ? el('a', { href: a.link_url, target: '_blank', rel: 'noopener' }, 'Saiba mais') : null, fechar));
+      // Layout único para todos os níveis (só cor e ícone mudam): ícone · título + texto · ação · fechar.
+      caixa.append(el('div', { class: 'limite' }, el('span', { class: 'aviso-icone' }, iconeAviso(a.nivel)),
+        el('span', { class: 'aviso-texto' }, a.titulo ? el('b', null, a.titulo + ':') : null, a.titulo ? ' ' : null, a.texto),
+        a.link_url ? el('a', { class: 'aviso-acao', href: a.link_url, target: '_blank', rel: 'noopener' }, a.link_rotulo || 'Saiba mais', el('span', { class: 'sr' }, ' (abre em nova aba)')) : null, fechar));
       return caixa;
     }));
   }

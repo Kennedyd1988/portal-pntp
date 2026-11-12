@@ -78,6 +78,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/08_lote4_servicos_lgpd.sql` | módulo `lgpd` (permissões copiadas de `aparencia`); tabelas `servicos` (Carta de Serviços, com rascunho → publicado e alcance setorial), `carta_servicos` e `lgpd` (um registro por órgão, histórico por `orgao_id`); leitura pública |
 | `supabase/09_banner_noticia_visualizacoes.sql` | banner ligado a notícia (`banners.noticia_id`, mesma prefeitura, notícia usada em banner não pode ser excluída) e contador de visualizações (`noticias_visualizacoes` + `registrar_visualizacao`, que só soma em notícia publicada) |
 | `supabase/10_lote6_planejamento_contas.sql` | Fase 2 · Lote 6: módulo `contas` (permissões copiadas de "financeiro"), tabela `documentos_contas` (PPA, LDO, LOA, RREO, RGF, Balanço, Relatório de Gestão, parecer do TCE, julgamento da Câmara, Plano Estratégico), limite do bucket em 50 MB e `rgf_periodicidade` em configurações |
+| `supabase/11_avisos_titulo.sql` | avisos com `titulo` (até 60) e `link_rotulo` (texto do botão de ação, até 30), ambos opcionais |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
 
 ## Função de convite (Supabase Edge Function)
@@ -205,6 +206,29 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.7.4 — 12/11/2026 — avisos, selos e abas do painel**
+- Padrões do projeto, a seguir em qualquer tela nova:
+  - Abas: sempre no estilo de guia de navegador (`.abas-guia/.aba-guia/.painel-guia` no site,
+    `.abas/.aba/.painel-guia` no painel), com abas dentro de abas quando houver subdivisão.
+    Nada de abas em forma de botão ou pílula.
+  - Faixa de aviso: o mesmo layout em todos os níveis (ícone · título em negrito + texto ·
+    link de ação · fechar). O nível muda só as cores e o ícone (informativo, importante e urgente).
+- Avisos: campos novos "Título" e "Texto do botão" (script 11). Sem título, aparece só o texto;
+  sem texto do botão, o link aparece como "Saiba mais". O urgente deixou de ser uma faixa
+  vermelha cheia e passou para o mesmo formato, em tom vermelho claro. No celular, o "×" fica
+  no canto de cima e a ação vai para baixo do texto.
+- O site lê os avisos com `select('*')`, então funciona antes e depois de rodar o script 11.
+- Selos e certificações: cadastro em Aparência e contatos (até 6, cada um com nome, detalhe, link
+  e imagem opcional, reduzida no navegador). Ficam em `configuracoes.selos`. Aparecem numa faixa
+  compacta no alto da página inicial, antes do banner, e só quando houver algum selo. Imagens
+  trocadas ou removidas são apagadas do armazenamento ao salvar.
+- Painel: as abas de Notícias/Banners/Avisos, Unidades/Gestores, Páginas/Perguntas,
+  Serviços/Textos e Pessoas/Perfis passaram a usar o estilo de guia, com o conteúdo num painel
+  branco encaixado na aba aberta.
+- Exportação: o PNTP pede, na "gravação de relatórios", pelo menos um formato editável (txt,
+  csv, odt, ods, rtf, json…), e para alguns documentos aceita PDF pesquisável. CSV e JSON
+  atendem, por isso os botões não mudaram.
 
 **0.7.3 — 12/11/2026 — exercícios em abas (abas dentro de abas)**
 - Em Planejamento e prestação de contas, dentro da aba de cada documento há uma segunda faixa

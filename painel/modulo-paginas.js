@@ -208,8 +208,7 @@
           aba === 'paginas' ? '+ Nova página' : '+ Nova pergunta') : null),
       P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Páginas e perguntas valem para o órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
       el('div', { class: 'abas', role: 'tablist' }, botaoAba('paginas', 'Páginas', paginas.length), botaoAba('faq', 'Perguntas frequentes', faq.length)),
-      campoBusca,
-      area
+      el('div', { class: 'painel-guia' }, campoBusca, area)
     ].filter(Boolean));
   }
 

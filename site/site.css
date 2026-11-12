@@ -72,12 +72,26 @@ h3 { font-size: 1.1rem; margin: 0 0 6px; }
 .submenu a:hover { background: var(--cor-clara); color: var(--cor-escura); }
 
 /* ---------- avisos e trilha ---------- */
-.aviso { padding: 10px 0; font-weight: 600; }
-.aviso .limite { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.aviso-informativo { background: #e8f0fc; color: #0b3f9c; }
-.aviso-importante { background: #fdf3e1; color: #6b4807; }
-.aviso-urgente { background: #b42323; color: #fff; }
-.aviso a { color: inherit; }
+/* Faixa de aviso: layout único para todos os níveis (padrão do projeto);
+   o nível muda só as cores e o ícone. */
+.aviso { padding: 12px 0; border-bottom: 1px solid var(--aviso-borda); background: var(--aviso-fundo); color: var(--texto); }
+.aviso .limite { display: flex; gap: 12px 16px; align-items: center; }
+.aviso-icone { flex: none; display: flex; color: var(--aviso-cor); }
+.aviso-texto { flex: 1 1 auto; font-size: .95rem; line-height: 1.45; }
+.aviso-texto b { font-weight: 800; }
+.aviso-acao { flex: none; font-weight: 800; color: var(--aviso-cor); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.aviso-acao:hover { text-decoration-thickness: 2px; }
+.aviso-informativo { --aviso-fundo: #e8f0fc; --aviso-borda: #c3d5f4; --aviso-cor: #0b3f9c; }
+.aviso-importante { --aviso-fundo: #fff4dc; --aviso-borda: #f0d49a; --aviso-cor: #5c3d00; }
+.aviso-urgente { --aviso-fundo: #fdeaea; --aviso-borda: #f2b8b8; --aviso-cor: #9b1c1c; }
+/* Celular: o "×" fica no canto de cima e a ação desce para baixo do texto. */
+@media (max-width: 600px) {
+  .aviso .limite { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 6px 12px; }
+  .aviso-icone { grid-column: 1; grid-row: 1; padding-top: 1px; }
+  .aviso-texto { grid-column: 2; grid-row: 1; }
+  .aviso-acao { grid-column: 2; grid-row: 2; justify-self: start; }
+  .aviso-fechar { grid-column: 3; grid-row: 1; margin-top: -6px; }
+}
 .trilha { font-size: .85rem; color: var(--texto-suave); padding-top: 14px; }
 .trilha ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .trilha li + li::before { content: "›"; margin-right: 6px; }
@@ -288,12 +302,9 @@ html.contraste svg { color: #ffe600 !important; }
 .banner-slide img { border-radius: 0; }
 @media (max-width: 600px) { .banner-limite { margin-top: 12px; } .banner { border-radius: 12px; } }
 
-/* ---------- Aviso com botão de fechar ---------- */
-.aviso .limite { flex-wrap: nowrap; }
-.aviso-texto { flex: 1; }
-.aviso-fechar { flex-shrink: 0; background: transparent; border: 0; color: inherit; font-size: 1.6rem; line-height: 1; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; }
-.aviso-fechar:hover { background: rgba(0, 0, 0, .1); }
-.aviso-urgente .aviso-fechar:hover { background: rgba(255, 255, 255, .2); }
+/* ---------- Aviso: botão de fechar ---------- */
+.aviso-fechar { flex: none; display: flex; align-items: center; justify-content: center; background: transparent; border: 0; color: var(--aviso-cor); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; }
+.aviso-fechar:hover { background: rgba(0, 0, 0, .07); }
 
 /* ---------- Notícias da página inicial (cartões horizontais, a mais recente maior) ---------- */
 .noticia-h { display: grid; grid-template-columns: 42% 1fr; gap: 18px; background: #fff; border: 1px solid var(--linha); border-radius: 14px; padding: 14px; align-items: stretch; }
@@ -426,3 +437,22 @@ html.contraste .painel-guia { background: #000 !important; border-color: #fff !i
 .painel-guia-interno .bloco-contas { background: var(--fundo); border-color: var(--linha); }
 .painel-guia-interno .bloco-contas:last-child { margin-bottom: 0; }
 html.contraste .aba-guia-p[aria-selected="true"]::after { background: #000; }
+
+/* ---------- Selos e certificações (alto da página inicial, v0.7.4) ----------
+   Faixa compacta para não empurrar o banner: título à esquerda e os selos ao lado;
+   no celular os selos rolam de lado. */
+.faixa-selos { background: var(--fundo); border-bottom: 1px solid var(--linha); }
+.faixa-selos .limite { display: flex; align-items: center; gap: 10px 24px; padding-top: 12px; padding-bottom: 12px; }
+.faixa-selos h2 { margin: 0; font-size: .95rem; font-weight: 800; flex: none; }
+.selos { list-style: none; margin: 0; padding: 2px; display: flex; gap: 10px; overflow-x: auto; scrollbar-width: thin; }
+.selos li { flex: none; }
+.selo { display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; background: #fff; border: 1px solid var(--linha); border-radius: 12px; color: var(--texto); text-decoration: none; }
+a.selo:hover { border-color: var(--cor); box-shadow: var(--sombra); }
+.selo-marca { width: 40px; height: 40px; flex: none; border-radius: 50%; border: 1px dashed #9fb3c8; color: var(--cor); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.selo-marca.com-imagem { border: 0; border-radius: 6px; }
+.selo-marca img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.selo-texto { display: flex; flex-direction: column; line-height: 1.25; }
+.selo-texto strong { font-size: .88rem; }
+.selo-texto span { font-size: .76rem; color: var(--texto-suave); }
+@media (max-width: 760px) { .faixa-selos .limite { flex-direction: column; align-items: stretch; } }
+html.contraste .faixa-selos, html.contraste .selo { background: #000 !important; border-color: #fff !important; color: #fff !important; }

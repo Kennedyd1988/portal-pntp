@@ -97,6 +97,46 @@
       estrutura_norma_url: texto(cfg.estrutura_norma_url, { type: 'url', placeholder: 'https://…' })
     };
 
+    // ----- Selos e certificações (aparecem no topo da página inicial do site) -----
+    // Ficam em configuracoes.selos: [{ titulo, descricao, url, imagem_url }], no máximo 6.
+    // A imagem (opcional) é reduzida no navegador e só é enviada ao salvar.
+    const MAX_SELOS = 6;
+    const selos = (Array.isArray(cfg.selos) ? cfg.selos : []).map((x) => ({
+      titulo: texto(x.titulo, { maxlength: 60 }), descricao: texto(x.descricao, { maxlength: 80 }),
+      url: texto(x.url, { type: 'url', placeholder: 'https://…' }), imagem_url: x.imagem_url || null, imagem_nova: null
+    }));
+    const listaSelos = el('div', { class: 'lista-selos' });
+    const btnAddSelo = el('button', { type: 'button', class: 'btn btn-claro', onclick: () => {
+      selos.push({ titulo: texto('', { maxlength: 60 }), descricao: texto('', { maxlength: 80 }), url: texto('', { type: 'url', placeholder: 'https://…' }), imagem_url: null, imagem_nova: null });
+      desenharSelos(); selos[selos.length - 1].titulo.focus();
+    } }, '+ Adicionar selo');
+    function desenharSelos() {
+      listaSelos.replaceChildren(...selos.map((s, k) => {
+        s.titulo.id = 'ap-selo-t-' + k; s.descricao.id = 'ap-selo-d-' + k; s.url.id = 'ap-selo-u-' + k;
+        const mini = el('div', { class: 'selo-mini' });
+        const mostrar = () => mini.replaceChildren(s.imagem_nova ? el('img', { src: URL.createObjectURL(s.imagem_nova.blob), alt: '' })
+          : s.imagem_url ? el('img', { src: s.imagem_url, alt: '' }) : el('span', null, 'Sem imagem'));
+        mostrar();
+        const arq = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', class: 'sr', id: 'ap-selo-img-' + k });
+        arq.addEventListener('change', async () => {
+          const fl = arq.files[0]; if (!fl) return;
+          if (fl.size > 10 * 1024 * 1024) { toast('A imagem passa de 10 MB.', true); return; }
+          try { s.imagem_nova = await P.reduzirImagem(fl, 240); mostrar(); } catch (e) { toast(e.message, true); }
+        });
+        return el('div', { class: 'linha-selo' },
+          el('div', { class: 'selo-imagem' }, mini, arq,
+            el('label', { for: 'ap-selo-img-' + k, class: 'link' + (podeEditar ? '' : ' desativado') }, s.imagem_url || s.imagem_nova ? 'Trocar imagem' : 'Imagem (opcional)'),
+            s.imagem_url || s.imagem_nova ? el('button', { type: 'button', class: 'link', hidden: !podeEditar, onclick: () => { s.imagem_url = null; s.imagem_nova = null; desenharSelos(); } }, 'Tirar imagem') : null),
+          el('div', { class: 'grade-campos selo-campos' },
+            campo('ap-selo-t-' + k, 'Nome do selo', s.titulo, 'Ex.: Selo PNTP Diamante'),
+            campo('ap-selo-d-' + k, 'Detalhe', s.descricao, 'Ex.: Atricon · ciclo 2025'),
+            campo('ap-selo-u-' + k, 'Link (opcional)', s.url, 'Página que comprova o selo')),
+          podeEditar ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => { selos.splice(k, 1); desenharSelos(); } }, 'Remover') : null);
+      }), selos.length ? '' : el('p', { class: 'ajuda' }, 'Nenhum selo cadastrado. Sem selos, a faixa não aparece no site.'));
+      btnAddSelo.hidden = !podeEditar || selos.length >= MAX_SELOS;
+    }
+    desenharSelos();
+
     const btnSalvar = el('button', { type: 'submit', class: 'btn btn-primario' }, 'Salvar alterações');
     const form = el('form', { class: 'form-aparencia', novalidate: true },
       el('div', { class: 'grade grade-2' },
@@ -159,6 +199,10 @@
           campo('ap-estrutura-norma', 'Identificação', f.estrutura_norma),
           campo('ap-estrutura-url', 'Link', f.estrutura_norma_url)
         ),
+        el('section', { class: 'cartao cartao-largo' },
+          el('h2', null, 'Selos e certificações'),
+          el('p', { class: 'ajuda' }, 'Selos de transparência e outras certificações do órgão (ex.: Selo PNTP da Atricon). Aparecem numa faixa no alto da página inicial do site. Até ' + MAX_SELOS + '.'),
+          listaSelos, btnAddSelo),
         el('section', { class: 'cartao' },
           el('h2', null, 'Endereço do site'),
           campo('ap-dominio', 'Domínio', f.dominio, 'Usado quando o site público entrar no ar (Lote 5).')
@@ -186,6 +230,10 @@
         ['ap-esic', 'esic_url'], ['ap-ouvidoria', 'ouvidoria_url'], ['ap-estrutura-url', 'estrutura_norma_url']]) {
         if (!erroCampo(id, urlValida(v(k)) ? '' : 'Informe o endereço completo, começando com https://')) return;
       }
+      for (let k = 0; k < selos.length; k++) {
+        if (!erroCampo('ap-selo-t-' + k, selos[k].titulo.value.trim() ? '' : 'Informe o nome do selo (ou remova a linha).')) return;
+        if (!erroCampo('ap-selo-u-' + k, urlValida(selos[k].url.value.trim()) ? '' : 'Informe o endereço completo, começando com https://')) return;
+      }
       const dominio = v('dominio').toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
       if (!erroCampo('ap-dominio', !dominio || /^[a-z0-9.-]+\.[a-z]{2,}$/.test(dominio) ? '' : 'Domínio inválido. Ex.: riachodacruz.rn.gov.br')) return;
 
@@ -193,6 +241,9 @@
       try {
         const antigo = cfg.brasao_url || null;
         if (brasaoNovo) brasaoUrl = await P.enviarArquivo('aparencia', brasaoNovo.blob, brasaoNovo.ext);
+        for (const sl of selos) if (sl.imagem_nova) { sl.imagem_url = await P.enviarArquivo('aparencia', sl.imagem_nova.blob, sl.imagem_nova.ext); sl.imagem_nova = null; }
+        const selosAntigos = (Array.isArray(cfg.selos) ? cfg.selos : []).map((x) => x.imagem_url).filter(Boolean);
+        const selosGravar = selos.map((sl) => ({ titulo: sl.titulo.value.trim(), descricao: sl.descricao.value.trim(), url: sl.url.value.trim(), imagem_url: sl.imagem_url || null }));
         const novaCfg = Object.assign({}, cfg, {
           nome_exibicao: v('nome_exibicao'), cor_principal: corTexto.value.toLowerCase(),
           brasao_url: brasaoUrl, endereco: v('endereco'), cep: v('cep'), telefone: v('telefone'),
@@ -200,7 +251,8 @@
           youtube: v('youtube'), whatsapp: v('whatsapp'),
           diario_oficial_nome: v('diario_nome'), diario_oficial_url: v('diario_url'),
           transparencia_url: v('transparencia_url'), licitacoes_url: v('licitacoes_url'), esic_url: v('esic_url'),
-          ouvidoria_url: v('ouvidoria_url'), estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url')
+          ouvidoria_url: v('ouvidoria_url'), estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url'),
+          selos: selosGravar
         });
         const { data, error: e2 } = await sb.from('orgaos')
           .update({ configuracoes: novaCfg, dominio: dominio || null })
@@ -208,6 +260,8 @@
         if (e2) throw e2;
         if (!data || !data.length) throw Object.assign(new Error('Seu perfil não tem permissão para alterar a aparência deste órgão.'), { amigavel: true });
         if (antigo && antigo !== brasaoUrl) P.apagarArquivo(antigo);
+        // Imagens de selos trocadas ou removidas: apaga do armazenamento.
+        for (const u of selosAntigos) if (!selosGravar.some((x) => x.imagem_url === u)) P.apagarArquivo(u);
         Object.assign(cfg, novaCfg);
         brasaoNovo = null;
         toast('Aparência salva.');
