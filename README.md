@@ -204,6 +204,13 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 
 ## Histórico de mudanças
 
+**0.6.1 — 12/11/2026 — ajustes pedidos no teste do site**
+- Botão "Portal da Transparência" do topo e a faixa de transparência da página inicial passam do
+  azul para amarelo-destaque (#f2b33d) com texto escuro (contraste 9:1) e ícone de olho.
+- Redes sociais (início e rodapé) com o logotipo de cada rede, incluindo o WhatsApp.
+- Painel: aparecia a palavra "null" embaixo das listas de Banners e Avisos quando não havia mais
+  itens para carregar (um valor vazio era desenhado como texto). Corrigido.
+
 **0.6.0 — 12/11/2026 — Lote 5 da Fase 1 (site público)**
 - Site público completo lendo os dados do painel (ver seção "Site público").
 - Painel: botão "Ver site" funcionando; Aparência ganhou "Sistemas externos" (Portal da

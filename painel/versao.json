@@ -1,7 +1,7 @@
 {
-  "versao": "0.6.0",
+  "versao": "0.6.1",
   "data": "2026-11-12",
   "notas": [
-    "Lote 5: site público (início, notícias, publicações, estrutura, gestores, Carta de Serviços, perguntas frequentes, LGPD, dados abertos, busca e acessibilidade)."
+    "Site: Portal da Transparência em amarelo e redes sociais com logotipo. Painel: corrigido o \"null\" nas abas Banners e Avisos."
   ]
 }

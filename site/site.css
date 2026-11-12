@@ -252,3 +252,24 @@ a.cartao.noticia-destaque { display: grid; }
 html.contraste .faixa-transparencia .botao.botao-radar { color: #ffe600 !important; border-color: #ffe600 !important; }
 html.contraste .banner-controles button { background: #000 !important; border: 2px solid #ffe600 !important; }
 html.contraste .banner-pontos button[aria-current="true"] { background: #ffe600 !important; }
+
+/* ---------- Transparência em amarelo-destaque (pedido do cliente, 12/11) ----------
+   Amarelo com texto escuro: contraste 9:1, aprovado para acessibilidade. */
+:root { --destaque: #f2b33d; --destaque-escuro: #e0a01f; --destaque-texto: #1a2433; }
+.btn-transparencia { display: inline-flex; align-items: center; gap: 8px; background: var(--destaque); color: var(--destaque-texto) !important; border-radius: 10px; }
+.btn-transparencia:hover { background: var(--destaque-escuro); }
+.faixa-transparencia { background: var(--destaque); color: var(--destaque-texto); }
+.faixa-transparencia h2, .faixa-transparencia p { color: var(--destaque-texto); }
+.faixa-transparencia .botao.botao-transparencia { background: var(--destaque-texto) !important; color: #fff !important; }
+.faixa-transparencia .botao.botao-transparencia:hover { background: #000 !important; }
+.faixa-transparencia .botao.botao-radar { color: var(--destaque-texto) !important; border-color: var(--destaque-texto); }
+.faixa-transparencia .botao.botao-radar:hover { background: rgba(0, 0, 0, .08) !important; }
+
+/* ---------- Redes sociais com logotipo ---------- */
+.botao-rede { color: var(--texto) !important; }
+.botao-rede svg, .rede svg { flex-shrink: 0; }
+.redes a.rede { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--texto) !important; border: 0; padding: 6px 12px 6px 8px; }
+.redes a.rede:hover { background: var(--cor-clara); }
+html.contraste .btn-transparencia { color: #ffe600 !important; }
+html.contraste .faixa-transparencia .botao.botao-radar, html.contraste .faixa-transparencia .botao.botao-transparencia { color: #ffe600 !important; border: 2px solid #ffe600 !important; background: #000 !important; }
+html.contraste svg { color: #ffe600 !important; }

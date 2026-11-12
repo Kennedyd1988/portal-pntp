@@ -40,6 +40,35 @@
   const normalizar = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const dataBR = (d) => d ? new Date(String(d).length === 10 ? d + 'T12:00:00' : d).toLocaleDateString('pt-BR') : '';
   const dataLonga = (d) => d ? new Date(String(d).length === 10 ? d + 'T12:00:00' : d).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  // Logotipos das redes (desenho simples, uma cor) usados no início e no rodapé.
+  const SVG = 'http://www.w3.org/2000/svg';
+  const REDES = {
+    Instagram: { cor: '#E1306C', partes: [['rect', { x: 3, y: 3, width: 18, height: 18, rx: 5 }], ['circle', { cx: 12, cy: 12, r: 4 }], ['circle', { cx: 17.5, cy: 6.5, r: 1, fill: 'currentColor' }]] },
+    Facebook: { cor: '#1877F2', partes: [['path', { d: 'M15 3h-2.5A4.5 4.5 0 0 0 8 7.5V10H5v4h3v7h4v-7h3l1-4h-4V7.5c0-.3.2-.5.5-.5H15z', fill: 'currentColor', stroke: 'none' }]] },
+    YouTube: { cor: '#FF0000', partes: [['rect', { x: 2, y: 5, width: 20, height: 14, rx: 4, fill: 'currentColor', stroke: 'none' }], ['path', { d: 'M10 9l5 3-5 3z', fill: '#fff', stroke: 'none' }]] },
+    WhatsApp: { cor: '#25D366', partes: [['path', { d: 'M3 21l1.6-4.6A9 9 0 1 1 8 19.6z' }], ['path', { d: 'M9 9.5c0 3 2.5 5.5 5.5 5.5l1.2-1.4-2-1-1 .9a4 4 0 0 1-2.2-2.2l.9-1-1-2z', fill: 'currentColor', stroke: 'none' }]] }
+  };
+  function logoRede(nome) {
+    const r = REDES[nome];
+    const s = document.createElementNS(SVG, 'svg');
+    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', '22'); s.setAttribute('height', '22'); s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2');
+    s.style.color = r.cor;
+    for (const [tag, at] of r.partes) {
+      const e = document.createElementNS(SVG, tag);
+      for (const [k, v] of Object.entries(at)) e.setAttribute(k, v);
+      s.append(e);
+    }
+    return s;
+  }
+  // Lista de redes do órgão: [nome, endereço].
+  function redesDoOrgao(c) {
+    const zap = c.whatsapp ? 'https://wa.me/55' + c.whatsapp.replace(/\D/g, '').replace(/^55/, '') : null;
+    return [['Instagram', c.instagram], ['Facebook', c.facebook], ['YouTube', c.youtube], ['WhatsApp', zap]].filter((r) => r[1]);
+  }
+  const linkRede = ([nome, url], classe) => el('a', { class: classe, href: url, target: '_blank', rel: 'noopener' },
+    logoRede(nome), el('span', null, nome), el('span', { class: 'sr' }, ' (abre em nova aba)'));
+
   const TIPO_ORGAO = { prefeitura: 'Poder Executivo Municipal', camara: 'Poder Legislativo Municipal', rpps: 'Regime Próprio de Previdência', consorcio: 'Consórcio Público', autarquia: 'Autarquia', outro: '' };
 
   // ---------- texto com formatação simples (mesmo formato do painel) ----------
@@ -73,7 +102,7 @@
 
   // ---------- órgão ----------
   const S = window.SITE = {
-    sb, el, $, normalizar, dataBR, dataLonga, texto, guardar, ler,
+    sb, el, $, redesDoOrgao, linkRede, normalizar, dataBR, dataLonga, texto, guardar, ler,
     orgao: null, conf: {}, menu: [], lgpd: null, rotas: {}, unidades: null
   };
 
@@ -188,7 +217,7 @@
   // ---------- rodapé ----------
   function montarRodape() {
     const c = S.conf, o = S.orgao, l = S.lgpd || {};
-    const redes = [['Instagram', c.instagram], ['Facebook', c.facebook], ['YouTube', c.youtube]].filter((r) => r[1]);
+    const redes = redesDoOrgao(c);
     const zap = c.whatsapp ? 'https://wa.me/55' + c.whatsapp.replace(/\D/g, '').replace(/^55/, '') : null;
     $('rodape').replaceChildren(
       el('div', { class: 'limite rodape-int' },
@@ -197,7 +226,7 @@
           o.cnpj ? el('p', null, 'CNPJ ' + o.cnpj) : null,
           c.endereco ? el('p', null, c.endereco) : null,
           c.cep ? el('p', null, 'CEP ' + c.cep) : null,
-          redes.length ? el('div', { class: 'redes', 'aria-label': 'Redes sociais oficiais' }, redes.map(([n, u]) => el('a', { href: u, target: '_blank', rel: 'noopener' }, n))) : null),
+          redes.length ? el('div', { class: 'redes', 'aria-label': 'Redes sociais oficiais' }, redes.map((r) => linkRede(r, 'rede'))) : null),
         el('div', null,
           el('h2', null, 'Atendimento'),
           c.horario ? el('p', null, c.horario) : null,

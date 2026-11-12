@@ -109,7 +109,7 @@
         el('div', null, el('h2', { id: 'tit-transp' }, 'Transparência pública'),
           el('p', null, 'Acompanhe como os recursos públicos são aplicados: receitas, despesas, licitações, contratos, servidores e prestação de contas.')),
         el('div', { class: 'faixa-botoes' },
-          el('a', { class: 'botao', href: '#/transparencia' }, 'Portal da Transparência'),
+          el('a', { class: 'botao botao-transparencia', href: '#/transparencia' }, 'Portal da Transparência'),
           el('a', { class: 'botao botao-radar', href: RADAR, target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública',
             el('span', { class: 'sr' }, ' (abre em nova aba)')))))));
 
@@ -145,10 +145,10 @@
     }
     if (colunas.length) blocos.push(el('section', { class: 'secao' }, el('div', { class: 'limite grade ' + (colunas.length > 1 ? 'g2' : '') }, colunas)));
 
-    const redes = [['Instagram', c.instagram], ['Facebook', c.facebook], ['YouTube', c.youtube]].filter((r) => r[1]);
+    const redes = S.redesDoOrgao(c);
     if (redes.length) blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-redes' }, el('div', { class: 'limite' },
       el('h2', { id: 'tit-redes' }, 'Redes sociais oficiais'),
-      el('div', { class: 'faixa-botoes' }, redes.map(([n, u]) => el('a', { class: 'botao botao-claro', href: u, target: '_blank', rel: 'noopener' }, n, el('span', { class: 'sr' }, ' (abre em nova aba)')))))));
+      el('div', { class: 'faixa-botoes' }, redes.map((r) => S.linkRede(r, 'botao botao-claro botao-rede'))))));
 
     main.replaceChildren(...blocos);
   };

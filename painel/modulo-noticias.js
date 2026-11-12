@@ -360,7 +360,7 @@
               podeGravar ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formBanner(b) }, 'Editar') : null,
               perm.excluir && !alcance() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirSimples('banners', b, 'banner', b.imagem_url) }, 'Excluir') : null));
         })))) : el('p', { class: 'vazio' }, 'Nenhum banner cadastrado.'),
-      fimB ? null : el('div', { class: 'rodape-lista' }, el('span'), btnMais));
+      fimB ? '' : el('div', { class: 'rodape-lista' }, el('span'), btnMais));
   }
 
   // ======================= AVISOS =======================
@@ -429,7 +429,7 @@
               podeGravar ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formAviso(a) }, 'Editar') : null,
               perm.excluir && !alcance() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirSimples('avisos', a, 'aviso') }, 'Excluir') : null));
         })))) : el('p', { class: 'vazio' }, 'Nenhum aviso cadastrado.'),
-      fimA ? null : el('div', { class: 'rodape-lista' }, el('span'), btnMais));
+      fimA ? '' : el('div', { class: 'rodape-lista' }, el('span'), btnMais));
   }
 
   // ======================= TELA =======================
