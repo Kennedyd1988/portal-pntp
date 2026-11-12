@@ -1,7 +1,7 @@
 {
-  "versao": "0.2.0",
+  "versao": "0.3.0",
   "data": "2026-11-11",
   "notas": [
-    "Lote 1: aparência e contatos do órgão (brasão, cor, redes sociais), cadastro de unidades e de gestores."
+    "Lote 2: usuários e convites por link ou e-mail, perfis próprios do órgão, histórico de alterações e tela Minha conta."
   ]
 }

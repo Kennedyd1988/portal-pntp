@@ -38,7 +38,7 @@
         document.head.appendChild(css);
         // Carrega em sequência: app.js depende de config.js.
         // app.js primeiro (núcleo), depois as telas de cada módulo; no fim, inicia o painel.
-        ['config.js', 'app.js', 'modulo-aparencia.js', 'modulo-institucional.js'].reduce(function (anterior, arq) {
+        ['config.js', 'app.js', 'modulo-aparencia.js', 'modulo-institucional.js','modulo-usuarios.js','modulo-historico.js'].reduce(function (anterior, arq) {
           return anterior.then(function () {
             return new Promise(function (ok, erro) {
               var s = document.createElement('script');
@@ -124,8 +124,8 @@
 
     <!-- Nova senha (aberto pelo link do e-mail) -->
     <form id="form-nova-senha" class="cartao-form" novalidate hidden>
-      <h2>Criar nova senha</h2>
-      <p class="sub">Use pelo menos 8 caracteres, misturando letras e números.</p>
+      <h2 id="nova-titulo">Criar nova senha</h2>
+      <p class="sub" id="nova-sub">Use pelo menos 8 caracteres, misturando letras e números.</p>
       <div class="campo">
         <label for="nova-senha">Nova senha</label>
         <input id="nova-senha" type="password" autocomplete="new-password" required>
@@ -183,7 +183,7 @@
       </div>
       <button type="button" class="btn btn-claro" id="btn-trocar-orgao" hidden>Trocar órgão</button>
       <button type="button" class="btn btn-claro" id="btn-ver-site" disabled title="O site público entra na Fase 1">Ver site</button>
-      <span class="topo-usuario" id="topo-usuario"></span>
+      <button type="button" class="topo-usuario" id="topo-usuario" title="Minha conta: nome e senha"></button>
       <button type="button" class="btn btn-claro" id="btn-sair">Sair</button>
     </header>
     <main id="conteudo" class="conteudo" tabindex="-1"></main>

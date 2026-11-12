@@ -6,6 +6,19 @@
   'use strict';
 
   const cfg = window.CONFIG_PNTP;
+
+  // Tipo do link que abriu a página (convite ou recuperação de senha).
+  // Lido ANTES de criar o cliente da Supabase, porque ele limpa o endereço
+  // ao processar o link — depois disso não daria mais para saber de onde a pessoa veio.
+  const LINK_INICIAL = (() => {
+    const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+    const q = new URLSearchParams(location.search);
+    return {
+      tipo: h.get('type') || q.get('type') || (q.get('code') ? 'recovery' : null),
+      erro: h.get('error_code') || h.get('error') || q.get('error_code') || null
+    };
+  })();
+
   const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseChave);
 
   // Estado da sessão no navegador
@@ -204,6 +217,21 @@
     msg('rec-msg', 'Se este e-mail estiver cadastrado, você receberá o link em alguns minutos. Confira também a caixa de spam.', 'ok');
   });
 
+  // Mesmo formulário para quem chegou pelo convite (cria a primeira senha) e pela recuperação.
+  let modoSenha = 'recovery';
+  function prepararNovaSenha(tipo) {
+    modoSenha = tipo;
+    const convite = tipo === 'invite';
+    $('nova-titulo').textContent = convite ? 'Bem-vindo(a)! Crie sua senha' : 'Criar nova senha';
+    $('nova-sub').textContent = convite
+      ? 'Seu acesso ao painel foi liberado. Escolha uma senha com pelo menos 8 caracteres, misturando letras e números.'
+      : 'Use pelo menos 8 caracteres, misturando letras e números.';
+    $('btn-salvar-senha').textContent = convite ? 'Criar senha e entrar' : 'Salvar nova senha';
+    msg('nova-msg');
+    mostrarForm('form-nova-senha');
+    $('nova-senha').focus();
+  }
+
   $('form-nova-senha').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const s1 = $('nova-senha').value;
@@ -219,9 +247,61 @@
     $('nova-senha').value = '';
     $('nova-senha2').value = '';
     history.replaceState(null, '', location.pathname);
-    toast('Senha alterada com sucesso.');
+    toast(modoSenha === 'invite' ? 'Senha criada. Seja bem-vindo(a)!' : 'Senha alterada com sucesso.');
     await carregarContexto();
   });
+
+  // ---------- minha conta (nome e senha da própria pessoa) ----------
+  function minhaConta() {
+    const nome = el('input', { type: 'text', id: 'mc-nome', maxlength: 120, value: estado.usuario.nome || '' });
+    const s1 = el('input', { type: 'password', id: 'mc-senha', autocomplete: 'new-password' });
+    const s2 = el('input', { type: 'password', id: 'mc-senha2', autocomplete: 'new-password' });
+    const campo = (id, rotulo, input, ajuda) => el('div', { class: 'campo' },
+      el('label', { for: id }, rotulo), input,
+      ajuda ? el('span', { class: 'ajuda' }, ajuda) : null,
+      el('span', { class: 'erro-campo', id: id + '-erro' }));
+    const corpo = el('form', { class: 'form-dialogo', novalidate: true },
+      campo('mc-nome', 'Seu nome', nome, 'Aparece no histórico de alterações.'),
+      el('p', { class: 'ajuda' }, 'E-mail de acesso: ' + estado.usuario.email),
+      el('fieldset', { class: 'opcoes' },
+        el('legend', null, 'Trocar senha (deixe em branco para manter)'),
+        el('div', { class: 'grade-campos' },
+          campo('mc-senha', 'Nova senha', s1),
+          campo('mc-senha2', 'Repita a nova senha', s2)))
+    );
+    const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
+    const dlg = abrirDialogo('Minha conta', corpo, [
+      el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn
+    ]);
+    corpo.addEventListener('submit', (ev) => { ev.preventDefault(); btn.click(); });
+    btn.addEventListener('click', async () => {
+      const n = nome.value.trim().replace(/\s+/g, ' ');
+      if (!erroCampo('mc-nome', n.length >= 3 ? '' : 'Informe seu nome.')) return;
+      if (s1.value || s2.value) {
+        const forte = s1.value.length >= 8 && /[a-z]/i.test(s1.value) && /\d/.test(s1.value);
+        if (!erroCampo('mc-senha', forte ? '' : 'Use pelo menos 8 caracteres, com letras e números.')) return;
+        if (!erroCampo('mc-senha2', s1.value === s2.value ? '' : 'As duas senhas não são iguais.')) return;
+      }
+      ocupado(btn, 'Salvando…');
+      try {
+        if (n !== estado.usuario.nome) {
+          const { data: { user } } = await sb.auth.getUser();
+          const { error } = await sb.from('usuarios').update({ nome: n }).eq('id', user.id);
+          if (error) throw error;
+          estado.usuario.nome = n;
+          $('topo-usuario').textContent = n;
+        }
+        if (s1.value) {
+          const { error } = await sb.auth.updateUser({ password: s1.value });
+          if (error) throw error;
+        }
+        dlg.close();
+        toast('Dados atualizados.');
+      } catch (e) { toast(traduzirErro(e), true); }
+      finally { ocupado(btn); }
+    });
+  }
+  $('topo-usuario').addEventListener('click', () => minhaConta());
 
   async function sair() {
     await sb.auth.signOut();
@@ -394,14 +474,15 @@
           el('h2', null, 'Fase 1 · Conteúdo do site'),
           el('ul', { class: 'lista-check' },
             el('li', null, 'Aparência e contatos do órgão'),
-            el('li', null, 'Unidades e gestores')
+            el('li', null, 'Unidades e gestores'),
+            el('li', null, 'Usuários, perfis e convites'),
+            el('li', null, 'Histórico de alterações')
           ),
           el('ul', { class: 'lista-check lista-proximos', style: 'margin-top:8px' },
             el('li', null, 'Menu e links do site'),
             el('li', null, 'Páginas institucionais'),
             el('li', null, 'Notícias, banners e avisos'),
-            el('li', null, 'Carta de Serviços'),
-            el('li', null, 'Usuários e permissões')
+            el('li', null, 'Carta de Serviços')
           )
         )
       )
@@ -439,24 +520,29 @@
   // ---------- início ----------
   // Link de recuperação de senha: a Supabase abre a página já com sessão e avisa por este evento.
   sb.auth.onAuthStateChange((evento) => {
-    if (evento === 'PASSWORD_RECOVERY') { mostrarForm('form-nova-senha'); $('nova-senha').focus(); }
+    if (evento === 'PASSWORD_RECOVERY') prepararNovaSenha(LINK_INICIAL.tipo === 'invite' ? 'invite' : 'recovery');
     if (evento === 'SIGNED_OUT') { estado.usuario = null; estado.orgao = null; mostrarForm('form-login'); }
   });
 
   async function iniciar() {
     mostrarVersao();
-    // Se veio pelo link de recuperação, espera o evento PASSWORD_RECOVERY em vez de abrir o painel.
-    if (/type=recovery/.test(location.hash) || /type=recovery|code=/.test(location.search)) {
+    // Link vencido ou já usado: a Supabase devolve o erro no endereço.
+    if (LINK_INICIAL.erro) {
+      history.replaceState(null, '', location.pathname);
+      mostrarForm('form-login');
+      msg('login-msg', /expired/i.test(LINK_INICIAL.erro) || LINK_INICIAL.erro === 'access_denied'
+        ? 'O link expirou ou já foi usado. Peça um novo link ao administrador do órgão ou use "Esqueci minha senha".'
+        : 'Não foi possível usar o link. Peça um novo ao administrador do órgão.', 'info');
+      return;
+    }
+    // Veio por convite ou recuperação: getSession espera a Supabase processar o link.
+    if (LINK_INICIAL.tipo === 'invite' || LINK_INICIAL.tipo === 'recovery') {
       mostrarTela('tela-carregando');
-      // Se o link estiver vencido o evento não chega: depois de 6 s segue o fluxo normal.
-      setTimeout(async () => {
-        if (!$('tela-carregando').hidden) {
-          history.replaceState(null, '', location.pathname);
-          const { data: { session } } = await sb.auth.getSession();
-          if (session) await carregarContexto();
-          else { mostrarForm('form-login'); msg('login-msg', 'O link de recuperação expirou ou já foi usado. Peça um novo em "Esqueci minha senha".', 'info'); }
-        }
-      }, 6000);
+      const { data: { session } } = await sb.auth.getSession();
+      history.replaceState(null, '', location.pathname);
+      if (session) { prepararNovaSenha(LINK_INICIAL.tipo); return; }
+      mostrarForm('form-login');
+      msg('login-msg', 'O link expirou ou já foi usado. Peça um novo link ao administrador do órgão ou use "Esqueci minha senha".', 'info');
       return;
     }
     const { data: { session } } = await sb.auth.getSession();
