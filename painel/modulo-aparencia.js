@@ -88,7 +88,13 @@
       whatsapp: texto(cfg.whatsapp, { inputmode: 'tel', placeholder: '(84) 90000-0000' }),
       dominio: texto(org.dominio, { placeholder: 'riachodacruz.rn.gov.br' }),
       diario_nome: texto(cfg.diario_oficial_nome, { placeholder: 'Diário Oficial dos Municípios do RN (FEMURN)' }),
-      diario_url: texto(cfg.diario_oficial_url, { type: 'url', placeholder: 'https://www.diariomunicipal.com.br/femurn/' })
+      diario_url: texto(cfg.diario_oficial_url, { type: 'url', placeholder: 'https://www.diariomunicipal.com.br/femurn/' }),
+      transparencia_url: texto(cfg.transparencia_url, { type: 'url', placeholder: 'https://…' }),
+      licitacoes_url: texto(cfg.licitacoes_url, { type: 'url', placeholder: 'https://…' }),
+      esic_url: texto(cfg.esic_url, { type: 'url', placeholder: 'https://… (ex.: Fala.BR ou sistema próprio)' }),
+      ouvidoria_url: texto(cfg.ouvidoria_url, { type: 'url', placeholder: 'https://…' }),
+      estrutura_norma: texto(cfg.estrutura_norma, { placeholder: 'Ex.: Lei Complementar nº 5/2021' }),
+      estrutura_norma_url: texto(cfg.estrutura_norma_url, { type: 'url', placeholder: 'https://…' })
     };
 
     const btnSalvar = el('button', { type: 'submit', class: 'btn btn-primario' }, 'Salvar alterações');
@@ -140,6 +146,20 @@
           campo('ap-diario-url', 'Endereço (link)', f.diario_url)
         ),
         el('section', { class: 'cartao' },
+          el('h2', null, 'Sistemas externos'),
+          el('p', { class: 'ajuda' }, 'Enquanto estes módulos não estiverem no portal SOFT+, o site leva o cidadão para o sistema atual. Em branco: o site mostra "em implantação" com os contatos.'),
+          campo('ap-transparencia', 'Portal da Transparência', f.transparencia_url),
+          campo('ap-licitacoes', 'Licitações e contratos', f.licitacoes_url),
+          campo('ap-esic', 'e-SIC (acesso à informação)', f.esic_url),
+          campo('ap-ouvidoria', 'Ouvidoria', f.ouvidoria_url)
+        ),
+        el('section', { class: 'cartao' },
+          el('h2', null, 'Norma da estrutura organizacional'),
+          el('p', { class: 'ajuda' }, 'Lei que institui ou altera a estrutura administrativa do órgão (PNTP 2.1). Aparece no topo da página "Estrutura organizacional".'),
+          campo('ap-estrutura-norma', 'Identificação', f.estrutura_norma),
+          campo('ap-estrutura-url', 'Link', f.estrutura_norma_url)
+        ),
+        el('section', { class: 'cartao' },
           el('h2', null, 'Endereço do site'),
           campo('ap-dominio', 'Domínio', f.dominio, 'Usado quando o site público entrar no ar (Lote 5).')
         )
@@ -162,7 +182,10 @@
       for (const r of ['instagram', 'facebook', 'youtube']) {
         if (!erroCampo('ap-' + r, urlValida(v(r)) ? '' : 'Informe o endereço completo, começando com https://')) return;
       }
-      if (!erroCampo('ap-diario-url', urlValida(v('diario_url')) ? '' : 'Informe o endereço completo, começando com https://')) return;
+      for (const [id, k] of [['ap-diario-url', 'diario_url'], ['ap-transparencia', 'transparencia_url'], ['ap-licitacoes', 'licitacoes_url'],
+        ['ap-esic', 'esic_url'], ['ap-ouvidoria', 'ouvidoria_url'], ['ap-estrutura-url', 'estrutura_norma_url']]) {
+        if (!erroCampo(id, urlValida(v(k)) ? '' : 'Informe o endereço completo, começando com https://')) return;
+      }
       const dominio = v('dominio').toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
       if (!erroCampo('ap-dominio', !dominio || /^[a-z0-9.-]+\.[a-z]{2,}$/.test(dominio) ? '' : 'Domínio inválido. Ex.: riachodacruz.rn.gov.br')) return;
 
@@ -175,7 +198,9 @@
           brasao_url: brasaoUrl, endereco: v('endereco'), cep: v('cep'), telefone: v('telefone'),
           email: v('email'), horario: v('horario'), instagram: v('instagram'), facebook: v('facebook'),
           youtube: v('youtube'), whatsapp: v('whatsapp'),
-          diario_oficial_nome: v('diario_nome'), diario_oficial_url: v('diario_url')
+          diario_oficial_nome: v('diario_nome'), diario_oficial_url: v('diario_url'),
+          transparencia_url: v('transparencia_url'), licitacoes_url: v('licitacoes_url'), esic_url: v('esic_url'),
+          ouvidoria_url: v('ouvidoria_url'), estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url')
         });
         const { data, error: e2 } = await sb.from('orgaos')
           .update({ configuracoes: novaCfg, dominio: dominio || null })

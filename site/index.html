@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portal institucional</title>
+<meta name="description" content="Site oficial: notícias, serviços, publicações oficiais e transparência.">
+<meta name="theme-color" content="#0d4fc4">
+<link rel="icon" href="../icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap">
+<script>
+  // Mesmo controle de versões do painel: o número em ../painel/versao.json
+  // força o navegador a baixar CSS/JS novos quando sai uma versão.
+  (function () {
+    function carregar(src) {
+      return new Promise(function (ok, erro) {
+        var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = erro;
+        document.head.appendChild(s);
+      });
+    }
+    fetch('../painel/versao.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.json(); }).catch(function () { return { versao: 'dev' }; })
+      .then(function (v) {
+        var q = '?v=' + v.versao;
+        window.VERSAO_SITE = v.versao;
+        var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'site.css' + q;
+        document.head.appendChild(css);
+        return carregar('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2')
+          .then(function () { return carregar('../painel/config.js' + q); })
+          .then(function () { return carregar('site.js' + q); })
+          .then(function () { return carregar('paginas.js' + q); })
+          .then(function () { window.SITE.iniciar(); });
+      })
+      .catch(function () {
+        document.getElementById('conteudo').textContent = 'Não foi possível carregar o site. Verifique a conexão e tente de novo.';
+      });
+  })();
+</script>
+</head>
+<body>
+  <!-- Atalhos de acessibilidade (padrão e-MAG): Alt+1 conteúdo, Alt+2 menu, Alt+3 busca, Alt+4 rodapé -->
+  <div class="barra-acess">
+    <div class="limite barra-acess-int">
+      <ul class="atalhos">
+        <li><a href="#conteudo" data-alvo="conteudo">Ir para o conteúdo <span>[1]</span></a></li>
+        <li><a href="#menu-principal" data-alvo="menu-principal">Ir para o menu <span>[2]</span></a></li>
+        <li><a href="#campo-busca" data-alvo="campo-busca">Ir para a busca <span>[3]</span></a></li>
+        <li><a href="#rodape" data-alvo="rodape">Ir para o rodapé <span>[4]</span></a></li>
+      </ul>
+      <ul class="acess-ferramentas">
+        <li><a href="#/acessibilidade">Acessibilidade</a></li>
+        <li><button type="button" id="btn-contraste" aria-pressed="false">Alto contraste</button></li>
+        <li class="fontes" role="group" aria-label="Tamanho do texto">
+          <button type="button" id="fonte-mais" aria-label="Aumentar o texto">A+</button>
+          <button type="button" id="fonte-normal" aria-label="Texto no tamanho normal">A</button>
+          <button type="button" id="fonte-menos" aria-label="Diminuir o texto">A−</button>
+        </li>
+        <li><a href="#/mapa-do-site">Mapa do site</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <header class="cabecalho">
+    <div class="limite cabecalho-int">
+      <a class="marca" id="marca" href="#/">
+        <img id="marca-brasao" alt="" hidden>
+        <span class="marca-textos">
+          <span class="marca-esfera" id="marca-esfera"></span>
+          <span class="marca-nome" id="marca-nome">Carregando…</span>
+        </span>
+      </a>
+      <form class="busca-topo" id="form-busca" role="search">
+        <label for="campo-busca" class="sr">Pesquisar no site</label>
+        <input type="search" id="campo-busca" placeholder="Pesquisar no site" autocomplete="off">
+        <button type="submit" aria-label="Pesquisar">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M10 2a8 8 0 0 1 6.32 12.9l5.39 5.4-1.41 1.4-5.4-5.38A8 8 0 1 1 10 2Zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z"/></svg>
+        </button>
+      </form>
+      <a class="btn-transparencia" href="#/transparencia">Portal da Transparência</a>
+      <button type="button" class="btn-menu-mobile" id="btn-menu-mobile" aria-expanded="false" aria-controls="menu-principal">Menu</button>
+    </div>
+    <nav class="menu" id="menu-principal" aria-label="Menu principal" tabindex="-1">
+      <ul class="limite menu-lista" id="menu-lista"></ul>
+    </nav>
+  </header>
+
+  <div id="faixa-avisos"></div>
+  <nav class="trilha limite" id="trilha" aria-label="Você está em"></nav>
+  <main id="conteudo" tabindex="-1">
+    <p class="limite carregando">Carregando…</p>
+  </main>
+
+  <footer class="rodape" id="rodape" tabindex="-1"></footer>
+
+  <!-- VLibras: tradução para Libras (governo federal) -->
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper><div class="vw-plugin-top-wrapper"></div></div>
+  </div>
+</body>
+</html>

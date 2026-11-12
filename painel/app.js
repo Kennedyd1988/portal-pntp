@@ -452,6 +452,9 @@
       }
     }
     guardar('pntp_ultimo_orgao', o.id);
+    // "Ver site": enquanto o domínio do órgão não aponta para o portal, o site
+    // abre pelo endereço do GitHub com ?orgao= (o site descobre o órgão por ele).
+    $('btn-ver-site').onclick = () => window.open('../site/?orgao=' + o.id, '_blank', 'noopener');
     montarPainel();
   }
 

@@ -124,6 +124,7 @@ painel/
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
   manifest.json         → instalação como aplicativo (PWA)
+site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas)
 supabase/               → scripts SQL, rodar em ordem
 supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 ```
@@ -162,7 +163,31 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
   quando os arquivos forem para o Cloudflare R2.
 - Ao substituir um arquivo, o antigo é apagado.
 
+## Site público (site/)
+
+- Um único site para todos os órgãos. O órgão é descoberto pelo domínio cadastrado em
+  Aparência (`orgaos.dominio`) ou, enquanto o domínio não aponta para cá, por `?orgao=` com o
+  CNPJ (só números) ou o id. Ex.: `…/portal-pntp/site/?orgao=08153454000104`.
+- Navegação por `#/rota` (funciona em hospedagem estática sem configurar servidor).
+- O site lê SEMPRE como visitante (`persistSession: false`): painel e site ficam no mesmo
+  endereço, e usar a sessão de quem está logado mostraria rascunhos como se fossem públicos.
+- Cor, brasão, nome, contatos, redes e links externos vêm de `orgaos.configuracoes`.
+- Páginas: início, notícias (+ detalhe), publicações oficiais (filtros, total e CSV/JSON),
+  Diário Oficial, estrutura organizacional (árvore + norma), unidade (+ notícias e serviços),
+  gestores, Carta de Serviços (+ detalhe), perguntas frequentes, páginas livres, LGPD, dados
+  abertos (download e endereço de API por conjunto), contato, acessibilidade, mapa do site,
+  busca geral e páginas de sistemas externos (transparência, licitações, ouvidoria, e-SIC).
+- Acessibilidade: atalhos Alt+1 a 4, alto contraste e tamanho do texto lembrados no navegador,
+  VLibras, foco levado ao conteúdo a cada página, carrossel com pausa e sem rodar quando o
+  sistema pede menos movimento, textos alternativos obrigatórios nas imagens.
+- Hospedagem definitiva (domínio próprio de cada órgão): Cloudflare Pages, a decidir na entrada
+  em produção. O domínio de Riacho da Cruz é administrado pela empresa do site atual.
+
 ## Limitações conhecidas
+
+- Busca do site: notícias, publicações e serviços ignoram acentos (campo `busca`); páginas,
+  perguntas e unidades ainda diferenciam acento.
+- Sem domínio próprio, links de compartilhamento usam o endereço do GitHub com `?orgao=`.
 
 - Importação de publicações por planilha: botão visível e desativado até o layout ser definido.
 - Imagens dentro do texto de notícias/páginas ainda não são aceitas (só a foto de capa).
@@ -178,6 +203,16 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.6.0 — 12/11/2026 — Lote 5 da Fase 1 (site público)**
+- Site público completo lendo os dados do painel (ver seção "Site público").
+- Painel: botão "Ver site" funcionando; Aparência ganhou "Sistemas externos" (Portal da
+  Transparência, licitações, e-SIC e ouvidoria atuais, enquanto não estão no SOFT+) e a norma da
+  estrutura organizacional (PNTP 2.1).
+- Testado em navegador automatizado com dados simulados: todas as páginas, filtros, "carregar
+  mais", exportação CSV, busca, alto contraste, tamanho do texto, atalhos, celular (sem rolagem
+  lateral) e endereço sem órgão. Corrigidos no teste: botão do Radar invisível na faixa azul e a
+  notícia em destaque ocupando a largura toda.
 
 **0.5.1 — 12/11/2026 — ajuste de interface**
 - Os campos Categoria (notícias), Área (serviços) e Assunto (perguntas frequentes) deixam de usar a
