@@ -273,3 +273,44 @@ html.contraste .banner-pontos button[aria-current="true"] { background: #ffe600 
 html.contraste .btn-transparencia { color: #ffe600 !important; }
 html.contraste .faixa-transparencia .botao.botao-radar, html.contraste .faixa-transparencia .botao.botao-transparencia { color: #ffe600 !important; border: 2px solid #ffe600 !important; background: #000 !important; }
 html.contraste svg { color: #ffe600 !important; }
+
+/* ---------- Banner dentro do limite da página, cantos arredondados, deslizando ---------- */
+.banner-limite { margin-top: 20px; }
+.banner { border-radius: 16px; overflow: hidden; background: var(--fundo); }
+.banner-trilho { display: flex; transition: transform .6s ease; will-change: transform; }
+.banner-slide, .banner-slide.ativo { display: block; flex: 0 0 100%; min-width: 0; }
+.banner-slide img { border-radius: 0; }
+@media (max-width: 600px) { .banner-limite { margin-top: 12px; } .banner { border-radius: 12px; } }
+
+/* ---------- Aviso com botão de fechar ---------- */
+.aviso .limite { flex-wrap: nowrap; }
+.aviso-texto { flex: 1; }
+.aviso-fechar { flex-shrink: 0; background: transparent; border: 0; color: inherit; font-size: 1.6rem; line-height: 1; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; }
+.aviso-fechar:hover { background: rgba(0, 0, 0, .1); }
+.aviso-urgente .aviso-fechar:hover { background: rgba(255, 255, 255, .2); }
+
+/* ---------- Notícias da página inicial (cartões horizontais, a mais recente maior) ---------- */
+.noticia-h { display: grid; grid-template-columns: 42% 1fr; gap: 18px; background: #fff; border: 1px solid var(--linha); border-radius: 14px; padding: 14px; align-items: stretch; }
+.noticia-h-foto { display: block; border-radius: 10px; overflow: hidden; background: var(--fundo); }
+.noticia-h-foto img, .noticia-h-foto .noticia-sem-foto { width: 100%; height: 100%; min-height: 150px; object-fit: cover; display: flex; margin: 0; border-radius: 0; aspect-ratio: auto; }
+.noticia-h-texto { display: flex; flex-direction: column; min-width: 0; }
+.noticia-h-topo { display: flex; gap: 12px; align-items: center; background: var(--fundo); border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; }
+.noticia-h-vis { display: flex; flex-direction: column; align-items: center; color: var(--texto-suave); line-height: 1.1; }
+.noticia-h-vis strong { color: var(--texto); font-size: 1.05rem; }
+.noticia-h-meta { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--texto-suave); min-width: 0; }
+.noticia-h-cat { background: var(--cor); color: #fff; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 3px 10px; border-radius: 4px; align-self: flex-start; }
+.noticia-h h3 { font-size: 1rem; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .01em; }
+.noticia-h h3 a { color: var(--texto); text-decoration: none; }
+.noticia-h h3 a:hover { color: var(--cor); text-decoration: underline; }
+.noticia-h p { margin: 0 0 10px; color: var(--texto-suave); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.noticia-h-mais { margin-top: auto; align-self: flex-end; font-weight: 600; text-decoration: none; border-top: 1px solid var(--linha); padding-top: 8px; width: 100%; text-align: right; }
+.noticia-h-grande { grid-template-columns: 58% 1fr; padding: 18px; margin-bottom: 18px; }
+.noticia-h-grande .noticia-h-foto img, .noticia-h-grande .noticia-h-foto .noticia-sem-foto { min-height: 300px; }
+.noticia-h-grande h3 { font-size: 1.5rem; text-transform: none; }
+.noticia-h-grande p { -webkit-line-clamp: 5; font-size: 1.05rem; }
+@media (max-width: 760px) {
+  .noticia-h, .noticia-h-grande { grid-template-columns: 1fr; }
+  .noticia-h-foto img, .noticia-h-foto .noticia-sem-foto, .noticia-h-grande .noticia-h-foto img { min-height: 0; aspect-ratio: 16 / 9; height: auto; }
+}
+html.contraste .noticia-h, html.contraste .noticia-h-topo, html.contraste .noticia-h-cat { background: #000 !important; border-color: #fff !important; }
+.noticia-h-foto, .noticia-h-foto:hover { text-decoration: none; }

@@ -76,6 +76,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/06_lote3_conteudo.sql` | módulos novos (`paginas`, `menu`, com as permissões copiadas de `institucional` e `aparencia`); tabelas `noticias`, `banners`, `avisos`, `publicacoes`, `paginas`, `faq`, `menu_itens`; busca sem acento (`normalizar_texto` + coluna `busca`); gatilho rascunho → publicado; leitura pública só do que está no ar; Diário Oficial do piloto (FEMURN) |
 | `supabase/07_noticias_varias_unidades.sql` | notícia com "outras secretarias envolvidas" (`unidades_relacionadas`, índice GIN, validação e bloqueio de exclusão da unidade citada); correção: acesso limitado a uma unidade passa a impedir a exclusão dela (antes virava acesso ao órgão todo) |
 | `supabase/08_lote4_servicos_lgpd.sql` | módulo `lgpd` (permissões copiadas de `aparencia`); tabelas `servicos` (Carta de Serviços, com rascunho → publicado e alcance setorial), `carta_servicos` e `lgpd` (um registro por órgão, histórico por `orgao_id`); leitura pública |
+| `supabase/09_banner_noticia_visualizacoes.sql` | banner ligado a notícia (`banners.noticia_id`, mesma prefeitura, notícia usada em banner não pode ser excluída) e contador de visualizações (`noticias_visualizacoes` + `registrar_visualizacao`, que só soma em notícia publicada) |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
 
 ## Função de convite (Supabase Edge Function)
@@ -203,6 +204,22 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.6.2 — 12/11/2026 — ajustes do site pedidos no teste**
+- Avisos do topo com botão "×": o cidadão fecha e o aviso não volta neste navegador, a não ser
+  que o órgão altere o aviso.
+- Banners dentro do limite da página, com espaçamento e cantos arredondados, deslizando para o
+  lado na troca (e com o dedo no celular). Os banners fora da tela ficam inacessíveis ao teclado
+  e ao leitor de tela, para não confundir.
+- Banner pode abrir uma notícia já cadastrada (painel: "Ao clicar no banner" → notícia, com
+  busca). A notícia usada em banner não pode ser excluída sem trocar o banner antes.
+- Notícias da página inicial no layout de cartões horizontais (foto, data, visualizações,
+  categoria, título, resumo e "Continuar lendo"); a mais recente aparece maior. Se uma das
+  recentes estiver marcada como "Destacar na página inicial", ela ocupa o lugar maior.
+- Contador de visualizações: conta uma vez por notícia em cada sessão do navegador, em tabela
+  separada (somar na própria notícia mexeria na data de atualização e encheria o histórico).
+- Página da notícia: "Notícias relacionadas" (mesma categoria ou secretaria, completando com as
+  mais recentes) e total de visualizações.
 
 **0.6.1 — 12/11/2026 — ajustes pedidos no teste do site**
 - Botão "Portal da Transparência" do topo e a faixa de transparência da página inicial passam do

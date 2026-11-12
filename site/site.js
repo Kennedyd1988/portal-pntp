@@ -269,13 +269,28 @@
   // ---------- avisos de topo ----------
   async function montarAvisos() {
     const agora = new Date().toISOString();
-    const { data } = await sb.from('avisos').select('texto, link_url, nivel').eq('orgao_id', S.orgao.id).eq('ativo', true)
+    const { data } = await sb.from('avisos').select('id, texto, link_url, nivel, atualizado_em').eq('orgao_id', S.orgao.id).eq('ativo', true)
       .lte('inicio', agora).or('fim.is.null,fim.gt.' + agora).limit(5);
     const peso = { urgente: 0, importante: 1, informativo: 2 };
-    $('faixa-avisos').replaceChildren(...(data || []).sort((a, b) => peso[a.nivel] - peso[b.nivel]).slice(0, 3).map((a) =>
-      el('div', { class: 'aviso aviso-' + a.nivel, role: a.nivel === 'urgente' ? 'alert' : 'status' },
-        el('div', { class: 'limite' }, el('span', null, a.texto),
-          a.link_url ? el('a', { href: a.link_url, target: '_blank', rel: 'noopener' }, 'Saiba mais') : null))));
+    // Aviso fechado pelo cidadão não volta neste navegador — a não ser que o órgão
+    // altere o aviso (a chave inclui a data de atualização).
+    let fechados = [];
+    try { fechados = JSON.parse(ler('site_avisos_fechados') || '[]'); } catch (e) { fechados = []; }
+    const chave = (a) => a.id + '@' + a.atualizado_em;
+    const visiveis = (data || []).filter((a) => !fechados.includes(chave(a)))
+      .sort((a, b) => peso[a.nivel] - peso[b.nivel]).slice(0, 3);
+    $('faixa-avisos').replaceChildren(...visiveis.map((a) => {
+      const caixa = el('div', { class: 'aviso aviso-' + a.nivel, role: a.nivel === 'urgente' ? 'alert' : 'status' });
+      const fechar = el('button', { type: 'button', class: 'aviso-fechar', 'aria-label': 'Fechar aviso' }, '×');
+      fechar.addEventListener('click', () => {
+        fechados = fechados.concat(chave(a)).slice(-50);
+        guardar('site_avisos_fechados', JSON.stringify(fechados));
+        caixa.remove();
+      });
+      caixa.append(el('div', { class: 'limite' }, el('span', { class: 'aviso-texto' }, a.texto),
+        a.link_url ? el('a', { href: a.link_url, target: '_blank', rel: 'noopener' }, 'Saiba mais') : null, fechar));
+      return caixa;
+    }));
   }
 
   // ---------- roteador ----------

@@ -188,6 +188,13 @@
   }
 
   async function excluirNoticia(n) {
+    // Vínculo: banner que abre esta notícia (o banco também barra).
+    const { data: usados } = await sb.from('banners').select('titulo').eq('noticia_id', n.id).limit(5);
+    if (usados && usados.length) {
+      P.aviso('Não é possível excluir', 'A notícia "' + n.titulo + '" é aberta pelo banner "' + usados.map((b) => b.titulo).join('", "') +
+        '". Troque o destino do banner (aba Banners) antes de excluir, ou só tire a notícia do ar.');
+      return;
+    }
     if (!await P.confirmar('Excluir notícia', 'Excluir "' + n.titulo + '"? Se ela só não deve mais aparecer, prefira "Tirar do ar".', 'Excluir', true)) return;
     const { data, error } = await sb.from('noticias').delete().eq('id', n.id).select('id');
     if (error) return mostrarErro(error);
@@ -266,7 +273,53 @@
 
   // ======================= BANNERS =======================
   let banners = [], fimB = false;
-  const consultaBanners = (sel, op) => sb.from('banners').select(sel, op).eq('orgao_id', P.estado.orgao.id);
+  // Traz junto o título da notícia que o banner abre (para mostrar na lista).
+  const consultaBanners = (sel, op) => sb.from('banners').select(sel === '*' ? '*, noticias(titulo)' : sel, op).eq('orgao_id', P.estado.orgao.id);
+
+  // "Ao clicar no banner": nada, uma notícia cadastrada ou um endereço.
+  // A notícia é escolhida por busca (até 20 resultados), sem baixar a lista inteira.
+  function destinoBanner(b, inputLink) {
+    const tipoInicial = b.noticia_id ? 'noticia' : b.link_url ? 'link' : 'nada';
+    const sel = el('select', null,
+      el('option', { value: 'nada', selected: tipoInicial === 'nada' }, 'Não abre nada'),
+      el('option', { value: 'noticia', selected: tipoInicial === 'noticia' }, 'Abre uma notícia cadastrada'),
+      el('option', { value: 'link', selected: tipoInicial === 'link' }, 'Abre um endereço (outro site, serviço…)'));
+    const busca = el('input', { type: 'search', placeholder: 'Digite parte do título', 'aria-label': 'Buscar notícia' });
+    const lista = el('select', { size: 6, class: 'lista-noticias' });
+    let escolhida = b.noticia_id || null;
+    async function buscar() {
+      let q = sb.from('noticias').select('id, titulo, publicado_em, situacao').eq('orgao_id', P.estado.orgao.id);
+      const t = busca.value.trim();
+      if (t) q = q.ilike('busca', '%' + normalizar(t).replace(/[%_]/g, '') + '%');
+      const { data } = await q.order('data_ordem', { ascending: false }).limit(20);
+      let itens = data || [];
+      // Mantém a notícia já escolhida visível mesmo fora dos 20 resultados.
+      if (escolhida && !itens.some((n) => n.id === escolhida)) {
+        const { data: atual } = await sb.from('noticias').select('id, titulo, publicado_em, situacao').eq('id', escolhida).maybeSingle();
+        if (atual) itens = [atual].concat(itens);
+      }
+      lista.replaceChildren(...itens.map((n) => el('option', { value: n.id, selected: n.id === escolhida },
+        n.titulo + ' — ' + (n.situacao === 'publicado' ? P.dataBR(n.publicado_em) : 'rascunho'))));
+      if (!itens.length) lista.replaceChildren(el('option', { disabled: true }, 'Nenhuma notícia encontrada'));
+    }
+    let espera;
+    busca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(buscar, 300); });
+    lista.addEventListener('change', () => { escolhida = lista.value; });
+    lista.id = 'bn-noticia';
+    const blocoNoticia = el('div', { class: 'campo' },
+      el('label', { for: 'bn-noticia' }, 'Notícia'), busca, lista,
+      el('span', { class: 'ajuda' }, 'Notícia em rascunho só abre no site depois de publicada.'),
+      el('span', { class: 'erro-campo', id: 'bn-noticia-erro' }));
+    const blocoLink = campo('bn-link', 'Endereço', inputLink);
+    const alternar = () => {
+      blocoNoticia.hidden = sel.value !== 'noticia';
+      blocoLink.hidden = sel.value !== 'link';
+      if (sel.value === 'noticia' && !lista.options.length) buscar();
+    };
+    sel.addEventListener('change', alternar);
+    alternar();
+    return { campo: campo('bn-destino', 'Ao clicar no banner', sel), blocoNoticia, blocoLink, tipo: () => sel.value, noticia: () => escolhida };
+  }
 
   function situacaoPeriodo(ativo, inicio, fim) {
     const hoje = new Date().toISOString().slice(0, 10);
@@ -287,10 +340,11 @@
       ordem: el('input', { type: 'number', min: 0, max: 99, value: b.ordem == null ? 10 : b.ordem }),
       ativo: el('input', { type: 'checkbox', checked: b.id ? b.ativo : true })
     };
+    const destino = destinoBanner(b, f.link);
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       img.elemento,
       campo('bn-titulo', 'Texto alternativo (o que a imagem mostra ou anuncia)', f.titulo, null, true),
-      campo('bn-link', 'Link ao clicar', f.link, 'Opcional. Pode ser uma notícia, um serviço ou outro site.'),
+      destino.campo, destino.blocoNoticia, destino.blocoLink,
       el('div', { class: 'grade-campos' },
         campo('bn-inicio', 'Mostrar a partir de', f.inicio, 'Em branco = já'),
         campo('bn-fim', 'Mostrar até', f.fim, 'Em branco = sem data para sair')),
@@ -303,7 +357,8 @@
     btn.addEventListener('click', async () => {
       if (!img.estadoImg.nova && !img.estadoImg.url) { toast('Escolha a imagem do banner.', true); return; }
       if (!erroCampo('bn-titulo', f.titulo.value.trim().length >= 3 ? '' : 'Descreva o banner.')) return;
-      if (!erroCampo('bn-link', !f.link.value.trim() || P.urlValida(f.link.value.trim()) ? '' : 'Endereço completo, começando com https://')) return;
+      if (destino.tipo() === 'link' && !erroCampo('bn-link', P.urlValida(f.link.value.trim()) ? '' : 'Endereço completo, começando com https://')) return;
+      if (destino.tipo() === 'noticia' && !erroCampo('bn-noticia', destino.noticia() ? '' : 'Escolha a notícia.')) return;
       if (!erroCampo('bn-fim', !f.fim.value || !f.inicio.value || f.fim.value >= f.inicio.value ? '' : 'A data final é antes da inicial.')) return;
       ocupado(btn, 'Salvando…');
       try {
@@ -311,7 +366,9 @@
         let url = img.estadoImg.url;
         if (img.estadoImg.nova) url = await P.enviarArquivo('noticias', img.estadoImg.nova.blob, img.estadoImg.nova.ext);
         await P.gravarRegistro('banners', {
-          titulo: f.titulo.value.trim(), imagem_url: url, link_url: f.link.value.trim() || null,
+          titulo: f.titulo.value.trim(), imagem_url: url,
+          link_url: destino.tipo() === 'link' ? f.link.value.trim() : null,
+          noticia_id: destino.tipo() === 'noticia' ? destino.noticia() : null,
           inicio: f.inicio.value || null, fim: f.fim.value || null,
           ordem: parseInt(f.ordem.value, 10) || 0, ativo: f.ativo.checked
         }, b.id);
@@ -352,7 +409,9 @@
           const [cls, rot] = situacaoPeriodo(b.ativo, b.inicio, b.fim);
           return el('tr', null,
             el('td', null, el('div', { class: 'pessoa' }, el('img', { src: b.imagem_url, alt: '', class: 'miniatura miniatura-larga' }),
-              el('span', null, el('strong', null, b.titulo), b.link_url ? el('span', { class: 'sub-linha corta' }, b.link_url) : null))),
+              el('span', null, el('strong', null, b.titulo),
+                b.noticia_id ? el('span', { class: 'sub-linha corta' }, 'Abre a notícia: ' + ((b.noticias && b.noticias.titulo) || '—'))
+                  : b.link_url ? el('span', { class: 'sub-linha corta' }, b.link_url) : null))),
             el('td', null, (b.inicio ? P.dataBR(b.inicio) : 'Já') + ' → ' + (b.fim ? P.dataBR(b.fim) : 'sem fim')),
             el('td', null, String(b.ordem)),
             el('td', null, el('span', { class: 'etiqueta etiqueta-' + cls }, rot)),

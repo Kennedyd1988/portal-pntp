@@ -1,7 +1,7 @@
 {
-  "versao": "0.6.1",
+  "versao": "0.6.2",
   "data": "2026-11-12",
   "notas": [
-    "Site: Portal da Transparência em amarelo e redes sociais com logotipo. Painel: corrigido o \"null\" nas abas Banners e Avisos."
+    "Banner pode abrir uma notícia; avisos com botão de fechar; banners deslizando dentro da página; notícias da página inicial no novo layout, com visualizações e notícias relacionadas."
   ]
 }

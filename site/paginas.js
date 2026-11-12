@@ -57,6 +57,38 @@
     return data;
   }
 
+  // Total de visualizações por notícia (tabela separada; se o script 09 ainda não
+  // foi rodado, a consulta falha e os contadores simplesmente não aparecem).
+  async function visualizacoes(ids) {
+    if (!ids.length) return {};
+    const { data, error } = await sb.from('noticias_visualizacoes').select('noticia_id, total').in('noticia_id', ids);
+    if (error) return {};
+    return Object.fromEntries((data || []).map((v) => [v.noticia_id, Number(v.total)]));
+  }
+  const iconeOlho = () => {
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', '18'); s.setAttribute('height', '18'); s.setAttribute('aria-hidden', 'true');
+    s.innerHTML = '<path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>';
+    return s;
+  };
+  // Cartão horizontal da página inicial: foto à esquerda; data, visualizações,
+  // categoria, título, resumo e "Continuar lendo" à direita.
+  function cartaoHorizontal(n, vis, grande) {
+    const total = vis[n.id];
+    return el('article', { class: 'noticia-h' + (grande ? ' noticia-h-grande' : '') },
+      el('a', { class: 'noticia-h-foto', href: '#/noticia/' + n.id, tabindex: '-1', 'aria-hidden': 'true' },
+        n.capa_url ? el('img', { src: n.capa_url, alt: '', loading: grande ? 'eager' : 'lazy' }) : el('span', { class: 'noticia-sem-foto' }, 'Notícia')),
+      el('div', { class: 'noticia-h-texto' },
+        el('div', { class: 'noticia-h-topo' },
+          total ? el('span', { class: 'noticia-h-vis', title: total + ' visualizações' }, el('strong', null, total.toLocaleString('pt-BR')), iconeOlho(),
+            el('span', { class: 'sr' }, ' visualizações')) : null,
+          el('span', { class: 'noticia-h-meta' }, el('span', null, dataLonga(n.publicado_em)),
+            n.categoria ? el('span', { class: 'noticia-h-cat' }, n.categoria) : null)),
+        el(grande ? 'h3' : 'h3', null, el('a', { href: '#/noticia/' + n.id }, n.titulo)),
+        n.resumo ? el('p', null, n.resumo) : null,
+        el('a', { class: 'noticia-h-mais', href: '#/noticia/' + n.id }, 'Continuar lendo', el('span', { class: 'sr' }, ': ' + n.titulo), el('span', { 'aria-hidden': 'true' }, ' →'))));
+  }
+
   function cartaoNoticia(n, grande) {
     return el('a', { class: 'cartao noticia-cartao', href: '#/noticia/' + n.id },
       n.capa_url ? el('img', { src: n.capa_url, alt: n.capa_legenda || '', loading: 'lazy' }) : el('span', { class: 'noticia-sem-foto', 'aria-hidden': 'true' }, 'Notícia'),
@@ -83,11 +115,14 @@
         .in('forma_prestacao', ['digital', 'presencial_digital']).order('nome').limit(6)
     ]);
     const banners = bn.data || [], noticias = nt.data || [], pubs = pb.data || [], gestores = gs.data || [], digitais = sv.data || [];
+    // A notícia grande é a mais recente; se alguma das recentes foi marcada como
+    // "Destacar na página inicial", ela ocupa o lugar.
     const destaque = noticias.find((n) => n.destaque) || noticias[0];
     const demais = noticias.filter((n) => n !== destaque).slice(0, 4);
+    const vis = await visualizacoes(noticias.map((n) => n.id));
 
     const blocos = [];
-    if (banners.length) blocos.push(carrossel(banners));
+    if (banners.length) blocos.push(el('div', { class: 'limite banner-limite' }, carrossel(banners)));
 
     const acessos = [
       ['transparencia', 'Portal da Transparência', 'Receitas, despesas, folha e contas', '#/transparencia'],
@@ -116,12 +151,8 @@
     if (destaque) {
       blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-noticias' }, el('div', { class: 'limite' },
         el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-noticias' }, 'Notícias'), el('a', { href: '#/noticias' }, 'Todas as notícias →')),
-        el('a', { class: 'cartao noticia-destaque', href: '#/noticia/' + destaque.id },
-          destaque.capa_url ? el('img', { src: destaque.capa_url, alt: destaque.capa_legenda || '', style: 'width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px' })
-            : el('span', { class: 'noticia-sem-foto', 'aria-hidden': 'true' }, 'Notícia'),
-          el('div', null, el('span', { class: 'meta' }, (destaque.categoria ? destaque.categoria + ' · ' : '') + dataLonga(destaque.publicado_em)),
-            el('h3', null, destaque.titulo), destaque.resumo ? el('p', null, destaque.resumo) : null)),
-        demais.length ? el('div', { class: 'grade g4', style: 'margin-top:16px' }, demais.map((n) => cartaoNoticia(n))) : null)));
+        cartaoHorizontal(destaque, vis, true),
+        demais.length ? el('div', { class: 'grade g2 noticias-lista' }, demais.map((n) => cartaoHorizontal(n, vis))) : null)));
     }
 
     if (digitais.length) {
@@ -154,18 +185,27 @@
   };
 
   // Carrossel acessível: pausa ao passar o mouse/focar, botão de pausa, sem rodar se o usuário pede menos movimento.
+  // Banners deslizam para o lado (trilho com translateX). Os que estão fora da tela
+  // ficam "inert": o teclado e o leitor de tela só alcançam o banner visível.
   function carrossel(lista) {
     let atual = 0, timer = null, pausado = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const slides = lista.map((b, k) => {
       const img = el('img', { src: b.imagem_url, alt: b.titulo, loading: k ? 'lazy' : 'eager' });
-      return el('div', { class: 'banner-slide' + (k ? '' : ' ativo'), role: 'group', 'aria-roledescription': 'slide', 'aria-label': (k + 1) + ' de ' + lista.length },
-        b.link_url ? el('a', { href: b.link_url }, img) : img);
+      const destino = b.noticia_id ? '#/noticia/' + b.noticia_id : b.link_url;
+      const externo = !b.noticia_id && b.link_url && /^https?:/.test(b.link_url);
+      return el('div', { class: 'banner-slide', role: 'group', 'aria-roledescription': 'slide', 'aria-label': (k + 1) + ' de ' + lista.length, 'aria-hidden': k ? 'true' : null, inert: k ? true : null },
+        destino ? el('a', { href: destino, target: externo ? '_blank' : null, rel: externo ? 'noopener' : null }, img) : img);
     });
+    const trilho = el('div', { class: 'banner-trilho' }, slides);
     const pontos = lista.map((b, k) => el('button', { type: 'button', 'aria-label': 'Banner ' + (k + 1), 'aria-current': k ? 'false' : 'true', onclick: () => ir(k) }));
     const btnPausa = el('button', { type: 'button', 'aria-label': 'Pausar a troca automática' }, '❚❚');
     function ir(k) {
       atual = (k + lista.length) % lista.length;
-      slides.forEach((s, i) => s.classList.toggle('ativo', i === atual));
+      trilho.style.transform = 'translateX(' + (-100 * atual) + '%)';
+      slides.forEach((s, i) => {
+        if (i === atual) { s.removeAttribute('aria-hidden'); s.inert = false; }
+        else { s.setAttribute('aria-hidden', 'true'); s.inert = true; }
+      });
       pontos.forEach((p, i) => p.setAttribute('aria-current', i === atual ? 'true' : 'false'));
     }
     const iniciar = () => { clearInterval(timer); if (!pausado && lista.length > 1) timer = setInterval(() => ir(atual + 1), 7000); };
@@ -175,7 +215,16 @@
       btnPausa.setAttribute('aria-label', pausado ? 'Retomar a troca automática' : 'Pausar a troca automática');
       iniciar();
     });
-    const caixa = el('section', { class: 'banner', 'aria-roledescription': 'carrossel', 'aria-label': 'Destaques' }, slides,
+    // Deslizar com o dedo no celular.
+    let toqueX = null;
+    trilho.addEventListener('touchstart', (ev) => { toqueX = ev.touches[0].clientX; clearInterval(timer); }, { passive: true });
+    trilho.addEventListener('touchend', (ev) => {
+      if (toqueX === null) return;
+      const dx = ev.changedTouches[0].clientX - toqueX;
+      if (Math.abs(dx) > 40) ir(atual + (dx < 0 ? 1 : -1));
+      toqueX = null; iniciar();
+    });
+    const caixa = el('section', { class: 'banner', 'aria-roledescription': 'carrossel', 'aria-label': 'Destaques' }, trilho,
       lista.length > 1 ? el('div', { class: 'banner-controles' },
         el('button', { type: 'button', 'aria-label': 'Banner anterior', onclick: () => ir(atual - 1) }, '‹'),
         el('span', { class: 'banner-pontos' }, pontos), btnPausa,
@@ -244,11 +293,29 @@
     S.titulo(n.titulo); S.trilha(['Notícias', '#/noticias'], [n.titulo]);
     const secretarias = [n.unidade_id].concat(n.unidades_relacionadas || []).filter(Boolean);
     const url = location.href;
-    const { data: outras } = await sb.from('noticias').select('id, titulo, resumo, capa_url, capa_legenda, categoria, publicado_em')
-      .eq('orgao_id', org()).neq('id', n.id).order('publicado_em', { ascending: false }).limit(3);
+    // Conta a leitura uma vez por notícia em cada sessão do navegador.
+    let jaContou = false;
+    try { jaContou = sessionStorage.getItem('vis_' + n.id) === '1'; sessionStorage.setItem('vis_' + n.id, '1'); } catch (e) { /* sem armazenamento */ }
+    if (!jaContou) await sb.rpc('registrar_visualizacao', { p_noticia: n.id });
+    const vis = await visualizacoes([n.id]);
+    // Relacionadas: mesma categoria ou mesma secretaria; completa com as mais recentes.
+    const campos = 'id, titulo, resumo, capa_url, capa_legenda, categoria, publicado_em';
+    const filtros = [n.categoria ? 'categoria.eq."' + n.categoria.replace(/"/g, '') + '"' : null, n.unidade_id ? 'unidade_id.eq.' + n.unidade_id : null].filter(Boolean);
+    let outras = [];
+    if (filtros.length) {
+      const r = await sb.from('noticias').select(campos).eq('orgao_id', org()).neq('id', n.id).or(filtros.join(','))
+        .order('publicado_em', { ascending: false }).limit(3);
+      outras = r.data || [];
+    }
+    if (outras.length < 3) {
+      const r = await sb.from('noticias').select(campos).eq('orgao_id', org()).neq('id', n.id)
+        .order('publicado_em', { ascending: false }).limit(6);
+      outras = outras.concat((r.data || []).filter((x) => !outras.some((o) => o.id === x.id))).slice(0, 3);
+    }
     pagina(main, el('article', { class: 'artigo' },
       el('span', { class: 'meta' }, (n.categoria ? n.categoria + ' · ' : '') + 'Publicada em ' + dataLonga(n.publicado_em) +
-        (n.atualizado_em && new Date(n.atualizado_em) - new Date(n.publicado_em) > 36e5 ? ' · atualizada em ' + dataBR(n.atualizado_em) : '')),
+        (n.atualizado_em && new Date(n.atualizado_em) - new Date(n.publicado_em) > 36e5 ? ' · atualizada em ' + dataBR(n.atualizado_em) : '') +
+        (vis[n.id] ? ' · ' + vis[n.id].toLocaleString('pt-BR') + ' visualizações' : '')),
       el('h1', null, n.titulo),
       n.resumo ? el('p', { class: 'resumo' }, n.resumo) : null,
       secretarias.length ? el('p', { class: 'meta' }, 'Secretaria' + (secretarias.length > 1 ? 's' : '') + ': ',
@@ -260,7 +327,7 @@
         el('a', { class: 'botao botao-claro', href: 'https://wa.me/?text=' + encodeURIComponent(n.titulo + ' ' + url), target: '_blank', rel: 'noopener' }, 'WhatsApp'),
         el('a', { class: 'botao botao-claro', href: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url), target: '_blank', rel: 'noopener' }, 'Facebook'),
         el('button', { type: 'button', class: 'botao botao-claro', onclick: (ev) => { navigator.clipboard && navigator.clipboard.writeText(url); ev.target.textContent = 'Link copiado'; } }, 'Copiar link'))),
-      outras && outras.length ? el('section', { style: 'margin-top:40px' }, el('h2', null, 'Outras notícias'), el('div', { class: 'grade g3' }, outras.map((x) => cartaoNoticia(x)))) : null);
+      outras.length ? el('section', { style: 'margin-top:40px' }, el('h2', null, 'Notícias relacionadas'), el('div', { class: 'grade g3' }, outras.map((x) => cartaoNoticia(x)))) : null);
   };
 
   // ===================================================================
