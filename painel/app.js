@@ -36,7 +36,7 @@
   // Fase em que cada módulo será construído (só para a tela "em construção").
   const FASE_MODULO = {
     noticias: 1, institucional: 1, paginas: 1, servicos: 1, publicacoes: 1, lgpd: 1, aparencia: 1, menu: 1, usuarios: 1, historico: 1,
-    licitacoes: 2, financeiro: 2, pessoal: 2, convenios: 2, obras: 2, setoriais: 2, importacoes: 2,
+    licitacoes: 2, contas: 2, financeiro: 2, pessoal: 2, convenios: 2, obras: 2, setoriais: 2, importacoes: 2,
     atendimento: 3
   };
 

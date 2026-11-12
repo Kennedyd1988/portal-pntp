@@ -742,6 +742,7 @@
     const api = (tabela, sel, extra) => cfg.supabaseUrl + '/rest/v1/' + tabela + '?select=' + sel + '&orgao_id=eq.' + org() + (extra || '') + '&apikey=' + cfg.supabaseChave;
     const conjuntos = [
       ['Publicações oficiais (atos normativos)', 'publicacoes', 'tipo,numero,ano,data_publicacao,ementa,vigencia,observacao,arquivo_url,link_externo', '&order=data_publicacao.desc'],
+      ['Planejamento e prestação de contas', 'documentos_contas', 'tipo,exercicio,exercicio_fim,periodicidade,periodo,parte,resultado,numero_ato,data_publicacao,descricao,arquivo_url,link_externo', '&order=exercicio.desc'],
       ['Carta de Serviços', 'servicos', 'nome,categoria,descricao,publico_alvo,requisitos,etapas,prazo_maximo,forma_prestacao,link_digital,local_atendimento,horario,custo', '&order=nome'],
       ['Estrutura organizacional (unidades)', 'unidades', 'nome,sigla,endereco,telefone,email,horario_atendimento,competencias,norma_criacao,norma_url', '&order=nome'],
       ['Gestores', 'gestores', 'nome,cargo,email,telefone,curriculo_url', '&order=ordem'],
@@ -831,7 +832,7 @@
     const { data: pags } = await sb.from('paginas').select('titulo, slug').eq('orgao_id', org()).order('titulo').limit(300);
     const fixos = [['Notícias', '#/noticias'], ['Publicações oficiais', '#/publicacoes'], ['Diário Oficial', '#/diario-oficial'],
       ['Estrutura organizacional', '#/estrutura'], ['Gestores', '#/gestores'], ['Carta de Serviços', '#/servicos'], ['Perguntas frequentes', '#/faq'],
-      ['Portal da Transparência', '#/transparencia'], ['Licitações e contratos', '#/licitacoes'], ['Ouvidoria', '#/ouvidoria'], ['e-SIC', '#/esic'],
+      ['Transparência', '#/transparencia'], ['Planejamento e prestação de contas', '#/planejamento'], ['Licitações e contratos', '#/licitacoes'], ['Ouvidoria', '#/ouvidoria'], ['e-SIC', '#/esic'],
       ['Proteção de dados (LGPD)', '#/lgpd'], ['Dados abertos', '#/dados-abertos'], ['Acessibilidade', '#/acessibilidade'], ['Contato', '#/contato']];
     pagina(main, el('h1', null, 'Mapa do site'),
       el('div', { class: 'grade g2' },
@@ -856,7 +857,180 @@
         chave === 'transparencia' ? el('p', { style: 'margin-top:20px' }, el('a', { class: 'botao botao-claro', href: RADAR, target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null);
     };
   }
-  R.transparencia = externo('transparencia', 'Portal da Transparência', 'Receitas, despesas, folha de pagamento, contratos, convênios, obras e prestação de contas.', 'transparencia_url');
+
+  // ===================================================================
+  // PLANEJAMENTO E PRESTAÇÃO DE CONTAS (11.1 a 11.10)
+  // O PNTP pede "seção específica" para cada instrumento: a página geral
+  // mostra os grupos e cada tipo tem endereço próprio (#/planejamento/loa…).
+  // A série histórica vem em blocos de 4 exercícios ("Exercícios anteriores")
+  // para não baixar décadas de documentos de uma vez.
+  // ===================================================================
+  const CONTAS = {
+    ppa: ['PPA – Plano Plurianual', 'Planejamento de médio prazo (4 anos): programas, objetivos e metas do governo.', 'Planejamento'],
+    ldo: ['LDO – Lei de Diretrizes Orçamentárias', 'Metas e prioridades do ano seguinte e regras para elaborar a LOA, com os anexos de metas e riscos fiscais.', 'Planejamento'],
+    loa: ['LOA – Lei Orçamentária Anual', 'Orçamento do ano: estimativa das receitas e fixação das despesas.', 'Planejamento'],
+    plano_estrategico: ['Plano Estratégico', 'Planejamento estratégico institucional: missão, visão, objetivos e indicadores.', 'Planejamento'],
+    rreo: ['RREO – Relatório Resumido da Execução Orçamentária', 'Publicado a cada bimestre (LRF, art. 52): como estão as receitas e despesas do orçamento.', 'Gestão fiscal'],
+    rgf: ['RGF – Relatório de Gestão Fiscal', 'Publicado a cada quadrimestre ou semestre (LRF, art. 54): despesa com pessoal, dívida e limites da LRF.', 'Gestão fiscal'],
+    balanco: ['Prestação de contas anual (Balanço Geral)', 'Contas anuais do exercício encerrado, com balanços e demonstrativos.', 'Prestação de contas'],
+    relatorio_gestao: ['Relatório de Gestão ou de Atividades', 'O que foi feito no ano: ações, resultados e metas alcançadas.', 'Prestação de contas'],
+    parecer_tce: ['Parecer do Tribunal de Contas', 'Parecer prévio ou decisão do Tribunal de Contas sobre as contas anuais, inclusive as ainda pendentes de apreciação.', 'Prestação de contas'],
+    julgamento_camara: ['Julgamento das contas pela Câmara', 'Resultado do julgamento das contas anuais pelo Poder Legislativo.', 'Prestação de contas']
+  };
+  const RESULTADO_CONTAS = { aprovadas: ['Aprovadas', 'etiqueta-verde'], aprovadas_ressalvas: ['Aprovadas com ressalvas', 'etiqueta-ambar'], rejeitadas: ['Rejeitadas', 'etiqueta-vermelha'], pendente: ['Pendente de apreciação', 'etiqueta-ambar'] };
+  const GRUPOS_CONTAS = ['Planejamento', 'Gestão fiscal', 'Prestação de contas'];
+  const curtoContas = (t) => CONTAS[t][0].split(' – ')[0];
+  function periodoContas(d) {
+    if (d.tipo === 'rreo') return d.periodo + 'º bimestre';
+    if (d.tipo === 'rgf') return d.periodo + 'º ' + (d.periodicidade === 'semestral' ? 'semestre' : 'quadrimestre');
+    if (d.exercicio_fim) return d.exercicio + ' a ' + d.exercicio_fim;
+    if (d.tipo === 'parecer_tce' || d.tipo === 'julgamento_camara') return 'Contas de ' + d.exercicio;
+    return 'Exercício ' + d.exercicio;
+  }
+  const COLUNAS_CONTAS = [['tipo', 'Documento', (v) => CONTAS[v] ? CONTAS[v][0] : v], ['exercicio', 'Exercício'], ['exercicio_fim', 'Último ano'],
+    ['periodo', 'Período', (v, r) => r.periodo ? periodoContas(r) : ''], ['parte', 'Parte'], ['resultado', 'Resultado', (v) => v ? RESULTADO_CONTAS[v][0] : ''],
+    ['numero_ato', 'Número do ato'], ['data_publicacao', 'Data de publicação'], ['descricao', 'Observação'], ['documento', 'Documento', (v, r) => r.arquivo_url || r.link_externo || '']];
+  const CAMPOS_CONTAS = 'id, tipo, exercicio, exercicio_fim, periodicidade, periodo, parte, descricao, resultado, numero_ato, data_publicacao, arquivo_url, link_externo, ordem';
+
+  R.planejamento = async function (main, partes, params) {
+    const tipo = partes[0];
+    if (tipo && !CONTAS[tipo]) return R['*'](main);
+    if (!tipo) {
+      S.titulo('Planejamento e prestação de contas'); S.trilha(['Transparência', '#/transparencia'], ['Planejamento e prestação de contas']);
+      // Último exercício publicado de cada tipo (uma consulta curta por tipo, em paralelo).
+      const ultimos = await Promise.all(Object.keys(CONTAS).map((t) => sb.from('documentos_contas').select('exercicio, exercicio_fim, periodo, periodicidade, tipo')
+        .eq('orgao_id', org()).eq('tipo', t).order('exercicio', { ascending: false }).order('periodo', { ascending: false, nullsFirst: false }).limit(1)));
+      const ult = {}; Object.keys(CONTAS).forEach((t, k) => { ult[t] = (ultimos[k].data || [])[0]; });
+      const exportar = S.botoesExportar('planejamento-e-contas', COLUNAS_CONTAS, async (de, ate) => {
+        const { data } = await sb.from('documentos_contas').select(CAMPOS_CONTAS).eq('orgao_id', org()).order('tipo').order('exercicio', { ascending: false }).order('periodo').order('ordem').order('id').range(de, ate);
+        return data || [];
+      });
+      pagina(main, el('h1', null, 'Planejamento e prestação de contas'),
+        el('p', { class: 'sub' }, 'Leis do orçamento, relatórios fiscais da LRF e as contas anuais, com o parecer do Tribunal de Contas e o julgamento pela Câmara.'),
+        el('div', { class: 'barra-lista' }, el('span', { class: 'meta' }, 'Escolha o documento para ver a série completa.'), exportar),
+        GRUPOS_CONTAS.map((g) => el('section', { style: 'margin-bottom:28px' }, el('h2', null, g),
+          el('div', { class: 'grade g3' }, Object.entries(CONTAS).filter(([, v]) => v[2] === g).map(([t, v]) => el('a', { class: 'cartao cartao-contas', href: '#/planejamento/' + t },
+            el('strong', null, v[0]), el('span', { class: 'meta', style: 'display:block;margin-top:6px' }, v[1]),
+            el('span', { class: 'ultimo-contas' }, ult[t] ? 'Mais recente: ' + (ult[t].periodo ? periodoContas(ult[t]) + ' de ' + ult[t].exercicio : ult[t].exercicio_fim ? ult[t].exercicio + '–' + ult[t].exercicio_fim : ult[t].exercicio) : 'Nenhum documento publicado')))))));
+      return;
+    }
+
+    const [nome, descricao] = CONTAS[tipo];
+    S.titulo(curtoContas(tipo)); S.trilha(['Transparência', '#/transparencia'], ['Planejamento e contas', '#/planejamento'], [curtoContas(tipo)]);
+    const comPeriodo = tipo === 'rreo' || tipo === 'rgf';
+    const f = { exercicio: params.get('ano') || '', periodo: '', busca: '' };
+    const BLOCO = 4;
+    let ate = null, docs = [];   // ate = exercício mais recente do próximo bloco a buscar
+    const montar = (sel, op) => {
+      let q = sb.from('documentos_contas').select(sel || CAMPOS_CONTAS, op).eq('orgao_id', org()).eq('tipo', tipo);
+      if (f.exercicio) q = q.eq('exercicio', parseInt(f.exercicio, 10));
+      if (f.periodo) q = q.eq('periodo', parseInt(f.periodo, 10));
+      if (f.busca) q = q.ilike('busca', termo(f.busca));
+      return q;
+    };
+    const lista = el('div');
+    const mais = el('div', { class: 'mais' });
+    const totalTxt = el('span', { class: 'meta', role: 'status' });
+
+    function desenhar() {
+      if (!docs.length) { lista.replaceChildren(el('p', { class: 'vazio' }, 'Nenhum documento publicado' + (f.exercicio || f.periodo || f.busca ? ' com esses filtros.' : ' ainda.'))); return; }
+      const anos = [...new Set(docs.map((d) => d.exercicio))].sort((a, b) => b - a);
+      lista.replaceChildren(...anos.map((a) => {
+        const doAno = docs.filter((d) => d.exercicio === a);
+        // Agrupa as partes (lei e anexos) do mesmo período.
+        const chaves = [...new Set(doAno.map((d) => (d.periodicidade || '') + ':' + (d.periodo || 0)))];
+        return el('section', { class: 'exercicio-contas' },
+          el('h2', null, doAno[0].exercicio_fim ? a + ' a ' + doAno[0].exercicio_fim : (tipo === 'parecer_tce' || tipo === 'julgamento_camara' ? 'Contas de ' + a : 'Exercício ' + a)),
+          chaves.map((ch) => {
+            const grupo = doAno.filter((d) => (d.periodicidade || '') + ':' + (d.periodo || 0) === ch).sort((x, y) => x.ordem - y.ordem);
+            const res = grupo.find((d) => d.resultado);
+            return el('div', { class: 'cartao bloco-contas' },
+              comPeriodo || res ? el('div', { class: 'cabeca-contas' },
+                comPeriodo ? el('strong', null, periodoContas(grupo[0])) : null,
+                res ? el('span', { class: 'etiqueta ' + RESULTADO_CONTAS[res.resultado][1] }, RESULTADO_CONTAS[res.resultado][0]) : null,
+                res && res.numero_ato ? el('span', { class: 'meta' }, res.numero_ato) : null) : null,
+              el('ul', { class: 'partes-contas' }, grupo.map((d) => {
+                const doc = d.arquivo_url || d.link_externo;
+                return el('li', null,
+                  doc ? el('a', { href: doc, target: '_blank', rel: 'noopener' }, d.parte, el('span', { class: 'sr' }, ' — ' + curtoContas(tipo) + ' ' + periodoContas(d) + (comPeriodo ? ' de ' + d.exercicio : '') + ' (abre em nova aba)'))
+                    : el('span', null, d.resultado === 'pendente' ? 'Contas ainda não apreciadas' : d.parte),
+                  el('span', { class: 'meta' }, (doc ? (d.arquivo_url ? 'PDF' : 'Link') + ' · ' : '') + 'publicado em ' + dataBR(d.data_publicacao) + (d.descricao ? ' · ' + d.descricao : '')));
+              })));
+          }));
+      }));
+    }
+
+    async function carregar(reiniciar) {
+      if (reiniciar) {
+        docs = [];
+        const [{ count }, topo] = await Promise.all([
+          montar('id', { count: 'exact', head: true }),
+          montar('exercicio').order('exercicio', { ascending: false }).limit(1)
+        ]);
+        const t = (topo.data || [])[0];
+        ate = t ? t.exercicio : null;
+        totalTxt.textContent = (count || 0) + (count === 1 ? ' documento encontrado' : ' documentos encontrados');
+      }
+      if (ate === null) { desenhar(); mais.replaceChildren(); return; }
+      // Bloco de 4 exercícios: o filtro por exercício já limita a 1 ano.
+      const { data, error } = await montar().lte('exercicio', ate).gt('exercicio', ate - BLOCO)
+        .order('exercicio', { ascending: false }).order('periodo', { ascending: true }).order('ordem').limit(1000);
+      if (error) throw error;
+      docs = docs.concat(data || []);
+      const prox = await montar('exercicio').lte('exercicio', ate - BLOCO).order('exercicio', { ascending: false }).limit(1);
+      const p = (prox.data || [])[0];
+      ate = p ? p.exercicio : null;
+      desenhar();
+      const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Exercícios anteriores');
+      btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
+      mais.replaceChildren(ate !== null ? btn : '');
+    }
+
+    const anoAtual = new Date().getFullYear();
+    const fAno = el('select', null, el('option', { value: '' }, 'Todos'),
+      Array.from({ length: 15 }, (_, k) => anoAtual + 1 - k).map((a) => el('option', { value: a, selected: String(a) === f.exercicio }, String(a))));
+    const fPer = el('select', null, el('option', { value: '' }, 'Todos'),
+      (tipo === 'rreo' ? [1, 2, 3, 4, 5, 6].map((b) => [b, b + 'º bimestre']) : [[1, '1º quadrimestre ou semestre'], [2, '2º quadrimestre ou semestre'], [3, '3º quadrimestre']])
+        .map(([v, t]) => el('option', { value: v }, t)));
+    const fBusca = el('input', { type: 'search', placeholder: 'Ex.: anexo, metas fiscais' });
+    let espera;
+    const aplicar = () => { Object.assign(f, { exercicio: fAno.value, periodo: comPeriodo ? fPer.value : '', busca: fBusca.value.trim() }); lista.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…')); carregar(true); };
+    [fAno, fPer].forEach((x) => x.addEventListener('change', aplicar));
+    fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
+    const exportar = S.botoesExportar(tipo.replace('_', '-'), COLUNAS_CONTAS, async (de, ate2) => {
+      const { data } = await montar().order('exercicio', { ascending: false }).order('periodo').order('ordem').order('id').range(de, ate2);
+      return data || [];
+    });
+    pagina(main, el('h1', null, nome), el('p', { class: 'sub' }, descricao),
+      el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
+        el('label', null, 'Exercício', fAno), comPeriodo ? el('label', null, 'Período', fPer) : null, el('label', null, 'Pesquisar', fBusca)),
+      el('div', { class: 'barra-lista' }, totalTxt, exportar),
+      lista, mais,
+      el('p', { class: 'meta', style: 'margin-top:24px' }, 'Outros documentos: ',
+        Object.keys(CONTAS).filter((t) => t !== tipo).map((t, k) => [k ? ' · ' : '', el('a', { href: '#/planejamento/' + t }, curtoContas(t))])));
+    await carregar(true);
+  };
+
+  // Transparência: o que já está no portal + o sistema externo (receitas, despesas, folha).
+  R.transparencia = async function (main) {
+    S.titulo('Transparência'); S.trilha(['Transparência']);
+    const c = S.conf;
+    const internos = [
+      ['Planejamento e prestação de contas', 'PPA, LDO, LOA, RREO, RGF, Balanço Geral, pareceres e julgamentos das contas.', '#/planejamento'],
+      ['Publicações oficiais', 'Leis, decretos, portarias e demais atos normativos.', '#/publicacoes'],
+      ['Estrutura e gestores', 'Organograma, competências, endereços e responsáveis.', '#/estrutura'],
+      ['Dados abertos', 'Baixe as informações do portal em CSV ou JSON.', '#/dados-abertos']
+    ];
+    pagina(main, el('h1', null, 'Transparência'),
+      el('p', { class: 'sub' }, 'Informações sobre a gestão, o orçamento e as contas públicas.'),
+      el('div', { class: 'grade g2' }, internos.map(([t, d, h]) => el('a', { class: 'cartao', href: h }, el('strong', null, t), el('span', { class: 'meta', style: 'display:block;margin-top:6px' }, d)))),
+      el('section', { class: 'cartao', style: 'margin-top:24px' },
+        el('h2', null, 'Receitas, despesas e folha de pagamento'),
+        el('p', null, 'A execução do orçamento (receitas, despesas, empenhos e pagamentos) e a folha de pagamento estão no Portal da Transparência.'),
+        c.transparencia_url ? el('a', { class: 'botao', href: c.transparencia_url, target: '_blank', rel: 'noopener' }, 'Acessar o Portal da Transparência', el('span', { class: 'sr' }, ' (abre em nova aba)'))
+          : el('p', { class: 'meta' }, 'Endereço ainda não informado. Fale com o órgão: ', c.telefone || '', c.telefone && c.email ? ' · ' : '', c.email ? el('a', { href: 'mailto:' + c.email }, c.email) : '')),
+      el('p', { style: 'margin-top:20px' }, el('a', { class: 'botao botao-claro', href: RADAR, target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))));
+  };
   R.licitacoes = externo('licitacoes', 'Licitações e contratos', 'Editais, avisos, resultados, atas e contratos.', 'licitacoes_url');
   R.ouvidoria = externo('ouvidoria', 'Ouvidoria', 'Elogios, sugestões, reclamações, solicitações e denúncias sobre os serviços.', 'ouvidoria_url');
   R.esic = externo('esic', 'e-SIC', 'Serviço de Informação ao Cidadão: pedidos de acesso à informação (Lei 12.527/2011).', 'esic_url');
@@ -871,18 +1045,20 @@
     if (q.length < 2) { pagina(main, el('h1', null, 'Busca'), el('p', null, 'Digite pelo menos 2 letras no campo de pesquisa.')); return; }
     // Dentro de or() o curinga é * (o % confunde a sintaxe do filtro).
     const n = termo(q), cru = '*' + q.replace(/[%_*(),.]/g, ' ').trim() + '*';
-    const [nt, pb, sv, pg, fq, un] = await Promise.all([
+    const [nt, pb, sv, pg, fq, un, ct] = await Promise.all([
       sb.from('noticias').select('id, titulo, publicado_em').eq('orgao_id', org()).ilike('busca', n).order('publicado_em', { ascending: false }).limit(8),
       sb.from('publicacoes').select('id, tipo, numero, ano, ementa, arquivo_url, link_externo').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8),
       sb.from('servicos').select('id, nome').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
       sb.from('paginas').select('titulo, slug').eq('orgao_id', org()).or('titulo.ilike.' + cru + ',conteudo.ilike.' + cru).limit(8),
       sb.from('faq').select('pergunta').eq('orgao_id', org()).or('pergunta.ilike.' + cru + ',resposta.ilike.' + cru).limit(8),
-      sb.from('unidades').select('id, nome').eq('orgao_id', org()).or('nome.ilike.' + cru + ',competencias.ilike.' + cru).limit(8)
+      sb.from('unidades').select('id, nome').eq('orgao_id', org()).or('nome.ilike.' + cru + ',competencias.ilike.' + cru).limit(8),
+      sb.from('documentos_contas').select('tipo, exercicio, exercicio_fim, periodo, periodicidade, parte').eq('orgao_id', org()).ilike('busca', n).order('exercicio', { ascending: false }).limit(8)
     ]);
     const grupos = [
       ['Serviços', (sv.data || []).map((s) => [s.nome, '#/servico/' + s.id]), '#/servicos?q=' + encodeURIComponent(q)],
       ['Notícias', (nt.data || []).map((x) => [x.titulo + ' (' + dataBR(x.publicado_em) + ')', '#/noticia/' + x.id]), '#/noticias?q=' + encodeURIComponent(q)],
       ['Publicações oficiais', (pb.data || []).map((x) => [ato(x) + ' — ' + x.ementa, x.arquivo_url || x.link_externo || '#/publicacoes?q=' + encodeURIComponent(q)]), '#/publicacoes?q=' + encodeURIComponent(q)],
+      ['Planejamento e contas', (ct.data || []).map((x) => [curtoContas(x.tipo) + ' · ' + periodoContas(x) + (x.periodo ? ' de ' + x.exercicio : '') + ' · ' + x.parte, '#/planejamento/' + x.tipo + '?ano=' + x.exercicio]), '#/planejamento'],
       ['Unidades', (un.data || []).map((x) => [x.nome, '#/unidade/' + x.id]), null],
       ['Páginas', (pg.data || []).map((x) => [x.titulo, '#/pagina/' + x.slug]), null],
       ['Perguntas frequentes', (fq.data || []).map((x) => [x.pergunta, '#/faq']), null]

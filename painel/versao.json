@@ -1,7 +1,8 @@
 {
-  "versao": "0.6.5",
+  "versao": "0.7.0",
   "data": "2026-11-12",
   "notas": [
-    "Site: seção \"Últimas publicações\" na página inicial, com abas por tipo de ato e atalho para o Diário Oficial."
+    "Novo módulo: Planejamento e prestação de contas (PPA, LDO, LOA, RREO, RGF, Balanço, pareceres e julgamentos), com quadro do que falta no PNTP.",
+    "Site: páginas de Planejamento e contas e nova página de Transparência."
   ]
 }

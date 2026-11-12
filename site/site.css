@@ -346,3 +346,15 @@ html.contraste .noticia-h, html.contraste .noticia-h-topo, html.contraste .notic
 .pub-ver:hover { text-decoration: underline; }
 html.contraste .pub-cartao, html.contraste .pub-data, html.contraste .pub-aba { background: #000 !important; border-color: #fff !important; }
 html.contraste .pub-aba[aria-selected="true"] { border: 2px solid #ffe600 !important; }
+
+/* ---------- Planejamento e prestação de contas (v0.7.0) ---------- */
+a.cartao.cartao-contas { display: flex; flex-direction: column; }
+.ultimo-contas { margin-top: auto; padding-top: 12px; font-size: 13px; font-weight: 600; color: var(--cor); }
+.exercicio-contas { margin-bottom: 26px; }
+.exercicio-contas h2 { font-size: 1.15rem; border-bottom: 2px solid var(--linha); padding-bottom: 6px; }
+.bloco-contas { margin-bottom: 10px; padding: 14px 18px; }
+.cabeca-contas { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px; }
+.partes-contas { list-style: none; margin: 0; padding: 0; }
+.partes-contas li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 6px 0; border-top: 1px solid var(--linha); }
+.partes-contas li:first-child { border-top: 0; }
+.partes-contas a { font-weight: 600; }

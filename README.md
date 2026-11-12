@@ -77,6 +77,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/07_noticias_varias_unidades.sql` | notícia com "outras secretarias envolvidas" (`unidades_relacionadas`, índice GIN, validação e bloqueio de exclusão da unidade citada); correção: acesso limitado a uma unidade passa a impedir a exclusão dela (antes virava acesso ao órgão todo) |
 | `supabase/08_lote4_servicos_lgpd.sql` | módulo `lgpd` (permissões copiadas de `aparencia`); tabelas `servicos` (Carta de Serviços, com rascunho → publicado e alcance setorial), `carta_servicos` e `lgpd` (um registro por órgão, histórico por `orgao_id`); leitura pública |
 | `supabase/09_banner_noticia_visualizacoes.sql` | banner ligado a notícia (`banners.noticia_id`, mesma prefeitura, notícia usada em banner não pode ser excluída) e contador de visualizações (`noticias_visualizacoes` + `registrar_visualizacao`, que só soma em notícia publicada) |
+| `supabase/10_lote6_planejamento_contas.sql` | Fase 2 · Lote 6: módulo `contas` (permissões copiadas de "financeiro"), tabela `documentos_contas` (PPA, LDO, LOA, RREO, RGF, Balanço, Relatório de Gestão, parecer do TCE, julgamento da Câmara, Plano Estratégico), limite do bucket em 50 MB e `rgf_periodicidade` em configurações |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
 
 ## Função de convite (Supabase Edge Function)
@@ -204,6 +205,40 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.7.0 — 12/11/2026 — Fase 2 · Lote 6: planejamento e prestação de contas (PNTP 11.1 a 11.10)**
+- Novo módulo no painel, com um cadastro só para os dez instrumentos. Cada linha é um arquivo: a
+  lei e os anexos do mesmo instrumento são linhas com a mesma identificação e "parte" diferente, e
+  o cadastro aceita vários PDFs de uma vez (cada um vira uma parte, com nome editável). Também
+  aceita link externo (site do TCE, da Câmara, Diário Oficial).
+- Regras no banco: RREO exige bimestre; RGF exige quadrimestre (1 a 3) ou semestre (1 a 2); só
+  parecer e julgamento têm resultado; publicado precisa de PDF ou link, salvo resultado
+  "pendente" (o PNTP 11.3 pede informar as contas ainda não apreciadas).
+- Erro achado no teste e corrigido: regra CHECK cujo resultado é nulo conta como aprovada. Sem
+  `coalesce(…, false)`, um RREO sem periodicidade e uma LOA publicada sem documento passavam.
+  Mantenha o `coalesce` se mexer nessas regras.
+- Quadro "Situação no PNTP" no topo do módulo: compara o que está publicado com os prazos legais
+  (RREO e RGF até 30 dias após o período; Balanço a partir de 30/04 do ano seguinte; LOA/LDO do
+  ano; PPA que cubra o ano; parecer e julgamento dos últimos 4 exercícios, anexados ou marcados
+  "pendente") e diz o que falta. A periodicidade do RGF (quadrimestral ou semestral, para
+  municípios com menos de 50 mil habitantes) é escolhida ali e fica nas configurações do órgão.
+- Só quem tem acesso ao órgão inteiro altera estes documentos (usuário de uma secretaria vê, mas
+  não grava).
+- PDFs até 50 MB neste módulo (LOA e balanço com anexos passam fácil de 10 MB). O bucket foi
+  ampliado para 50 MB; os outros módulos continuam limitados a 10 MB pelo painel. Prefira PDF com
+  texto pesquisável, não escaneado.
+- Site: `#/planejamento` com os três grupos (Planejamento, Gestão fiscal, Prestação de contas) e o
+  documento mais recente de cada tipo; cada tipo tem seção própria (`#/planejamento/loa`, `/rreo`
+  …), exigência do PNTP, com a série agrupada por exercício e por período, filtros, pesquisa e
+  download CSV/JSON. A série carrega 4 exercícios por vez ("Exercícios anteriores").
+- Site: `#/transparencia` deixou de ser só o link externo: mostra as seções que já estão no portal
+  e, à parte, o Portal da Transparência externo (receitas, despesas e folha continuam lá).
+- Busca geral, mapa do site e dados abertos incluem planejamento e contas. No painel, "Menu do
+  site" ganhou o destino "Planejamento e prestação de contas" (menus já criados não mudam
+  sozinhos: inclua o item pelo painel).
+- `supabase/teste_contas_ficticias.sql`: 75 documentos fictícios (2022 a 2027) com duas faltas de
+  propósito (RREO do 6º bimestre de 2024 e julgamento das contas de 2025) para ver o quadro do
+  PNTP apontar. Apaga e reinsere a cada execução; comando de limpeza no fim.
 
 **0.6.5 — 12/11/2026 — "Últimas publicações" na página inicial**
 - Substitui a lista simples "Publicações oficiais": cartões com bloco de data (dia/mês/ano), tipo,

@@ -12,7 +12,7 @@
   // Telas do site público (construído no Lote 5). Rotas fixas, iguais para todo órgão.
   const ROTAS = [
     ['/', 'Página inicial'], ['/noticias', 'Notícias'], ['/publicacoes', 'Publicações oficiais (leis, decretos…)'],
-    ['/diario-oficial', 'Diário Oficial'], ['/transparencia', 'Portal da Transparência'], ['/licitacoes', 'Licitações e contratos'],
+    ['/diario-oficial', 'Diário Oficial'], ['/transparencia', 'Transparência'], ['/planejamento', 'Planejamento e prestação de contas'], ['/licitacoes', 'Licitações e contratos'],
     ['/estrutura', 'Estrutura organizacional'], ['/gestores', 'Gestores'], ['/servicos', 'Carta de Serviços'],
     ['/faq', 'Perguntas frequentes'], ['/ouvidoria', 'Ouvidoria'], ['/esic', 'e-SIC (acesso à informação)'],
     ['/lgpd', 'Proteção de dados (LGPD)'], ['/acessibilidade', 'Acessibilidade'], ['/contato', 'Contato'], ['/mapa-do-site', 'Mapa do site']
@@ -23,7 +23,7 @@
   const MENU_PADRAO = [
     ['Início', '/'],
     ['Institucional', '/estrutura', [['Estrutura organizacional', '/estrutura'], ['Gestores', '/gestores'], ['Perguntas frequentes', '/faq']]],
-    ['Transparência', '/transparencia', [['Portal da Transparência', '/transparencia'], ['Licitações e contratos', '/licitacoes']]],
+    ['Transparência', '/transparencia', [['Transparência', '/transparencia'], ['Planejamento e contas', '/planejamento'], ['Licitações e contratos', '/licitacoes']]],
     ['Publicações', '/publicacoes', [['Leis, decretos e portarias', '/publicacoes'], ['Diário Oficial', '/diario-oficial']]],
     ['Notícias', '/noticias'],
     ['Serviços', '/servicos'],
