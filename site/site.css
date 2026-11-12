@@ -314,3 +314,14 @@ html.contraste svg { color: #ffe600 !important; }
 }
 html.contraste .noticia-h, html.contraste .noticia-h-topo, html.contraste .noticia-h-cat { background: #000 !important; border-color: #fff !important; }
 .noticia-h-foto, .noticia-h-foto:hover { text-decoration: none; }
+
+/* Ajuste (12/11): a foto define a altura do cartão em proporção 16:9 e o texto fica
+   centralizado ao lado, sem sobrar faixa branca embaixo; a notícia grande mostra um
+   trecho do texto para completar o espaço. */
+.noticia-h { align-items: center; }
+.noticia-h-foto img, .noticia-h-foto .noticia-sem-foto,
+.noticia-h-grande .noticia-h-foto img, .noticia-h-grande .noticia-h-foto .noticia-sem-foto { min-height: 0; height: auto; aspect-ratio: 16 / 9; }
+.noticia-h-grande { grid-template-columns: 55% 1fr; gap: 26px; }
+.noticia-h-grande .noticia-h-mais { margin-top: 6px; }
+.noticia-h-trecho { -webkit-line-clamp: 4 !important; color: var(--texto) !important; }
+.noticia-h:not(.noticia-h-grande) .noticia-h-mais { margin-top: 4px; }

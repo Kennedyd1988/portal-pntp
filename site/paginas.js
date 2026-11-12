@@ -73,6 +73,16 @@
   };
   // Cartão horizontal da página inicial: foto à esquerda; data, visualizações,
   // categoria, título, resumo e "Continuar lendo" à direita.
+  // Texto da notícia sem a marcação (##, **, listas, links), cortado no tamanho pedido.
+  function textoCorrido(t, max) {
+    // Só os parágrafos corridos: subtítulos e listas ficam de fora (soltos no meio de uma frase confundem).
+    const paragrafos = String(t || '').replace(/\r/g, '').split(/\n{2,}/)
+      .filter((b) => b.trim() && !/^\s*(#{2,3}\s|[-*]\s|\d+[.)]\s)/.test(b));
+    const limpo = paragrafos.join(' ').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/\*\*?([^*]+)\*\*?/g, '$1').replace(/\s+/g, ' ').trim();
+    return limpo.length > max ? limpo.slice(0, limpo.lastIndexOf(' ', max)) + '…' : limpo;
+  }
+
   function cartaoHorizontal(n, vis, grande) {
     const total = vis[n.id];
     return el('article', { class: 'noticia-h' + (grande ? ' noticia-h-grande' : '') },
@@ -86,6 +96,8 @@
             n.categoria ? el('span', { class: 'noticia-h-cat' }, n.categoria) : null)),
         el(grande ? 'h3' : 'h3', null, el('a', { href: '#/noticia/' + n.id }, n.titulo)),
         n.resumo ? el('p', null, n.resumo) : null,
+        // Na notícia grande, um trecho do texto completa o espaço ao lado da foto.
+        grande && n.conteudo ? el('p', { class: 'noticia-h-trecho' }, textoCorrido(n.conteudo, 420)) : null,
         el('a', { class: 'noticia-h-mais', href: '#/noticia/' + n.id }, 'Continuar lendo', el('span', { class: 'sr' }, ': ' + n.titulo), el('span', { 'aria-hidden': 'true' }, ' →'))));
   }
 
@@ -106,7 +118,7 @@
     const agora = new Date().toISOString();
     const [bn, nt, pb, gs, sv] = await Promise.all([
       sb.from('banners').select('*').eq('orgao_id', org()).eq('ativo', true).order('ordem').limit(8),
-      sb.from('noticias').select('id, titulo, resumo, capa_url, capa_legenda, categoria, publicado_em, destaque').eq('orgao_id', org())
+      sb.from('noticias').select('id, titulo, resumo, conteudo, capa_url, capa_legenda, categoria, publicado_em, destaque').eq('orgao_id', org())
         .lte('publicado_em', agora).order('publicado_em', { ascending: false }).limit(7),
       sb.from('publicacoes').select('id, tipo, numero, ano, data_publicacao, ementa').eq('orgao_id', org())
         .order('data_publicacao', { ascending: false }).limit(5),

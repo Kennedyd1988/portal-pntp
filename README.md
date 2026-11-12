@@ -205,6 +205,12 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 
 ## Histórico de mudanças
 
+**0.6.3 — 12/11/2026 — ajuste da notícia em destaque**
+- A foto de capa passava a definir a altura do cartão pela proporção original (fotos quadradas
+  deixavam uma faixa branca grande embaixo do texto). Agora a foto fica sempre em 16:9, o texto
+  fica centralizado ao lado e a notícia grande mostra um trecho do texto (só parágrafos, sem
+  subtítulos e listas) para completar o espaço.
+
 **0.6.2 — 12/11/2026 — ajustes do site pedidos no teste**
 - Avisos do topo com botão "×": o cidadão fecha e o aviso não volta neste navegador, a não ser
   que o órgão altere o aviso.
