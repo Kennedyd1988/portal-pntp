@@ -158,6 +158,12 @@
   }
 
   async function excluir(x) {
+    // Vínculo: a publicação pode ser a norma do Governo Digital (tela LGPD).
+    const { count } = await sb.from('lgpd').select('orgao_id', { count: 'exact', head: true }).eq('gov_digital_publicacao', x.id);
+    if (count) {
+      P.aviso('Não é possível excluir', '"' + identificacao(x) + '" está indicada como a norma do Governo Digital na tela "LGPD e Governo Digital". Troque a indicação lá antes de excluir.');
+      return;
+    }
     if (!await P.confirmar('Excluir publicação', 'Excluir "' + identificacao(x) + '"? Atos oficiais normalmente não são apagados: se foi revogado, prefira mudar a situação para "Revogada".', 'Excluir', true)) return;
     const { data, error } = await sb.from('publicacoes').delete().eq('id', x.id).select('id');
     if (error) return mostrarErro(error);

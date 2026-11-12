@@ -35,7 +35,7 @@
 
   // Fase em que cada módulo será construído (só para a tela "em construção").
   const FASE_MODULO = {
-    noticias: 1, institucional: 1, paginas: 1, servicos: 1, publicacoes: 1, aparencia: 1, menu: 1, usuarios: 1, historico: 1,
+    noticias: 1, institucional: 1, paginas: 1, servicos: 1, publicacoes: 1, lgpd: 1, aparencia: 1, menu: 1, usuarios: 1, historico: 1,
     licitacoes: 2, financeiro: 2, pessoal: 2, convenios: 2, obras: 2, setoriais: 2, importacoes: 2,
     atendimento: 3
   };
@@ -160,6 +160,49 @@
   $('btn-atualizar-versao').addEventListener('click', () => location.reload());
   setInterval(conferirVersao, 5 * 60 * 1000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) conferirVersao(); });
+
+  // ---------- botão "Instalar app" (regra do projeto: não depender só do banner do navegador) ----------
+  // Android/computador: usa o pedido de instalação do navegador quando ele existir.
+  // iPhone/iPad (Safari não tem esse pedido) e demais casos: mostra o passo a passo.
+  let pedidoInstalacao = null;
+  const appInstalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const btnInstalar = $('btn-instalar');
+  if (btnInstalar && !appInstalado()) btnInstalar.hidden = false;
+  addEventListener('beforeinstallprompt', (ev) => { ev.preventDefault(); pedidoInstalacao = ev; });
+  addEventListener('appinstalled', () => { if (btnInstalar) btnInstalar.hidden = true; pedidoInstalacao = null; });
+  if (btnInstalar) btnInstalar.addEventListener('click', async () => {
+    if (pedidoInstalacao) {
+      pedidoInstalacao.prompt();
+      const r = await pedidoInstalacao.userChoice.catch(() => ({}));
+      pedidoInstalacao = null;
+      if (r.outcome === 'accepted') btnInstalar.hidden = true;
+      return;
+    }
+    const ua = navigator.userAgent;
+    const ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const safari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|Chrome|Android/i.test(ua);
+    let passos;
+    if (ios && !safari) {
+      passos = [el('li', null, 'Abra este endereço no ', el('strong', null, 'Safari'), ' (no iPhone, só o Safari instala apps pela página).'),
+        el('li', null, 'Depois siga os passos do Safari: Compartilhar → "Adicionar à Tela de Início".')];
+    } else if (ios) {
+      passos = [el('li', null, 'Toque no botão ', el('strong', null, 'Compartilhar'), ' (quadrado com seta para cima), na barra do Safari.'),
+        el('li', null, 'Role a lista e toque em ', el('strong', null, '"Adicionar à Tela de Início"'), '.'),
+        el('li', null, 'Confirme em ', el('strong', null, '"Adicionar"'), '. O ícone do Painel SOFT+ aparece junto dos outros apps.')];
+    } else if (/Android/i.test(ua)) {
+      passos = [el('li', null, 'Toque no menu ', el('strong', null, '⋮'), ' do navegador (canto superior direito).'),
+        el('li', null, 'Toque em ', el('strong', null, '"Instalar app"'), ' ou ', el('strong', null, '"Adicionar à tela inicial"'), '.'),
+        el('li', null, 'Confirme. Se a opção não aparecer, abra o painel no Google Chrome.')];
+    } else {
+      passos = [el('li', null, 'No Chrome ou Edge, clique no ícone de instalar no fim da barra de endereço (monitor com seta).'),
+        el('li', null, 'Ou abra o menu ', el('strong', null, '⋮'), ' e escolha ', el('strong', null, '"Instalar Painel SOFT+"'), ' (no Edge: Aplicativos → Instalar este site).'),
+        el('li', null, 'O painel passa a abrir numa janela própria, com ícone na área de trabalho.')];
+    }
+    const dlg = abrirDialogo('Instalar o Painel SOFT+', el('div', null,
+      el('p', null, 'Com o app instalado, o painel abre direto pelo ícone, como um aplicativo, e se atualiza sozinho.'),
+      el('ol', { class: 'passos-instalar' }, passos)),
+      [el('button', { type: 'button', class: 'btn btn-primario', onclick: () => dlg.close() }, 'Entendi')]);
+  });
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
@@ -497,12 +540,12 @@
             el('li', null, 'Notícias, banners e avisos'),
             el('li', null, 'Publicações oficiais e Diário Oficial'),
             el('li', null, 'Páginas e perguntas frequentes'),
-            el('li', null, 'Menu do site')
+            el('li', null, 'Menu do site'),
+            el('li', null, 'Carta de Serviços'),
+            el('li', null, 'LGPD e Governo Digital')
           ),
           el('ul', { class: 'lista-check lista-proximos', style: 'margin-top:8px' },
-            el('li', null, 'Carta de Serviços'),
-            el('li', null, 'LGPD e Governo Digital'),
-            el('li', null, 'Site público')
+            el('li', null, 'Site público (busca, acessibilidade, mapa do site)')
           )
         )
       )
@@ -768,11 +811,13 @@
   // Lista paginada por cursor (regra do projeto: nunca carregar tudo).
   // montar(select, opcoes) devolve a consulta já com os filtros; a ordem é
   // <coluna> decrescente + id decrescente, e o cursor é a última linha exibida.
-  async function paginar(montar, coluna, ultimo, lote) {
-    let q = montar('*').order(coluna, { ascending: false }).order('id', { ascending: false }).limit(lote);
+  // crescente = true para listas de cadastro (ordem alfabética, ex.: serviços).
+  async function paginar(montar, coluna, ultimo, lote, crescente) {
+    const op = crescente ? 'gt' : 'lt';
+    let q = montar('*').order(coluna, { ascending: !!crescente }).order('id', { ascending: !!crescente }).limit(lote);
     if (ultimo) {
       const v = '"' + String(ultimo[coluna]).replace(/"/g, '') + '"';
-      q = q.or(coluna + '.lt.' + v + ',and(' + coluna + '.eq.' + v + ',id.lt.' + ultimo.id + ')');
+      q = q.or(coluna + '.' + op + '.' + v + ',and(' + coluna + '.eq.' + v + ',id.' + op + '.' + ultimo.id + ')');
     }
     const { data, error } = await q;
     if (error) throw error;

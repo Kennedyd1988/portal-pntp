@@ -179,14 +179,16 @@
       const { count } = await filtro(sb.from(tabela).select('id', { count: 'exact', head: true }));
       return count || 0;
     };
-    const [qNot, qPub, qUsu] = await Promise.all([
+    const [qNot, qPub, qUsu, qSer] = await Promise.all([
       contarEm('noticias', (q) => q.or('unidade_id.eq.' + u.id + ',unidades_relacionadas.cs.{' + u.id + '}')),
       contarEm('publicacoes', (q) => q.eq('unidade_id', u.id)),
-      contarEm('usuarios_orgaos', (q) => q.eq('unidade_id', u.id))
-    ]).catch(() => [0, 0, 0]);
-    if (gest.length || filhas.length || qNot || qPub || qUsu) {
+      contarEm('usuarios_orgaos', (q) => q.eq('unidade_id', u.id)),
+      contarEm('servicos', (q) => q.eq('unidade_id', u.id))
+    ]).catch(() => [0, 0, 0, 0]);
+    if (gest.length || filhas.length || qNot || qPub || qUsu || qSer) {
       const motivos = [];
       if (qNot) motivos.push(qNot + (qNot === 1 ? ' notícia' : ' notícias'));
+      if (qSer) motivos.push(qSer + (qSer === 1 ? ' serviço da Carta de Serviços' : ' serviços da Carta de Serviços'));
       if (qPub) motivos.push(qPub + (qPub === 1 ? ' publicação oficial' : ' publicações oficiais'));
       if (qUsu) motivos.push(qUsu + (qUsu === 1 ? ' usuário com acesso limitado a ela' : ' usuários com acesso limitado a ela'));
       if (gest.length) motivos.push(gest.length + (gest.length === 1 ? ' gestor vinculado (' : ' gestores vinculados (') + gest.map((g) => g.nome).join(', ') + ')');

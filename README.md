@@ -52,6 +52,16 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 - Notícia: uma unidade responsável (define quem edita) + outras envolvidas (só exibição).
 - Unidade não pode ser excluída enquanto tiver gestores, unidades dentro dela, notícias,
   publicações ou usuários limitados a ela.
+- Carta de Serviços: serviço "pela internet" exige o endereço onde é pedido (PNTP 15.3); a lista
+  mostra em amarelo o que a Lei 13.460/2017 pede e ainda falta; publicar com lacuna é permitido
+  com aviso. Lista em ordem alfabética (cadastro), paginada pelo nome.
+- LGPD: nome do encarregado + e-mail ou telefone obrigatórios (15.1). Os textos sugeridos de
+  política e de dados abertos são modelo: o painel avisa se o aviso "Modelo inicial" ainda estiver
+  no texto. Publicação indicada como norma do Governo Digital não pode ser excluída sem trocar a
+  indicação.
+- Botão "Instalar app" fixo (canto inferior esquerdo) em todas as telas, some quando o app já está
+  instalado. Usa o pedido de instalação do navegador quando existe; no iPhone/iPad (Safari não tem
+  esse pedido) e nos demais casos mostra o passo a passo do aparelho.
 - Página que está no menu não pode ser excluída nem mudar de endereço (link quebrado).
 - Item de menu com subitens não pode ser excluído nem virar subitem (menu de dois níveis).
 
@@ -65,6 +75,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/04_dados_riacho_da_cruz.sql` | carga inicial do piloto: contatos gerais, 15 unidades e 14 responsáveis (fonte: site oficial, 11/11/2026) |
 | `supabase/06_lote3_conteudo.sql` | módulos novos (`paginas`, `menu`, com as permissões copiadas de `institucional` e `aparencia`); tabelas `noticias`, `banners`, `avisos`, `publicacoes`, `paginas`, `faq`, `menu_itens`; busca sem acento (`normalizar_texto` + coluna `busca`); gatilho rascunho → publicado; leitura pública só do que está no ar; Diário Oficial do piloto (FEMURN) |
 | `supabase/07_noticias_varias_unidades.sql` | notícia com "outras secretarias envolvidas" (`unidades_relacionadas`, índice GIN, validação e bloqueio de exclusão da unidade citada); correção: acesso limitado a uma unidade passa a impedir a exclusão dela (antes virava acesso ao órgão todo) |
+| `supabase/08_lote4_servicos_lgpd.sql` | módulo `lgpd` (permissões copiadas de `aparencia`); tabelas `servicos` (Carta de Serviços, com rascunho → publicado e alcance setorial), `carta_servicos` e `lgpd` (um registro por órgão, histórico por `orgao_id`); leitura pública |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
 
 ## Função de convite (Supabase Edge Function)
@@ -107,6 +118,8 @@ painel/
   modulo-noticias.js    → "Notícias, banners e avisos"
   modulo-publicacoes.js → "Publicações oficiais e atos normativos" (+ cartão do Diário Oficial)
   modulo-paginas.js     → "Páginas e perguntas frequentes"
+  modulo-servicos.js    → "Carta de Serviços" (serviços + textos gerais da Carta)
+  modulo-lgpd.js        → "LGPD e Governo Digital" (encarregado, política, norma 14.129, dados abertos)
   modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
@@ -165,6 +178,20 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.5.0 — 12/11/2026 — Lote 4 da Fase 1**
+- Carta de Serviços (PNTP 14.3 e 15.3): serviço com área, unidade, o que é, quem pode pedir,
+  requisitos e documentos, etapas, prazo máximo, custo, forma (presencial, internet ou ambos, com o
+  link), local, horário, atendimento prioritário, tempo de espera e onde se manifestar. Aba
+  "Textos da Carta" com apresentação, compromissos de qualidade (texto sugerido) e canal padrão de
+  manifestação montado com os contatos do órgão.
+- LGPD e Governo Digital (PNTP 15.1 a 15.5): encarregado de dados e ato de designação, política de
+  privacidade com modelo, norma da Lei 14.129/2021 (escolhida entre as publicações ou por link) e
+  regras de uso dos dados abertos com modelo. Quadro no topo com a situação de cada critério.
+- Botão "Instalar app" (Android, iPhone e computador).
+- Exclusão de unidade passa a conferir também os serviços da Carta.
+- Testado: script 08 no PostgreSQL local (duas execuções; cadastrador setorial, administrador e
+  visitante anônimo); telas em navegador automatizado, incluindo instruções de instalação no iPhone.
 
 **0.4.1 — 12/11/2026 — notícias de mais de uma secretaria**
 - Campo "Outras secretarias envolvidas" na notícia (ex.: Saúde com Educação). A unidade

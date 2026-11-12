@@ -17,6 +17,7 @@
     usuarios_orgaos: 'Acesso de usuários',
     noticias: 'Notícias', banners: 'Banners', avisos: 'Avisos', publicacoes: 'Publicações oficiais',
     paginas: 'Páginas', faq: 'Perguntas frequentes', menu_itens: 'Menu do site',
+    servicos: 'Carta de Serviços', carta_servicos: 'Textos da Carta de Serviços', lgpd: 'LGPD e Governo Digital',
     perfis: 'Perfis',
     perfil_permissoes: 'Permissões de perfil'
   };
@@ -34,6 +35,14 @@
     tipo: 'Tipo', numero: 'Número', ano: 'Ano', data_publicacao: 'Data', ementa: 'Ementa', arquivo_url: 'PDF',
     link_externo: 'Link', vigencia: 'Situação do ato', observacao: 'Observação', slug: 'Endereço',
     pergunta: 'Pergunta', resposta: 'Resposta', rotulo: 'Texto do item', destino: 'Leva para', pai_id: 'Fica dentro de',
+    publico_alvo: 'Quem pode pedir', requisitos: 'Requisitos e documentos', etapas: 'Etapas', prazo_maximo: 'Prazo máximo',
+    forma_prestacao: 'Forma de prestação', link_digital: 'Endereço pela internet', local_atendimento: 'Local', horario: 'Horário',
+    custo: 'Custo', prioridades: 'Atendimento prioritário', tempo_espera: 'Tempo de espera', manifestacao: 'Onde se manifestar',
+    apresentacao: 'Apresentação', compromissos: 'Compromissos', encarregado_nome: 'Encarregado', encarregado_cargo: 'Cargo do encarregado',
+    encarregado_email: 'E-mail do encarregado', encarregado_telefone: 'Telefone do encarregado', encarregado_ato: 'Ato de designação',
+    encarregado_ato_url: 'Link do ato', politica_texto: 'Política de privacidade', politica_url: 'PDF da política',
+    politica_atualizada_em: 'Política atualizada em', gov_digital_publicacao: 'Norma do Governo Digital', gov_digital_texto: 'Norma (texto)',
+    gov_digital_url: 'Link da norma', dados_abertos_texto: 'Regras dos dados abertos',
     imagem_url: 'Imagem', link_url: 'Link', inicio: 'Início', fim: 'Fim', texto: 'Texto', nivel: 'Nível', perfil_id: 'Perfil', usuario_id: 'Pessoa', descricao: 'Descrição',
     dominio: 'Domínio', modulo: 'Módulo', pode_ver: 'Ver', pode_editar: 'Cadastrar e editar',
     pode_publicar: 'Publicar', pode_excluir: 'Excluir',
@@ -137,6 +146,8 @@
       case 'perfil_permissoes': return (nomes.perfis[x.perfil_id] || 'Perfil') + ' · ' + (nomes.modulos[x.modulo] || x.modulo);
       case 'publicacoes': return (x.tipo || '') + (x.numero ? ' nº ' + x.numero : '') + (x.ano ? '/' + x.ano : '');
       case 'faq': return x.pergunta || '—';
+      case 'carta_servicos': return 'Textos gerais da Carta';
+      case 'lgpd': return 'Encarregado, política e Governo Digital';
       case 'menu_itens': return 'Item "' + (x.rotulo || '') + '"';
       case 'avisos': return x.texto || '—';
       default: return x.nome || x.titulo || x.email || '—';
