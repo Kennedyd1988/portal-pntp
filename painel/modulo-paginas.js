@@ -133,19 +133,19 @@
     q = q || {};
     const pergunta = el('input', { type: 'text', maxlength: 300, value: q.pergunta || '' });
     const editor = P.editorTexto('fq-resposta', q.resposta, 6);
-    const categoria = el('input', { type: 'text', maxlength: 60, value: q.categoria || '', list: 'lista-cat-faq' });
+    const categoria = P.campoOutra('fq-categoria', 'Assunto', faq.map((x) => x.categoria).concat(['Saúde', 'Tributos', 'Educação', 'Assistência Social', 'Atendimento']),
+      q.categoria, null, '— Sem assunto —');
     const ordem = el('input', { type: 'number', min: 0, max: 999, value: q.ordem == null ? 10 : q.ordem });
     const ativo = el('input', { type: 'checkbox', checked: q.id ? q.ativo : true });
-    const cats = [...new Set(faq.map((x) => x.categoria).filter(Boolean))].sort(ordemAlfabetica);
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       campo('fq-pergunta', 'Pergunta', pergunta, null, true),
       el('div', { class: 'campo' }, el('label', { for: 'fq-resposta' }, 'Resposta', el('span', { class: 'obrigatorio', 'aria-hidden': 'true' }, ' *')), editor.elemento,
         el('span', { class: 'erro-campo', id: 'fq-resposta-erro' })),
       el('div', { class: 'grade-campos grade-3' },
-        campo('fq-categoria', 'Assunto', categoria, 'Ex.: Tributos, Saúde'),
+        categoria.campo,
         campo('fq-ordem', 'Ordem', ordem),
         el('label', { class: 'checkbox', style: 'align-self:center' }, ativo, ' Aparece no site')),
-      el('datalist', { id: 'lista-cat-faq' }, cats.map((c) => el('option', { value: c }))));
+    );
     const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
     const dlg = P.abrirDialogo(q.id ? 'Editar pergunta' : 'Nova pergunta', corpo, [
       el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn]);
@@ -156,7 +156,7 @@
       ocupado(btn, 'Salvando…');
       try {
         await P.gravarRegistro('faq', {
-          pergunta: pergunta.value.trim(), resposta: editor.area.value.trim(), categoria: categoria.value.trim() || null,
+          pergunta: pergunta.value.trim(), resposta: editor.area.value.trim(), categoria: categoria.valor(),
           ordem: parseInt(ordem.value, 10) || 0, ativo: ativo.checked
         }, q.id);
         dlg.close(); toast('Pergunta salva.'); await recarregar();

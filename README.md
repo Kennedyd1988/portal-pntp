@@ -179,6 +179,12 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 
 ## Histórico de mudanças
 
+**0.5.1 — 12/11/2026 — ajuste de interface**
+- Os campos Categoria (notícias), Área (serviços) e Assunto (perguntas frequentes) deixam de usar a
+  lista de sugestões do navegador (datalist), que abria uma lista escura sobreposta, fora do visual
+  do painel e diferente em cada aparelho. Agora são listas de escolha normais, com a opção
+  "Outra (digitar)…" para quando a categoria não existir. Regra: não usar datalist no projeto.
+
 **0.5.0 — 12/11/2026 — Lote 4 da Fase 1**
 - Carta de Serviços (PNTP 14.3 e 15.3): serviço com área, unidade, o que é, quem pode pedir,
   requisitos e documentos, etapas, prazo máximo, custo, forma (presencial, internet ou ambos, com o

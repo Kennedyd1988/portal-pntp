@@ -74,7 +74,6 @@
     const area = (v, linhas) => { const a = el('textarea', { rows: linhas || 3 }); a.value = v || ''; return a; };
     const f = {
       nome: txt(s.nome, 200),
-      categoria: txt(s.categoria, 60, { list: 'lista-cat-servicos' }),
       unidade: alcance()
         ? el('select', { disabled: true }, el('option', { value: alcance() }, nomeUnidade(alcance())))
         : el('select', null, el('option', { value: '' }, '— Órgão todo —'),
@@ -93,6 +92,7 @@
       espera: txt(s.tempo_espera, 100, { placeholder: 'Ex.: Até 30 minutos' }),
       manifestacao: area(s.manifestacao, 2)
     };
+    const categoria = P.campoOutra('sv-categoria', 'Área', CATEGORIAS.concat(itens.map((x) => x.categoria)), s.categoria, null, '— Sem área —');
     const blocoLink = campo('sv-link', 'Endereço para pedir pela internet', f.link, 'Onde o cidadão faz o pedido sem ir ao balcão (PNTP 15.3).', true);
     const alternar = () => { blocoLink.hidden = f.forma.value === 'presencial'; };
     f.forma.addEventListener('change', alternar); alternar();
@@ -101,8 +101,7 @@
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       travado ? el('p', { class: 'msg msg-info' }, 'Este serviço está publicado. Só quem tem permissão de publicar pode alterá-lo.') : null,
       campo('sv-nome', 'Nome do serviço', f.nome, 'Como o cidadão procura. Ex.: Emissão de 2ª via do IPTU', true),
-      el('div', { class: 'grade-campos' }, campo('sv-categoria', 'Área', f.categoria), campo('sv-unidade', 'Unidade responsável', f.unidade)),
-      el('datalist', { id: 'lista-cat-servicos' }, CATEGORIAS.map((c) => el('option', { value: c }))),
+      el('div', { class: 'grade-campos' }, categoria.campo, campo('sv-unidade', 'Unidade responsável', f.unidade)),
       campo('sv-descricao', 'O que é o serviço', f.descricao),
       campo('sv-publico', 'Quem pode pedir', f.publico),
       secao('Como pedir',
@@ -137,7 +136,7 @@
       const link = f.link.value.trim();
       if (f.forma.value !== 'presencial' && !erroCampo('sv-link', P.urlValida(link) ? '' : 'Informe o endereço completo, começando com https://')) return;
       const reg = {
-        nome, categoria: f.categoria.value.trim() || null, unidade_id: f.unidade.value || null,
+        nome, categoria: categoria.valor(), unidade_id: f.unidade.value || null,
         descricao: f.descricao.value.trim() || null, publico_alvo: f.publico.value.trim() || null,
         requisitos: f.requisitos.area.value.trim() || null, etapas: f.etapas.area.value.trim() || null,
         prazo_maximo: f.prazo.value.trim() || null, custo: f.custo.value.trim() || null,

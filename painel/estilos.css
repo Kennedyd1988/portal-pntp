@@ -298,3 +298,4 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .checklist-pntp .ok::before { content: "✓"; color: var(--green); font-weight: 700; }
 .checklist-pntp .pendente::before { content: "!"; color: #fff; background: var(--amber); border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
 .checklist-pntp .futuro::before { content: "…"; color: var(--text-dim); font-weight: 700; }
+.seletor-outra { display: flex; flex-direction: column; gap: 6px; }

@@ -808,6 +808,29 @@
     return { elemento: el('div', { class: 'editor' }, barra, area, previa), area };
   }
 
+  // Lista de escolha com opção "Outra (digitar)…".
+  // Substitui o <datalist> do navegador, cuja lista sobreposta (escura, no Chrome) não
+  // segue o visual do painel nem funciona igual em todos os aparelhos.
+  function campoOutra(id, rotulo, opcoes, atual, ajuda, rotuloVazio) {
+    const lista = [...new Set(opcoes.filter(Boolean))].sort(ordemAlfabetica);
+    const OUTRA = '__outra__';
+    const sel = el('select', { id },
+      el('option', { value: '' }, rotuloVazio || '— Nenhuma —'),
+      lista.map((o) => el('option', { value: o, selected: o === atual }, o)),
+      el('option', { value: OUTRA }, 'Outra (digitar)…'));
+    const txt = el('input', { type: 'text', id: id + '-outra', maxlength: 60, placeholder: 'Digite o nome', 'aria-label': rotulo + ': outra', hidden: true });
+    if (atual && !lista.includes(atual)) { sel.value = OUTRA; txt.hidden = false; txt.value = atual; }
+    sel.addEventListener('change', () => { txt.hidden = sel.value !== OUTRA; if (!txt.hidden) txt.focus(); });
+    return {
+      campo: el('div', { class: 'campo' },
+        el('label', { for: id }, rotulo),
+        el('div', { class: 'seletor-outra' }, sel, txt),
+        ajuda ? el('span', { class: 'ajuda' }, ajuda) : null,
+        el('span', { class: 'erro-campo', id: id + '-erro' })),
+      valor: () => (sel.value === OUTRA ? txt.value.trim().replace(/\s+/g, ' ') : sel.value) || null
+    };
+  }
+
   // Lista paginada por cursor (regra do projeto: nunca carregar tudo).
   // montar(select, opcoes) devolve a consulta já com os filtros; a ordem é
   // <coluna> decrescente + id decrescente, e o cursor é a última linha exibida.
@@ -865,7 +888,7 @@
     sb, estado, el, $, toast, msg, ocupado, erroCampo, traduzirErro, emailValido,
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
-    campo, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
+    campo, campoOutra, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
     paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf
   };
 })();

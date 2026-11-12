@@ -89,7 +89,6 @@
     const f = {
       titulo: el('input', { type: 'text', maxlength: 200, value: n.titulo || '' }),
       resumo: el('textarea', { rows: 2, maxlength: 400 }),
-      categoria: el('input', { type: 'text', list: 'lista-categorias', maxlength: 60, value: n.categoria || '' }),
       unidade: seletorUnidade(n.unidade_id, false),
       data: el('input', { type: 'datetime-local', value: P.paraDataHoraLocal(n.publicado_em) }),
       legenda: el('input', { type: 'text', maxlength: 200, value: n.capa_legenda || '' }),
@@ -97,6 +96,8 @@
     };
     f.resumo.value = n.resumo || '';
     const editor = P.editorTexto('nt-conteudo', n.conteudo, 12);
+    // Categorias fixas + as que já foram usadas nas notícias carregadas.
+    const categoria = P.campoOutra('nt-categoria', 'Categoria', CATEGORIAS.concat(noticias.map((x) => x.categoria)), n.categoria, null, '— Sem categoria —');
     // Outras secretarias envolvidas: a notícia aparece também na página delas no site.
     // Quem edita continua sendo só a unidade responsável.
     const relacionadas = new Set(n.unidades_relacionadas || []);
@@ -126,14 +127,13 @@
       capa.elemento,
       campo('nt-legenda', 'Descrição da foto', f.legenda, 'Obrigatória quando há foto: é lida por quem usa leitor de tela (acessibilidade).'),
       el('div', { class: 'grade-campos' },
-        campo('nt-categoria', 'Categoria', f.categoria),
+        categoria.campo,
         campo('nt-unidade', 'Unidade responsável', f.unidade)
       ),
       el('div', { class: 'campo' },
         el('span', { class: 'rotulo', id: 'nt-rel-rotulo' }, 'Outras secretarias envolvidas'),
         caixaRel,
         el('span', { class: 'ajuda' }, 'Opcional. Ex.: campanha da Saúde com a Educação. A notícia aparece também na página dessas secretarias; quem edita continua sendo só a unidade responsável.')),
-      el('datalist', { id: 'lista-categorias' }, CATEGORIAS.map((c) => el('option', { value: c }))),
       el('div', { class: 'grade-campos' },
         campo('nt-data', 'Data de publicação', f.data, 'Data futura = a notícia entra no ar sozinha nesse dia e hora.'),
         el('label', { class: 'checkbox', style: 'align-self:center' }, f.destaque, ' Destacar na página inicial')
@@ -171,7 +171,7 @@
         await P.gravarRegistro('noticias', {
           titulo, resumo: f.resumo.value.trim() || null, conteudo: editor.area.value.trim() || null,
           capa_url: capaUrl, capa_legenda: f.legenda.value.trim() || null,
-          categoria: f.categoria.value.trim() || null, unidade_id: f.unidade.value || null,
+          categoria: categoria.valor(), unidade_id: f.unidade.value || null,
           unidades_relacionadas: [...relacionadas].filter((id) => id !== f.unidade.value),
           publicado_em: new Date(f.data.value).toISOString(), destaque: f.destaque.checked, situacao
         }, n.id);
