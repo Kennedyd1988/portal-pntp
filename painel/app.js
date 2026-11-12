@@ -35,7 +35,7 @@
 
   // Fase em que cada módulo será construído (só para a tela "em construção").
   const FASE_MODULO = {
-    noticias: 1, institucional: 1, servicos: 1, publicacoes: 1, aparencia: 1, usuarios: 1, historico: 1,
+    noticias: 1, institucional: 1, paginas: 1, servicos: 1, publicacoes: 1, aparencia: 1, menu: 1, usuarios: 1, historico: 1,
     licitacoes: 2, financeiro: 2, pessoal: 2, convenios: 2, obras: 2, setoriais: 2, importacoes: 2,
     atendimento: 3
   };
@@ -493,13 +493,16 @@
             el('li', null, 'Aparência e contatos do órgão'),
             el('li', null, 'Unidades e gestores'),
             el('li', null, 'Usuários, perfis e convites'),
-            el('li', null, 'Histórico de alterações')
+            el('li', null, 'Histórico de alterações'),
+            el('li', null, 'Notícias, banners e avisos'),
+            el('li', null, 'Publicações oficiais e Diário Oficial'),
+            el('li', null, 'Páginas e perguntas frequentes'),
+            el('li', null, 'Menu do site')
           ),
           el('ul', { class: 'lista-check lista-proximos', style: 'margin-top:8px' },
-            el('li', null, 'Menu e links do site'),
-            el('li', null, 'Páginas institucionais'),
-            el('li', null, 'Notícias, banners e avisos'),
-            el('li', null, 'Carta de Serviços')
+            el('li', null, 'Carta de Serviços'),
+            el('li', null, 'LGPD e Governo Digital'),
+            el('li', null, 'Site público')
           )
         )
       )
@@ -654,10 +657,170 @@
   const normalizar = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const ordemAlfabetica = (a, b) => (a || '').localeCompare(b || '', 'pt-BR', { sensitivity: 'base' });
 
+
+  // ---------- utilidades do Lote 3 (conteúdo) ----------
+
+  // Campo de formulário padrão: rótulo, entrada, ajuda e mensagem de erro.
+  function campo(id, rotulo, input, ajuda, obrigatorio) {
+    input.id = id;
+    return el('div', { class: 'campo' },
+      el('label', { for: id }, rotulo, obrigatorio ? el('span', { class: 'obrigatorio', 'aria-hidden': 'true' }, ' *') : null),
+      input,
+      ajuda ? el('span', { class: 'ajuda', id: id + '-ajuda' }, ajuda) : null,
+      el('span', { class: 'erro-campo', id: id + '-erro' }));
+  }
+
+  const dataBR = (d) => d ? new Date(d.length === 10 ? d + 'T12:00:00' : d).toLocaleDateString('pt-BR') : '';
+  const dataHoraBR = (d) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  // Valor para <input type="datetime-local"> no horário local.
+  function paraDataHoraLocal(iso) {
+    const d = iso ? new Date(iso) : new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  const urlValida = (v) => /^https?:\/\/[^\s.]+\.\S+/.test(v || '');
+
+  // Texto com formatação simples (estilo "markdown" reduzido) — nunca HTML.
+  // Motivo: o conteúdo vai para o site público; aceitar HTML permitiria
+  // colar código malicioso. Monta os elementos um a um, sem innerHTML.
+  //   ## Título · **negrito** · *itálico* · - lista · 1. lista · [texto](https://…)
+  function trechoFormatado(linha) {
+    const frag = document.createDocumentFragment();
+    const re = /\*\*([^*]+)\*\*|\*([^*]+)\*|\[([^\]]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)/g;
+    let i = 0, m;
+    while ((m = re.exec(linha))) {
+      if (m.index > i) frag.append(linha.slice(i, m.index));
+      if (m[1]) frag.append(el('strong', null, m[1]));
+      else if (m[2]) frag.append(el('em', null, m[2]));
+      else frag.append(el('a', { href: m[4], target: '_blank', rel: 'noopener' }, m[3]));
+      i = re.lastIndex;
+    }
+    if (i < linha.length) frag.append(linha.slice(i));
+    return frag;
+  }
+  function renderTexto(texto) {
+    const raiz = el('div', { class: 'texto-formatado' });
+    const blocos = String(texto || '').replace(/\r/g, '').split(/\n{2,}/);
+    for (const b of blocos) {
+      const linhas = b.split('\n').filter((l) => l.trim());
+      if (!linhas.length) continue;
+      if (/^#{2,3}\s/.test(linhas[0]) && linhas.length === 1) {
+        raiz.append(el('h3', null, trechoFormatado(linhas[0].replace(/^#{2,3}\s+/, ''))));
+      } else if (linhas.every((l) => /^\s*[-*]\s+/.test(l))) {
+        raiz.append(el('ul', null, linhas.map((l) => el('li', null, trechoFormatado(l.replace(/^\s*[-*]\s+/, ''))))));
+      } else if (linhas.every((l) => /^\s*\d+[.)]\s+/.test(l))) {
+        raiz.append(el('ol', null, linhas.map((l) => el('li', null, trechoFormatado(l.replace(/^\s*\d+[.)]\s+/, ''))))));
+      } else {
+        const p = el('p');
+        linhas.forEach((l, k) => { if (k) p.append(el('br')); p.append(trechoFormatado(l)); });
+        raiz.append(p);
+      }
+    }
+    return raiz;
+  }
+
+  // Editor de texto simples: barra de botões que insere a marcação + pré-visualização.
+  function editorTexto(id, valor, linhas) {
+    const area = el('textarea', { id, rows: linhas || 10, class: 'editor-area' });
+    area.value = valor || '';
+    // Sem nada selecionado, insere um texto de exemplo já selecionado: é só digitar por cima.
+    const envolver = (antes, depois, exemplo) => {
+      const ini = area.selectionStart, fim = area.selectionEnd;
+      const sel = area.value.slice(ini, fim) || exemplo;
+      area.setRangeText(antes + sel + depois, ini, fim, 'end');
+      area.focus();
+      area.setSelectionRange(ini + antes.length, ini + antes.length + sel.length);
+    };
+    // Lista/título: marca o começo da linha atual e deixa o cursor no fim dela.
+    const prefixar = (prefixo) => {
+      const ini = area.value.lastIndexOf('\n', area.selectionStart - 1) + 1;
+      area.setRangeText(prefixo, ini, ini, 'end');
+      let fimLinha = area.value.indexOf('\n', ini);
+      if (fimLinha < 0) fimLinha = area.value.length;
+      area.focus();
+      area.setSelectionRange(fimLinha, fimLinha);
+    };
+    const previa = el('div', { class: 'editor-previa', hidden: true });
+    const btnPrevia = el('button', { type: 'button', class: 'btn btn-claro btn-p', 'aria-pressed': 'false' }, 'Pré-visualizar');
+    btnPrevia.addEventListener('click', () => {
+      const ver = previa.hidden;
+      previa.hidden = !ver; area.hidden = ver;
+      btnPrevia.textContent = ver ? 'Voltar a editar' : 'Pré-visualizar';
+      btnPrevia.setAttribute('aria-pressed', ver ? 'true' : 'false');
+      if (ver) previa.replaceChildren(renderTexto(area.value));
+    });
+    const b = (rotulo, titulo, acao) => el('button', { type: 'button', class: 'btn btn-claro btn-p', title: titulo, onclick: acao }, rotulo);
+    const barra = el('div', { class: 'editor-barra' },
+      b('Título', 'Subtítulo dentro do texto', () => prefixar('## ')),
+      b('Negrito', 'Negrito', () => envolver('**', '**', 'texto')),
+      b('Itálico', 'Itálico', () => envolver('*', '*', 'texto')),
+      b('• Lista', 'Lista com marcadores', () => prefixar('- ')),
+      b('1. Lista', 'Lista numerada', () => prefixar('1. ')),
+      b('Link', 'Link para outro endereço', () => {
+        const url = prompt('Endereço do link (começando com https://):', 'https://');
+        if (url && urlValida(url)) envolver('[', '](' + url + ')', 'texto do link');
+      }),
+      el('span', { style: 'flex:1' }),
+      btnPrevia);
+    return { elemento: el('div', { class: 'editor' }, barra, area, previa), area };
+  }
+
+  // Lista paginada por cursor (regra do projeto: nunca carregar tudo).
+  // montar(select, opcoes) devolve a consulta já com os filtros; a ordem é
+  // <coluna> decrescente + id decrescente, e o cursor é a última linha exibida.
+  async function paginar(montar, coluna, ultimo, lote) {
+    let q = montar('*').order(coluna, { ascending: false }).order('id', { ascending: false }).limit(lote);
+    if (ultimo) {
+      const v = '"' + String(ultimo[coluna]).replace(/"/g, '') + '"';
+      q = q.or(coluna + '.lt.' + v + ',and(' + coluna + '.eq.' + v + ',id.lt.' + ultimo.id + ')');
+    }
+    const { data, error } = await q;
+    if (error) throw error;
+    return { linhas: data, fim: data.length < lote };
+  }
+  // Total da consulta contado no servidor (sem baixar as linhas).
+  async function contar(montar) {
+    const { count, error } = await montar('id', { count: 'exact', head: true });
+    if (error) throw error;
+    return count || 0;
+  }
+
+  // Erros comuns de gravação traduzidos (regras do banco já escrevem em português).
+  function erroGravacao(e) {
+    const t = (e && e.message) || '';
+    if (e && e.amigavel) return t;
+    if (/Seu perfil não pode publicar|dois níveis|mesmo órgão|dentro dele mesmo|tem subitens/.test(t)) return t;
+    if (/row-level security/i.test(t)) return 'Seu perfil não tem permissão para gravar aqui (ou o registro está fora do seu alcance).';
+    if (/foreign key/i.test(t)) return 'Este registro está sendo usado em outro lugar e não pode ser removido.';
+    return traduzirErro(e);
+  }
+  const amigavel = (texto) => Object.assign(new Error(texto), { amigavel: true });
+
+  // Grava e confere se a linha mudou (0 linhas = sem permissão/alcance).
+  async function gravarRegistro(tabela, registro, id) {
+    const q = id
+      ? sb.from(tabela).update(registro).eq('id', id).select('id')
+      : sb.from(tabela).insert(Object.assign({ orgao_id: estado.orgao.id }, registro)).select('id');
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || !data.length) throw amigavel('Nada foi gravado: seu perfil não tem permissão ou o registro está fora do seu alcance.');
+    return data[0].id;
+  }
+
+  // Envio de PDF com as validações de tipo e tamanho.
+  function validarPdf(arquivo) {
+    if (!arquivo) return null;
+    if (arquivo.type !== 'application/pdf') throw amigavel('Escolha um arquivo PDF.');
+    if (arquivo.size > 10 * 1024 * 1024) throw amigavel('O PDF passa de 10 MB. Reduza o arquivo antes de enviar.');
+    return arquivo;
+  }
+
   // Registro das telas de cada módulo (preenchido pelos arquivos modulo-*.js).
   window.PNTP = {
     sb, estado, el, $, toast, msg, ocupado, erroCampo, traduzirErro, emailValido,
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
-    normalizar, ordemAlfabetica, telas, iniciar, rotear
+    normalizar, ordemAlfabetica, telas, iniciar, rotear,
+    campo, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
+    paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf
   };
 })();

@@ -1,6 +1,6 @@
 // =====================================================================
-// Módulo "Aparência, menu e links" — identidade e contatos do órgão
-// (Lote 1). O menu e os links do site entram no próximo lote.
+// Módulo "Aparência e contatos" — identidade, contatos, redes sociais e
+// Diário Oficial do órgão. O menu do site tem módulo próprio (modulo-menu.js).
 // =====================================================================
 (function () {
   'use strict';
@@ -86,7 +86,9 @@
       facebook: texto(cfg.facebook, { type: 'url', placeholder: 'https://facebook.com/…' }),
       youtube: texto(cfg.youtube, { type: 'url', placeholder: 'https://youtube.com/…' }),
       whatsapp: texto(cfg.whatsapp, { inputmode: 'tel', placeholder: '(84) 90000-0000' }),
-      dominio: texto(org.dominio, { placeholder: 'riachodacruz.rn.gov.br' })
+      dominio: texto(org.dominio, { placeholder: 'riachodacruz.rn.gov.br' }),
+      diario_nome: texto(cfg.diario_oficial_nome, { placeholder: 'Diário Oficial dos Municípios do RN (FEMURN)' }),
+      diario_url: texto(cfg.diario_oficial_url, { type: 'url', placeholder: 'https://www.diariomunicipal.com.br/femurn/' })
     };
 
     const btnSalvar = el('button', { type: 'submit', class: 'btn btn-primario' }, 'Salvar alterações');
@@ -132,6 +134,12 @@
           campo('ap-whatsapp', 'WhatsApp de atendimento', f.whatsapp)
         ),
         el('section', { class: 'cartao' },
+          el('h2', null, 'Diário Oficial'),
+          el('p', { class: 'ajuda' }, 'Onde o órgão publica os atos oficiais. Se for um sistema externo (ex.: FEMURN), o site leva o cidadão para lá.'),
+          campo('ap-diario-nome', 'Nome do Diário Oficial', f.diario_nome),
+          campo('ap-diario-url', 'Endereço (link)', f.diario_url)
+        ),
+        el('section', { class: 'cartao' },
           el('h2', null, 'Endereço do site'),
           campo('ap-dominio', 'Domínio', f.dominio, 'Usado quando o site público entrar no ar (Lote 5).')
         )
@@ -154,6 +162,7 @@
       for (const r of ['instagram', 'facebook', 'youtube']) {
         if (!erroCampo('ap-' + r, urlValida(v(r)) ? '' : 'Informe o endereço completo, começando com https://')) return;
       }
+      if (!erroCampo('ap-diario-url', urlValida(v('diario_url')) ? '' : 'Informe o endereço completo, começando com https://')) return;
       const dominio = v('dominio').toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
       if (!erroCampo('ap-dominio', !dominio || /^[a-z0-9.-]+\.[a-z]{2,}$/.test(dominio) ? '' : 'Domínio inválido. Ex.: riachodacruz.rn.gov.br')) return;
 
@@ -165,7 +174,8 @@
           nome_exibicao: v('nome_exibicao'), cor_principal: corTexto.value.toLowerCase(),
           brasao_url: brasaoUrl, endereco: v('endereco'), cep: v('cep'), telefone: v('telefone'),
           email: v('email'), horario: v('horario'), instagram: v('instagram'), facebook: v('facebook'),
-          youtube: v('youtube'), whatsapp: v('whatsapp')
+          youtube: v('youtube'), whatsapp: v('whatsapp'),
+          diario_oficial_nome: v('diario_nome'), diario_oficial_url: v('diario_url')
         });
         const { data, error: e2 } = await sb.from('orgaos')
           .update({ configuracoes: novaCfg, dominio: dominio || null })

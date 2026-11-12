@@ -15,6 +15,8 @@
     unidades: 'Unidades',
     gestores: 'Gestores',
     usuarios_orgaos: 'Acesso de usuários',
+    noticias: 'Notícias', banners: 'Banners', avisos: 'Avisos', publicacoes: 'Publicações oficiais',
+    paginas: 'Páginas', faq: 'Perguntas frequentes', menu_itens: 'Menu do site',
     perfis: 'Perfis',
     perfil_permissoes: 'Permissões de perfil'
   };
@@ -26,7 +28,13 @@
     horario_atendimento: 'Horário de atendimento', competencias: 'Competências', norma_criacao: 'Norma de criação',
     norma_url: 'PDF da norma', unidade_pai_id: 'Fica dentro de', ativo: 'Ativo', ordem: 'Ordem',
     cargo: 'Cargo', foto_url: 'Foto', curriculo_url: 'Currículo', destaque_capa: 'Na página inicial',
-    unidade_id: 'Unidade / alcance', perfil_id: 'Perfil', usuario_id: 'Pessoa', descricao: 'Descrição',
+    unidade_id: 'Unidade / alcance', unidades_relacionadas: 'Outras secretarias envolvidas',
+    titulo: 'Título', resumo: 'Resumo', conteudo: 'Texto', capa_url: 'Foto de capa', capa_legenda: 'Descrição da foto',
+    categoria: 'Categoria', situacao: 'Situação', publicado_em: 'Data de publicação', destaque: 'Destaque',
+    tipo: 'Tipo', numero: 'Número', ano: 'Ano', data_publicacao: 'Data', ementa: 'Ementa', arquivo_url: 'PDF',
+    link_externo: 'Link', vigencia: 'Situação do ato', observacao: 'Observação', slug: 'Endereço',
+    pergunta: 'Pergunta', resposta: 'Resposta', rotulo: 'Texto do item', destino: 'Leva para', pai_id: 'Fica dentro de',
+    imagem_url: 'Imagem', link_url: 'Link', inicio: 'Início', fim: 'Fim', texto: 'Texto', nivel: 'Nível', perfil_id: 'Perfil', usuario_id: 'Pessoa', descricao: 'Descrição',
     dominio: 'Domínio', modulo: 'Módulo', pode_ver: 'Ver', pode_editar: 'Cadastrar e editar',
     pode_publicar: 'Publicar', pode_excluir: 'Excluir',
     'configuracoes.nome_exibicao': 'Nome exibido no site', 'configuracoes.cor_principal': 'Cor principal',
@@ -36,7 +44,7 @@
     'configuracoes.whatsapp': 'WhatsApp'
   };
   // Campos técnicos que não interessam ao usuário.
-  const IGNORAR = new Set(['id', 'orgao_id', 'criado_em', 'atualizado_em']);
+  const IGNORAR = new Set(['id', 'orgao_id', 'criado_em', 'atualizado_em', 'busca', 'data_ordem', 'autor_id']);
 
   let conteiner = null;
   let itens = [];
@@ -113,6 +121,7 @@
     if (campo === 'perfil_id') return nomes.perfis[v] || 'Perfil removido';
     if (campo === 'usuario_id') return nomes.pessoas[v] || 'Pessoa';
     if (campo === 'modulo') return nomes.modulos[v] || v;
+    if (campo === 'unidades_relacionadas' && Array.isArray(v)) return v.length ? v.map((id) => nomes.unidades[id] || 'Unidade removida').join(', ') : '—';
     if (typeof v === 'object') return JSON.stringify(v);
     return String(v);
   }
@@ -126,6 +135,10 @@
         return 'Acesso de ' + quem + (x.perfil_id ? ' · ' + (nomes.perfis[x.perfil_id] || 'perfil') : '');
       }
       case 'perfil_permissoes': return (nomes.perfis[x.perfil_id] || 'Perfil') + ' · ' + (nomes.modulos[x.modulo] || x.modulo);
+      case 'publicacoes': return (x.tipo || '') + (x.numero ? ' nº ' + x.numero : '') + (x.ano ? '/' + x.ano : '');
+      case 'faq': return x.pergunta || '—';
+      case 'menu_itens': return 'Item "' + (x.rotulo || '') + '"';
+      case 'avisos': return x.texto || '—';
       default: return x.nome || x.titulo || x.email || '—';
     }
   }

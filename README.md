@@ -39,6 +39,21 @@ construída para atender a matriz do PNTP 2026 (Atricon).
   não tem acesso a outro órgão; nos demais casos, só por e-mail (evita que um
   administrador entre na conta de alguém que também atende outro órgão).
 - Quem já entrou no painel é desativado, não apagado (o histórico fica completo).
+- Rascunho → publicado: quem só tem "editar" cria e altera rascunhos; publicar, tirar do ar
+  ou mexer no que já está publicado exige "publicar" (gatilho `controlar_publicacao`, sem
+  security definer de propósito: precisa enxergar o papel real de quem grava).
+- Notícia com data futura fica agendada: o site só mostra quando a data chega (regra de leitura
+  pública), sem precisar de tarefa agendada.
+- Publicação oficial publicada precisa ter PDF ou link; tipo + número + ano não se repete.
+- Banner, aviso, página, pergunta frequente e menu valem para o órgão todo: usuário com alcance
+  setorial não altera. Notícia e publicação aceitam alcance setorial (só na própria unidade).
+- Texto de notícias e páginas é guardado com marcação simples (## título, **negrito**, *itálico*,
+  listas, [link](https://…)) e desenhado sem HTML — nunca aceita HTML colado (segurança do site).
+- Notícia: uma unidade responsável (define quem edita) + outras envolvidas (só exibição).
+- Unidade não pode ser excluída enquanto tiver gestores, unidades dentro dela, notícias,
+  publicações ou usuários limitados a ela.
+- Página que está no menu não pode ser excluída nem mudar de endereço (link quebrado).
+- Item de menu com subitens não pode ser excluído nem virar subitem (menu de dois níveis).
 
 ## Scripts do banco (rodar em ordem no SQL Editor)
 
@@ -48,6 +63,8 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/02_painel_e_piloto.sql` | funções `meus_orgaos()` e `minhas_permissoes()` usadas pelo painel + órgão piloto (Prefeitura de Riacho da Cruz/RN) |
 | `supabase/03_lote1_estrutura.sql` | tabela `gestores`, norma de criação nas unidades, alcance setorial em unidades e gestores, bucket `arquivos` e suas regras |
 | `supabase/04_dados_riacho_da_cruz.sql` | carga inicial do piloto: contatos gerais, 15 unidades e 14 responsáveis (fonte: site oficial, 11/11/2026) |
+| `supabase/06_lote3_conteudo.sql` | módulos novos (`paginas`, `menu`, com as permissões copiadas de `institucional` e `aparencia`); tabelas `noticias`, `banners`, `avisos`, `publicacoes`, `paginas`, `faq`, `menu_itens`; busca sem acento (`normalizar_texto` + coluna `busca`); gatilho rascunho → publicado; leitura pública só do que está no ar; Diário Oficial do piloto (FEMURN) |
+| `supabase/07_noticias_varias_unidades.sql` | notícia com "outras secretarias envolvidas" (`unidades_relacionadas`, índice GIN, validação e bloqueio de exclusão da unidade citada); correção: acesso limitado a uma unidade passa a impedir a exclusão dela (antes virava acesso ao órgão todo) |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
 
 ## Função de convite (Supabase Edge Function)
@@ -87,6 +104,10 @@ painel/
   modulo-institucional.js → tela "Unidades e gestores"
   modulo-usuarios.js    → tela "Usuários e permissões" (pessoas, convites, perfis)
   modulo-historico.js   → tela "Histórico de alterações"
+  modulo-noticias.js    → "Notícias, banners e avisos"
+  modulo-publicacoes.js → "Publicações oficiais e atos normativos" (+ cartão do Diário Oficial)
+  modulo-paginas.js     → "Páginas e perguntas frequentes"
+  modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
   manifest.json         → instalação como aplicativo (PWA)
@@ -130,6 +151,9 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 
 ## Limitações conhecidas
 
+- Importação de publicações por planilha: botão visível e desativado até o layout ser definido.
+- Imagens dentro do texto de notícias/páginas ainda não são aceitas (só a foto de capa).
+
 - **E-mails (convite automático e "Esqueci minha senha") só chegam para pessoas de
   fora da equipe da Supabase depois de configurar SMTP próprio.** Até lá, usar
   "Gerar link" e, para quem esqueceu a senha, o administrador desativa e convida de
@@ -141,6 +165,37 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.4.1 — 12/11/2026 — notícias de mais de uma secretaria**
+- Campo "Outras secretarias envolvidas" na notícia (ex.: Saúde com Educação). A unidade
+  responsável continua única e é ela quem define quem edita; as envolvidas só fazem a notícia
+  aparecer também na página delas no site e no filtro do painel ("responsável OU envolvida").
+- Exclusão de unidade passa a conferir antes notícias, publicações e usuários vinculados, com a
+  explicação na tela; o banco também barra.
+- Correção de segurança: o vínculo de um usuário a uma unidade era "on delete set null". Ao excluir
+  a unidade, o alcance virava o órgão todo sem ninguém perceber. Agora a exclusão é barrada.
+- Histórico mostra nomes legíveis para os campos e áreas do Lote 3.
+
+**0.4.0 — 12/11/2026 — Lote 3 da Fase 1 (conteúdo do site)**
+- Notícias: título, resumo, texto com editor simples (título, negrito, itálico, listas, link e
+  pré-visualização), foto de capa reduzida no navegador com descrição obrigatória
+  (acessibilidade), categoria, unidade, data (futura = agendada) e destaque. Rascunho →
+  publicação conforme o perfil. Lista com 50 por vez, total contado no servidor e um filtro por
+  coluna (texto sem acento, categoria, unidade, situação, período).
+- Banners (imagem 1920 × 600, texto alternativo, link, período, ordem) e avisos de topo
+  (informativo, importante, urgente; início e fim), que saem do ar sozinhos.
+- Publicações oficiais: tipo, número, data, ano automático, ementa, PDF ou link externo,
+  situação do ato (vigente, alterada, revogada, sem efeito), observação e unidade. Bloqueia
+  duplicata e publicação sem documento. Cartão do Diário Oficial (FEMURN) no alto da tela;
+  importação por planilha aparece como "em breve".
+- Páginas institucionais (endereço automático, sugestões de páginas comuns) e perguntas
+  frequentes por assunto.
+- Menu do site: itens e subitens apontando para tela do site, página ou link externo; subir/
+  descer, prévia da barra e botão "Criar menu padrão".
+- Aparência: campos do Diário Oficial (nome e endereço).
+- Testado: script 06 no PostgreSQL local (duas execuções; cadastrador setorial, administrador,
+  administrador de outro órgão e visitante anônimo do site); telas em navegador automatizado
+  (computador e celular).
 
 **0.3.1 — 11/11/2026 — ajustes do teste do Lote 2**
 - Usuário com alcance numa unidade continua vendo todas as unidades e gestores (dados
