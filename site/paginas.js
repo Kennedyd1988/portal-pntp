@@ -1114,6 +1114,10 @@
     if (error) throw error;
     const fimDe = {};
     for (const r of anosBrutos || []) if (!(r.exercicio in fimDe)) fimDe[r.exercicio] = r.exercicio_fim;
+    // Declarações de que não há dados (script 23): a atual substitui a lista; ano declarado vira aba.
+    const decl = await S.decl.de('planejamento_' + tipo);
+    if (S.decl.atual(decl)) { alvo.replaceChildren(el('h2', { class: 'titulo-aba' }, nome), el('p', { class: 'meta' }, descricao), S.decl.cartaoAtual(S.decl.atual(decl))); return; }
+    for (const x of S.decl.mesclarAnos([], decl)) if (!(x.ano in fimDe)) fimDe[x.ano] = null;
     const anos = Object.keys(fimDe).map(Number).sort((a, b) => b - a);
     const cabecalho = el('div', { class: 'barra-lista' },
       el('span', { class: 'meta' }, anos.length ? anos.length + (anos.length === 1 ? ' exercício publicado' : ' exercícios publicados') : ''), anos.length ? exportar : '');
@@ -1147,10 +1151,11 @@
     }
 
     function desenhar(docs) {
-      if (!docs.length) { painel.replaceChildren(el('p', { class: 'vazio' }, 'Nenhum documento neste exercício.')); return; }
+      const declAno = S.decl.doAno(decl, ano);
+      if (!docs.length) { painel.replaceChildren(declAno.length ? S.decl.quadro(declAno) : el('p', { class: 'vazio' }, 'Nenhum documento neste exercício.')); return; }
       // Agrupa as partes (lei e anexos) do mesmo período.
       const chaves = [...new Set(docs.map((d) => (d.periodicidade || '') + ':' + (d.periodo || 0)))];
-      painel.replaceChildren(
+      painel.replaceChildren(S.decl.quadro(declAno, 'Declarações de ' + ano),
         el('h3', { class: 'sr' }, (tipo === 'parecer_tce' || tipo === 'julgamento_camara' ? 'Contas de ' : 'Exercício ') + rotuloAno(ano)),
         ...chaves.map((ch) => {
           const grupo = docs.filter((d) => (d.periodicidade || '') + ':' + (d.periodo || 0) === ch).sort((x, y) => x.ordem - y.ordem);
@@ -1402,6 +1407,13 @@
       const anoAtual = new Date().getFullYear();
       const contagem = new Map((anosLic || []).map((x) => [x.ano, x.total]));
       if (!contagem.has(anoAtual)) contagem.set(anoAtual, 0);
+      // Declarações de que não há dados (script 23): a atual substitui a lista; ano declarado vira aba.
+      const CHAVES_LIC = { licitacoes: ['licitacoes_licitacoes'], diretas: ['licitacoes_diretas'], adesoes: ['licitacoes_adesoes'],
+        todos: ['licitacoes_licitacoes', 'licitacoes_diretas', 'licitacoes_adesoes'] };
+      const decl = await S.decl.de(CHAVES_LIC[grupo]);
+      const declAtual = grupo === 'todos' ? null : S.decl.atual(decl);
+      if (declAtual) { history.replaceState(null, '', '#/licitacoes/' + grupo); conteudo.replaceChildren(S.decl.cartaoAtual(declAtual)); return; }
+      for (const x of S.decl.mesclarAnos([], decl)) if (!contagem.has(x.ano)) contagem.set(x.ano, 0);
       const anos = [...contagem.keys()].sort((a, b) => b - a);
       const pedido = parseInt(prm.get('ano'), 10);
       let ano = anos.includes(pedido) ? pedido : anos[0];
@@ -1413,10 +1425,13 @@
 
       function abrirAno() {
         history.replaceState(null, '', '#/licitacoes/' + grupo + '?ano=' + ano);
+        const declAno = S.decl.doAno(decl, ano);
         if (!contagem.get(ano)) {
-          painelAno.replaceChildren(el('p', { class: 'vazio' }, g[3].replace('{ano}', ano) + (ano === anoAtual ? ' até esta data.' : '.')));
+          painelAno.replaceChildren(declAno.length ? S.decl.quadro(declAno)
+            : el('p', { class: 'vazio' }, g[3].replace('{ano}', ano) + (ano === anoAtual ? ' até esta data.' : '.')));
           return;
         }
+        const declMes = el('div');
         const f = { busca: '', mes: '', modalidade: '', andamento: '' };
         const montar = (sel, op) => {
           let q = sb.from('licitacoes').select(sel || CAMPOS_LIC, op).eq('orgao_id', org()).in('modalidade', mods).eq('ano', ano);
@@ -1446,6 +1461,7 @@
             reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
           if (minha !== versao) return;
           if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' processo' : ' processos');
+          declMes.replaceChildren(f.mes ? S.decl.quadro(S.decl.doMes(decl, ano, f.mes)) : '');
           itens = reiniciar ? linhas : itens.concat(linhas);
           tabela.hidden = !itens.length;
           vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhum processo com esses filtros.'));
@@ -1467,11 +1483,11 @@
           const { data } = await montar().order('chave_ordem').order('id').range(de, ate);
           return data || [];
         });
-        painelAno.replaceChildren(
+        painelAno.replaceChildren(S.decl.quadro(declAno, 'Períodos sem ocorrência em ' + ano),
           el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
             el('label', null, 'Pesquisar (objeto ou número)', fBusca), el('label', null, 'Mês', fMes),
             mods.length > 1 ? el('label', null, 'Modalidade', fMod) : null, el('label', null, 'Situação', fAnd)),
-          el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
+          declMes, el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
         tabela.hidden = true;
         carregar(true).catch(() => vazio.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
       }
@@ -1491,6 +1507,9 @@
     const anoAtual = new Date().getFullYear();
     const contagem = new Map((anosPca || []).map((x) => [x.ano, x.total]));
     if (!contagem.has(anoAtual)) contagem.set(anoAtual, 0);
+    const decl = await S.decl.de('pca');
+    if (S.decl.atual(decl)) { conteudo.replaceChildren(S.decl.cartaoAtual(S.decl.atual(decl))); return; }
+    for (const x of S.decl.mesclarAnos([], decl)) if (!contagem.has(x.ano)) contagem.set(x.ano, 0);
     const anos = [...contagem.keys()].sort((a, b) => b - a);
     const pedido = parseInt(prm.get('ano'), 10);
     let ano = anos.includes(pedido) ? pedido : anos[0];
@@ -1508,9 +1527,10 @@
       const { data, error: e2 } = await buscar().limit(200);
       if (e2) { painelAno.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
       const docs = data || [];
-      if (!docs.length) { painelAno.replaceChildren(el('p', { class: 'vazio' }, 'O Plano de Contratações Anual de ' + ano + ' ainda não foi publicado neste portal.')); return; }
+      const declAno = S.decl.doAno(decl, ano);
+      if (!docs.length) { painelAno.replaceChildren(declAno.length ? S.decl.quadro(declAno) : el('p', { class: 'vazio' }, 'O Plano de Contratações Anual de ' + ano + ' ainda não foi publicado neste portal.')); return; }
       const exportar = S.botoesExportar('pca-' + ano, COLUNAS_PCA, async (de, ate) => { const r = await buscar().range(de, ate); return r.data || []; });
-      painelAno.replaceChildren(
+      painelAno.replaceChildren(S.decl.quadro(declAno, 'Declarações de ' + ano),
         el('div', { class: 'barra-lista' }, el('span', { class: 'meta' }, docs.length + (docs.length === 1 ? ' documento' : ' documentos')), exportar),
         el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados tabela-lic' },
           el('caption', { class: 'sr' }, 'Plano de Contratações Anual de ' + ano),
@@ -1594,13 +1614,19 @@
       btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
       mais.replaceChildren(linhas.length === 50 ? btn : '');
     }
-    const { data: anosS } = await sb.rpc('sancoes_anos', { p_orgao: org() });
+    const { data: anosDadosS } = await sb.rpc('sancoes_anos', { p_orgao: org() });
+    // Declarações (script 23): a atual substitui a lista; as de período aparecem no ano filtrado (ou todas).
+    const declS = await S.decl.de('sancionados');
+    if (S.decl.atual(declS)) { conteudo.replaceChildren(intro, S.decl.cartaoAtual(S.decl.atual(declS))); return; }
+    const anosS = S.decl.mesclarAnos(anosDadosS || [], declS);
+    const declBox = el('div');
+    const mostrarDecl = () => declBox.replaceChildren(S.decl.quadro(f.ano ? S.decl.doAno(declS, f.ano) : declS.filter((d) => d.abrangencia !== 'atual'), 'Períodos sem ocorrência'));
     const fBusca = el('input', { type: 'search', placeholder: 'Nome, CNPJ, processo ou licitação' });
     const fTipo = el('select', null, el('option', { value: '' }, 'Todas'), Object.entries(TIPO_SANCAO).map(([k, v]) => el('option', { value: k }, v)));
     const fVig = el('select', null, el('option', { value: '' }, 'Todas'), el('option', { value: 'vigente' }, 'Em vigor'), el('option', { value: 'encerrada' }, 'Encerradas ou sem prazo'));
     const fAno = el('select', null, el('option', { value: '' }, 'Todos'), (anosS || []).map((x) => el('option', { value: x.ano }, String(x.ano))));
     let espera;
-    const aplicar = () => { Object.assign(f, { busca: fBusca.value.trim(), tipo: fTipo.value, vigencia: fVig.value, ano: fAno.value }); carregar(true); };
+    const aplicar = () => { Object.assign(f, { busca: fBusca.value.trim(), tipo: fTipo.value, vigencia: fVig.value, ano: fAno.value }); mostrarDecl(); carregar(true); };
     [fTipo, fVig, fAno].forEach((x) => x.addEventListener('change', aplicar));
     fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
     const exportar = S.botoesExportar('sancionados', COLUNAS_SANCAO, async (de, ate) => {
@@ -1610,7 +1636,8 @@
     conteudo.replaceChildren(intro,
       el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
         el('label', null, 'Pesquisar', fBusca), el('label', null, 'Sanção', fTipo), el('label', null, 'Vigência', fVig), el('label', null, 'Ano da aplicação', fAno)),
-      el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
+      declBox, el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
+    mostrarDecl();
     tabela.hidden = true;
     carregar(true).catch(() => vazio.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
   }
@@ -1703,7 +1730,7 @@
         S.conf.transparencia_url ? el('a', { href: S.conf.transparencia_url, target: '_blank', rel: 'noopener' }, 'Portal da Transparência') : 'Portal da Transparência', '.'));
     await abrir(params);
 
-    async function abrir(prm) { return aba === 'fiscais' ? abrirFiscais() : abrirContratos(prm); }
+    async function abrir(prm) { return aba === 'fiscais' ? S.decl.envolver(conteudo, 'fiscais', abrirFiscais) : abrirContratos(prm); }
 
     async function abrirContratos(prm) {
       conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
@@ -1712,6 +1739,9 @@
       const anoAtual = new Date().getFullYear();
       const contagem = new Map((anosC || []).map((x) => [x.ano, x.total]));
       if (!contagem.has(anoAtual)) contagem.set(anoAtual, 0);
+      const decl = await S.decl.de('contratos');
+      if (S.decl.atual(decl)) { history.replaceState(null, '', '#/contratos'); conteudo.replaceChildren(S.decl.cartaoAtual(S.decl.atual(decl))); return; }
+      for (const x of S.decl.mesclarAnos([], decl)) if (!contagem.has(x.ano)) contagem.set(x.ano, 0);
       const anos = [...contagem.keys()].sort((a, b) => b - a);
       const pedido = parseInt(prm.get('ano'), 10);
       let ano = anos.includes(pedido) ? pedido : anos[0];
@@ -1723,7 +1753,8 @@
 
       function abrirAno() {
         history.replaceState(null, '', '#/contratos?ano=' + ano);
-        if (!contagem.get(ano)) { painelAno.replaceChildren(el('p', { class: 'vazio' }, 'Não foram celebrados contratos em ' + ano + (ano === anoAtual ? ' até esta data.' : '.'))); return; }
+        const declAno = S.decl.doAno(decl, ano);
+        if (!contagem.get(ano)) { painelAno.replaceChildren(declAno.length ? S.decl.quadro(declAno) : el('p', { class: 'vazio' }, 'Não foram celebrados contratos em ' + ano + (ano === anoAtual ? ' até esta data.' : '.'))); return; }
         const f = { busca: '', de: '', ate: '', vig: '' };
         const montar = (sel, op) => {
           let q = sb.from('contratos').select(sel || CAMPOS_CTR, op).eq('orgao_id', org()).eq('ano', ano);
@@ -1767,7 +1798,7 @@
           const { data } = await montar().order('data_assinatura', { ascending: false }).order('id').range(de, ate);
           return data || [];
         });
-        painelAno.replaceChildren(
+        painelAno.replaceChildren(S.decl.quadro(declAno, 'Períodos sem ocorrência em ' + ano),
           el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
             el('label', null, 'Pesquisar', fBusca), el('label', null, 'Vigência de', fDe), el('label', null, 'até', fAte), el('label', null, 'Situação', fVig)),
           el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
@@ -1996,7 +2027,7 @@
       el('p', { class: 'sub' }, 'Editais (íntegra) e todos os atos de concursos públicos, processos seletivos, seleções de estágio e chamamentos: retificações, inscritos, resultados, recursos, homologação e convocações.'),
       conteudo);
     return listaAnual(conteudo, params, {
-      base: '#/concursos', titulo: 'Concursos e processos seletivos', rotuloAno: 'Ano', nome: 'concursos-e-selecoes', unidade: ['seleção', 'seleções'],
+      base: '#/concursos', declaracao: 'concursos', titulo: 'Concursos e processos seletivos', rotuloAno: 'Ano', nome: 'concursos-e-selecoes', unidade: ['seleção', 'seleções'],
       vazio: 'Não há concursos públicos ou processos seletivos realizados por este órgão até esta data. Atualizado em ' + new Date().toLocaleDateString('pt-BR') + '.',
       anos: async () => { const { data, error } = await sb.rpc('concursos_anos', { p_orgao: org() }); return error ? null : data || []; },
       montar: (sel, op, ano, f) => {
@@ -2088,18 +2119,26 @@
   // Lista anual reutilizável: faixa de anos ("Todos" primeiro), filtros, total, tabela e CSV/JSON.
   // cfg: { base, rotuloAno, anos: async () => [{ano,total}], montar(sel, op, ano, f), filtros: [[chave, rotulo, elemento]],
   //        cabecalho, linha(r), colunas, nome, vazioFiltro, ordem }
+  // cfg.declaracao: chave(s) das declarações de que não há dados (script 23). A declaração atual
+  // substitui a lista; ano só declarado vira aba própria (com a declaração no lugar da lista); as do
+  // ano aparecem no alto; com um mês filtrado, as que tocam aquele mês.
   function listaAnual(conteudo, prm, cfg) {
-    return cfg.anos().then((anosLst) => {
+    return Promise.all([cfg.anos(), cfg.declaracao ? S.decl.de(cfg.declaracao) : []]).then(([anosLst, decl]) => {
       if (!anosLst) { conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+      if (cfg.declaracao) conteudo.dataset.declAnual = '1';
+      const declAtual = S.decl.atual(decl);
+      if (declAtual) { history.replaceState(null, '', cfg.base); conteudo.replaceChildren(S.decl.cartaoAtual(declAtual)); return; }
+      anosLst = S.decl.mesclarAnos(anosLst, decl);
       if (!anosLst.length) { history.replaceState(null, '', cfg.base); conteudo.replaceChildren(el('p', { class: 'vazio' }, cfg.vazio)); return; }
       const contagem = new Map(anosLst.map((x) => [x.ano, Number(x.total)]));
       const anos = ['todos'].concat([...contagem.keys()].sort((a, b) => b - a));
       const pedido = Number(prm.get('ano'));
       // abrirRecente: abre no último exercício (os filtros de mês só existem com um ano escolhido).
-      let ano = anos.includes(pedido) ? pedido : cfg.abrirRecente && prm.get('ano') !== 'todos' && anos.length > 1 ? anos[1] : 'todos';
+      const soDeclarado = ![...contagem.values()].some((n) => Number(n) > 0);   // sem registros, só declarações: abre no ano declarado
+      let ano = anos.includes(pedido) ? pedido : (cfg.abrirRecente || soDeclarado) && prm.get('ano') !== 'todos' && anos.length > 1 ? anos[1] : 'todos';
       const painelAno = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
       const totalGeral = [...contagem.values()].reduce((s, n) => s + n, 0);
-      const faixa = faixaAbas(anos.map((a) => [a, a === 'todos' ? 'Todos (' + totalGeral + ')' : a + ' (' + contagem.get(a) + ')']), ano, cfg.rotuloAno, true,
+      const faixa = faixaAbas(anos.map((a) => [a, a === 'todos' ? 'Todos (' + totalGeral + ')' : contagem.get(a) ? a + ' (' + contagem.get(a) + ')' : String(a)]), ano, cfg.rotuloAno, true,
         (id) => { ano = id === 'todos' ? 'todos' : Number(id); abrirAno(); });
       conteudo.replaceChildren(faixa.lista, painelAno);
       faixa.marcar(ano);
@@ -2107,6 +2146,10 @@
 
       function abrirAno() {
         history.replaceState(null, '', cfg.base + (ano === 'todos' ? (cfg.abrirRecente ? '?ano=todos' : '') : '?ano=' + ano));
+        const declAno = ano === 'todos' ? [] : S.decl.doAno(decl, ano);
+        // Ano sem registros, só com declaração: a declaração no lugar da lista.
+        if (ano !== 'todos' && !contagem.get(ano)) { painelAno.replaceChildren(S.decl.quadro(declAno)); return; }
+        const declMes = el('div');
         const f = {};
         const montar = (sel, op) => cfg.montar(sel, op, ano, f);
         const corpoTab = el('tbody');
@@ -2121,6 +2164,8 @@
             paginar(montar, cfg.ordem || 'atualizado_em', reiniciar ? null : itens[itens.length - 1], 50, !!cfg.crescente),
             reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
           if (minha !== versao) return;
+          // Mês filtrado com declaração: mostra a declaração daquele mês.
+          declMes.replaceChildren(f.mes && ano !== 'todos' ? S.decl.quadro(S.decl.doMes(decl, ano, f.mes)) : '');
           if (cont) totalTxt.textContent = (cont.count || 0) + ' ' + ((cont.count || 0) === 1 ? cfg.unidade[0] : cfg.unidade[1]);
           itens = reiniciar ? linhas : itens.concat(linhas);
           tabela.hidden = !itens.length;
@@ -2143,9 +2188,10 @@
           return data || [];
         });
         painelAno.replaceChildren(
+          S.decl.quadro(declAno, 'Períodos sem ocorrência em ' + ano),
           cfg.resumo ? cfg.resumo(ano, anosLst) : '',
           el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } }, campos.map(([, rot, e]) => el('label', null, rot, e))),
-          el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
+          declMes, el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
         tabela.hidden = true;
         carregar(true).catch(() => vazio.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
       }
@@ -2192,7 +2238,7 @@
       conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
       const T = TIPOS_CONV[tipo], semValor = tipo === 'sem_repasse';
       return listaAnual(conteudo, prm, {
-        base: rota(tipo), titulo: T[0], rotuloAno: 'Ano', nome: 'convenios-' + tipo, unidade: ['instrumento', 'instrumentos'],
+        base: rota(tipo), declaracao: ({ recebida: 'convenios_recebidas', realizada: 'convenios_realizadas', sem_repasse: 'convenios_acordos' })[tipo], titulo: T[0], rotuloAno: 'Ano', nome: 'convenios-' + tipo, unidade: ['instrumento', 'instrumentos'],
         vazio: T[4] + ' Atualizado em ' + new Date().toLocaleDateString('pt-BR') + '.',
         anos: async () => { const { data, error } = await sb.rpc('convenios_anos', { p_orgao: org(), p_tipo: tipo }); return error ? null : data || []; },
         montar: (sel, op, ano, f) => {
@@ -2293,7 +2339,7 @@
       conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
       const def = ABAS_EMENDA.find((x) => x[0] === aba), exec = aba === 'execucao';
       return listaAnual(conteudo, prm, {
-        base: '#/emendas' + (aba === 'todas' ? '' : '/' + aba), titulo: def[1], rotuloAno: 'Exercício', nome: 'emendas' + (aba === 'todas' ? '' : '-' + aba), unidade: ['emenda', 'emendas'],
+        base: '#/emendas' + (aba === 'todas' ? '' : '/' + aba), declaracao: ({ federais: 'emendas_federais', estaduais: 'emendas_estaduais' })[aba], titulo: def[1], rotuloAno: 'Exercício', nome: 'emendas' + (aba === 'todas' ? '' : '-' + aba), unidade: ['emenda', 'emendas'],
         vazio: 'Não há emendas parlamentares ' + (aba === 'federais' ? 'federais ' : aba === 'estaduais' ? 'estaduais ou municipais ' : '') + 'destinadas a este órgão até esta data. Atualizado em ' + new Date().toLocaleDateString('pt-BR') + '.',
         anos: async () => {
           let q = sb.from('emendas').select('exercicio').eq('orgao_id', org()).limit(5000);
@@ -2402,7 +2448,7 @@
 
     async function abrir(prm) {
       conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
-      return aba === 'paralisadas' ? paralisadas() : todas(prm);
+      return aba === 'paralisadas' ? S.decl.envolver(conteudo, 'obras_paralisadas', paralisadas) : todas(prm);
     }
 
     async function paralisadas() {
@@ -2436,8 +2482,11 @@
     }
 
     async function todas(prm) {
-      const { data: anosOb, error } = await sb.rpc('obras_anos', { p_orgao: org() });
+      const { data: anosDadosOb, error } = await sb.rpc('obras_anos', { p_orgao: org() });
       if (error) { conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+      const declOb = await S.decl.de('obras');
+      if (S.decl.atual(declOb)) { history.replaceState(null, '', '#/obras'); conteudo.replaceChildren(S.decl.cartaoAtual(S.decl.atual(declOb))); return; }
+      const anosOb = S.decl.mesclarAnos(anosDadosOb || [], declOb);
       if (!(anosOb || []).length) {
         history.replaceState(null, '', '#/obras');
         conteudo.replaceChildren(el('p', { class: 'vazio' }, 'Não há obras públicas executadas ou em execução por este órgão até esta data.'));
@@ -2450,7 +2499,7 @@
       let ano = pedido && anos.includes(Number(pedido)) ? Number(pedido) : 'todos';
       const painelAno = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
       const totalGeral = [...contagem.values()].reduce((s, n) => s + Number(n), 0);
-      const faixa = faixaAbas(anos.map((a) => [a, a === 'todos' ? 'Todas (' + totalGeral + ')' : a + ' (' + contagem.get(a) + ')']), ano, 'Ano de início', true,
+      const faixa = faixaAbas(anos.map((a) => [a, a === 'todos' ? 'Todas (' + totalGeral + ')' : Number(contagem.get(a)) ? a + ' (' + contagem.get(a) + ')' : String(a)]), ano, 'Ano de início', true,
         (id) => { ano = id === 'todos' ? 'todos' : Number(id); abrirAno(); });
       conteudo.replaceChildren(faixa.lista, painelAno);
       faixa.marcar(ano);
@@ -2458,6 +2507,8 @@
 
       function abrirAno() {
         history.replaceState(null, '', '#/obras' + (ano === 'todos' ? '' : '?ano=' + ano));
+        const declAno = ano === 'todos' ? [] : S.decl.doAno(declOb, ano);
+        if (ano !== 'todos' && !Number(contagem.get(ano))) { painelAno.replaceChildren(S.decl.quadro(declAno)); return; }
         const f = { busca: '', situacao: '' };
         const montar = (sel, op) => {
           let q = sb.from('obras').select(sel || CAMPOS_OBRA, op).eq('orgao_id', org());
@@ -2511,7 +2562,7 @@
           const { data } = await montar().order('atualizado_em', { ascending: false }).order('id', { ascending: false }).range(de, ate);
           return data || [];
         });
-        painelAno.replaceChildren(
+        painelAno.replaceChildren(S.decl.quadro(declAno, 'Períodos sem ocorrência em ' + ano),
           el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
             el('label', null, 'Pesquisar (obra, local ou empresa)', fBusca), el('label', null, 'Situação', fSit)),
           el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);

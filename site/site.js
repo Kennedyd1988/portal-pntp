@@ -445,6 +445,67 @@
     }));
 
   // Unidades carregadas uma vez (nomes usados em várias páginas).
+  // ---------- Declarações de que não há dados (script 23) ----------
+  // Cada declaração vale para a situação atual (substitui a lista) ou para um período, e aparece
+  // dentro do período: o ano declarado vira aba própria e o mês filtrado mostra a declaração.
+  S.decl = {
+    cache: null,
+    async todas() {
+      if (!this.cache || this.cache.orgao !== S.orgao.id) {
+        const { data, error } = await sb.from('declaracoes_inexistencia').select('secao, abrangencia, exercicio, numero, data_inicio, data_fim, texto, criado_em')
+          .eq('orgao_id', S.orgao.id).order('data_fim', { ascending: false, nullsFirst: true }).limit(3000);
+        this.cache = { orgao: S.orgao.id, lista: error ? [] : data || [] };   // sem o script 23, fica vazia
+      }
+      return this.cache.lista;
+    },
+    async de(chaves) { const ks = [].concat(chaves || []); return (await this.todas()).filter((d) => ks.includes(d.secao)); },
+    atual: (lista) => lista.find((d) => d.abrangencia === 'atual') || null,
+    doAno: (lista, ano) => lista.filter((d) => d.abrangencia !== 'atual' && Number(d.exercicio) === Number(ano)),
+    // Declarações que tocam o mês (o mês inteiro ou parte dele).
+    doMes: (lista, ano, mes) => {
+      const ini = ano + '-' + String(mes).padStart(2, '0') + '-01';
+      const fim = new Date(Date.UTC(ano, Number(mes), 0)).toISOString().slice(0, 10);
+      return lista.filter((d) => d.abrangencia !== 'atual' && d.data_inicio <= fim && d.data_fim >= ini);
+    },
+    // Junta à lista de anos ([{ano, total}]) os anos que só têm declaração (total 0).
+    mesclarAnos: (anos, lista) => {
+      const r = (anos || []).slice();
+      for (const d of lista) if (d.abrangencia !== 'atual' && d.exercicio && !r.some((x) => Number(x.ano) === Number(d.exercicio))) r.push({ ano: Number(d.exercicio), total: 0 });
+      return r.sort((a, b) => b.ano - a.ano);
+    },
+    // Quadro com as declarações (titulo opcional). Lista vazia: nada.
+    quadro(lista, titulo) {
+      if (!lista.length) return '';
+      const linha = (d) => el('li', null, d.abrangencia === 'atual' || d.abrangencia === 'ano' ? '' : el('strong', null, window.periodoDeclaracaoPNTP(d) + ': '), d.texto,
+        el('span', { class: 'meta' }, ' (declaração registrada em ' + dataBR(String(d.criado_em).slice(0, 10)) + ')'));
+      const ul = el('ul', { class: 'declaracoes-lista' }, lista.slice(0, 8).map(linha));
+      const mais = lista.length > 8 ? el('button', { type: 'button', class: 'botao botao-claro', onclick: () => { ul.replaceChildren(...lista.map(linha)); mais.remove(); } },
+        'Ver todas as declarações (' + lista.length + ')') : '';
+      return el('section', { class: 'cartao declaracoes-site', 'aria-label': titulo || 'Declarações de que não há dados' },
+        titulo ? el('h3', null, titulo) : '', ul, mais);
+    },
+    // Para listas com abas de ano próprias: marca a caixa (o comSecao não repete o quadro), junta os
+    // anos só declarados e devolve { decl, atual, anos }.
+    async anual(caixa, chave, anos) {
+      const decl = await this.de(chave);
+      caixa.dataset.declAnual = '1';
+      return { decl, atual: this.atual(decl), anos: this.mesclarAnos(anos || [], decl) };
+    },
+    // Partes sem abas de ano: a declaração atual substitui o conteúdo; as de período ficam num quadro no alto.
+    async envolver(caixa, chave, desenhar) {
+      const d = await this.de(chave), a = this.atual(d);
+      if (a) { caixa.replaceChildren(this.cartaoAtual(a)); return; }
+      const r = await desenhar();
+      const p = d.filter((x) => x.abrangencia !== 'atual');
+      if (p.length && !caixa.dataset.declAnual) caixa.prepend(this.quadro(p, 'Períodos sem ocorrência'));
+      return r;
+    },
+    semDados: (anos, ano) => !Number((anos.find((x) => Number(x.ano) === Number(ano)) || {}).total),
+    // Declaração da situação atual, no lugar da lista.
+    cartaoAtual: (d) => el('div', { class: 'cartao' }, el('p', null, el('strong', null, d.texto)),
+      el('p', { class: 'meta' }, 'Declaração registrada em ' + dataBR(String(d.criado_em).slice(0, 10)) + '.'))
+  };
+
   S.carregarUnidades = async function () {
     if (S.unidades) return S.unidades;
     const { data } = await sb.from('unidades').select('*').eq('orgao_id', S.orgao.id).limit(500);

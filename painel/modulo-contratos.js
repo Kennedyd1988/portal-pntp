@@ -51,14 +51,16 @@
     if (filtros.situacao) q = q.eq('situacao', filtros.situacao);
     return q;
   }
+  let decl = null;   // declarações de que não há dados (script 23)
   async function carregarAnos() {
     const { data, error } = await sb.rpc('contratos_anos', { p_orgao: P.estado.orgao.id });
     if (error) throw error;
-    anos = data || [];
+    decl = await P.declaracoesAnuais('contratos');
+    anos = decl.anos(data || []);
     if (!anos.some((x) => x.ano === ano)) ano = anos.length ? anos[0].ano : null;
   }
   async function carregar(reiniciar) {
-    if (!ano) { itens = []; fim = true; total = 0; return; }
+    if (!ano || !Number((anos.find((x) => x.ano === ano) || {}).total)) { itens = []; fim = true; total = 0; return; }
     const ultimo = reiniciar ? null : itens[itens.length - 1];
     const [pag, t] = await Promise.all([P.paginar(consulta, 'data_assinatura', ultimo, LOTE), reiniciar ? P.contar(consulta) : Promise.resolve(total)]);
     itens = reiniciar ? pag.linhas : itens.concat(pag.linhas);
@@ -508,7 +510,8 @@
     }
     let espera; fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(carregarFiscais, 400); });
     fVig.addEventListener('change', carregarFiscais);
-    caixa.replaceChildren(el('p', { class: 'ajuda' }, 'Fiscais e gestores de todos os contratos, como aparecem no site (PNTP 9.3). Para incluir, trocar ou encerrar uma designação, abra o contrato.'),
+    caixa.replaceChildren(P.declaracoes('fiscais', { perm }),
+      el('p', { class: 'ajuda' }, 'Fiscais e gestores de todos os contratos, como aparecem no site (PNTP 9.3). Para incluir, trocar ou encerrar uma designação, abra o contrato.'),
       el('div', { class: 'filtros' }, fBusca, fVig), lista);
     carregarFiscais();
   }
@@ -533,7 +536,7 @@
     let espera; fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
 
     function desenharLista() {
-      if (!itens.length) { lista.replaceChildren(el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhum contrato com esses filtros.' : 'Nenhum contrato neste ano.')); return; }
+      if (!itens.length) { lista.replaceChildren((decl && decl.aviso(ano)) || el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhum contrato com esses filtros.' : 'Nenhum contrato neste ano.')); return; }
       const btnMais = el('button', { type: 'button', class: 'btn btn-claro' }, 'Carregar mais');
       btnMais.addEventListener('click', async () => { ocupado(btnMais, 'Carregando…'); try { await carregar(false); desenharLista(); } catch (e) { mostrarErro(e); ocupado(btnMais); } });
       lista.replaceChildren(
@@ -570,6 +573,7 @@
           onclick: () => { if (abaTopo === id) return; abaTopo = id; desenhar(); } }, rot))),
       abaTopo === 'fiscais' ? (() => { const cx = el('div', { class: 'painel-guia' }); telaFiscais(cx); return cx; })()
         : el('div', { class: 'painel-guia' },
+          P.declaracoes('contratos', { perm, aoMudar: recarregar }),
           anos.length ? el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': 'Ano' }, anos.map((x) => { const b = botaoAno(x); b.classList.add('aba-p'); return b; })) : null,
           anos.length ? el('div', { class: 'painel-guia painel-guia-interno' }, el('div', { class: 'filtros' }, fBusca, fVig, fOri, fSit), lista)
             : el('p', { class: 'vazio' }, 'Nenhum contrato cadastrado. Use "+ Novo contrato" ou "Importar do PNCP".'))

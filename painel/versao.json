@@ -1,7 +1,9 @@
 {
-  "versao": "0.16.3",
+  "versao": "0.16.4",
   "data": "2026-11-13",
   "notas": [
-    "Declarações de que não há dados por período (mês, bimestre, trimestre, quadrimestre, semestre, ano ou datas) ou para a situação atual. No site, as de período aparecem em \"Períodos sem ocorrência\". Rodar os scripts 21, 22 e 23."
+    "Declaração de que não há dados em todo item do PNTP com lista, por período ou situação atual, com texto sugerido (editável).",
+    "No site, o ano declarado vira aba própria com a declaração; mês filtrado mostra a declaração daquele mês.",
+    "Rodar de novo o script 23."
   ]
 }

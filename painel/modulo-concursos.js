@@ -38,14 +38,16 @@
     for (const k of ['tipo', 'andamento', 'situacao']) if (filtros[k]) q = q.eq(k, filtros[k]);
     return q;
   }
+  let decl = null;   // declarações de que não há dados (script 23)
   async function carregarAnos() {
     const { data, error } = await sb.rpc('concursos_anos', { p_orgao: P.estado.orgao.id });
     if (error) throw error;
-    anos = data || [];
+    decl = await P.declaracoesAnuais('concursos');
+    anos = decl.anos(data || []);
     if (!anos.some((x) => x.ano === ano)) ano = anos.length ? anos[0].ano : null;
   }
   async function carregar(reiniciar) {
-    if (!ano) { itens = []; fim = true; total = 0; return; }
+    if (!ano || !Number((anos.find((x) => x.ano === ano) || {}).total)) { itens = []; fim = true; total = 0; return; }
     const ultimo = reiniciar ? null : itens[itens.length - 1];
     const [pag, t] = await Promise.all([P.paginar(consulta, 'atualizado_em', ultimo, LOTE), reiniciar ? P.contar(consulta) : Promise.resolve(total)]);
     itens = reiniciar ? pag.linhas : itens.concat(pag.linhas);
@@ -195,7 +197,7 @@
     [fTipo, fAnd, fSit].forEach((x) => x.addEventListener('change', aplicar));
     let espera; fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
     function desenharLista() {
-      if (!itens.length) { lista.replaceChildren(el('p', { class: 'vazio' }, 'Nenhuma seleção com esses filtros.')); return; }
+      if (!itens.length) { lista.replaceChildren((decl && decl.aviso(ano)) || el('p', { class: 'vazio' }, 'Nenhuma seleção com esses filtros.')); return; }
       const btnMais = el('button', { type: 'button', class: 'btn btn-claro' }, 'Carregar mais');
       btnMais.addEventListener('click', async () => { ocupado(btnMais, 'Carregando…'); try { await carregar(false); desenharLista(); } catch (e) { mostrarErro(e); ocupado(btnMais); } });
       lista.replaceChildren(el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
@@ -218,6 +220,7 @@
         podeGravar() ? el('div', { class: 'botoes-cabecalho' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form() }, '+ Nova seleção')) : null),
       P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Seleções são do órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
       el('p', { class: 'ajuda' }, 'Sem seleção publicada, o site declara que não há concursos ou processos seletivos. Publicar exige o edital (íntegra) na aba Documentos.'),
+      P.declaracoes('concursos', { perm, aoMudar: recarregar }),
       el('div', { class: 'painel-guia' },
         anos.length ? el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': 'Ano' }, anos.map(botaoAno)) : null,
         anos.length ? el('div', { class: 'painel-guia painel-guia-interno' }, el('div', { class: 'filtros' }, fBusca, fTipo, fAnd, fSit), lista)

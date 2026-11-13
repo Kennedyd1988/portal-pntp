@@ -108,6 +108,81 @@ window.periodoDeclaracaoPNTP = function (d) {
   }
 };
 
+// Declarações de que não há dados (script 23): para cada parte, [nome do item (painel), frase da
+// situação atual, modelo da frase de período ({periodo} vira "em março de 2026", "no 2º bimestre de
+// 2026", "no exercício de 2024" ou "de 01/10/2026 a 20/10/2026")]. É só sugestão: o texto é editável.
+window.DECLARACOES_PNTP = {
+  receitas_arrecadacao: ['Receitas: previsão e arrecadação (3.1, 3.2)', 'Não há receitas a divulgar.', 'Não houve arrecadação de receitas {periodo}.'],
+  receitas_divida_ativa: ['Dívida ativa (3.3)', 'Não há créditos inscritos em dívida ativa no município.', 'Não havia créditos inscritos em dívida ativa {periodo}.'],
+  despesas_empenhos: ['Despesas (4.1 a 4.3)', 'Não há despesas a divulgar.', 'Não houve empenho, liquidação ou pagamento de despesas {periodo}.'],
+  ordem_cronologica: ['Ordem cronológica de pagamentos (9.4)', 'Não há pagamentos de contratos sujeitos à ordem cronológica (art. 141 da Lei 14.133/2021).', 'Não houve pagamentos de contratos sujeitos à ordem cronológica (art. 141 da Lei 14.133/2021) {periodo}.'],
+  convenios_recebidas: ['Transferências recebidas (5.1)', 'O órgão não possui convênios ou transferências recebidas.', 'Não houve recebimento de recursos por convênios ou transferências {periodo}.'],
+  convenios_realizadas: ['Transferências realizadas (5.2)', 'O órgão não realiza transferências de recursos a outras entidades.', 'Não houve repasse de recursos por convênios ou transferências {periodo}.'],
+  convenios_acordos: ['Acordos sem repasse de recursos (5.3)', 'O órgão não possui acordos firmados sem transferência de recursos.', 'Não foram firmados acordos sem transferência de recursos {periodo}.'],
+  pessoal_servidores: ['Servidores (6.1)', 'Não há servidores a divulgar.', 'Não houve servidores no quadro do órgão {periodo}.'],
+  pessoal_remuneracao: ['Remuneração (6.2)', 'Não há remuneração a divulgar.', 'Não houve pagamento de remuneração {periodo}.'],
+  pessoal_cargos: ['Cargos e salários (6.3)', 'O órgão não possui tabela de cargos e salários própria.', 'Não houve tabela de cargos e salários vigente {periodo}.'],
+  pessoal_estagiarios: ['Estagiários (6.4)', 'O órgão não tem estagiários.', 'Não houve estagiários {periodo}.'],
+  pessoal_terceirizados: ['Terceirizados (6.5)', 'O órgão não tem trabalhadores terceirizados.', 'Não houve trabalhadores terceirizados prestando serviço ao órgão {periodo}.'],
+  concursos: ['Concursos e processos seletivos (6.6, 6.7)', 'Não há concursos públicos ou processos seletivos em andamento.', 'Não foram realizados concursos públicos ou processos seletivos {periodo}.'],
+  diarias_concedidas: ['Diárias concedidas (7.1)', 'O órgão não concede diárias.', 'Não houve concessão de diárias {periodo}.'],
+  diarias_tabela: ['Tabela de valores das diárias (7.2)', 'O órgão não possui tabela de valores de diárias.', 'Não houve tabela de valores de diárias vigente {periodo}.'],
+  licitacoes_licitacoes: ['Licitações (8.1 a 8.3)', 'Não há licitações a divulgar.', 'Não foram realizadas licitações {periodo}.'],
+  licitacoes_diretas: ['Dispensas e inexigibilidades (8.4)', 'Não há dispensas ou inexigibilidades de licitação a divulgar.', 'Não houve dispensas ou inexigibilidades de licitação {periodo}.'],
+  licitacoes_adesoes: ['Adesões a atas (8.5)', 'O órgão não aderiu a atas de registro de preços.', 'Não houve adesões a atas de registro de preços {periodo}.'],
+  pca: ['Plano de contratações anual (8.6)', 'O órgão não elaborou plano de contratações anual.', 'Não houve plano de contratações anual {periodo}.'],
+  sancionados: ['Licitantes e contratados sancionados (8.7)', 'Não há licitantes ou contratados sancionados pelo órgão.', 'Não houve aplicação de sanções a licitantes ou contratados {periodo}.'],
+  contratos: ['Contratos (9.1, 9.2)', 'Não há contratos a divulgar.', 'Não foram firmados contratos {periodo}.'],
+  fiscais: ['Fiscais de contratos (9.3)', 'Não há fiscais de contratos designados.', 'Não houve designação de fiscais de contratos {periodo}.'],
+  obras: ['Obras (10.1 a 10.3)', 'Não há obras públicas executadas ou em execução pelo órgão.', 'Não houve obras públicas executadas ou em execução {periodo}.'],
+  obras_paralisadas: ['Obras paralisadas (10.4)', 'Não há obras paralisadas.', 'Não houve obras paralisadas {periodo}.'],
+  planejamento_ppa: ['PPA (11.8)', 'Não há Plano Plurianual a divulgar.', 'Não há Plano Plurianual a divulgar {periodo}.'],
+  planejamento_ldo: ['LDO (11.9)', 'Não há Lei de Diretrizes Orçamentárias a divulgar.', 'Não há Lei de Diretrizes Orçamentárias a divulgar {periodo}.'],
+  planejamento_loa: ['LOA (11.10)', 'Não há Lei Orçamentária Anual a divulgar.', 'Não há Lei Orçamentária Anual a divulgar {periodo}.'],
+  planejamento_plano_estrategico: ['Plano Estratégico (11.7)', 'O órgão não possui Plano Estratégico Institucional.', 'Não houve Plano Estratégico Institucional vigente {periodo}.'],
+  planejamento_rreo: ['RREO (11.6)', 'Não há Relatório Resumido da Execução Orçamentária a divulgar.', 'Não há Relatório Resumido da Execução Orçamentária a divulgar {periodo}.'],
+  planejamento_rgf: ['RGF (11.5)', 'Não há Relatório de Gestão Fiscal a divulgar.', 'Não há Relatório de Gestão Fiscal a divulgar {periodo}.'],
+  planejamento_balanco: ['Balanço Geral (11.1)', 'Não há prestação de contas anual (Balanço Geral) a divulgar.', 'Não há prestação de contas anual (Balanço Geral) a divulgar {periodo}.'],
+  planejamento_relatorio_gestao: ['Relatório de Gestão (11.2)', 'Não há Relatório de Gestão ou de Atividades a divulgar.', 'Não há Relatório de Gestão ou de Atividades a divulgar {periodo}.'],
+  planejamento_parecer_tce: ['Parecer do Tribunal de Contas (11.3)', 'Não há parecer prévio do Tribunal de Contas sobre as contas do órgão.', 'Não há parecer prévio do Tribunal de Contas sobre as contas {periodo}.'],
+  planejamento_julgamento_camara: ['Julgamento das contas pela Câmara (11.4)', 'Não há julgamento das contas pela Câmara Municipal a divulgar.', 'Não houve julgamento das contas pela Câmara Municipal {periodo}.'],
+  renuncias_desoneracoes: ['Desonerações (16.1)', 'O município não concede desonerações tributárias (isenções, anistias, remissões ou outros benefícios fiscais).', 'Não houve concessão de desonerações tributárias {periodo}.'],
+  renuncias_valores: ['Renúncia prevista e realizada (16.2)', 'Não há renúncia de receita prevista ou realizada.', 'Não houve renúncia de receita prevista ou realizada {periodo}.'],
+  renuncias_beneficiarios: ['Beneficiários de renúncia (16.3)', 'Não há beneficiários de renúncia de receita.', 'Não houve beneficiários de renúncia de receita {periodo}.'],
+  renuncias_incentivos: ['Incentivo à cultura e ao esporte (16.4)', 'Não há projetos de incentivo à cultura ou ao esporte aprovados por este órgão.', 'Não houve projetos de incentivo à cultura ou ao esporte aprovados {periodo}.'],
+  emendas_federais: ['Emendas federais (17.1)', 'O órgão não recebeu emendas parlamentares federais.', 'Não houve emendas parlamentares federais destinadas ao órgão {periodo}.'],
+  emendas_estaduais: ['Emendas estaduais e municipais (17.2)', 'O órgão não recebeu emendas parlamentares estaduais ou municipais.', 'Não houve emendas parlamentares estaduais ou municipais destinadas ao órgão {periodo}.'],
+  saude_documentos: ['Planos e relatórios de saúde (18.1)', 'Não há planos ou relatórios de saúde a divulgar.', 'Não há planos ou relatórios de saúde a divulgar {periodo}.'],
+  saude_servicos: ['Serviços e profissionais de saúde (18.2)', 'Não há serviços de saúde ofertados diretamente pelo órgão.', 'Não houve serviços de saúde ofertados diretamente pelo órgão {periodo}.'],
+  saude_espera: ['Lista de espera da regulação (18.3)', 'Não há pacientes aguardando consultas, exames ou cirurgias na regulação municipal.', 'Não houve pacientes aguardando consultas, exames ou cirurgias na regulação municipal {periodo}.'],
+  saude_medicamentos: ['Medicamentos do SUS (18.4)', 'Não há medicamentos fornecidos diretamente pelo órgão.', 'Não houve fornecimento de medicamentos pelo órgão {periodo}.'],
+  saude_estoque: ['Estoque das farmácias (18.5)', 'Não há farmácias públicas com estoque de medicamentos no órgão.', 'Não houve estoque de medicamentos nas farmácias públicas {periodo}.'],
+  saude_conselho: ['Conselho de Saúde (18.6)', 'Não há Conselho de Saúde instituído neste município.', 'Não houve Conselho de Saúde em funcionamento {periodo}.'],
+  educacao_documentos: ['Plano de educação e resultados (19.1)', 'Não há plano de educação ou relatório de resultados a divulgar.', 'Não há plano de educação ou relatório de resultados a divulgar {periodo}.'],
+  educacao_creches: ['Lista de espera das creches (19.2)', 'Não há crianças aguardando vaga em creche da rede municipal.', 'Não houve crianças aguardando vaga em creche da rede municipal {periodo}.'],
+  educacao_fundeb: ['Conselho do Fundeb (19.3)', 'Não há Conselho do Fundeb instituído neste município.', 'Não houve Conselho do Fundeb em funcionamento {periodo}.'],
+  educacao_assistencia: ['Assistência social (19.4)', 'Não há Conselho de Assistência Social instituído neste município.', 'Não houve Conselho de Assistência Social em funcionamento {periodo}.'],
+  educacao_conselhos: ['Outros conselhos', 'Não há outros conselhos municipais instituídos.', 'Não houve outros conselhos municipais em funcionamento {periodo}.']
+};
+// Período "dentro da frase": em março de 2026, no 2º bimestre de 2026, no exercício de 2024, de 01/10 a 20/10/2026.
+window.periodoFrasePNTP = function (d) {
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const br = (x) => x ? x.split('-').reverse().join('/') : '…';
+  switch (d.abrangencia) {
+    case 'mes': return 'em ' + MESES[d.numero - 1] + ' de ' + d.exercicio;
+    case 'bimestre': case 'trimestre': case 'quadrimestre': case 'semestre': return 'no ' + d.numero + 'º ' + d.abrangencia + ' de ' + d.exercicio;
+    case 'ano': return 'no exercício de ' + d.exercicio;
+    case 'periodo': return 'de ' + br(d.data_inicio) + ' a ' + br(d.data_fim);
+    default: return '';
+  }
+};
+// Texto sugerido para uma declaração (d: {abrangencia, exercicio, numero, data_inicio, data_fim}).
+window.textoDeclaracaoPNTP = function (chave, d) {
+  const t = window.DECLARACOES_PNTP[chave];
+  if (!t) return '';
+  return d.abrangencia === 'atual' ? t[1] : t[2].replace('{periodo}', window.periodoFrasePNTP(d));
+};
+
 // Resolve o destino de uma chave para o órgão: { href, externo, rotulo } ou null (sem destino).
 window.destinoPNTP = function (conf, chave) {
   const d = window.DESTINOS_PNTP.find((x) => x[0] === chave);

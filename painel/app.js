@@ -892,6 +892,166 @@
       el('span', { class: 'erro-campo', id: id + '-erro' }));
   }
 
+
+  // ---------- Declarações de que não há dados (script 23) ----------
+  // Bloco usado em todo item do PNTP: situação atual ("o órgão não tem estagiários") ou um período
+  // (mês, bimestre, trimestre, quadrimestre, semestre, ano ou datas). O texto é sugerido conforme o
+  // item e o período (DECLARACOES_PNTP, em site/destinos.js) e pode ser reescrito pelo usuário.
+  // o = { perm, aoMudar(lista) }. Devolve o elemento (com .recarregar()).
+  const ABRANGENCIAS = { atual: 'Situação atual (sem período)', mes: 'Mês', bimestre: 'Bimestre', trimestre: 'Trimestre', quadrimestre: 'Quadrimestre',
+    semestre: 'Semestre', ano: 'Ano (exercício)', periodo: 'Outro período (datas)' };
+  const QTD_PERIODOS = { mes: 12, bimestre: 6, trimestre: 4, quadrimestre: 3, semestre: 2 };
+  const NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  let seqDecl = 0;
+  const declAbertos = new Set();   // blocos que o usuário abriu continuam abertos ao redesenhar o módulo
+  const cacheDecl = { orgao: null, lista: null };
+  // Todas as declarações do órgão (para as abas de ano dos módulos). recarregar: ignora o que está guardado.
+  async function declaracoesDoOrgao(recarregar) {
+    if (recarregar || cacheDecl.orgao !== estado.orgao.id || !cacheDecl.lista) {
+      const { data, error } = await sb.from('declaracoes_inexistencia').select('*').eq('orgao_id', estado.orgao.id)
+        .order('data_fim', { ascending: false, nullsFirst: true }).order('criado_em', { ascending: false }).limit(3000);
+      cacheDecl.orgao = estado.orgao.id; cacheDecl.lista = error ? [] : data || [];
+    }
+    return cacheDecl.lista;
+  }
+  // Ajuda para as abas de ano: { lista, anos(anos) → anos + os só declarados, doAno(ano), texto(ano) }.
+  async function declaracoesAnuais(chaves) {
+    const ks = [].concat(chaves || []);
+    const lista = (await declaracoesDoOrgao()).filter((d) => ks.includes(d.secao));
+    const doAno = (ano) => lista.filter((d) => d.abrangencia !== 'atual' && Number(d.exercicio) === Number(ano));
+    return {
+      lista, doAno,
+      atual: lista.find((d) => d.abrangencia === 'atual') || null,
+      anos: (anos) => {
+        const r = (anos || []).slice();
+        for (const d of lista) if (d.abrangencia !== 'atual' && d.exercicio && !r.some((x) => Number(x.ano) === Number(d.exercicio))) r.push({ ano: Number(d.exercicio), total: 0 });
+        return r.sort((a, b) => b.ano - a.ano);
+      },
+      // Mensagem para o ano sem registros: as declarações dele (ou nada).
+      aviso: (ano) => {
+        const d = doAno(ano);
+        return d.length ? el('div', { class: 'msg msg-info' }, el('strong', null, 'Declarado: '), d.map((x) => window.periodoDeclaracaoPNTP(x) + ' — "' + x.texto + '"').join(' · ')) : null;
+      }
+    };
+  }
+  function declaracoes(chave, o) {
+    o = o || {};
+    const pode = !!(o.perm && o.perm.editar) && !estado.alcanceUnidade;
+    const pre = 'dcl' + (++seqDecl) + '-';
+    const info = (window.DECLARACOES_PNTP || {})[chave];
+    const atualTopo = el('div'), lista = el('div'), resumo = el('span', { class: 'ajuda' });
+    const det = el('details', { class: 'declaracoes' },
+      el('summary', null, 'Declarar que não há dados', info ? ' — ' + info[0] : '', ' ', resumo),
+      el('p', { class: 'ajuda' }, 'Quando não houver o que publicar, registre a declaração: para a situação atual (o site mostra só a declaração, no lugar da lista) ou para um período, como um ano, um mês ou um semestre (o site mostra a declaração dentro daquele período, com a data do registro). O texto vem sugerido e pode ser alterado.'),
+      lista);
+    det.open = declAbertos.has(chave);
+    det.addEventListener('toggle', () => { if (det.open) declAbertos.add(chave); else declAbertos.delete(chave); });
+    let itens = [];
+    async function carregar() {
+      const { data, error } = await sb.from('declaracoes_inexistencia').select('*').eq('orgao_id', estado.orgao.id).eq('secao', chave)
+        .order('data_fim', { ascending: false, nullsFirst: true }).order('criado_em', { ascending: false }).limit(500);
+      if (error) {
+        det.replaceChildren(el('summary', null, 'Declarar que não há dados'), el('p', { class: 'msg msg-erro' },
+          /declaracoes_inexistencia|Could not find|does not exist/i.test(error.message || '') ? 'Falta rodar o script 23 no banco.' : erroGravacao(error)));
+        return;
+      }
+      itens = data || [];
+      desenhar();
+    }
+    function desenhar() {
+      const atual = itens.find((x) => x.abrangencia === 'atual');
+      const periodos = itens.filter((x) => x.abrangencia !== 'atual');
+      atualTopo.replaceChildren(atual ? el('p', { class: 'msg msg-info' }, el('strong', null, 'Declaração em vigor: '), '"' + atual.texto + '". ',
+        'O site mostra só esta declaração, no lugar da lista. Para voltar a mostrar os dados, exclua-a em "Declarar que não há dados".') : '');
+      resumo.textContent = itens.length ? '(' + itens.length + (itens.length === 1 ? ' registrada)' : ' registradas)') : '';
+      lista.replaceChildren(
+        itens.length ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela tabela-declaracoes' },
+          el('thead', null, el('tr', null, ['Período', 'Declaração', 'Registrada em'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
+          el('tbody', null, [atual].concat(periodos).filter(Boolean).map((d) => el('tr', null,
+            el('td', null, el('strong', null, window.periodoDeclaracaoPNTP(d))),
+            el('td', { class: 'quebra' }, d.texto),
+            el('td', { class: 'num' }, dataBR(String(d.criado_em).slice(0, 10))),
+            el('td', { class: 'acoes' }, pode ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(d) }, 'Excluir') : null)))))) : el('p', { class: 'ajuda' }, 'Nenhuma declaração registrada.'),
+        pode ? formulario() : '');
+    }
+    async function mudou() {
+      await carregar();
+      await declaracoesDoOrgao(true);
+      if (o.aoMudar) o.aoMudar(itens);
+    }
+    async function excluir(d) {
+      if (!await confirmar('Excluir declaração', 'Excluir a declaração "' + window.periodoDeclaracaoPNTP(d) + '"? Ela sai do site.', 'Excluir', true)) return;
+      const { data, error } = await sb.from('declaracoes_inexistencia').delete().eq('id', d.id).select('id');
+      if (error) return toast(erroGravacao(error), true);
+      if (!data || !data.length) return toast('Seu perfil não pode excluir esta declaração.', true);
+      toast('Declaração excluída.'); await mudou();
+    }
+    function formulario() {
+      const Y = new Date().getFullYear();
+      const fAbr = el('select', null, Object.entries(ABRANGENCIAS).map(([k, v]) => el('option', { value: k, selected: k === 'ano' }, v)));
+      const fEx = el('input', { type: 'number', min: 1990, max: 2100, value: Y - 1 });
+      let exMexido = false;   // o usuário trocou o exercício: as sugestões não mexem mais nele
+      fEx.addEventListener('input', () => { exMexido = true; });
+      const fNum = el('select');
+      const fIni = el('input', { type: 'date' }), fFim = el('input', { type: 'date' });
+      const fTxt = el('textarea', { rows: 2, maxlength: 500 });
+      let editado = false;   // depois que o usuário mexe no texto, a sugestão não sobrescreve mais
+      fTxt.addEventListener('input', () => { editado = fTxt.value.trim() !== ''; });
+      const cEx = campo(pre + 'ex', 'Exercício', fEx), cNum = campo(pre + 'num', 'Período', fNum), cIni = campo(pre + 'ini', 'De', fIni), cFim = campo(pre + 'fim', 'Até', fFim);
+      const atualDoForm = () => ({ abrangencia: fAbr.value, exercicio: parseInt(fEx.value, 10), numero: parseInt(fNum.value, 10), data_inicio: fIni.value, data_fim: fFim.value });
+      const sugerir = () => { if (!editado && info) fTxt.value = window.textoDeclaracaoPNTP(chave, atualDoForm()); };
+      const ajustar = () => {
+        const a = fAbr.value, n = QTD_PERIODOS[a];
+        cEx.hidden = a === 'atual' || a === 'periodo'; cNum.hidden = !n; cIni.hidden = cFim.hidden = a !== 'periodo';
+        if (n) {
+          fNum.replaceChildren(...Array.from({ length: n }, (_, k) => el('option', { value: k + 1 }, a === 'mes' ? NOMES_MES[k] : (k + 1) + 'º ' + a)));
+          // Padrão: o último período já encerrado (em janeiro, o último do ano anterior).
+          const atualIdx = Math.floor(new Date().getMonth() / (12 / n));   // período em curso, contando de 0
+          if (!exMexido) fEx.value = atualIdx === 0 ? Y - 1 : Y;
+          fNum.value = String(atualIdx === 0 ? n : atualIdx);
+        } else if (a === 'ano' && !exMexido) fEx.value = Y - 1;
+        sugerir();
+      };
+      fAbr.addEventListener('change', ajustar);
+      [fEx, fNum, fIni, fFim].forEach((x) => x.addEventListener('change', sugerir));
+      fEx.addEventListener('input', sugerir);
+      ajustar();
+      const restaurar = el('button', { type: 'button', class: 'link', onclick: () => { editado = false; sugerir(); } }, 'Usar o texto sugerido');
+      const btn = el('button', { type: 'button', class: 'btn btn-claro' }, 'Registrar declaração');
+      btn.addEventListener('click', async () => {
+        const a = fAbr.value;
+        const reg = { orgao_id: estado.orgao.id, secao: chave, abrangencia: a, texto: fTxt.value.trim() };
+        if (!erroCampo(pre + 'txt', reg.texto.length < 10 ? 'Escreva a declaração (mínimo de 10 letras).' : '')) return;
+        if (a === 'periodo') {
+          if (!erroCampo(pre + 'ini', fIni.value ? '' : 'Informe o início.')) return;
+          if (!erroCampo(pre + 'fim', fFim.value && fFim.value >= fIni.value ? '' : 'Informe o fim (igual ou depois do início).')) return;
+          reg.data_inicio = fIni.value; reg.data_fim = fFim.value;
+        } else if (a !== 'atual') {
+          const ex = parseInt(fEx.value, 10);
+          if (!erroCampo(pre + 'ex', ex >= 1990 && ex <= 2100 ? '' : 'Ano inválido.')) return;
+          reg.exercicio = ex; if (QTD_PERIODOS[a]) reg.numero = parseInt(fNum.value, 10);
+        }
+        ocupado(btn, 'Registrando…');
+        try {
+          const { error } = await sb.from('declaracoes_inexistencia').insert(reg);
+          if (error) throw error;
+          toast('Declaração registrada.'); editado = false; await mudou();
+        } catch (e) {
+          if (/declaracoes_inexistencia_uk/.test((e && e.message) || '')) toast(a === 'atual' ? 'Já existe uma declaração de situação atual neste item.' : 'Esse período já tem declaração neste item.', true);
+          else toast(erroGravacao(e), true);
+        } finally { ocupado(btn); }
+      });
+      return el('fieldset', { class: 'opcoes declaracao-nova' }, el('legend', null, 'Nova declaração'),
+        el('div', { class: 'grade-campos' }, campo(pre + 'abr', 'Vale para', fAbr), cEx, cNum, cIni, cFim),
+        campo(pre + 'txt', 'Texto da declaração (aparece no site)', fTxt, 'Sugerido conforme o item e o período; pode ser alterado.'),
+        el('div', { class: 'secao-parte-acoes' }, btn, restaurar));
+    }
+    carregar();
+    const caixa = el('div', { class: 'bloco-declaracoes' }, atualTopo, det);
+    caixa.recarregar = carregar;
+    return caixa;
+  }
+
   const dataBR = (d) => d ? new Date(d.length === 10 ? d + 'T12:00:00' : d).toLocaleDateString('pt-BR') : '';
   const dataHoraBR = (d) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
   // Valor para <input type="datetime-local"> no horário local.
@@ -1104,7 +1264,7 @@
     cpfValido, cnpjValido, erroDoc, formatarDoc, mascaraDoc,
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
-    campo, campoOutra, abas, externo, avisoExterno, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
+    campo, campoOutra, abas, externo, avisoExterno, declaracoes, declaracoesAnuais, declaracoesDoOrgao, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
     paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf
   };
 })();

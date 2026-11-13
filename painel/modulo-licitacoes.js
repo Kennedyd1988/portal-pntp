@@ -84,14 +84,19 @@
     if (filtros.situacao) q = q.eq('situacao', filtros.situacao);
     return q;
   }
+  // Declarações de que não há dados (script 23), uma por aba de grupo; "Todos" reúne as três.
+  const CHAVES_DECL = { licitacoes: 'licitacoes_licitacoes', diretas: 'licitacoes_diretas', adesoes: 'licitacoes_adesoes' };
+  let decl = null;
   async function carregarAnos() {
     const { data, error } = await sb.rpc('licitacoes_anos', { p_orgao: P.estado.orgao.id, p_modalidades: modalidadesDoGrupo() });
     if (error) throw error;
     anos = (data || []).map((x) => ({ ano: x.ano, total: x.total }));
+    decl = await P.declaracoesAnuais(CHAVES_DECL[grupo] || Object.values(CHAVES_DECL));
+    anos = decl.anos(anos);
     if (!anos.some((x) => x.ano === ano)) ano = anos.length ? anos[0].ano : null;
   }
   async function carregar(reiniciar) {
-    if (!ano) { itens = []; fim = true; total = 0; return; }
+    if (!ano || !Number((anos.find((x) => x.ano === ano) || {}).total)) { itens = []; fim = true; total = 0; return; }
     const ultimo = reiniciar ? null : itens[itens.length - 1];
     const [pag, t] = await Promise.all([
       P.paginar(consulta, 'chave_ordem', ultimo, LOTE, true),   // modalidade + número (PNTP 8.1; script 17)
@@ -552,7 +557,7 @@
     let espera; fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
 
     function desenharLista() {
-      if (!itens.length) { lista.replaceChildren(el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhum processo com esses filtros.' : 'Nenhum processo neste ano.')); return; }
+      if (!itens.length) { lista.replaceChildren((decl && decl.aviso(ano)) || el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhum processo com esses filtros.' : 'Nenhum processo neste ano.')); return; }
       const btnMais = el('button', { type: 'button', class: 'btn btn-claro' }, 'Carregar mais');
       btnMais.addEventListener('click', async () => { ocupado(btnMais, 'Carregando…'); try { await carregar(false); desenharLista(); } catch (e) { mostrarErro(e); ocupado(btnMais); } });
       lista.replaceChildren(
@@ -585,6 +590,8 @@
       ext ? el('p', { class: 'ajuda' }, 'Sistema externo de licitações informado em Aparência: ', el('a', { href: ext, target: '_blank', rel: 'noopener' }, ext), '. O site mostra os processos daqui e um link para ele.') : null,
       el('div', { class: 'abas', role: 'tablist', 'aria-label': 'Tipo de processo' }, GRUPOS.map(([id, rot]) => botaoGrupo(id, rot))),
       el('div', { class: 'painel-guia' },
+        CHAVES_DECL[grupo] ? P.declaracoes(CHAVES_DECL[grupo], { perm, aoMudar: recarregar })
+          : el('p', { class: 'ajuda' }, 'Para declarar que não houve licitações, dispensas ou adesões num período, use a aba do tipo de processo.'),
         anos.length ? el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': 'Ano' }, anos.map(botaoAno)) : null,
         anos.length ? el('div', { class: 'painel-guia painel-guia-interno' },
           el('div', { class: 'filtros filtros-5' }, fBusca, fMod, fAnd, fOri, fSit), lista)

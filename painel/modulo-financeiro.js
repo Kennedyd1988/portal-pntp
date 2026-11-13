@@ -70,9 +70,9 @@
       return box;
     };
     caixa.append(
-      S.secao('receitas_arrecadacao', perm, { naoHa: false }),
+      S.secao('receitas_arrecadacao', perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true), naoHa: false }),
       el('p', { class: 'ajuda' }, 'PNTP 3.1 e 3.2: previsão (inicial e atualizada) e arrecadação de cada natureza da receita, mês a mês, no nível mais detalhado. O site soma os níveis da classificação (categoria econômica, origem, espécie, desdobramentos) e mostra o código e a descrição de cada um.'));
-    lst = S.listaAno(caixa, { tabela: 'receitas', anos: S.anosFinanceiros('receitas'), ordem: 'natureza_codigo', crescente: true,
+    lst = S.listaAno(caixa, { declaracao: 'receitas_arrecadacao', tabela: 'receitas', anos: S.anosFinanceiros('receitas'), ordem: 'natureza_codigo', crescente: true,
       vazio: 'Nenhuma receita lançada. Inclua os lançamentos do mês ou aguarde a importação do sistema de contabilidade.',
       aoTrocarAno: async (ano) => {
         const { data } = await sb.from('receitas').select('mes').eq('orgao_id', org()).eq('exercicio', ano).order('mes', { ascending: false }).limit(1);
@@ -116,9 +116,9 @@
         [{ k: 'nome', r: 'Nome / razão social', t: 'text', max: 200, ob: true, minimo: 2 }, { k: 'documento', r: 'CPF ou CNPJ', t: 'doc', aj: 'CPF aparece mascarado no site (LGPD).' }],
         [{ k: 'tributo', r: 'Origem do débito', t: 'text', max: 100, ph: 'Ex.: IPTU, ISS, taxas, multa' }, { k: 'valor', r: 'Valor total da dívida (R$)', t: 'num', ob: true }]]]] });
     caixa.append(
-      S.secao('receitas_divida_ativa', perm, { naoHa: 'Não há créditos inscritos em dívida ativa no município.' }),
+      S.secao('receitas_divida_ativa', perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true), naoHa: 'Não há créditos inscritos em dívida ativa no município.' }),
       el('p', { class: 'ajuda' }, 'PNTP 3.3 (recomendada, Poder Executivo): relação dos inscritos em dívida ativa com o nome e o valor total da dívida. A posição é a do fim de cada exercício.'));
-    lst = S.listaAno(caixa, { tabela: 'divida_ativa', anos: S.anosFinanceiros('divida_ativa'), rotuloAno: 'Posição em 31/12', ordem: 'nome', crescente: true,
+    lst = S.listaAno(caixa, { declaracao: 'receitas_divida_ativa', tabela: 'divida_ativa', anos: S.anosFinanceiros('divida_ativa'), rotuloAno: 'Posição em 31/12', ordem: 'nome', crescente: true,
       vazio: 'Nenhum inscrito cadastrado.',
       filtros: [{ k: 'busca', r: 'Pesquisar', t: 'busca', ph: 'Nome, CNPJ ou origem do débito' }],
       botoes: () => pode() ? [el('button', { type: 'button', class: 'btn btn-primario', onclick: () => abrir() }, '+ Incluir inscrito')] : [],
@@ -180,9 +180,9 @@
       return box;
     };
     caixa.append(
-      S.secao('despesas_empenhos', perm, { naoHa: false }),
+      S.secao('despesas_empenhos', perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true), naoHa: false }),
       el('p', { class: 'ajuda' }, 'PNTP 4.1 a 4.3: cada empenho com a classificação orçamentária, o credor, o bem ou serviço e o procedimento de origem; as liquidações e os pagamentos com a data. O site soma empenhado, liquidado e pago por qualquer classificação e período.'));
-    lst = S.listaAno(caixa, { tabela: 'despesas', anos: S.anosFinanceiros('despesas'), ordem: 'data_empenho', crescente: false,
+    lst = S.listaAno(caixa, { declaracao: 'despesas_empenhos', tabela: 'despesas', anos: S.anosFinanceiros('despesas'), ordem: 'data_empenho', crescente: false,
       vazio: 'Nenhum empenho lançado. Inclua os empenhos ou aguarde a importação do sistema de contabilidade.',
       filtros: [{ k: 'busca', r: 'Pesquisar', t: 'busca', ph: 'Número, credor, CNPJ, objeto ou processo' },
         { k: 'modalidade', r: 'Procedimento', t: 'sel', op: C.contratacao, vazio: 'Procedimento: todos' }],
@@ -226,9 +226,9 @@
         return null;
       } });
     caixa.append(
-      S.secao('ordem_cronologica', perm, { naoHa: 'Não há pagamentos de contratos sujeitos à ordem cronológica (art. 141 da Lei 14.133/2021) no período.' }),
+      S.secao('ordem_cronologica', perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true), naoHa: 'Não há pagamentos de contratos sujeitos à ordem cronológica (art. 141 da Lei 14.133/2021) no período.' }),
       el('p', { class: 'ajuda' }, 'PNTP 9.4 (recomendada): a fila de pagamentos de cada fonte de recursos, separada por categoria (bens, locações, serviços e obras), na ordem em que os créditos ficaram exigíveis. Pagamento fora da ordem só com a hipótese legal e a justificativa, que o site publica.'));
-    lst = S.listaAno(caixa, { tabela: 'ordem_cronologica', anos: S.anosFinanceiros('ordem_cronologica'), ordem: 'data_exigibilidade', crescente: true,
+    lst = S.listaAno(caixa, { declaracao: 'ordem_cronologica', tabela: 'ordem_cronologica', anos: S.anosFinanceiros('ordem_cronologica'), ordem: 'data_exigibilidade', crescente: true,
       vazio: 'Nenhum crédito lançado na ordem cronológica.',
       filtros: [{ k: 'categoria', r: 'Categoria', t: 'sel', op: C.categoriasOC, vazio: 'Categoria: todas' },
         { k: 'situacao', r: 'Situação', t: 'sel', op: { a_pagar: 'A pagar', pago: 'Pagos', fora: 'Pagos fora da ordem' }, vazio: 'Situação: todos',

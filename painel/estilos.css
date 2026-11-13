@@ -454,3 +454,5 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .declaracoes .tabela { min-width: 560px; }
 .declaracao-nova { margin-top: 12px; }
 .declaracao-nova [hidden] { display: none !important; }
+.bloco-declaracoes { margin-bottom: 14px; }
+.bloco-declaracoes .msg { margin-bottom: 8px; }

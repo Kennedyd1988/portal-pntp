@@ -381,7 +381,10 @@
       el('div', { class: 'abas', role: 'tablist', 'aria-label': 'Documento' }, [['', 'Todos']].concat(ABAS_SITE).map(([k, rot]) =>
         el('button', { type: 'button', role: 'tab', class: 'aba', 'aria-selected': filtros.tipo === k ? 'true' : 'false', title: k ? TIPOS[k][0] : null,
           onclick: async () => { if (filtros.tipo === k) return; filtros.tipo = k; try { await carregar(true); desenhar(); } catch (e) { mostrarErro(e); } } }, rot))),
-      el('div', { class: 'painel-guia' }, el('div', { class: 'filtros filtros-6' }, fBusca, fEx, fDoc, fSit), lista)
+      el('div', { class: 'painel-guia' },
+        filtros.tipo ? P.declaracoes('planejamento_' + filtros.tipo, { perm })
+          : el('p', { class: 'ajuda' }, 'Para declarar que não há um documento num exercício (ex.: parecer do Tribunal de Contas ainda não emitido), abra a aba do documento.'),
+        el('div', { class: 'filtros filtros-6' }, fBusca, fEx, fDoc, fSit), lista)
     ].filter(Boolean));
     desenharLista();
   }

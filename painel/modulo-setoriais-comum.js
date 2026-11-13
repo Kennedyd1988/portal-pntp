@@ -290,23 +290,18 @@
   // Link externo da parte (ou da página inteira) definido em Aparência › Destinos das páginas.
   const destinoExterno = (chave) => window.externoPNTP({ destinos: secoes.destinos }, chave);
   const secaoAtual = (chave) => secoes.mapa[chave] || {};
-  // Campos da parte que vão para o site, sem cartão próprio: as declarações de que não há dados (o PNTP
-  // pede a declaração expressa quando não há o que publicar), da situação atual ou de um período, e o
-  // texto da parte (quando a parte tem um). Parte sem nenhum dos dois não desenha nada. O link para
-  // sistema externo NÃO fica aqui: é definido só em Aparência › Destinos das páginas, e a aba fica
-  // desativada enquanto ele existir (P.abas).
-  // o = { texto: {rotulo, ajuda, obrigatorio, linhas}, naoHa: 'frase padrão da declaração' | false, aoMudar }
-  const ABRANGENCIAS = { atual: 'Situação atual (sem período)', mes: 'Mês', bimestre: 'Bimestre', trimestre: 'Trimestre', quadrimestre: 'Quadrimestre',
-    semestre: 'Semestre', ano: 'Ano (exercício)', periodo: 'Outro período (datas)' };
-  const QTD_PERIODOS = { mes: 12, bimestre: 6, trimestre: 4, quadrimestre: 3, semestre: 2 };
+  // Campos da parte que vão para o site, sem cartão próprio: as declarações de que não há dados
+  // (P.declaracoes: situação atual ou período, em toda parte do PNTP) e o texto da parte (quando a
+  // parte tem um). O link para sistema externo NÃO fica aqui: é definido só em Aparência › Destinos
+  // das páginas, e a aba fica desativada enquanto ele existir (P.abas).
+  // o = { texto: {rotulo, ajuda, obrigatorio, linhas}, aoMudar } (o antigo naoHa não é mais usado)
   function secao(chave, perm, o) {
     o = o || {};
-    if (o.naoHa === false && !o.texto) return '';
     const s = secaoAtual(chave);
     const pre = 'ss' + (++seq) + '-';
     const pode = perm.editar && !P.estado.alcanceUnidade;
     const caixa = el('div', { class: 'secao-parte' });
-    if (o.naoHa) caixa.append(declaracoes(chave, pre, pode, o));
+    if ((window.DECLARACOES_PNTP || {})[chave]) caixa.append(P.declaracoes(chave, { perm, aoMudar: o.aoMudarDeclaracao }));
     if (o.texto) {
       const ext = destinoExterno(chave);
       const texto = el('textarea', { rows: o.texto.linhas || 4, maxlength: 8000 });
@@ -333,108 +328,7 @@
       if (!pode) texto.disabled = true;
       caixa.append(bloco);
     }
-    return caixa;
-  }
-
-  // Declarações de que não há dados: situação atual ("o órgão não tem estagiários") ou por
-  // período (mês, bimestre, trimestre, quadrimestre, semestre, ano ou datas). Script 23.
-  function declaracoes(chave, pre, pode, o) {
-    const atualTopo = el('div');
-    const lista = el('div');
-    const resumo = el('span', { class: 'ajuda' });
-    const det = el('details', { class: 'declaracoes' },
-      el('summary', null, 'Declarar que não há dados ', resumo),
-      el('p', { class: 'ajuda' }, 'Quando não houver o que publicar, registre a declaração: para a situação atual (o site mostra só a declaração, no lugar da lista) ou para um período, como um mês ou um semestre (o site mostra a declaração junto da lista, com a data).'),
-      lista);
-    let itens = [];
-    async function carregar() {
-      const { data, error } = await sb.from('declaracoes_inexistencia').select('*').eq('orgao_id', P.estado.orgao.id).eq('secao', chave)
-        .order('data_fim', { ascending: false, nullsFirst: true }).order('criado_em', { ascending: false }).limit(500);
-      if (error) {
-        det.replaceChildren(el('summary', null, 'Declarar que não há dados'), el('p', { class: 'msg msg-erro' },
-          /declaracoes_inexistencia|Could not find|does not exist/i.test(error.message || '') ? 'Falta rodar o script 23 no banco.' : P.erroGravacao(error)));
-        return;
-      }
-      itens = data || [];
-      desenhar();
-    }
-    function desenhar() {
-      const atual = itens.find((x) => x.abrangencia === 'atual');
-      const periodos = itens.filter((x) => x.abrangencia !== 'atual');
-      atualTopo.replaceChildren(atual ? el('p', { class: 'msg msg-info' }, el('strong', null, 'Declaração em vigor: '), '"' + atual.texto + '". ',
-        'O site mostra só esta declaração, no lugar da lista. Para voltar a mostrar os dados, exclua-a abaixo.') : '');
-      resumo.textContent = itens.length ? '(' + itens.length + (itens.length === 1 ? ' registrada)' : ' registradas)') : '';
-      if (atual) det.open = true;
-      lista.replaceChildren(
-        itens.length ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela tabela-declaracoes' },
-          el('thead', null, el('tr', null, ['Período', 'Declaração', 'Registrada em'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
-          el('tbody', null, [atual].concat(periodos).filter(Boolean).map((d) => el('tr', null,
-            el('td', null, el('strong', null, window.periodoDeclaracaoPNTP(d))),
-            el('td', { class: 'quebra' }, d.texto),
-            el('td', { class: 'num' }, P.dataBR(d.criado_em.slice(0, 10))),
-            el('td', { class: 'acoes' }, pode ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(d) }, 'Excluir') : null)))))) : el('p', { class: 'ajuda' }, 'Nenhuma declaração registrada.'),
-        pode ? formulario() : '');
-    }
-    async function excluir(d) {
-      if (!await P.confirmar('Excluir declaração', 'Excluir a declaração "' + window.periodoDeclaracaoPNTP(d) + '"? Ela sai do site.', 'Excluir', true)) return;
-      const { data, error } = await sb.from('declaracoes_inexistencia').delete().eq('id', d.id).select('id');
-      if (error) return mostrarErro(error);
-      if (!data || !data.length) return toast('Seu perfil não pode excluir esta declaração.', true);
-      toast('Declaração excluída.'); await carregar();
-    }
-    function formulario() {
-      const Y = new Date().getFullYear();
-      const fAbr = el('select', null, opcoes(ABRANGENCIAS, 'mes'));
-      const fEx = el('input', { type: 'number', min: 1990, max: 2100, value: Y });
-      const fNum = el('select');
-      const fIni = el('input', { type: 'date' }), fFim = el('input', { type: 'date' });
-      const fTxt = el('textarea', { rows: 2, maxlength: 500 });
-      fTxt.value = o.naoHa;
-      const cEx = campo(pre + 'dex', 'Exercício', fEx), cNum = campo(pre + 'dnum', 'Período', fNum), cIni = campo(pre + 'dini', 'De', fIni), cFim = campo(pre + 'dfim', 'Até', fFim);
-      const ajustar = () => {
-        const a = fAbr.value, n = QTD_PERIODOS[a];
-        cEx.hidden = a === 'atual' || a === 'periodo'; cNum.hidden = !n; cIni.hidden = cFim.hidden = a !== 'periodo';
-        if (n) {
-          const atual = fNum.value;
-          fNum.replaceChildren(...Array.from({ length: n }, (_, k) => el('option', { value: k + 1 },
-            a === 'mes' ? MESES[k][0].toUpperCase() + MESES[k].slice(1) : (k + 1) + 'º ' + a)));
-          // Padrão: o último período já encerrado.
-          const m = new Date().getMonth(); const meses = 12 / n;
-          fNum.value = atual && Number(atual) <= n ? atual : String(Math.max(1, Math.floor(m / meses)));
-        }
-      };
-      fAbr.addEventListener('change', ajustar); ajustar();
-      const btn = el('button', { type: 'button', class: 'btn btn-claro' }, 'Registrar declaração');
-      btn.addEventListener('click', async () => {
-        const a = fAbr.value;
-        const reg = { orgao_id: P.estado.orgao.id, secao: chave, abrangencia: a, texto: fTxt.value.trim() };
-        if (!erroCampo(pre + 'dtxt', reg.texto.length < 10 ? 'Escreva a declaração (mínimo de 10 letras).' : '')) return;
-        if (a === 'periodo') {
-          if (!erroCampo(pre + 'dini', fIni.value ? '' : 'Informe o início.')) return;
-          if (!erroCampo(pre + 'dfim', fFim.value && fFim.value >= fIni.value ? '' : 'Informe o fim (igual ou depois do início).')) return;
-          reg.data_inicio = fIni.value; reg.data_fim = fFim.value;
-        } else if (a !== 'atual') {
-          const ex = parseInt(fEx.value, 10);
-          if (!erroCampo(pre + 'dex', ex >= 1990 && ex <= 2100 ? '' : 'Ano inválido.')) return;
-          reg.exercicio = ex; if (QTD_PERIODOS[a]) reg.numero = parseInt(fNum.value, 10);
-        }
-        ocupado(btn, 'Registrando…');
-        try {
-          const { error } = await sb.from('declaracoes_inexistencia').insert(reg);
-          if (error) throw error;
-          toast('Declaração registrada.'); await carregar();
-        } catch (e) {
-          if (/declaracoes_inexistencia_uk/.test((e && e.message) || '')) toast(a === 'atual' ? 'Já existe uma declaração de situação atual nesta parte.' : 'Esse período já tem declaração nesta parte.', true);
-          else mostrarErro(e);
-        } finally { ocupado(btn); }
-      });
-      return el('fieldset', { class: 'opcoes declaracao-nova' }, el('legend', null, 'Nova declaração'),
-        el('div', { class: 'grade-campos' }, campo(pre + 'dabr', 'Vale para', fAbr), cEx, cNum, cIni, cFim),
-        campo(pre + 'dtxt', 'Texto da declaração (aparece no site)', fTxt, 'Ex.: "' + o.naoHa + '"'),
-        btn);
-    }
-    carregar();
-    return el('div', null, atualTopo, det);
+    return caixa.childNodes.length ? caixa : '';
   }
 
   // ---------- importação de listas ----------
@@ -650,15 +544,21 @@
       return q;
     };
     const lista = el('div'), corpo = el('div', null, el('p', { class: 'vazio' }, 'Carregando…'));
+    let decl = null;   // declarações de que não há dados (cfg.declaracao)
     async function carregar(reiniciar) {
       const minha = reiniciar ? ++versao : versao;
+      // Ano só declarado (sem registros): mostra a declaração no lugar da lista.
+      if (decl && cfg.anos && ano !== null && !Number((anos.find((x) => x.ano === ano) || {}).total)) {
+        lista.replaceChildren(decl.aviso(ano) || el('p', { class: 'vazio' }, cfg.vazio || 'Nada cadastrado ainda.'));
+        return;
+      }
       const ultimo = reiniciar ? null : itens[itens.length - 1];
       const [pag, t] = await Promise.all([P.paginar(consulta, cfg.ordem, ultimo, 100, cfg.crescente), reiniciar ? P.contar(consulta) : Promise.resolve(total)]);
       if (minha !== versao) return;
       itens = reiniciar ? pag.linhas : itens.concat(pag.linhas); fim = pag.fim; total = t;
       const btnMais = el('button', { type: 'button', class: 'btn btn-claro' }, 'Carregar mais');
       btnMais.addEventListener('click', async () => { ocupado(btnMais, 'Carregando…'); try { await carregar(false); } catch (e) { mostrarErro(e); ocupado(btnMais); } });
-      lista.replaceChildren(tabela(cfg.colunas, itens, cfg.acoes || null, Object.values(f).some(Boolean) ? 'Nenhum registro com esses filtros.' : cfg.vazio || 'Nada cadastrado ainda.'),
+      lista.replaceChildren(decl && ano !== null ? decl.aviso(ano) || '' : '', tabela(cfg.colunas, itens, cfg.acoes || null, Object.values(f).some(Boolean) ? 'Nenhum registro com esses filtros.' : cfg.vazio || 'Nada cadastrado ainda.'),
         el('div', { class: 'rodape-lista' }, el('span', { class: 'ajuda' }, 'Mostrando ' + itens.length + ' de ' + total), fim ? '' : btnMais));
     }
     function desenhar() {
@@ -686,6 +586,7 @@
       try {
         if (cfg.anos) {
           anos = (await cfg.anos()) || [];
+          if (cfg.declaracao) { decl = await P.declaracoesAnuais(cfg.declaracao); anos = decl.anos(anos); }
           if (!manterAno || !anos.some((x) => x.ano === ano)) ano = anos.length ? anos[0].ano : null;
           if (cfg.aoTrocarAno && ano !== null) Object.assign(f, await cfg.aoTrocarAno(ano));
         }

@@ -61,8 +61,9 @@
   // RECEITAS (3.1 e 3.2): previsão e arrecadação por nível da classificação
   // ===================================================================
   async function receitasArrecadacao(caixa, prm) {
-    const [anos, quando] = await Promise.all([anosRpc('receitas')(), ultimaAtualizacao('receitas')]);
-    if (!anos) { caixa.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+    const [anosDados, quando] = await Promise.all([anosRpc('receitas')(), ultimaAtualizacao('receitas')]);
+    if (!anosDados) { caixa.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+    const { decl, anos } = await S.decl.anual(caixa, 'receitas_arrecadacao', anosDados);
     if (!anos.length) { caixa.replaceChildren(el('p', { class: 'vazio' }, 'Receitas em atualização.')); return; }
     let ano = anos.some((x) => x.ano === Number(prm.get('ano'))) ? Number(prm.get('ano')) : anos[0].ano;
     let prefixo = /^\d+(\.\d+)*$/.test(prm.get('nivel') || '') ? prm.get('nivel') : null;
@@ -72,6 +73,7 @@
     faixa.marcar(ano);
 
     async function abrirAno(trocou) {
+      if (S.decl.semDados(anos, ano)) { painelAno.replaceChildren(S.decl.quadro(S.decl.doAno(decl, ano))); return; }
       const { data: mensal } = await sb.rpc('receitas_mensal', { p_orgao: org(), p_exercicio: ano });
       const meses = (mensal || []).map((m) => m.mes);
       const ultimoMes = meses.length ? Math.max(...meses) : 12;
@@ -90,7 +92,7 @@
             ['fonte_codigo', 'Fonte'], ['fonte_descricao', 'Fonte (nome)'], ['previsto_inicial', 'Previsão inicial do ano'], ['previsto_atualizado', 'Previsão atualizada do ano'], ['arrecadado', 'Arrecadado no mês']],
           async (de, ate) => { const { data } = await sb.from('receitas').select('exercicio, mes, natureza_codigo, natureza_descricao, fonte_codigo, fonte_descricao, previsto_inicial, previsto_atualizado, arrecadado')
             .eq('orgao_id', org()).eq('exercicio', ano).order('natureza_codigo').order('mes').order('id').range(de, ate); return data || []; })));
-      painelAno.replaceChildren(resumo,
+      painelAno.replaceChildren(S.decl.quadro(S.decl.doAno(decl, ano), 'Períodos sem ocorrência em ' + ano), resumo,
         el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); desenhar(); } }, el('label', null, 'De', fDe), el('label', null, 'Até', fAte), el('label', null, 'Pesquisar natureza', fBusca)),
         trilhaNivel, barra, corpo, mensalCx);
       let espera;
@@ -140,7 +142,7 @@
   function dividaAtiva(caixa, prm) {
     const CAMPOS = 'id, exercicio, nome, documento_publico, ano_inscricao, tributo, valor, atualizado_em';
     return U.listaAnual(caixa, prm, {
-      base: '#/receitas/divida-ativa', titulo: 'Inscritos em dívida ativa', rotuloAno: 'Posição em 31/12', nome: 'divida-ativa', unidade: ['inscrito', 'inscritos'],
+      base: '#/receitas/divida-ativa', declaracao: 'receitas_divida_ativa', titulo: 'Inscritos em dívida ativa', rotuloAno: 'Posição em 31/12', nome: 'divida-ativa', unidade: ['inscrito', 'inscritos'],
       vazio: 'Não há inscritos em dívida ativa publicados até esta data.', anos: anosRpc('divida_ativa'), ordem: 'nome', crescente: true,
       montar: (sel, op, ano, f) => {
         let q = sb.from('divida_ativa').select(sel || CAMPOS, op).eq('orgao_id', org());
@@ -201,7 +203,7 @@
     const lista = el('div');
     caixa.replaceChildren(nota, lista);
     return U.listaAnual(lista, prm, {
-      base: '#/despesas/empenhos', abrirRecente: true, titulo: 'Empenhos, liquidações e pagamentos', rotuloAno: 'Exercício', nome: 'despesas-empenhos', unidade: ['empenho', 'empenhos'],
+      base: '#/despesas/empenhos', declaracao: 'despesas_empenhos', abrirRecente: true, titulo: 'Empenhos, liquidações e pagamentos', rotuloAno: 'Exercício', nome: 'despesas-empenhos', unidade: ['empenho', 'empenhos'],
       vazio: 'Despesas em atualização.', anos: anosRpc('despesas'), ordem: 'data_empenho', crescente: false,
       montar: (sel, op, ano, f) => {
         let q = sb.from('despesas').select(sel || CAMPOS_DESP, op).eq('orgao_id', org());
@@ -254,9 +256,11 @@
   const nomeClassif = (ag, r) => ag === 'funcao' ? C.funcoes[r.chave] : ag === 'categoria' ? C.categorias[r.chave] : ag === 'grupo' ? C.grupos[r.chave] : ag === 'modalidade' ? C.modalidades[r.chave.slice(2)]
     : ag === 'mes' ? opMeses[r.chave] : r.descricao;
   async function classificacao(caixa, prm) {
-    const anos = await anosRpc('despesas')();
-    if (!anos) { caixa.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+    const anosDados = await anosRpc('despesas')();
+    if (!anosDados) { caixa.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+    const { decl, anos } = await S.decl.anual(caixa, 'despesas_empenhos', anosDados);
     if (!anos.length) { caixa.replaceChildren(el('p', { class: 'vazio' }, 'Despesas em atualização.')); return; }
+    const declAno = el('div');
     let ano = anos.some((x) => x.ano === Number(prm.get('ano'))) ? Number(prm.get('ano')) : anos[0].ano;
     const fAg = el('select', null, Object.entries(AGRUPAR).map(([k, v]) => el('option', { value: k }, v)));
     fAg.value = AGRUPAR[prm.get('por')] ? prm.get('por') : 'funcao';
@@ -266,10 +270,13 @@
       el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); desenhar(); } },
         el('label', null, 'Agrupar por', fAg), el('label', null, 'De (data)', fDe), el('label', null, 'Até (data)', fAte)), resumo, barra, corpo);
     const faixa = U.faixaAbas(anos.map((x) => [x.ano, String(x.ano)]), ano, 'Exercício', true, (id) => { ano = Number(id); fDe.value = ''; fAte.value = ''; desenhar(); });
-    caixa.replaceChildren(el('p', { class: 'meta' }, 'Empenhado, liquidado e pago no período, somados pela classificação escolhida. Sem datas, vale o exercício inteiro.'), faixa.lista, painelAno);
+    caixa.replaceChildren(el('p', { class: 'meta' }, 'Empenhado, liquidado e pago no período, somados pela classificação escolhida. Sem datas, vale o exercício inteiro.'), faixa.lista, declAno, painelAno);
     faixa.marcar(ano);
     [fAg, fDe, fAte].forEach((x) => x.addEventListener('change', desenhar));
     async function desenhar() {
+      painelAno.hidden = S.decl.semDados(anos, ano);
+      declAno.replaceChildren(S.decl.quadro(S.decl.doAno(decl, ano), painelAno.hidden ? '' : 'Períodos sem ocorrência em ' + ano));
+      if (painelAno.hidden) return;
       const ag = fAg.value, de = fDe.value || null, ate = fAte.value || null;
       history.replaceState(null, '', '#/despesas/classificacao?ano=' + ano + '&por=' + ag + (de ? '&de=' + de : '') + (ate ? '&ate=' + ate : ''));
       const { data, error } = await sb.rpc('despesas_resumo', { p_orgao: org(), p_exercicio: ano, p_de: de, p_ate: ate, p_agrupar: ag });
@@ -343,7 +350,7 @@
       const lista = el('div');
       caixa.replaceChildren(notaAtualizacao(quando, 'A posição é a do crédito na fila da sua categoria e fonte de recursos, pela data em que ficou exigível.'), lista);
       return U.listaAnual(lista, params, {
-        base: '#/ordem-cronologica', abrirRecente: true, titulo: 'Ordem cronológica de pagamentos', rotuloAno: 'Exercício', nome: 'ordem-cronologica-pagamentos', unidade: ['crédito', 'créditos'],
+        base: '#/ordem-cronologica', declaracao: 'ordem_cronologica', abrirRecente: true, titulo: 'Ordem cronológica de pagamentos', rotuloAno: 'Exercício', nome: 'ordem-cronologica-pagamentos', unidade: ['crédito', 'créditos'],
         vazio: 'Ordem cronológica em atualização.', anos: anosRpc('ordem_cronologica'), ordem: 'data_exigibilidade', crescente: true,
         montar: (sel, op, ano, f) => {
           let q = sb.from('ordem_cronologica_posicoes').select(sel || CAMPOS, op).eq('orgao_id', org());
@@ -397,7 +404,7 @@
     const CAMPOS = 'id, matricula, nome, cargo, funcao, vinculo, lotacao, carga_horaria, data_admissao, data_desligamento, motivo_desligamento, atualizado_em';
     const hoje = new Date().toISOString().slice(0, 10);
     return U.listaAnual(caixa, prm, {
-      base: '#/pessoal/servidores', titulo: 'Servidores e agentes públicos', rotuloAno: 'No quadro em', nome: 'servidores', unidade: ['pessoa', 'pessoas'],
+      base: '#/pessoal/servidores', declaracao: 'pessoal_servidores', titulo: 'Servidores e agentes públicos', rotuloAno: 'No quadro em', nome: 'servidores', unidade: ['pessoa', 'pessoas'],
       vazio: 'Relação de servidores em atualização.', anos: anosRpc('pessoal_vinculos'), ordem: 'nome', crescente: true,
       montar: (sel, op, ano, f) => {
         let q = sb.from('pessoal_vinculos').select(sel || CAMPOS, op).eq('orgao_id', org());
@@ -426,7 +433,7 @@
     const lista = el('div');
     caixa.replaceChildren(el('p', { class: 'meta' }, (u ? 'Última folha publicada: ' + MESES[u.mes - 1] + ' de ' + u.exercicio + '. ' : '') + 'Bruto = remuneração básica + vantagens + eventuais + indenizações; líquido = bruto − descontos obrigatórios.'), lista);
     return U.listaAnual(lista, prm, {
-      base: '#/pessoal/remuneracao', abrirRecente: true, titulo: 'Remuneração nominal', rotuloAno: 'Ano', nome: 'remuneracao', unidade: ['remuneração', 'remunerações'],
+      base: '#/pessoal/remuneracao', declaracao: 'pessoal_remuneracao', abrirRecente: true, titulo: 'Remuneração nominal', rotuloAno: 'Ano', nome: 'remuneracao', unidade: ['remuneração', 'remunerações'],
       vazio: 'Folha de pagamento em atualização.', anos: anosRpc('pessoal_remuneracoes'), ordem: 'nome', crescente: true,
       montar: (sel, op, ano, f) => {
         let q = sb.from('pessoal_remuneracoes').select(sel || CAMPOS, op).eq('orgao_id', org());
@@ -480,7 +487,7 @@
   function estagiarios(caixa, prm) {
     const CAMPOS = 'id, nome, instituicao, curso, nivel, lotacao, carga_horaria, bolsa, data_inicio, data_fim, data_desligamento, atualizado_em';
     return U.listaAnual(caixa, prm, {
-      base: '#/pessoal/estagiarios', titulo: 'Estagiários', rotuloAno: 'Em estágio em', nome: 'estagiarios', unidade: ['estagiário', 'estagiários'],
+      base: '#/pessoal/estagiarios', declaracao: 'pessoal_estagiarios', titulo: 'Estagiários', rotuloAno: 'Em estágio em', nome: 'estagiarios', unidade: ['estagiário', 'estagiários'],
       vazio: 'Não há estagiários publicados até esta data.', anos: anosRpc('pessoal_estagiarios'), ordem: 'nome', crescente: true,
       montar: (sel, op, ano, f) => {
         let q = sb.from('pessoal_estagiarios').select(sel || CAMPOS, op).eq('orgao_id', org());
@@ -508,7 +515,7 @@
     const CAMPOS = 'id, exercicio, nome, documento_publico, funcao, empresa, empresa_cnpj, contrato_numero, contrato_id, lotacao, data_inicio, data_fim, atualizado_em';
     const cnpj = (d) => d ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : '';
     return U.listaAnual(caixa, prm, {
-      base: '#/pessoal/terceirizados', titulo: 'Terceirizados', rotuloAno: 'Exercício', nome: 'terceirizados', unidade: ['trabalhador', 'trabalhadores'],
+      base: '#/pessoal/terceirizados', declaracao: 'pessoal_terceirizados', titulo: 'Terceirizados', rotuloAno: 'Exercício', nome: 'terceirizados', unidade: ['trabalhador', 'trabalhadores'],
       vazio: 'Não há terceirizados publicados até esta data.', anos: anosRpc('pessoal_terceirizados'), ordem: 'nome', crescente: true,
       montar: (sel, op, ano, f) => {
         let q = sb.from('pessoal_terceirizados').select(sel || CAMPOS, op).eq('orgao_id', org());
@@ -549,7 +556,7 @@
   function concedidas(caixa, prm) {
     const CAMPOS = 'id, nome, cargo, unidade, destino, abrangencia, motivo, data_inicio, data_fim, exercicio, quantidade, valor_unitario, valor_total, data_pagamento, empenho_numero, ato_concessao, atualizado_em';
     return U.listaAnual(caixa, prm, {
-      base: '#/diarias/concedidas', abrirRecente: true, titulo: 'Diárias concedidas', rotuloAno: 'Exercício', nome: 'diarias', unidade: ['concessão', 'concessões'],
+      base: '#/diarias/concedidas', declaracao: 'diarias_concedidas', abrirRecente: true, titulo: 'Diárias concedidas', rotuloAno: 'Exercício', nome: 'diarias', unidade: ['concessão', 'concessões'],
       vazio: 'Não há diárias publicadas até esta data.', anos: anosRpc('diarias'), ordem: 'data_inicio', crescente: false,
       montar: (sel, op, ano, f) => {
         let q = sb.from('diarias').select(sel || CAMPOS, op).eq('orgao_id', org());

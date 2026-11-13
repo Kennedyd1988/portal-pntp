@@ -48,7 +48,7 @@
           { k: 'motivo_desligamento', r: 'Motivo do desligamento', t: 'sel', op: DESLIG, vazio: '—' }]]]],
       validar: (d) => datasOk(d, 'data_admissao', 'data_desligamento', 'Não pode ser antes da admissão.') ||
         (d.data_desligamento && !d.motivo_desligamento ? ['motivo_desligamento', 'Informe o motivo do desligamento.'] : null) });
-    caixa.append(S.secao('pessoal_servidores', perm, { naoHa: false }),
+    caixa.append(S.secao('pessoal_servidores', perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true), naoHa: false }),
       el('p', { class: 'ajuda' }, 'PNTP 6.1: relação nominal de servidores, autoridades e agentes políticos com cargo, função, vínculo, lotação, data de admissão e carga horária. Quem saiu continua na lista com a data do desligamento (série histórica).'));
     lst = S.listaAno(caixa, { tabela: 'pessoal_vinculos', ordem: 'nome', crescente: true, vazio: 'Nenhum servidor cadastrado.',
       filtros: [{ k: 'situacao', r: 'Situação', t: 'sel', op: { ativos: 'No quadro', desligados: 'Desligados' }, vazio: 'Situação: todos',
@@ -86,9 +86,9 @@
         if (d.liquido === null) d.liquido = Math.round((d.bruto - d.descontos) * 100) / 100;
         return null;
       } });
-    caixa.append(S.secao('pessoal_remuneracao', perm, { naoHa: false }),
+    caixa.append(S.secao('pessoal_remuneracao', perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true), naoHa: false }),
       el('p', { class: 'ajuda' }, 'PNTP 6.2: remuneração nominal de cada servidor, autoridade e agente político, mês a mês (bruto, descontos e líquido, com as parcelas). A folha costuma entrar por importação do sistema de pessoal.'));
-    lst = S.listaAno(caixa, { tabela: 'pessoal_remuneracoes', anos: S.anosFinanceiros('pessoal_remuneracoes'), ordem: 'nome', crescente: true, vazio: 'Nenhuma folha lançada.',
+    lst = S.listaAno(caixa, { declaracao: 'pessoal_remuneracao', tabela: 'pessoal_remuneracoes', anos: S.anosFinanceiros('pessoal_remuneracoes'), ordem: 'nome', crescente: true, vazio: 'Nenhuma folha lançada.',
       aoTrocarAno: async (ano) => {
         const { data } = await sb.from('pessoal_remuneracoes').select('mes').eq('orgao_id', org()).eq('exercicio', ano).order('mes', { ascending: false }).limit(1);
         return { mes: data && data[0] ? String(data[0].mes) : '' };
@@ -117,7 +117,7 @@
         [{ k: 'norma', r: 'Lei que fixa o valor', t: 'text', max: 300, ph: 'Ex.: Lei nº 790/2022 (Plano de Carreira do Magistério)' }, { k: 'norma_url', r: 'Link da lei', t: 'url' }],
         [{ k: 'vigencia_inicio', r: 'Vigente desde', t: 'data' }, { k: 'vigencia_fim', r: 'Vigente até', t: 'data' }, { k: 'ordem', r: 'Ordem na tabela', t: 'int', min: 0, maxv: 9999, padrao: 0 }]]]],
       validar: (d) => datasOk(d, 'vigencia_inicio', 'vigencia_fim') });
-    caixa.append(S.secao('pessoal_cargos', perm, { naoHa: false, texto: { rotulo: 'Observação da tabela (aparece no site)', linhas: 2,
+    caixa.append(S.secao('pessoal_cargos', perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true), naoHa: false, texto: { rotulo: 'Observação da tabela (aparece no site)', linhas: 2,
         ajuda: 'Ex.: "Tabela vigente em 2026; reajuste do magistério pela Lei nº 850/2026." Se a tabela não muda há mais de um ano, confirme aqui que continua vigente.' } }),
       el('p', { class: 'ajuda' }, 'PNTP 6.3 (recomendada): padrão remuneratório dos cargos efetivos, em comissão, funções gratificadas e subsídios, com a lei que fixa cada valor.'));
     lst = S.listaAno(caixa, { tabela: 'pessoal_cargos', ordem: 'ordem', crescente: true, vazio: 'Nenhum cargo cadastrado.',
@@ -142,7 +142,7 @@
         [{ k: 'lotacao', r: 'Lotação', t: 'text', max: 200 }, { k: 'carga_horaria', r: 'Carga horária', t: 'text', max: 40 }, { k: 'bolsa', r: 'Bolsa (R$)', t: 'num' }],
         [{ k: 'data_inicio', r: 'Início do estágio', t: 'data', ob: true }, { k: 'data_fim', r: 'Término previsto', t: 'data', ob: true }, { k: 'data_desligamento', r: 'Encerrado antes, em', t: 'data' }]]]],
       validar: (d) => datasOk(d, 'data_inicio', 'data_fim') || datasOk(d, 'data_inicio', 'data_desligamento') });
-    caixa.append(S.secao('pessoal_estagiarios', perm, { naoHa: 'O órgão não tem estagiários.' }),
+    caixa.append(S.secao('pessoal_estagiarios', perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true), naoHa: 'O órgão não tem estagiários.' }),
       el('p', { class: 'ajuda' }, 'PNTP 6.4 (recomendada): lista dos estagiários com a lotação e o período do estágio.'));
     const hoje = S.hoje();
     lst = S.listaAno(caixa, { tabela: 'pessoal_estagiarios', ordem: 'nome', crescente: true, vazio: 'Nenhum estagiário cadastrado.',
@@ -189,9 +189,9 @@
         await lst.irPara(ano + 1);
       } catch (e) { S.mostrarErro(e); }
     }
-    caixa.append(S.secao('pessoal_terceirizados', perm, { naoHa: 'O órgão não tem trabalhadores terceirizados.' }),
+    caixa.append(S.secao('pessoal_terceirizados', perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true), naoHa: 'O órgão não tem trabalhadores terceirizados.' }),
       el('p', { class: 'ajuda' }, 'PNTP 6.5 (recomendada): trabalhadores terceirizados que prestam serviço ao órgão, com nome, função e empresa empregadora, por exercício.'));
-    lst = S.listaAno(caixa, { tabela: 'pessoal_terceirizados', anos: S.anosFinanceiros('pessoal_terceirizados'), ordem: 'nome', crescente: true, vazio: 'Nenhum terceirizado cadastrado.',
+    lst = S.listaAno(caixa, { declaracao: 'pessoal_terceirizados', tabela: 'pessoal_terceirizados', anos: S.anosFinanceiros('pessoal_terceirizados'), ordem: 'nome', crescente: true, vazio: 'Nenhum terceirizado cadastrado.',
       filtros: [{ k: 'busca', r: 'Pesquisar', t: 'busca', ph: 'Nome, função, empresa ou CNPJ' }],
       botoes: () => pode() ? [el('button', { type: 'button', class: 'btn btn-primario', onclick: () => abrir() }, '+ Incluir terceirizado'),
         el('button', { type: 'button', class: 'btn btn-claro', onclick: copiar }, 'Copiar a lista para o ano seguinte')] : [],
@@ -231,9 +231,9 @@
       });
       return box;
     };
-    caixa.append(S.secao('diarias_concedidas', perm, { naoHa: 'Não houve concessão de diárias no período.' }),
+    caixa.append(S.secao('diarias_concedidas', perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true), naoHa: 'Não houve concessão de diárias no período.' }),
       el('p', { class: 'ajuda' }, 'PNTP 7.1: nome e cargo de quem recebeu, destino, motivo, período, número de diárias e valor total de cada concessão.'));
-    lst = S.listaAno(caixa, { tabela: 'diarias', anos: S.anosFinanceiros('diarias'), ordem: 'data_inicio', crescente: false, vazio: 'Nenhuma diária cadastrada.',
+    lst = S.listaAno(caixa, { declaracao: 'diarias_concedidas', tabela: 'diarias', anos: S.anosFinanceiros('diarias'), ordem: 'data_inicio', crescente: false, vazio: 'Nenhuma diária cadastrada.',
       filtros: [{ k: 'abrangencia', r: 'Abrangência', t: 'sel', op: ABR_DIARIA, vazio: 'Abrangência: todas' }, { k: 'busca', r: 'Pesquisar', t: 'busca', ph: 'Nome, cargo, destino ou motivo' }],
       rodape: resumo,
       botoes: () => pode() ? [el('button', { type: 'button', class: 'btn btn-primario', onclick: () => abrir() }, '+ Incluir diária')] : [],
@@ -255,7 +255,7 @@
         [{ k: 'norma', r: 'Norma que fixa o valor', t: 'text', max: 300, ob: true, minimo: 3, ph: 'Ex.: Decreto nº 15/2025' }, { k: 'norma_url', r: 'Link da norma', t: 'url' }],
         [{ k: 'vigencia_inicio', r: 'Vigente desde', t: 'data' }, { k: 'vigencia_fim', r: 'Vigente até', t: 'data' }, { k: 'ordem', r: 'Ordem na tabela', t: 'int', min: 0, maxv: 999, padrao: 0 }]]]],
       validar: (d) => datasOk(d, 'vigencia_inicio', 'vigencia_fim') });
-    caixa.append(S.secao('diarias_tabela', perm, { naoHa: false, texto: { rotulo: 'Observação da tabela (aparece no site)', linhas: 2,
+    caixa.append(S.secao('diarias_tabela', perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true), naoHa: false, texto: { rotulo: 'Observação da tabela (aparece no site)', linhas: 2,
         ajuda: 'O PNTP pede os valores dentro do estado, fora do estado e no exterior. Se não há previsão de viagem ao exterior, escreva aqui: "Não há previsão de diárias para viagens ao exterior."' } }),
       el('p', { class: 'ajuda' }, 'PNTP 7.2 (recomendada): valores das diárias por grupo de cargos e destino, conforme a norma local.'));
     lst = S.listaAno(caixa, { tabela: 'diarias_valores', ordem: 'ordem', crescente: true, vazio: 'Nenhum valor cadastrado.',

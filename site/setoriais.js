@@ -38,38 +38,21 @@
         s.texto ? el('p', { style: 'white-space:pre-line;margin-top:14px' }, s.texto) : '');
       return;
     }
-    // Declarações de que não há dados (script 23): a da situação atual substitui a lista; as de
-    // período ficam no alto, junto da lista (com a data em que foram registradas).
-    const decl = await declaracoesDa(chave);
-    const atual = decl.find((d) => d.abrangencia === 'atual');
+    // Declarações de que não há dados (script 23): a da situação atual substitui a lista. As de
+    // período ficam no período: nas listas por ano (listaAnual), na aba do ano; nas demais partes
+    // (documentos, estoque, tabelas…), num quadro no alto.
+    const decl = await S.decl.de(chave);
+    const atual = S.decl.atual(decl);
     if (atual || (s.sem_ocorrencia && !decl.length)) {
-      caixa.replaceChildren(el('div', { class: 'cartao' }, el('p', null, el('strong', null, atual ? atual.texto : declaracao)),
-        el('p', { class: 'meta' }, 'Declaração registrada em ' + dataBR(((atual && atual.criado_em) || s.atualizado_em || '').slice(0, 10)) + '.')));
+      caixa.replaceChildren(atual ? S.decl.cartaoAtual(atual) : el('div', { class: 'cartao' }, el('p', null, el('strong', null, declaracao)),
+        el('p', { class: 'meta' }, 'Declaração registrada em ' + dataBR(String(s.atualizado_em || '').slice(0, 10)) + '.')));
       return;
     }
     const r = await desenhar(caixa, s);
+    const anual = caixa.dataset.declAnual || caixa.querySelector('[data-decl-anual]');
     const periodos = decl.filter((d) => d.abrangencia !== 'atual');
-    if (periodos.length) caixa.prepend(quadroDeclaracoes(periodos));
+    if (!anual && periodos.length) caixa.prepend(S.decl.quadro(periodos, 'Períodos sem ocorrência'));
     return r;
-  }
-  let declCache = null;
-  async function declaracoesDa(chave) {
-    if (!declCache || declCache.orgao !== org()) {
-      const { data } = await sb.from('declaracoes_inexistencia').select('secao, abrangencia, exercicio, numero, data_inicio, data_fim, texto, criado_em')
-        .eq('orgao_id', org()).order('data_fim', { ascending: false, nullsFirst: true }).limit(2000);
-      declCache = { orgao: org(), lista: data || [] };   // sem o script 23, a consulta falha e a lista fica vazia
-    }
-    return declCache.lista.filter((d) => d.secao === chave);
-  }
-  // Quadro "Períodos sem ocorrência": os 6 mais recentes e, se houver mais, botão para ver todos.
-  function quadroDeclaracoes(lista) {
-    const linha = (d) => el('li', null, el('strong', null, window.periodoDeclaracaoPNTP(d) + ': '), d.texto,
-      el('span', { class: 'meta' }, ' (declarado em ' + dataBR(d.criado_em.slice(0, 10)) + ')'));
-    const ul = el('ul', { class: 'declaracoes-lista' }, lista.slice(0, 6).map(linha));
-    const mais = lista.length > 6 ? el('button', { type: 'button', class: 'botao botao-claro', onclick: () => { ul.replaceChildren(...lista.map(linha)); mais.remove(); } },
-      'Ver todas as declarações (' + lista.length + ')') : '';
-    return el('section', { class: 'cartao declaracoes-site', 'aria-label': 'Períodos sem ocorrência' },
-      el('h3', null, 'Períodos sem ocorrência'), ul, mais);
   }
 
   // ---------- tabela e lista filtrada no navegador ----------
@@ -407,7 +390,7 @@
           c.replaceChildren(cons, el('h2', { style: 'margin-top:28px' }, 'Planos e relatórios da assistência social'), docs);
           await Promise.all([conselhoDoTipo(cons, 'assistencia_social', 'educacao_assistencia'), documentos(docs, 'assistencia_social', 'assistencia-social-planos', 'Nenhum plano ou relatório publicado.')]);
         }],
-        ['conselhos', 'Outros conselhos', 'Conselhos de Educação, Alimentação Escolar, Criança e Adolescente e outros.', (c) => outrosConselhos(c)]
+        ['conselhos', 'Outros conselhos', 'Conselhos de Educação, Alimentação Escolar, Criança e Adolescente e outros.', (c) => S.decl.envolver(c, 'educacao_conselhos', () => outrosConselhos(c))]
       ] }, partes, params);
   };
 
@@ -440,7 +423,7 @@
 
   function valoresRenuncia(caixa, prm) {
     return U.listaAnual(caixa, prm, {
-      base: '#/renuncias/valores', titulo: 'Renúncia prevista e realizada', rotuloAno: 'Exercício', nome: 'renuncias-previsto-realizado', unidade: ['benefício', 'benefícios'],
+      base: '#/renuncias/valores', declaracao: 'renuncias_valores', titulo: 'Renúncia prevista e realizada', rotuloAno: 'Exercício', nome: 'renuncias-previsto-realizado', unidade: ['benefício', 'benefícios'],
       vazio: 'Valores em atualização.', anos: anosRpc('renuncias_valores'),
       montar: (sel, op, ano) => {
         let q = sb.from('renuncias_valores').select(sel || 'id, exercicio, valor_previsto, valor_realizado, fonte_previsao, compensacao, atualizado_em, renuncias(titulo, especie, tributo)', op).eq('orgao_id', org());
@@ -471,7 +454,7 @@
     const { data: rens } = await sb.from('renuncias').select('id, titulo').eq('orgao_id', org()).order('titulo').limit(500);
     const opRen = Object.fromEntries((rens || []).map((r) => [r.id, r.titulo]));
     return U.listaAnual(caixa, prm, {
-      base: '#/renuncias/beneficiarios', titulo: 'Beneficiários de renúncias', rotuloAno: 'Exercício', nome: 'renuncias-beneficiarios', unidade: ['beneficiário', 'beneficiários'],
+      base: '#/renuncias/beneficiarios', declaracao: 'renuncias_beneficiarios', titulo: 'Beneficiários de renúncias', rotuloAno: 'Exercício', nome: 'renuncias-beneficiarios', unidade: ['beneficiário', 'beneficiários'],
       vazio: 'Não há beneficiários de renúncia de receita publicados até esta data.', anos: anosRpc('renuncias_beneficiarios'),
       montar: (sel, op, ano, f) => {
         let q = sb.from('renuncias_beneficiarios').select(sel || 'id, renuncia_id, exercicio, nome, documento_publico, setor, produto, valor, atualizado_em', op).eq('orgao_id', org());
@@ -491,7 +474,7 @@
 
   function incentivosRenuncia(caixa, prm) {
     return U.listaAnual(caixa, prm, {
-      base: '#/renuncias/incentivos', titulo: 'Projetos de incentivo à cultura e ao esporte', rotuloAno: 'Exercício', nome: 'incentivos-cultura-esporte', unidade: ['projeto', 'projetos'],
+      base: '#/renuncias/incentivos', declaracao: 'renuncias_incentivos', titulo: 'Projetos de incentivo à cultura e ao esporte', rotuloAno: 'Exercício', nome: 'incentivos-cultura-esporte', unidade: ['projeto', 'projetos'],
       vazio: 'Não há projetos de incentivo à cultura ou ao esporte aprovados por este órgão até esta data.', anos: anosRpc('incentivos_projetos'),
       montar: (sel, op, ano, f) => {
         let q = sb.from('incentivos_projetos').select(sel || 'id, exercicio, area, projeto, proponente, documento_publico, valor_aprovado, valor_liberado, lei_incentivo, andamento, arquivo_url, link_externo, atualizado_em', op).eq('orgao_id', org());

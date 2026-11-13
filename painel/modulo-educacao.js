@@ -109,6 +109,7 @@
             tipos: { plano_assistencia: 'Plano Municipal de Assistência Social', relatorio_assistencia: 'Relatório de gestão da assistência social' },
             ajuda: 'Opcional: planos e relatórios da assistência social (aparecem na mesma aba do site).' })], null, 'educacao_assistencia'],
         ['edu-outros', 'Outros conselhos', () => [
+          S.secao('educacao_conselhos', perm),
           el('p', { class: 'ajuda' }, 'Conselhos de Educação, Alimentação Escolar, Criança e Adolescente e outros. Os conselhos de Saúde ficam no módulo Saúde.'),
           S.conselhos(caixa(), { tipos: ['educacao', 'alimentacao_escolar', 'crianca_adolescente', 'outro'], perm, modulo: 'educacao' })]]
       ])

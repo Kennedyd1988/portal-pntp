@@ -80,10 +80,12 @@
       toast(P.erroGravacao(e), true);
     };
 
+    let decl = null;   // declarações de que não há dados (script 23)
     async function carregar() {
       const { data, error } = await sb.rpc('pca_anos', { p_orgao: P.estado.orgao.id });
       if (error) throw error;
-      anos = data || [];
+      decl = await P.declaracoesAnuais('pca');
+      anos = decl.anos(data || []);
       const Y = new Date().getFullYear();
       // O ano corrente aparece sempre: o PCA do ano é obrigatório, a falta precisa ficar visível.
       if (!anos.some((x) => x.ano === Y)) anos = [{ ano: Y, total: 0 }].concat(anos).sort((a, b) => b.ano - a.ano);
@@ -163,7 +165,8 @@
 
     function desenhar() {
       const plano = itens.find((x) => x.tipo === 'plano');
-      const aviso = !plano ? el('p', { class: 'msg msg-erro' }, 'Falta o PCA de ' + ano + '. O plano é obrigatório (Lei 14.133/2021, art. 12, VII): declarar que não existe não atende o PNTP 8.6.')
+      const declarado = decl && decl.aviso(ano);
+      const aviso = !plano && declarado ? declarado : !plano ? el('p', { class: 'msg msg-erro' }, 'Falta o PCA de ' + ano + '. O plano é obrigatório (Lei 14.133/2021, art. 12, VII): declarar que não existe não atende o PNTP 8.6.')
         : plano.situacao !== 'publicado' ? el('p', { class: 'msg msg-info' }, 'O PCA de ' + ano + ' está como rascunho: ainda não aparece no site.') : null;
       const tabela = itens.length ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
         el('thead', null, el('tr', null, ['Documento', 'Aprovação', 'Valor total', 'Itens', 'Arquivo', 'Situação'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
@@ -185,6 +188,7 @@
           podeGravar() ? el('div', { class: 'botoes-cabecalho' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form() }, '+ Novo documento')) : null),
         P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'O PCA é do órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
         aviso,
+        P.declaracoes('pca', { perm, aoMudar: recarregar }),
         el('div', { class: 'painel-guia' }, abasAno(anos, ano, async (a) => { ano = a; await recarregar(); }), el('div', { class: 'painel-guia painel-guia-interno' }, tabela))
       ].filter(Boolean));
     }
@@ -234,14 +238,16 @@
       if (filtros.situacao) q = q.eq('situacao', filtros.situacao);
       return q;
     }
+    let declS = null;   // declarações de que não há dados (script 23)
     async function carregarAnos() {
       const { data, error } = await sb.rpc('sancoes_anos', { p_orgao: P.estado.orgao.id });
       if (error) throw error;
-      anos = data || [];
+      declS = await P.declaracoesAnuais('sancionados');
+      anos = declS.anos(data || []);
       if (!anos.some((x) => x.ano === ano)) ano = anos.length ? anos[0].ano : null;
     }
     async function carregar(reiniciar) {
-      if (!ano) { itens = []; fim = true; total = 0; return; }
+      if (!ano || !Number((anos.find((x) => x.ano === ano) || {}).total)) { itens = []; fim = true; total = 0; return; }
       const ultimo = reiniciar ? null : itens[itens.length - 1];
       const [pag, t] = await Promise.all([P.paginar(consulta, 'data_aplicacao', ultimo, LOTE), reiniciar ? P.contar(consulta) : Promise.resolve(total)]);
       itens = reiniciar ? pag.linhas : itens.concat(pag.linhas);
@@ -357,7 +363,7 @@
       let espera; fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
 
       function desenharLista() {
-        if (!itens.length) { lista.replaceChildren(el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhuma sanção com esses filtros.' : 'Nenhuma sanção neste ano.')); return; }
+        if (!itens.length) { lista.replaceChildren((declS && declS.aviso(ano)) || el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhuma sanção com esses filtros.' : 'Nenhuma sanção neste ano.')); return; }
         const btnMais = el('button', { type: 'button', class: 'btn btn-claro' }, 'Carregar mais');
         btnMais.addEventListener('click', async () => { ocupado(btnMais, 'Carregando…'); try { await carregar(false); desenharLista(); } catch (e) { mostrarErro(e); ocupado(btnMais); } });
         lista.replaceChildren(
@@ -385,6 +391,7 @@
           podeGravar() ? el('div', { class: 'botoes-cabecalho' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form() }, '+ Nova sanção')) : null),
         P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Sanções são do órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
         el('p', { class: 'ajuda' }, 'Sem nenhuma sanção publicada, o site declara automaticamente que não há licitantes ou contratados sancionados por este órgão.'),
+        P.declaracoes('sancionados', { perm, aoMudar: recarregar }),
         el('div', { class: 'painel-guia' },
           anos.length ? abasAno(anos, ano, async (a) => { ano = a; await recarregarLista(); }) : null,
           anos.length ? el('div', { class: 'painel-guia painel-guia-interno' }, el('div', { class: 'filtros' }, fBusca, fTipo, fVig, fSit), lista)

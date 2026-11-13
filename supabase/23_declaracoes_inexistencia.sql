@@ -3,7 +3,9 @@
 -- Script 23 — Declarações de inexistência por período
 --
 -- O PNTP pede que, quando não há o que publicar, o órgão declare isso
--- expressamente. A declaração pode valer para a situação atual ("o órgão
+-- expressamente, em qualquer item com lista (receitas, despesas, pessoal,
+-- diárias, licitações, contratos, obras, convênios, emendas, PCA, sanções,
+-- concursos, planejamento, renúncias, saúde, educação). A declaração pode valer para a situação atual ("o órgão
 -- não tem estagiários") ou para um período: mês, bimestre, trimestre,
 -- quadrimestre, semestre, ano ou um intervalo de datas ("não houve
 -- concessão de diárias em março/2026").
@@ -22,6 +24,34 @@
 -- às 16h, que chamam partes_sem_dados: quem rodou antes roda o 21, o 22 e
 -- depois este).
 -- =====================================================================
+
+
+-- ---------------------------------------------------------------------
+-- 0. PARTES DO PNTP QUE ACEITAM DECLARAÇÃO e o módulo (permissão) de cada uma
+-- ---------------------------------------------------------------------
+-- A chave é a mesma dos Destinos das páginas / partes do site. Nulo = chave desconhecida.
+create or replace function public.modulo_da_parte(p_chave text)
+returns text language sql immutable set search_path = public as $$
+  select case
+    when p_chave in ('receitas_arrecadacao', 'receitas_divida_ativa', 'despesas_empenhos', 'ordem_cronologica') then 'financeiro'
+    when p_chave in ('pessoal_servidores', 'pessoal_remuneracao', 'pessoal_cargos', 'pessoal_estagiarios', 'pessoal_terceirizados') then 'pessoal'
+    when p_chave in ('diarias_concedidas', 'diarias_tabela') then 'diarias'
+    when p_chave = 'concursos' then 'concursos'
+    when p_chave in ('convenios_recebidas', 'convenios_realizadas', 'convenios_acordos') then 'convenios'
+    when p_chave in ('emendas_federais', 'emendas_estaduais') then 'emendas'
+    when p_chave in ('licitacoes_licitacoes', 'licitacoes_diretas', 'licitacoes_adesoes') then 'licitacoes'
+    when p_chave = 'pca' then 'pca'
+    when p_chave = 'sancionados' then 'sancoes'
+    when p_chave in ('contratos', 'fiscais') then 'contratos'
+    when p_chave in ('obras', 'obras_paralisadas') then 'obras'
+    when p_chave in ('planejamento_ppa', 'planejamento_ldo', 'planejamento_loa', 'planejamento_plano_estrategico', 'planejamento_rreo',
+                     'planejamento_rgf', 'planejamento_balanco', 'planejamento_relatorio_gestao', 'planejamento_parecer_tce',
+                     'planejamento_julgamento_camara') then 'contas'
+    when p_chave in ('renuncias_desoneracoes', 'renuncias_valores', 'renuncias_beneficiarios', 'renuncias_incentivos') then 'renuncias'
+    when p_chave in ('saude_documentos', 'saude_servicos', 'saude_espera', 'saude_medicamentos', 'saude_estoque', 'saude_conselho') then 'saude'
+    when p_chave in ('educacao_documentos', 'educacao_creches', 'educacao_fundeb', 'educacao_assistencia', 'educacao_conselhos') then 'educacao'
+  end;
+$$;
 
 
 -- ---------------------------------------------------------------------
@@ -55,12 +85,7 @@ declare
   meses int;
   maximo int;
 begin
-  -- A parte precisa ser uma das chaves aceitas em secoes_setoriais (mesma lista).
-  if not exists (select 1 from pg_constraint c
-                 where c.conrelid = 'public.secoes_setoriais'::regclass and c.conname = 'secoes_setoriais_secao_check'
-                   and pg_get_constraintdef(c.oid) like '%''' || new.secao || '''%') then
-    raise exception 'Parte desconhecida: %', new.secao;
-  end if;
+  if public.modulo_da_parte(new.secao) is null then raise exception 'Parte desconhecida: %', new.secao; end if;
   new.texto := btrim(new.texto);
   if new.abrangencia = 'atual' then
     new.exercicio := null; new.numero := null; new.data_inicio := null; new.data_fim := null;
@@ -109,7 +134,11 @@ declare
 begin
   for r in select distinct x.orgao_id, x.secao from (
              select new.orgao_id, new.secao where tg_op <> 'DELETE'
-             union all select old.orgao_id, old.secao where tg_op <> 'INSERT') x loop
+             union all select old.orgao_id, old.secao where tg_op <> 'INSERT') x
+           -- Só as partes que têm linha em secoes_setoriais (Saúde, Educação, Renúncias, Receitas…).
+           where exists (select 1 from pg_constraint c
+                         where c.conrelid = 'public.secoes_setoriais'::regclass and c.conname = 'secoes_setoriais_secao_check'
+                           and pg_get_constraintdef(c.oid) like '%''' || x.secao || '''%') loop
     insert into public.secoes_setoriais (orgao_id, secao, sem_ocorrencia)
     values (r.orgao_id, r.secao, exists (select 1 from public.declaracoes_inexistencia d
                                           where d.orgao_id = r.orgao_id and d.secao = r.secao and d.abrangencia = 'atual'))
@@ -145,14 +174,14 @@ drop policy if exists "declaracoes_inexistencia: leitura" on public.declaracoes_
 create policy "declaracoes_inexistencia: leitura" on public.declaracoes_inexistencia for select to anon, authenticated using (true);
 drop policy if exists "declaracoes_inexistencia: inclusão" on public.declaracoes_inexistencia;
 create policy "declaracoes_inexistencia: inclusão" on public.declaracoes_inexistencia for insert to authenticated
-  with check (public.tem_permissao(orgao_id, public.modulo_setorial(secao), 'editar') and public.no_alcance(orgao_id, null));
+  with check (public.tem_permissao(orgao_id, public.modulo_da_parte(secao), 'editar') and public.no_alcance(orgao_id, null));
 drop policy if exists "declaracoes_inexistencia: edição" on public.declaracoes_inexistencia;
 create policy "declaracoes_inexistencia: edição" on public.declaracoes_inexistencia for update to authenticated
-  using (public.tem_permissao(orgao_id, public.modulo_setorial(secao), 'editar') and public.no_alcance(orgao_id, null))
-  with check (public.tem_permissao(orgao_id, public.modulo_setorial(secao), 'editar') and public.no_alcance(orgao_id, null));
+  using (public.tem_permissao(orgao_id, public.modulo_da_parte(secao), 'editar') and public.no_alcance(orgao_id, null))
+  with check (public.tem_permissao(orgao_id, public.modulo_da_parte(secao), 'editar') and public.no_alcance(orgao_id, null));
 drop policy if exists "declaracoes_inexistencia: exclusão" on public.declaracoes_inexistencia;
 create policy "declaracoes_inexistencia: exclusão" on public.declaracoes_inexistencia for delete to authenticated
-  using (public.tem_permissao(orgao_id, public.modulo_setorial(secao), 'editar') and public.no_alcance(orgao_id, null));
+  using (public.tem_permissao(orgao_id, public.modulo_da_parte(secao), 'editar') and public.no_alcance(orgao_id, null));
 grant select, insert, update, delete on public.declaracoes_inexistencia to authenticated;
 grant select on public.declaracoes_inexistencia to anon;
 

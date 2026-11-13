@@ -112,14 +112,18 @@
       if (filtros.situacao) q = q.eq('situacao', filtros.situacao);
       return q;
     }
+    // Declarações de que não há dados (script 23), uma por tipo de instrumento.
+    const CHAVE_INEX = { recebida: 'convenios_recebidas', realizada: 'convenios_realizadas', sem_repasse: 'convenios_acordos' };
+    let declInex = null;
     async function carregarAnos() {
       const { data, error } = await sb.rpc('convenios_anos', { p_orgao: P.estado.orgao.id, p_tipo: tipo });
       if (error) throw error;
-      anos = data || [];
+      declInex = await P.declaracoesAnuais(CHAVE_INEX[tipo]);
+      anos = declInex.anos(data || []);
       if (!anos.some((x) => x.ano === ano)) ano = anos.length ? anos[0].ano : null;
     }
     async function carregar(reiniciar) {
-      if (!ano) { itens = []; fim = true; total = 0; return; }
+      if (!ano || !Number((anos.find((x) => x.ano === ano) || {}).total)) { itens = []; fim = true; total = 0; return; }
       const ultimo = reiniciar ? null : itens[itens.length - 1];
       const [pag, t] = await Promise.all([P.paginar(consulta, 'atualizado_em', ultimo, LOTE), reiniciar ? P.contar(consulta) : Promise.resolve(total)]);
       itens = reiniciar ? pag.linhas : itens.concat(pag.linhas);
@@ -263,7 +267,7 @@
       let espera; fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
 
       function desenharLista() {
-        if (!itens.length) { lista.replaceChildren(el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhum instrumento com esses filtros.' : 'Nenhum instrumento neste ano.')); return; }
+        if (!itens.length) { lista.replaceChildren((declInex && declInex.aviso(ano)) || el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhum instrumento com esses filtros.' : 'Nenhum instrumento neste ano.')); return; }
         const btnMais = el('button', { type: 'button', class: 'btn btn-claro' }, 'Carregar mais');
         btnMais.addEventListener('click', async () => { ocupado(btnMais, 'Carregando…'); try { await carregar(false); desenharLista(); } catch (e) { mostrarErro(e); ocupado(btnMais); } });
         const cab = ['Instrumento e objeto', TIPOS[tipo][2].split(' (')[0], 'Vigência'].concat(semValor ? [] : ['Previsto', tipo === 'recebida' ? 'Recebido' : 'Concedido'], ['Andamento', 'Teor', 'Situação']);
@@ -299,6 +303,7 @@
         el('div', { class: 'abas', role: 'tablist', 'aria-label': 'Tipo' }, Object.keys(TIPOS).map(botaoTipo)),
         el('div', { class: 'painel-guia' },
           el('p', { class: 'ajuda' }, 'PNTP ' + TIPOS[tipo][1] + '. ' + declaracao[tipo]),
+          P.declaracoes(CHAVE_INEX[tipo], { perm, aoMudar: recarregar }),
           anos.length ? el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': 'Ano' }, anos.map(botaoAno)) : null,
           anos.length ? el('div', { class: 'painel-guia painel-guia-interno' }, el('div', { class: 'filtros' }, fBusca, fAnd, fVig, fSit), lista)
             : el('p', { class: 'vazio' }, 'Nenhum instrumento cadastrado nesta aba.'))
@@ -364,14 +369,17 @@
       for (const [k, col] of [['origem', 'origem'], ['forma', 'forma_repasse'], ['andamento', 'andamento'], ['situacao', 'situacao']]) if (filtros[k]) q = q.eq(col, filtros[k]);
       return q;
     }
+    const CHAVE_INEX_EM = { federal: 'emendas_federais', estmun: 'emendas_estaduais' };
+    let declInexEm = null;
     async function carregarAnos() {
       const { data, error } = await sb.rpc('emendas_anos', { p_orgao: P.estado.orgao.id });
       if (error) throw error;
-      anos = data || [];
+      declInexEm = await P.declaracoesAnuais(CHAVE_INEX_EM[abaOrigem] || Object.values(CHAVE_INEX_EM));
+      anos = declInexEm.anos(data || []);
       if (!anos.some((x) => x.ano === ano)) ano = anos.length ? anos[0].ano : null;
     }
     async function carregar(reiniciar) {
-      if (!ano) { itens = []; fim = true; total = 0; return; }
+      if (!ano || !Number((anos.find((x) => x.ano === ano) || {}).total)) { itens = []; fim = true; total = 0; return; }
       const ultimo = reiniciar ? null : itens[itens.length - 1];
       const [pag, t] = await Promise.all([P.paginar(consulta, 'atualizado_em', ultimo, LOTE), reiniciar ? P.contar(consulta) : Promise.resolve(total)]);
       itens = reiniciar ? pag.linhas : itens.concat(pag.linhas);
@@ -539,7 +547,7 @@
       let espera; fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
 
       function desenharLista() {
-        if (!itens.length) { lista.replaceChildren(el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhuma emenda com esses filtros.' : 'Nenhuma emenda neste exercício.')); return; }
+        if (!itens.length) { lista.replaceChildren((declInexEm && declInexEm.aviso(ano)) || el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhuma emenda com esses filtros.' : 'Nenhuma emenda neste exercício.')); return; }
         const btnMais = el('button', { type: 'button', class: 'btn btn-claro' }, 'Carregar mais');
         btnMais.addEventListener('click', async () => { ocupado(btnMais, 'Carregando…'); try { await carregar(false); desenharLista(); } catch (er) { mostrarErro(er); ocupado(btnMais); } });
         lista.replaceChildren(
@@ -560,7 +568,7 @@
       }
 
       // Quadro do exercício (17.3): soma de todas as emendas do ano, publicadas ou não.
-      const tot = anos.find((x) => x.ano === ano);
+      const tot = anos.find((x) => x.ano === ano && Number(x.total));   // ano só declarado: sem quadro de valores
       const quadro = tot ? el('div', { class: 'grade-campos', style: 'margin:8px 0 12px' },
         [['Previsto', tot.previsto], ['Realizado', tot.realizado], ['Empenhado', tot.empenhado], ['Liquidado', tot.liquidado], ['Pago', tot.pago]]
           .map(([r, v]) => el('div', { class: 'cartao', style: 'padding:10px 12px' }, el('span', { class: 'ajuda' }, r + ' em ' + ano), el('strong', { style: 'display:block' }, moeda(v))))) : null;
@@ -575,8 +583,10 @@
         el('div', { class: 'abas', role: 'tablist', 'aria-label': 'Origem das emendas' },
           [['todas', 'Todas as emendas'], ['federal', 'Federais (17.1)'], ['estmun', 'Estaduais e municipais (17.2)']].map(([id, rot]) =>
             el('button', { type: 'button', role: 'tab', class: 'aba', 'aria-selected': abaOrigem === id ? 'true' : 'false',
-              onclick: async () => { if (abaOrigem === id) return; abaOrigem = id; filtros.origem = ''; await recarregarLista(); } }, rot))),
+              onclick: async () => { if (abaOrigem === id) return; abaOrigem = id; filtros.origem = ''; await recarregar(); } }, rot))),
         el('div', { class: 'painel-guia' },
+          CHAVE_INEX_EM[abaOrigem] ? P.declaracoes(CHAVE_INEX_EM[abaOrigem], { perm, aoMudar: recarregar })
+            : el('p', { class: 'ajuda' }, 'Para declarar que não houve emendas num período, use a aba Federais ou Estaduais e municipais.'),
           anos.length ? el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': 'Exercício' }, anos.map(botaoAno)) : null,
           anos.length ? el('div', { class: 'painel-guia painel-guia-interno' }, quadro, el('div', { class: 'filtros filtros-5' }, fBusca, abaOrigem === 'todas' ? fOri : null, fForma, fAnd, fSit), lista)
             : el('p', { class: 'vazio' }, 'Nenhuma emenda cadastrada.'))
