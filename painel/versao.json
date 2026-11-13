@@ -1,10 +1,7 @@
 {
-  "versao": "0.16.1",
+  "versao": "0.16.2",
   "data": "2026-11-13",
   "notas": [
-    "Destinos das páginas com colunas alinhadas; página com link externo desativa o cadastro manual no painel.",
-    "Abas do painel iguais às do site (licitações, contratos e fiscais, obras paralisadas, emendas, planejamento, educação, renúncias, receitas e despesas, pessoal).",
-    "Gestores da página inicial: todos, rolando um por vez e recomeçando no fim.",
-    "Link da faixa do Radar definido em Aparência › Selos e Radar."
+    "Saiu o cartão \"Como esta parte aparece no site\". No alto da aba ficam só a caixa \"Não há dados a publicar\" (quando a parte admite) e o texto da parte que sai no site."
   ]
 }

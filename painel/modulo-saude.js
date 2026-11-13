@@ -6,8 +6,8 @@
 //   18.4 medicamentos do SUS e como obtê-los (inclusive alto custo);
 //   18.5 estoque das farmácias públicas;
 //   18.6 composição e funcionamento do Conselho de Saúde.
-// Cada aba começa por "Como esta parte aparece no site" (dados do portal ou
-// link para o sistema próprio da Secretaria).
+// Partes com link externo (Aparência › Destinos das páginas) ficam com a aba
+// desativada; as demais têm, quando cabe, a declaração "não há dados".
 // =====================================================================
 (function () {
   'use strict';

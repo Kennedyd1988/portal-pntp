@@ -441,3 +441,9 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .pendencias li { margin: 3px 0; font-size: 14px; }
 .pendencias li.pend-info { color: var(--text-dim); }
 .cartao-largo { grid-column: 1 / -1; }
+
+/* v0.16.2 — campos da parte (declaração "não há" e texto do site), sem cartão próprio */
+.secao-parte { display: grid; gap: 8px; margin-bottom: 14px; }
+.secao-parte .checkbox { font-weight: 600; }
+.secao-parte .msg { margin: 0; }
+.secao-parte-acoes { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

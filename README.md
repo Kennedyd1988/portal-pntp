@@ -325,6 +325,14 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
 
 ## Histórico de mudanças
 
+**0.16.2 — 13/11/2026 — sai o cartão "Como esta parte aparece no site"**
+- O cartão saiu de todas as abas (Saúde, Educação, Renúncias, Receitas e despesas, Pessoal, Diárias): o aviso
+  sobre link externo ficou redundante desde que o destino externo desativa a aba (0.16.1).
+- Ficaram só os campos que vão para o site, direto no alto da aba: a caixa "Não há dados a publicar nesta
+  parte" (grava ao marcar; o site mostra a declaração com a data, exigida pelo PNTP quando não há dados) e,
+  onde existe, o texto da parte (critérios das creches, como obter medicamentos, observação das tabelas de
+  cargos e de diárias), com o botão Salvar. Partes sem nenhum dos dois não mostram nada.
+
 **0.16.1 — 13/11/2026 — ajustes do painel antes do próximo lote**
 - Aparência › Destinos das páginas: todas as tabelas com as mesmas larguras de coluna (ficam alinhadas).
 - Destino com link externo desativa o cadastro manual da aba (ou do módulo inteiro) no painel, com aviso e

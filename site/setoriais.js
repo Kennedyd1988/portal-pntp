@@ -1,8 +1,8 @@
 // =====================================================================
 // Site público — Saúde (PNTP 18.1 a 18.6), Educação e assistência social
 // (19.1 a 19.4), Renúncias de receita (16.1 a 16.4) e Conselhos.
-// Cada aba respeita a escolha do órgão no painel ("Como esta parte aparece
-// no site"): dados do portal, botão para o sistema externo ou a declaração
+// Cada aba respeita a escolha do órgão no painel (Destinos das páginas e a
+// declaração "não há dados"): dados do portal, botão para o sistema externo ou a declaração
 // de que não há dados (com a data da informação).
 // =====================================================================
 (function () {

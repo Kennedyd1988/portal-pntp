@@ -1,9 +1,9 @@
 // =====================================================================
 // Peças comuns dos módulos Saúde, Educação e Renúncias (P.setor):
-//   secao()      → "Como esta parte aparece no site": dados do portal ou
-//                  declaração de que não há dados, mais um texto da seção
-//                  (ex.: critérios das creches). O link para sistema externo
-//                  fica só em Aparência › Destinos das páginas.
+//   secao()      → campos da parte que vão para o site: a declaração de que
+//                  não há dados e o texto da parte (ex.: critérios das
+//                  creches). O link para sistema externo fica só em
+//                  Aparência › Destinos das páginas (e desativa a aba).
 //   formulario() → janela de cadastro montada a partir da lista de campos
 //                  (rascunho → publicado quando a tabela tem situação).
 //   filhos()     → lista com inclusão/edição dentro da janela (profissionais,
@@ -290,54 +290,51 @@
   // Link externo da parte (ou da página inteira) definido em Aparência › Destinos das páginas.
   const destinoExterno = (chave) => window.externoPNTP({ destinos: secoes.destinos }, chave);
   const secaoAtual = (chave) => secoes.mapa[chave] || {};
-  const ROTULO_MODO = { portal: 'dados do portal', link: 'link externo', nao_ha: 'declaração "não há"' };
-  // o = { titulo, texto: {rotulo, ajuda, obrigatorio}, naoHa: 'texto da declaração' | false, aoMudar }
-  // O link para sistema externo NÃO fica aqui: é definido só em Aparência › Destinos das páginas
-  // (mesma chave), para todo direcionamento do site ficar num lugar só.
+  // Campos da parte que vão para o site, sem cartão próprio: a declaração "não há dados" (o PNTP pede a
+  // declaração expressa quando não há o que publicar) e o texto da parte (quando a parte tem um).
+  // Parte sem nenhum desses dois não desenha nada. O link para sistema externo NÃO fica aqui: é definido
+  // só em Aparência › Destinos das páginas, e a aba fica desativada enquanto ele existir (P.abas).
+  // o = { texto: {rotulo, ajuda, obrigatorio, linhas}, naoHa: 'texto da declaração' | false, aoMudar }
   function secao(chave, perm, o) {
     o = o || {};
+    if (o.naoHa === false && !o.texto) return '';
     const s = secaoAtual(chave);
     const pre = 'ss' + (++seq) + '-';
     const ext = destinoExterno(chave);
-    const modo = ext ? 'link' : s.sem_ocorrencia ? 'nao_ha' : 'portal';
-    const escolha = o.naoHa === false ? null : el('select', { id: pre + 'modo' },
-      opcoes({ portal: 'Dados cadastrados aqui no painel', nao_ha: 'Não há dados: o site mostra a declaração com a data' }, s.sem_ocorrencia ? 'nao_ha' : 'portal'));
+    const naoHa = o.naoHa === false ? null : el('input', { type: 'checkbox', id: pre + 'naoha' });
+    if (naoHa) naoHa.checked = !!s.sem_ocorrencia;
     const texto = o.texto ? el('textarea', { rows: o.texto.linhas || 4, maxlength: 8000 }) : null;
     if (texto) texto.value = s.texto || '';
-    const btn = el('button', { type: 'button', class: 'btn btn-claro' }, 'Salvar');
+    const btn = el('button', { type: 'button', class: 'btn btn-claro btn-p' }, 'Salvar');
+    const rodape = (x) => x && x.atualizado_em ? 'Alterado em ' + P.dataHoraBR(x.atualizado_em) + '.' : '';
+    const info = el('span', { class: 'ajuda' }, rodape(s));
+    const aviso = el('p', { class: 'msg msg-info', hidden: !s.sem_ocorrencia },
+      'O site mostra a declaração "' + (o.naoHa || '') + '", com a data. Os dados cadastrados abaixo não aparecem enquanto ela estiver marcada.');
     btn.addEventListener('click', async () => {
-      const naoHa = !!escolha && escolha.value === 'nao_ha';
-      if (texto && o.texto.obrigatorio && !ext && !erroCampo(pre + 'texto', !naoHa && texto.value.trim().length < 20 ? 'Escreva o texto (é pedido pelo PNTP).' : '')) return;
+      const marcado = !!naoHa && naoHa.checked;
+      if (texto && o.texto.obrigatorio && !ext && !erroCampo(pre + 'texto', !marcado && texto.value.trim().length < 20 ? 'Escreva o texto (é pedido pelo PNTP).' : '')) return;
       ocupado(btn, 'Salvando…');
       try {
-        const reg = { orgao_id: P.estado.orgao.id, secao: chave, sem_ocorrencia: naoHa, texto: texto ? texto.value.trim() || null : s.texto || null };
+        const reg = { orgao_id: P.estado.orgao.id, secao: chave, sem_ocorrencia: marcado, texto: texto ? texto.value.trim() || null : s.texto || null };
         const { data, error } = await sb.from('secoes_setoriais').upsert(reg, { onConflict: 'orgao_id,secao' }).select('*');
         if (error) throw error;
         if (!data || !data.length) throw P.amigavel('Nada foi gravado: seu perfil não tem permissão.');
         secoes.mapa[chave] = data[0];
-        toast('Seção salva.');
-        info.replaceChildren(rodape(data[0]));
-        const m = ext ? 'link' : data[0].sem_ocorrencia ? 'nao_ha' : 'portal';
-        etiqueta.className = 'etiqueta etiqueta-' + (m === 'portal' ? 'publicado' : 'agendado');
-        etiqueta.textContent = ROTULO_MODO[m];
+        toast('Salvo.');
+        info.textContent = rodape(data[0]);
+        aviso.hidden = !data[0].sem_ocorrencia;
         if (o.aoMudar) o.aoMudar(data[0]);
       } catch (e) { mostrarErro(e); } finally { ocupado(btn); }
     });
-    const etiqueta = el('span', { class: 'etiqueta etiqueta-' + (modo === 'portal' ? 'publicado' : 'agendado') }, ROTULO_MODO[modo]);
-    const rodape = (x) => x && x.atualizado_em ? 'Última alteração desta seção: ' + P.dataHoraBR(x.atualizado_em) + '.' : '';
-    const info = el('span', { class: 'ajuda' }, rodape(s));
-    const podeAparencia = P.estado.permissoes.aparencia && P.estado.permissoes.aparencia.ver;
-    const linkAparencia = podeAparencia ? el('a', { href: '#/m/aparencia?aba=destinos' }, 'Aparência › Destinos das páginas') : 'Aparência › Destinos das páginas';
-    const caixa = el('details', { class: 'cartao secao-setorial', open: modo !== 'portal' || (o.texto && o.texto.obrigatorio && !s.texto) ? true : null, style: 'margin-bottom:14px;padding:12px 16px' },
-      el('summary', { style: 'cursor:pointer;font-weight:600' }, (o.titulo || 'Como esta parte aparece no site') + ': ', etiqueta),
-      el('div', { style: 'margin-top:10px' },
-        ext ? el('p', { class: 'msg msg-info' }, 'No site, esta parte leva para o sistema externo ', el('a', { href: ext, target: '_blank', rel: 'noopener' }, ext),
-          ', definido em ', linkAparencia, '. Os dados cadastrados aqui ficam guardados, mas não aparecem enquanto o link estiver lá.')
-          : el('p', { class: 'ajuda' }, 'Para mandar esta parte para um sistema próprio da Secretaria (regulação, farmácia, matrícula…), informe o link em ', linkAparencia, ' — é o lugar único de todos os direcionamentos do site.'),
-        escolha ? campo(pre + 'modo', 'Como publicar', escolha, 'Declaração usada: "' + o.naoHa + '"') : null,
-        texto ? campo(pre + 'texto', o.texto.rotulo, texto, o.texto.ajuda, o.texto.obrigatorio) : null,
-        (escolha || texto) && perm.editar && !P.estado.alcanceUnidade ? el('div', { style: 'display:flex;gap:12px;align-items:center' }, btn, info) : info));
-    if (!perm.editar || P.estado.alcanceUnidade) for (const i of caixa.querySelectorAll('input, select, textarea')) i.disabled = true;
+    const pode = perm.editar && !P.estado.alcanceUnidade;
+    const caixa = el('div', { class: 'secao-parte' },
+      naoHa ? el('label', { class: 'checkbox', for: pre + 'naoha' }, naoHa, ' Não há dados a publicar nesta parte (o site mostra a declaração com a data)') : null,
+      naoHa ? aviso : null,
+      texto ? campo(pre + 'texto', o.texto.rotulo, texto, o.texto.ajuda, o.texto.obrigatorio) : null,
+      pode ? el('div', { class: 'secao-parte-acoes' }, btn, info) : info);
+    if (naoHa && pode && !texto) naoHa.addEventListener('change', () => btn.click());   // só a marcação: grava ao marcar
+    if (naoHa && !texto && pode) btn.hidden = true;
+    if (!pode) for (const i of caixa.querySelectorAll('input, select, textarea')) i.disabled = true;
     return caixa;
   }
 
