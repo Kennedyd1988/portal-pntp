@@ -131,14 +131,28 @@
   // ---------- links do menu e rotas ----------
   // Rotas internas (vindas do menu do painel, ex. "/noticias") viram "#/noticias".
   S.link = (rota) => '#' + (rota.startsWith('/') ? rota : '/' + rota);
-  S.destinoMenu = (i) => i.tipo === 'link' ? i.destino : i.tipo === 'pagina' ? S.link('/pagina/' + i.destino) : S.link(i.destino);
+  // Destino único de cada página (site/destinos.js): portal ou link externo escolhido em Aparência.
+  S.destino = (chave) => window.destinoPNTP(S.conf, chave);
+  // Link pronto para uma chave de destino: abre em nova aba quando é externo. Sem destino: texto simples.
+  S.linkDestino = (chave, conteudo, attrs) => {
+    const d = S.destino(chave);
+    if (!d) return el('span', Object.assign({ class: 'sem-destino' }, attrs || {}), conteudo);
+    return el('a', Object.assign({}, attrs || {}, { href: d.href, target: d.externo ? '_blank' : null, rel: d.externo ? 'noopener' : null }),
+      conteudo, d.externo ? el('span', { class: 'sr' }, ' (abre em nova aba)') : null);
+  };
+  // Item interno do menu cuja página o órgão mandou para link externo segue o link.
+  const externoDaRota = (rota) => { const k = window.chaveDaRotaPNTP(rota); return k && (S.conf.destinos || {})[k] ? S.conf.destinos[k] : null; };
+  S.destinoMenu = (i) => i.tipo === 'link' ? i.destino : i.tipo === 'pagina' ? S.link('/pagina/' + i.destino) : externoDaRota(i.destino) || S.link(i.destino);
 
   function montarMenu() {
     const lista = $('menu-lista');
     const principais = S.menu.filter((i) => !i.pai_id).sort((a, b) => a.ordem - b.ordem);
     const filhos = (id) => S.menu.filter((i) => i.pai_id === id).sort((a, b) => a.ordem - b.ordem);
-    const ancora = (i) => el('a', { href: S.destinoMenu(i), target: i.tipo === 'link' && i.nova_aba ? '_blank' : null, rel: i.tipo === 'link' ? 'noopener' : null }, i.rotulo,
-      i.tipo === 'link' && i.nova_aba ? el('span', { class: 'sr' }, ' (abre em nova aba)') : null);
+    const ancora = (i) => {
+      const novaAba = (i.tipo === 'link' && i.nova_aba) || (i.tipo === 'interno' && !!externoDaRota(i.destino));
+      return el('a', { href: S.destinoMenu(i), target: novaAba ? '_blank' : null, rel: novaAba || i.tipo === 'link' ? 'noopener' : null }, i.rotulo,
+        novaAba ? el('span', { class: 'sr' }, ' (abre em nova aba)') : null);
+    };
     const itens = principais.map((p, k) => {
       const sub = filhos(p.id);
       if (!sub.length) return el('li', null, ancora(p));
@@ -212,6 +226,34 @@
   function abrirMenuMobile(abrir) {
     $('menu-principal').classList.toggle('aberto', abrir);
     $('btn-menu-mobile').setAttribute('aria-expanded', abrir ? 'true' : 'false');
+  }
+
+  // ---------- faixa acima do menu: redes sociais (esquerda) e selos (direita) ----------
+  function seloIcone() {
+    const sv = document.createElementNS(SVG, 'svg');
+    for (const [k, v] of Object.entries({ viewBox: '0 0 24 24', width: 18, height: 18, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.9, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' })) sv.setAttribute(k, v);
+    const p = document.createElementNS(SVG, 'path');
+    p.setAttribute('d', 'M12 3l2.5 2 3.2-.3.8 3.1 2.6 1.9-1.3 2.9 1.3 3-2.6 1.8-.8 3.1-3.2-.3L12 21l-2.5-2-3.2.3-.8-3.1-2.6-1.8 1.3-3-1.3-2.9 2.6-1.9.8-3.1 3.2.3z M9 12l2 2 4-4');
+    sv.append(p); return sv;
+  }
+  function montarFaixaTopo() {
+    const c = S.conf;
+    const redes = redesDoOrgao(c);
+    const selos = (Array.isArray(c.selos) ? c.selos : []).filter((x) => x && x.titulo).slice(0, 6);
+    const faixa = $('faixa-topo');
+    if (!redes.length && !selos.length) { faixa.hidden = true; return; }
+    faixa.hidden = false;
+    faixa.replaceChildren(el('div', { class: 'limite faixa-topo-int' },
+      redes.length ? el('ul', { class: 'redes-topo', 'aria-label': 'Redes sociais oficiais' }, redes.map(([nome, url]) => el('li', null,
+        el('a', { href: url, target: '_blank', rel: 'noopener', title: nome }, logoRede(nome), el('span', { class: 'sr' }, nome + ' (abre em nova aba)'))))) : el('span'),
+      // Só os símbolos dos selos; nome e detalhe aparecem num balão ao passar o mouse ou focar.
+      selos.length ? el('ul', { class: 'selos', 'aria-label': 'Selos e certificações' }, selos.map((x) => {
+        const conteudo = [
+          el('span', { class: 'selo-marca' + (x.imagem_url ? ' com-imagem' : '') }, x.imagem_url ? el('img', { src: x.imagem_url, alt: '' }) : seloIcone()),
+          el('span', { class: 'selo-balao', role: 'tooltip' }, el('strong', null, x.titulo), x.descricao ? el('span', null, x.descricao) : null)];
+        return el('li', null, x.url ? el('a', { class: 'selo', href: x.url, target: '_blank', rel: 'noopener' }, ...conteudo, el('span', { class: 'sr' }, ' (abre em nova aba)'))
+          : el('span', { class: 'selo', tabindex: '0' }, ...conteudo));
+      })) : null));
   }
 
   // ---------- rodapé ----------
@@ -327,13 +369,26 @@
   };
   S.titulo = (t) => { document.title = (t ? t + ' · ' : '') + (S.conf.nome_exibicao || S.orgao.nome); };
 
+  // A página foi configurada como link externo (Aparência › Destinos): explica e leva para lá.
+  function paginaExterna(url, chave) {
+    const d = window.DESTINOS_PNTP.find((x) => x[0] === chave);
+    return async (main) => {
+      S.titulo(d[1]); S.trilha([d[1]]);
+      main.replaceChildren(el('div', { class: 'limite pagina' }, el('h1', null, d[1]),
+        el('p', null, 'Esta informação é publicada no sistema indicado pelo órgão. Clique para acessar:'),
+        el('p', null, el('a', { class: 'botao', href: url, target: '_blank', rel: 'noopener' }, 'Acessar ' + d[1], el('span', { class: 'sr' }, ' (abre em nova aba)'))),
+        el('p', { class: 'meta' }, url)));
+    };
+  }
+
   let primeiraRota = true;
   async function rotear() {
     fecharSubmenus(); abrirMenuMobile(false);
     const { partes, params } = lerRota();
     const nome = partes[0] || '';
-    const pagina = S.rotas[nome] || S.rotas['*'];
     const main = $('conteudo');
+    const ext = externoDaRota(partes.join('/'));
+    const pagina = ext ? paginaExterna(ext, window.chaveDaRotaPNTP(partes.join('/'))) : S.rotas[nome] || S.rotas['*'];
     main.replaceChildren(el('p', { class: 'limite carregando' }, 'Carregando…'));
     S.trilha();
     try { await pagina(main, partes.slice(1), params); }
@@ -424,6 +479,9 @@
     $('marca-nome').textContent = S.conf.nome_exibicao || o.nome;
     $('marca-esfera').textContent = TIPO_ORGAO[o.tipo] || '';
     if (S.conf.brasao_url) { const b = $('marca-brasao'); b.src = S.conf.brasao_url; b.alt = 'Brasão'; b.hidden = false; }
+    // Ícone da aba do navegador: o escolhido em Aparência; sem ele, o brasão.
+    const icone = S.conf.favicon_url || S.conf.brasao_url;
+    if (icone) document.querySelector('link[rel="icon"]').href = icone;
     const desc = document.querySelector('meta[name="description"]');
     desc.setAttribute('content', 'Site oficial: ' + (S.conf.nome_exibicao || o.nome) + '. Notícias, serviços, publicações oficiais e transparência.');
 
@@ -434,6 +492,7 @@
     S.menu = menu.data || [];
     S.lgpd = lgpd.data || null;
     montarMenu();
+    montarFaixaTopo();
     montarRodape();
     montarAvisos();
     addEventListener('hashchange', rotear);

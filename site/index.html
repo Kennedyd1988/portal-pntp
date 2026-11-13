@@ -29,6 +29,7 @@
         document.head.appendChild(css);
         return carregar('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2')
           .then(function () { return carregar('../painel/config.js' + q); })
+          .then(function () { return carregar('destinos.js' + q); })
           .then(function () { return carregar('site.js' + q); })
           .then(function () { return carregar('paginas.js' + q); })
           .then(function () { window.SITE.iniciar(); });
@@ -81,10 +82,13 @@
       <a class="btn-transparencia" href="#/transparencia"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>Portal da Transparência</a>
       <button type="button" class="btn-menu-mobile" id="btn-menu-mobile" aria-expanded="false" aria-controls="menu-principal">Menu</button>
     </div>
-    <nav class="menu" id="menu-principal" aria-label="Menu principal" tabindex="-1">
-      <ul class="limite menu-lista" id="menu-lista"></ul>
-    </nav>
   </header>
+  <!-- Redes sociais (esquerda) e selos (direita), logo acima do menu -->
+  <div class="faixa-topo" id="faixa-topo" hidden></div>
+  <!-- Fora do cabeçalho para ficar preso no alto da tela ao rolar a página -->
+  <nav class="menu" id="menu-principal" aria-label="Menu principal" tabindex="-1">
+    <ul class="limite menu-lista" id="menu-lista"></ul>
+  </nav>
 
   <div id="faixa-avisos"></div>
   <nav class="trilha limite" id="trilha" aria-label="Você está em"></nav>

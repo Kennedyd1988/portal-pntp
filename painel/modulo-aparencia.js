@@ -137,82 +137,124 @@
     }
     desenharSelos();
 
+    // ----- Ícone da aba do navegador (favicon) e faixa oficial do Radar -----
+    // Imagens opcionais, enviadas só ao salvar. Sem ícone, o site usa o brasão.
+    function blocoImagem(id, atual, largura, rotuloBotao, ajuda) {
+      const st = { url: atual || null, novo: null };
+      const prev = el('div', { class: 'brasao-preview' + (id === 'ap-favicon' ? ' preview-favicon' : ' preview-radar') });
+      const mostrar = () => prev.replaceChildren(st.novo ? el('img', { src: URL.createObjectURL(st.novo.blob), alt: '' }) : st.url ? el('img', { src: st.url, alt: '' }) : el('span', null, 'Nenhuma'));
+      mostrar();
+      const arq = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', class: 'sr', id });
+      arq.addEventListener('change', async () => {
+        const fl = arq.files[0]; if (!fl) return;
+        if (fl.size > 10 * 1024 * 1024) { toast('A imagem passa de 10 MB.', true); return; }
+        try { st.novo = await P.reduzirImagem(fl, largura); mostrar(); } catch (e) { toast(e.message, true); }
+      });
+      const tirar = el('button', { type: 'button', class: 'link', hidden: !podeEditar, onclick: () => { st.url = null; st.novo = null; mostrar(); } }, 'Remover');
+      st.bloco = el('div', { class: 'brasao-linha' }, prev, el('div', { class: 'brasao-acoes' }, arq,
+        el('label', { for: id, class: 'btn btn-claro' + (podeEditar ? '' : ' desativado') }, rotuloBotao), tirar, el('span', { class: 'ajuda' }, ajuda)));
+      return st;
+    }
+    const favicon = blocoImagem('ap-favicon', cfg.favicon_url, 128, 'Escolher ícone', 'Imagem quadrada (PNG, JPG ou WebP), de preferência só o símbolo. Sem ícone, o site usa o brasão.');
+    const radarImg = blocoImagem('ap-radar', cfg.radar_imagem_url, 1600, 'Enviar faixa oficial', 'Opcional: a imagem oficial do Radar da Transparência Pública (Atricon). Sem ela, o site mostra a faixa padrão com o texto do Radar. O link é sempre o painel do Radar (PNTP 2.9).');
+
+    // ----- Destinos das páginas (fonte única em site/destinos.js) -----
+    // Para cada página: "Página do portal" (cadastro/importação) ou "Link externo".
+    const D = window.DESTINOS_PNTP || [];
+    const destinosCfg = cfg.destinos || {};
+    const destinos = D.map(([chave, rotulo, rota, cod, grupo]) => {
+      const usaLink = !!destinosCfg[chave] || !rota;
+      const modo = el('select', { 'aria-label': 'Destino de ' + rotulo },
+        rota ? el('option', { value: 'portal', selected: !usaLink }, 'Página do portal') : null,
+        el('option', { value: 'link', selected: usaLink }, 'Link externo'));
+      const url = texto(destinosCfg[chave] || '', { type: 'url', placeholder: rota ? 'https://…' : 'Em branco: usa o Portal da Transparência externo', id: 'ap-dest-' + chave });
+      const ajustar = () => { url.hidden = modo.value !== 'link'; };
+      modo.addEventListener('change', ajustar); ajustar();
+      return { chave, rotulo, rota, cod, grupo, modo, url };
+    });
+    const tabelaDestinos = el('div', null, [...new Set(D.map((d) => d[4]))].map((g) => el('div', null, el('h3', { class: 'destinos-grupo' }, g),
+      el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela tabela-destinos' },
+        el('thead', null, el('tr', null, ['Página', 'PNTP', 'Destino', 'Endereço do link externo'].map((t) => el('th', { scope: 'col' }, t)))),
+        el('tbody', null, destinos.filter((d) => d.grupo === g).map((d) => el('tr', null,
+          el('td', null, el('strong', null, d.rotulo), el('span', { class: 'sub-linha' }, d.rota ? 'Página do portal: ' + d.rota : 'Ainda não existe no portal: só link externo')),
+          el('td', { class: 'num' }, d.cod || '—'), el('td', null, d.modo),
+          el('td', null, el('div', { class: 'campo', style: 'margin:0' }, d.url, el('span', { class: 'erro-campo', id: 'ap-dest-' + d.chave + '-erro' })))))))))));
+
     const btnSalvar = el('button', { type: 'submit', class: 'btn btn-primario' }, 'Salvar alterações');
     const form = el('form', { class: 'form-aparencia', novalidate: true },
-      el('div', { class: 'grade grade-2' },
-        el('section', { class: 'cartao' },
-          el('h2', null, 'Identidade'),
-          el('div', { class: 'brasao-linha' },
-            preview,
-            el('div', { class: 'brasao-acoes' },
-              inputArquivo,
-              el('label', { for: 'brasao-arquivo', class: 'btn btn-claro' + (podeEditar ? '' : ' desativado') }, 'Escolher brasão ou logotipo'),
-              el('button', { type: 'button', class: 'link', hidden: !brasaoUrl || !podeEditar, onclick: (ev) => {
-                brasaoNovo = null; brasaoUrl = null; mostrarBrasao(null); ev.target.hidden = true;
-              } }, 'Remover brasão'),
-              el('span', { class: 'ajuda' }, 'PNG, JPG ou WebP. A imagem é reduzida automaticamente.')
-            )
-          ),
-          campo('ap-nome', 'Nome exibido no site', f.nome_exibicao, 'Nome oficial cadastrado: ' + org.nome),
-          el('div', { class: 'campo' },
-            el('label', { for: 'ap-cor' }, 'Cor principal'),
-            el('div', { class: 'cor-linha' }, cor, corTexto),
-            corAviso
-          )
-        ),
-        el('section', { class: 'cartao' },
-          el('h2', null, 'Contato e atendimento'),
-          el('p', { class: 'ajuda' }, 'Aparece no rodapé de todas as páginas (PNTP 2.4 e 2.5).'),
-          campo('ap-endereco', 'Endereço da sede', f.endereco),
-          el('div', { class: 'grade-campos' },
-            campo('ap-cep', 'CEP', f.cep),
-            campo('ap-telefone', 'Telefone', f.telefone)
-          ),
-          campo('ap-email', 'E-mail institucional', f.email),
-          campo('ap-horario', 'Horário de atendimento', f.horario, 'Ex.: Segunda a sexta, das 8h às 12h e das 13h às 17h')
-        ),
-        el('section', { class: 'cartao' },
-          el('h2', null, 'Redes sociais e WhatsApp'),
-          el('p', { class: 'ajuda' }, 'Links exibidos no site (PNTP 2.8). Deixe em branco o que o órgão não usa.'),
-          campo('ap-instagram', 'Instagram', f.instagram),
-          campo('ap-facebook', 'Facebook', f.facebook),
-          campo('ap-youtube', 'YouTube', f.youtube),
-          campo('ap-whatsapp', 'WhatsApp de atendimento', f.whatsapp)
-        ),
-        el('section', { class: 'cartao' },
-          el('h2', null, 'Diário Oficial'),
-          el('p', { class: 'ajuda' }, 'Onde o órgão publica os atos oficiais. Se for um sistema externo (ex.: FEMURN), o site leva o cidadão para lá.'),
-          campo('ap-diario-nome', 'Nome do Diário Oficial', f.diario_nome),
-          campo('ap-diario-url', 'Endereço (link)', f.diario_url)
-        ),
-        el('section', { class: 'cartao' },
-          el('h2', null, 'Sistemas externos'),
-          el('p', { class: 'ajuda' }, 'Enquanto estes módulos não estiverem no portal SOFT+, o site leva o cidadão para o sistema atual. Em branco: o site mostra "em implantação" com os contatos.'),
-          campo('ap-transparencia', 'Portal da Transparência', f.transparencia_url),
-          campo('ap-licitacoes', 'Licitações e contratos', f.licitacoes_url),
-          campo('ap-esic', 'e-SIC (acesso à informação)', f.esic_url),
-          campo('ap-ouvidoria', 'Ouvidoria', f.ouvidoria_url)
-        ),
-        el('section', { class: 'cartao' },
-          el('h2', null, 'Norma da estrutura organizacional'),
-          el('p', { class: 'ajuda' }, 'Lei que institui ou altera a estrutura administrativa do órgão (PNTP 2.1). Aparece no topo da página "Estrutura organizacional".'),
-          campo('ap-estrutura-norma', 'Identificação', f.estrutura_norma),
-          campo('ap-estrutura-url', 'Link', f.estrutura_norma_url)
-        ),
-        el('section', { class: 'cartao cartao-largo' },
-          el('h2', null, 'Selos e certificações'),
-          el('p', { class: 'ajuda' }, 'Selos de transparência e outras certificações do órgão (ex.: Selo PNTP da Atricon). No alto da página inicial aparece só o símbolo de cada selo, à direita; o nome e o detalhe surgem ao passar o mouse e o link abre ao clicar. Use a imagem do selo em formato quadrado (o site mostra em círculo). Até ' + MAX_SELOS + '.'),
-          listaSelos, btnAddSelo),
-        el('section', { class: 'cartao' },
-          el('h2', null, 'Endereço do site'),
-          campo('ap-dominio', 'Domínio', f.dominio, 'Usado quando o site público entrar no ar (Lote 5).')
-        )
-      ),
+      P.abas([
+        ['identidade', 'Identidade', el('div', { class: 'grade grade-2' },
+          el('section', { class: 'cartao' },
+            el('h2', null, 'Brasão, nome e cor'),
+            el('div', { class: 'brasao-linha' },
+              preview,
+              el('div', { class: 'brasao-acoes' },
+                inputArquivo,
+                el('label', { for: 'brasao-arquivo', class: 'btn btn-claro' + (podeEditar ? '' : ' desativado') }, 'Escolher brasão ou logotipo'),
+                el('button', { type: 'button', class: 'link', hidden: !brasaoUrl || !podeEditar, onclick: (ev) => {
+                  brasaoNovo = null; brasaoUrl = null; mostrarBrasao(null); ev.target.hidden = true;
+                } }, 'Remover brasão'),
+                el('span', { class: 'ajuda' }, 'PNG, JPG ou WebP. A imagem é reduzida automaticamente.'))),
+            campo('ap-nome', 'Nome exibido no site', f.nome_exibicao, 'Nome oficial cadastrado: ' + org.nome),
+            el('div', { class: 'campo' }, el('label', { for: 'ap-cor' }, 'Cor principal'), el('div', { class: 'cor-linha' }, cor, corTexto), corAviso)),
+          el('section', { class: 'cartao' },
+            el('h2', null, 'Ícone da aba do navegador'),
+            el('p', { class: 'ajuda' }, 'Aparece na aba do navegador e nos favoritos, ao lado do nome do site.'),
+            favicon.bloco),
+          el('section', { class: 'cartao' },
+            el('h2', null, 'Endereço do site'),
+            campo('ap-dominio', 'Domínio', f.dominio, 'Endereço próprio do órgão (quando apontar para o portal).')))],
+        ['contatos', 'Contatos e redes', el('div', { class: 'grade grade-2' },
+          el('section', { class: 'cartao' },
+            el('h2', null, 'Contato e atendimento'),
+            el('p', { class: 'ajuda' }, 'Aparece no rodapé de todas as páginas (PNTP 2.4 e 2.5).'),
+            campo('ap-endereco', 'Endereço da sede', f.endereco),
+            el('div', { class: 'grade-campos' }, campo('ap-cep', 'CEP', f.cep), campo('ap-telefone', 'Telefone', f.telefone)),
+            campo('ap-email', 'E-mail institucional', f.email),
+            campo('ap-horario', 'Horário de atendimento', f.horario, 'Ex.: Segunda a sexta, das 8h às 12h e das 13h às 17h')),
+          el('section', { class: 'cartao' },
+            el('h2', null, 'Redes sociais e WhatsApp'),
+            el('p', { class: 'ajuda' }, 'Botões no alto do site, à esquerda, acima do menu, e no rodapé (PNTP 2.8). Deixe em branco o que o órgão não usa.'),
+            campo('ap-instagram', 'Instagram', f.instagram),
+            campo('ap-facebook', 'Facebook', f.facebook),
+            campo('ap-youtube', 'YouTube', f.youtube),
+            campo('ap-whatsapp', 'WhatsApp de atendimento', f.whatsapp)))],
+        ['destinos', 'Destinos das páginas', el('section', { class: 'cartao' },
+          el('h2', null, 'Para onde cada página leva'),
+          el('p', { class: 'ajuda' }, 'Escolha, para cada página, se ela fica no próprio portal (cadastro ou importação) ou num sistema externo. Menu, capa da Transparência, página inicial, mapa do site e busca seguem esta tabela: nenhum botão leva a um lugar diferente do outro.'),
+          campo('ap-transparencia', 'Portal da Transparência externo (geral)', f.transparencia_url, 'Usado pelas páginas que ainda não existem no portal e estão sem link próprio (receitas, despesas, folha…).'),
+          tabelaDestinos)],
+        ['publicacoes', 'Diário Oficial e sistemas', el('div', { class: 'grade grade-2' },
+          el('section', { class: 'cartao' },
+            el('h2', null, 'Diário Oficial'),
+            el('p', { class: 'ajuda' }, 'Onde o órgão publica os atos oficiais. Se for um sistema externo (ex.: FEMURN), o site leva o cidadão para lá.'),
+            campo('ap-diario-nome', 'Nome do Diário Oficial', f.diario_nome),
+            campo('ap-diario-url', 'Endereço (link)', f.diario_url)),
+          el('section', { class: 'cartao' },
+            el('h2', null, 'Sistemas de atendimento'),
+            el('p', { class: 'ajuda' }, 'Endereços usados dentro das páginas e-SIC, Ouvidoria e Licitações do portal (o botão "fazer pedido", "registrar manifestação", "sistema de licitações").'),
+            campo('ap-esic', 'e-SIC (acesso à informação)', f.esic_url),
+            campo('ap-ouvidoria', 'Ouvidoria', f.ouvidoria_url),
+            campo('ap-licitacoes', 'Sistema de licitações (complementar)', f.licitacoes_url)),
+          el('section', { class: 'cartao' },
+            el('h2', null, 'Norma da estrutura organizacional'),
+            el('p', { class: 'ajuda' }, 'Lei que institui ou altera a estrutura administrativa do órgão (PNTP 2.1). Aparece no topo da página "Estrutura organizacional".'),
+            campo('ap-estrutura-norma', 'Identificação', f.estrutura_norma),
+            campo('ap-estrutura-url', 'Link', f.estrutura_norma_url)))],
+        ['selos', 'Selos e Radar', el('div', null,
+          el('section', { class: 'cartao' },
+            el('h2', null, 'Selos e certificações'),
+            el('p', { class: 'ajuda' }, 'Aparecem no alto do site, à direita, logo acima do menu: só o símbolo de cada selo; o nome e o detalhe surgem ao passar o mouse.'),
+            listaSelos, btnAddSelo),
+          el('section', { class: 'cartao', style: 'margin-top:16px' },
+            el('h2', null, 'Faixa do Radar da Transparência Pública'),
+            radarImg.bloco))]
+      ]),
       podeEditar ? el('div', { class: 'barra-salvar' }, btnSalvar) : el('p', { class: 'msg msg-info' }, 'Seu perfil pode ver, mas não alterar a aparência.')
     );
     corTexto.id = 'ap-cor';
 
-    if (!podeEditar) for (const i of form.querySelectorAll('input')) i.disabled = true;
+    if (!podeEditar) for (const i of form.querySelectorAll('input, select')) i.disabled = true;
 
     const urlValida = (v) => !v || /^https?:\/\/\S+\.\S+/.test(v);
 
@@ -234,6 +276,11 @@
         if (!erroCampo('ap-selo-t-' + k, selos[k].titulo.value.trim() ? '' : 'Informe o nome do selo (ou remova a linha).')) return;
         if (!erroCampo('ap-selo-u-' + k, urlValida(selos[k].url.value.trim()) ? '' : 'Informe o endereço completo, começando com https://')) return;
       }
+      for (const d of destinos) {
+        const u = d.url.value.trim();
+        if (d.modo.value === 'link' && d.rota && !erroCampo('ap-dest-' + d.chave, u ? '' : 'Informe o link externo ou escolha "Página do portal".')) return;
+        if (!erroCampo('ap-dest-' + d.chave, urlValida(u) ? '' : 'Informe o endereço completo, começando com https://')) return;
+      }
       const dominio = v('dominio').toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
       if (!erroCampo('ap-dominio', !dominio || /^[a-z0-9.-]+\.[a-z]{2,}$/.test(dominio) ? '' : 'Domínio inválido. Ex.: riachodacruz.rn.gov.br')) return;
 
@@ -242,6 +289,10 @@
         const antigo = cfg.brasao_url || null;
         if (brasaoNovo) brasaoUrl = await P.enviarArquivo('aparencia', brasaoNovo.blob, brasaoNovo.ext);
         for (const sl of selos) if (sl.imagem_nova) { sl.imagem_url = await P.enviarArquivo('aparencia', sl.imagem_nova.blob, sl.imagem_nova.ext); sl.imagem_nova = null; }
+        const imagemNova = async (st) => { if (st.novo) { st.url = await P.enviarArquivo('aparencia', st.novo.blob, st.novo.ext); st.novo = null; } return st.url; };
+        const faviconUrl = await imagemNova(favicon), radarUrl = await imagemNova(radarImg);
+        const destinosGravar = {};
+        for (const d of destinos) if (d.modo.value === 'link' && d.url.value.trim()) destinosGravar[d.chave] = d.url.value.trim();
         const selosAntigos = (Array.isArray(cfg.selos) ? cfg.selos : []).map((x) => x.imagem_url).filter(Boolean);
         const selosGravar = selos.map((sl) => ({ titulo: sl.titulo.value.trim(), descricao: sl.descricao.value.trim(), url: sl.url.value.trim(), imagem_url: sl.imagem_url || null }));
         const novaCfg = Object.assign({}, cfg, {
@@ -252,7 +303,7 @@
           diario_oficial_nome: v('diario_nome'), diario_oficial_url: v('diario_url'),
           transparencia_url: v('transparencia_url'), licitacoes_url: v('licitacoes_url'), esic_url: v('esic_url'),
           ouvidoria_url: v('ouvidoria_url'), estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url'),
-          selos: selosGravar
+          selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, destinos: destinosGravar
         });
         const { data, error: e2 } = await sb.from('orgaos')
           .update({ configuracoes: novaCfg, dominio: dominio || null })
@@ -260,6 +311,7 @@
         if (e2) throw e2;
         if (!data || !data.length) throw Object.assign(new Error('Seu perfil não tem permissão para alterar a aparência deste órgão.'), { amigavel: true });
         if (antigo && antigo !== brasaoUrl) P.apagarArquivo(antigo);
+        for (const k of ['favicon_url', 'radar_imagem_url']) if (cfg[k] && cfg[k] !== novaCfg[k]) P.apagarArquivo(cfg[k]);
         // Imagens de selos trocadas ou removidas: apaga do armazenamento.
         for (const u of selosAntigos) if (!selosGravar.some((x) => x.imagem_url === u)) P.apagarArquivo(u);
         Object.assign(cfg, novaCfg);

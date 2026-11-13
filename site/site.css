@@ -508,3 +508,57 @@ h1 + p + .barra-obra { max-width: 360px; height: 10px; border-radius: 5px; margi
 .aviso-obra { border-left: 4px solid #b42318; margin: 16px 0; }
 .aviso-obra h2 { color: #b42318; }
 .aviso-obra p { margin: 4px 0; }
+
+/* v0.12.0 — faixa acima do menu (redes à esquerda, selos à direita) e menu preso no alto */
+.faixa-topo { background: #fff; border-bottom: 1px solid var(--linha); position: relative; z-index: 31; }
+.faixa-topo-int { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 6px; padding-bottom: 6px; min-height: 44px; }
+.redes-topo { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; }
+.redes-topo a { display: flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--linha); background: #fff; }
+.redes-topo a:hover, .redes-topo a:focus-visible { background: var(--cor-clara); }
+.faixa-topo .selos { padding: 0; gap: 8px; }
+.faixa-topo .selo-marca { width: 40px; height: 40px; box-shadow: none; }
+.faixa-topo .selo-marca svg { width: 22px; height: 22px; }
+.menu { position: sticky; top: 0; z-index: 30; box-shadow: 0 2px 8px rgba(15, 27, 43, .12); }
+@media (max-width: 600px) { .faixa-topo .selo-marca { width: 34px; height: 34px; } .redes-topo a { width: 32px; height: 32px; } }
+html.contraste .faixa-topo, html.contraste .redes-topo a { background: #000 !important; border-color: #fff !important; }
+
+/* Faixa do Radar da Transparência Pública (PNTP 2.9) */
+.faixa-radar { display: flex; align-items: center; gap: 20px; padding: 22px 28px; border-radius: 14px; text-decoration: none; color: #fff;
+  background: linear-gradient(110deg, #0b2a4a 0%, #12467a 60%, #1b5e9a 100%); }
+.faixa-radar h2 { color: #fff; margin: 0 0 4px; font-size: 1.35rem; }
+.faixa-radar-textos { flex: 1; color: #d9e6f5; }
+.faixa-radar-botao { background: #f2b33d; color: #0b2a4a; font-weight: 800; padding: 10px 18px; border-radius: 8px; white-space: nowrap; }
+.faixa-radar:hover .faixa-radar-botao, .faixa-radar:focus-visible .faixa-radar-botao { background: #fff; }
+.faixa-radar-img { display: block; border-radius: 14px; overflow: hidden; }
+.faixa-radar-img img { display: block; width: 100%; height: auto; }
+@media (max-width: 700px) { .faixa-radar { flex-wrap: wrap; padding: 18px; } }
+html.contraste .faixa-radar { background: #000 !important; border: 2px solid #ffe600; }
+html.contraste .faixa-radar h2, html.contraste .faixa-radar-textos { color: #ffe600 !important; }
+
+/* Gestão: carrossel horizontal de gestores */
+.gest-carrossel { position: relative; padding-bottom: 48px; }
+.gest-janela { overflow: hidden; }
+.gest-trilho { --por-vez: 4; display: flex; transition: transform .5s ease; }
+.gest-item { flex: 0 0 calc(100% / var(--por-vez)); padding: 0 8px; box-sizing: border-box; }
+.gest-item > * { height: 100%; }
+.gest-controles { bottom: 0; }
+.gest-controles button { background: #fff; border: 1px solid var(--linha); }
+@media (prefers-reduced-motion: reduce) { .gest-trilho { transition: none; } }
+
+/* Estrutura organizacional: cartões por unidade e organograma */
+.est-grade { align-items: stretch; }
+.est-cartao { display: flex; flex-direction: column; gap: 10px; }
+.est-topo { display: flex; gap: 14px; align-items: flex-start; }
+.est-topo h2 { font-size: 1.1rem; margin: 0 0 4px; }
+.est-topo h2 a { text-decoration: none; color: inherit; }
+.est-topo h2 a:hover { text-decoration: underline; color: var(--cor); }
+.est-foto { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex: 0 0 64px; }
+.est-sem-foto { display: flex; align-items: center; justify-content: center; background: var(--cor-clara); color: var(--cor); font-weight: 800; }
+.est-resp { margin: 6px 0 0; display: flex; flex-direction: column; }
+.est-contatos { list-style: none; margin: 0; padding: 10px 0 0; border-top: 1px solid var(--linha); display: grid; gap: 4px; font-size: .95rem; }
+.est-comp { margin: 0; color: #3b4a5c; font-size: .95rem; }
+.est-sub { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip-est { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--cor-clara); color: var(--cor); text-decoration: none; font-size: .88rem; font-weight: 600; }
+.est-mais { margin-top: auto; font-weight: 700; }
+.est-norma { margin-bottom: 18px; }
+.est-arvore > li > ul { margin-top: 8px; }

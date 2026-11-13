@@ -1,8 +1,9 @@
 {
-  "versao": "0.11.0",
+  "versao": "0.12.0",
   "data": "2026-11-13",
   "notas": [
-    "Novos módulos Convênios e transferências (PNTP 5.1 a 5.3) e Emendas parlamentares (17.1 a 17.3).",
-    "Site: páginas de convênios (recebidos, realizados, acordos) e de emendas (federais, estaduais/municipais e execução)."
+    "Destinos das páginas: cada página do portal ou link externo, igual em todo o site.",
+    "Menu preso no alto, redes e selos acima do menu, faixa do Radar, gestores em carrossel, nova Estrutura organizacional e Serviços on-line.",
+    "Aparência dividida em abas, com ícone da aba do navegador."
   ]
 }

@@ -13,7 +13,7 @@
   const ROTAS = [
     ['/', 'Página inicial'], ['/noticias', 'Notícias'], ['/publicacoes', 'Publicações oficiais (leis, decretos…)'],
     ['/diario-oficial', 'Diário Oficial'], ['/transparencia', 'Transparência'], ['/planejamento', 'Planejamento e prestação de contas'], ['/licitacoes', 'Licitações'], ['/licitacoes/pca', 'Plano de contratações anual (PCA)'], ['/licitacoes/sancionados', 'Licitantes e contratados sancionados'], ['/contratos', 'Contratos'], ['/contratos/fiscais', 'Fiscais de contratos'], ['/obras', 'Obras'], ['/obras/paralisadas', 'Obras paralisadas'], ['/convenios', 'Convênios e transferências'], ['/emendas', 'Emendas parlamentares'],
-    ['/estrutura', 'Estrutura organizacional'], ['/gestores', 'Gestores'], ['/servicos', 'Carta de Serviços'],
+    ['/estrutura', 'Estrutura organizacional'], ['/gestores', 'Gestores'], ['/servicos', 'Carta de Serviços'], ['/servicos-online', 'Serviços on-line'],
     ['/faq', 'Perguntas frequentes'], ['/ouvidoria', 'Ouvidoria'], ['/esic', 'e-SIC (acesso à informação)'],
     ['/lgpd', 'Proteção de dados (LGPD)'], ['/acessibilidade', 'Acessibilidade'], ['/contato', 'Contato'], ['/mapa-do-site', 'Mapa do site']
   ];
@@ -23,10 +23,11 @@
   const MENU_PADRAO = [
     ['Início', '/'],
     ['Institucional', '/estrutura', [['Estrutura organizacional', '/estrutura'], ['Gestores', '/gestores'], ['Perguntas frequentes', '/faq']]],
-    ['Transparência', '/transparencia', [['Transparência', '/transparencia'], ['Planejamento e contas', '/planejamento'], ['Licitações', '/licitacoes'], ['Contratos', '/contratos']]],
+    ['Transparência', '/transparencia', [['Portal da Transparência', '/transparencia'], ['Planejamento e contas', '/planejamento'], ['Licitações', '/licitacoes'],
+      ['Contratos', '/contratos'], ['Obras', '/obras'], ['Convênios e transferências', '/convenios'], ['Emendas parlamentares', '/emendas']]],
     ['Publicações', '/publicacoes', [['Leis, decretos e portarias', '/publicacoes'], ['Diário Oficial', '/diario-oficial']]],
     ['Notícias', '/noticias'],
-    ['Serviços', '/servicos'],
+    ['Serviços', '/servicos', [['Carta de Serviços ao Usuário', '/servicos'], ['Serviços on-line', '/servicos-online']]],
     ['Atendimento', '/contato', [['Ouvidoria', '/ouvidoria'], ['e-SIC', '/esic'], ['Contato', '/contato']]]
   ];
 
@@ -142,10 +143,18 @@
     toast('Item excluído.'); await recarregar();
   }
 
-  async function criarPadrao(btn) {
+  async function criarPadrao(btn, substituir) {
+    if (substituir && !await P.confirmar('Recriar menu padrão', 'Apagar todos os itens atuais do menu e criar o menu padrão de novo? Ajustes feitos à mão serão perdidos.', 'Recriar', true)) return;
     ocupado(btn, 'Criando…');
     try {
       const org = P.estado.orgao.id;
+      if (substituir) {
+        // Subitens primeiro: item com subitens não pode ser excluído (regra do banco).
+        const r0 = await sb.from('menu_itens').delete().eq('orgao_id', org).not('pai_id', 'is', null);
+        if (r0.error) throw r0.error;
+        const r1 = await sb.from('menu_itens').delete().eq('orgao_id', org);
+        if (r1.error) throw r1.error;
+      }
       const prin = MENU_PADRAO.map(([rotulo, destino], k) => ({ orgao_id: org, rotulo, tipo: 'interno', destino, ordem: (k + 1) * 10 }));
       const { data, error } = await sb.from('menu_itens').insert(prin).select('id, rotulo');
       if (error) throw error;
@@ -203,7 +212,9 @@
       el('div', { class: 'cabecalho-modulo' },
         el('div', null, el('h1', null, 'Menu do site'),
           el('p', { class: 'sub' }, 'Itens da barra de navegação do site, com até um nível de subitens.')),
-        podeGravar() && itens.length ? el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form() }, '+ Novo item') : null),
+        podeGravar() && itens.length ? el('div', { class: 'botoes-cabecalho' },
+          perm.excluir ? el('button', { type: 'button', class: 'btn btn-claro', onclick: (e) => criarPadrao(e.currentTarget, true) }, 'Recriar menu padrão') : null,
+          el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form() }, '+ Novo item')) : null),
       previa(),
       itens.length
         ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },

@@ -121,7 +121,7 @@
       sb.from('noticias').select('id, titulo, resumo, conteudo, capa_url, capa_legenda, categoria, publicado_em, destaque').eq('orgao_id', org())
         .lte('publicado_em', agora).order('publicado_em', { ascending: false }).limit(7),
       ultimasPublicacoes(),
-      sb.from('gestores').select('*').eq('orgao_id', org()).eq('destaque_capa', true).order('ordem').limit(8),
+      sb.from('gestores').select('*').eq('orgao_id', org()).eq('destaque_capa', true).order('ordem').limit(60),
       sb.from('servicos').select('id, nome, categoria, link_digital').eq('orgao_id', org())
         .in('forma_prestacao', ['digital', 'presencial_digital']).order('nome').limit(6)
     ]);
@@ -133,34 +133,37 @@
     const vis = await visualizacoes(noticias.map((n) => n.id));
 
     const blocos = [];
-    // Selos e certificações: faixa compacta no alto da página inicial (cadastro em Aparência).
-    const selos = (Array.isArray(c.selos) ? c.selos : []).filter((x) => x && x.titulo).slice(0, 6);
-    if (selos.length) blocos.push(faixaSelos(selos));
     if (banners.length) blocos.push(el('div', { class: 'limite banner-limite' }, carrossel(banners)));
 
+    // Acessos rápidos: os que têm chave de destino seguem Aparência › Destinos das páginas.
     const acessos = [
-      ['transparencia', 'Portal da Transparência', 'Receitas, despesas, folha e contas', '#/transparencia'],
-      ['licitacao', 'Licitações e contratos', 'Editais, resultados e contratos', '#/licitacoes'],
-      ['servicos', 'Carta de Serviços', 'Como pedir cada serviço', '#/servicos'],
-      ['publicacoes', 'Leis e atos oficiais', 'Leis, decretos e portarias', '#/publicacoes'],
-      ['diario', 'Diário Oficial', c.diario_oficial_nome || 'Publicações oficiais', '#/diario-oficial'],
-      ['ouvidoria', 'Ouvidoria', 'Elogios, sugestões e reclamações', '#/ouvidoria'],
-      ['esic', 'e-SIC', 'Pedido de acesso à informação', '#/esic'],
-      ['faq', 'Perguntas frequentes', 'Respostas rápidas', '#/faq']
+      ['transparencia', 'Portal da Transparência', 'Receitas, despesas, folha e contas', null, '#/transparencia'],
+      ['licitacao', 'Licitações', 'Editais, dispensas e resultados', 'licitacoes'],
+      ['licitacao', 'Contratos', 'Contratos, aditivos e fiscais', 'contratos'],
+      ['servicos', 'Carta de Serviços', 'Como pedir cada serviço', 'carta_servicos'],
+      ['publicacoes', 'Leis e atos oficiais', 'Leis, decretos e portarias', 'publicacoes'],
+      ['diario', 'Diário Oficial', c.diario_oficial_nome || 'Publicações oficiais', 'diario_oficial'],
+      ['ouvidoria', 'Ouvidoria', 'Elogios, sugestões e reclamações', 'ouvidoria'],
+      ['esic', 'e-SIC', 'Pedido de acesso à informação', 'esic']
     ];
     blocos.push(el('section', { class: 'secao', 'aria-labelledby': 'tit-acessos' }, el('div', { class: 'limite' },
       el('h2', { id: 'tit-acessos' }, 'Serviços e acessos rápidos'),
-      el('div', { class: 'grade g4 acessos' }, acessos.map(([ic, t, d, h]) =>
-        el('a', { class: 'cartao', href: h }, icone(ic), el('span', null, el('strong', null, t), el('span', { class: 'meta' }, d))))))));
+      el('div', { class: 'grade g4 acessos' }, acessos.map(([ic, t, d, chave, h]) => {
+        const conteudo = [icone(ic), el('span', null, el('strong', null, t), el('span', { class: 'meta' }, d))];
+        return chave ? S.linkDestino(chave, conteudo, { class: 'cartao' }) : el('a', { class: 'cartao', href: h }, conteudo);
+      })))));
 
-    blocos.push(el('section', { class: 'secao', style: 'padding-top:0', 'aria-labelledby': 'tit-transp' }, el('div', { class: 'limite' },
-      el('div', { class: 'faixa-transparencia' },
-        el('div', null, el('h2', { id: 'tit-transp' }, 'Transparência pública'),
-          el('p', null, 'Acompanhe como os recursos públicos são aplicados: receitas, despesas, licitações, contratos, servidores e prestação de contas.')),
-        el('div', { class: 'faixa-botoes' },
-          el('a', { class: 'botao botao-transparencia', href: '#/transparencia' }, 'Portal da Transparência'),
-          el('a', { class: 'botao botao-radar', href: RADAR, target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública',
-            el('span', { class: 'sr' }, ' (abre em nova aba)')))))));
+    // Faixa do Radar da Transparência Pública (PNTP 2.9). Com a imagem oficial enviada em
+    // Aparência, a faixa inteira é a imagem; sem ela, faixa nas cores do Radar com o texto.
+    blocos.push(el('section', { class: 'secao', style: 'padding-top:0', 'aria-labelledby': 'tit-radar' }, el('div', { class: 'limite' },
+      c.radar_imagem_url
+        ? el('a', { class: 'faixa-radar-img', href: RADAR, target: '_blank', rel: 'noopener' },
+          el('img', { src: c.radar_imagem_url, alt: 'Radar da Transparência Pública' }), el('h2', { id: 'tit-radar', class: 'sr' }, 'Radar da Transparência Pública (abre em nova aba)'))
+        : el('a', { class: 'faixa-radar', href: RADAR, target: '_blank', rel: 'noopener' },
+          iconeRadar(),
+          el('span', { class: 'faixa-radar-textos' }, el('h2', { id: 'tit-radar' }, 'Radar da Transparência Pública'),
+            el('span', null, 'Consulte a avaliação dos portais de transparência de todo o país (Atricon e Tribunais de Contas).')),
+          el('span', { class: 'faixa-radar-botao' }, 'Acessar o Radar', el('span', { class: 'sr' }, ' (abre em nova aba)'), el('span', { 'aria-hidden': 'true' }, ' ↗'))))));
 
     if (destaque) {
       blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-noticias' }, el('div', { class: 'limite' },
@@ -181,13 +184,8 @@
       await S.carregarUnidades();
       blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-gestao' }, el('div', { class: 'limite' },
         el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-gestao' }, 'Gestão'), el('a', { href: '#/gestores' }, 'Todos os gestores →')),
-        el('div', { class: 'grade g4' }, gestores.map(cartaoGestor)))));
+        carrosselGestores(gestores))));
     }
-
-    const redes = S.redesDoOrgao(c);
-    if (redes.length) blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-redes' }, el('div', { class: 'limite' },
-      el('h2', { id: 'tit-redes' }, 'Redes sociais oficiais'),
-      el('div', { class: 'faixa-botoes' }, redes.map((r) => S.linkRede(r, 'botao botao-claro botao-rede'))))));
 
     main.replaceChildren(...blocos);
   };
@@ -228,25 +226,49 @@
           el('span', { class: 'sr' }, ' de ' + ato(p) + ' (abre em nova aba)'), el('span', { 'aria-hidden': 'true' }, ' →'))
           : el('a', { class: 'pub-ver', href: '#/publicacoes?q=' + encodeURIComponent((p.numero || '') + ' ' + p.ano) }, 'Ver na lista →')));
   }
-  function faixaSelos(selos) {
-    const seloIcone = () => {
-      const sv = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      for (const [k, v] of Object.entries({ viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.9, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' })) sv.setAttribute(k, v);
-      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      p.setAttribute('d', 'M12 3l2.5 2 3.2-.3.8 3.1 2.6 1.9-1.3 2.9 1.3 3-2.6 1.8-.8 3.1-3.2-.3L12 21l-2.5-2-3.2.3-.8-3.1-2.6-1.8 1.3-3-1.3-2.9 2.6-1.9.8-3.1 3.2.3z M9 12l2 2 4-4');
-      sv.append(p); return sv;
+  // Ícone genérico de gráfico (pizza) da faixa do Radar.
+  function iconeRadar() {
+    const NS = 'http://www.w3.org/2000/svg', sv = document.createElementNS(NS, 'svg');
+    for (const [k, v] of Object.entries({ viewBox: '0 0 48 48', width: 56, height: 56, 'aria-hidden': 'true' })) sv.setAttribute(k, v);
+    for (const [d, f] of [['M24 4a20 20 0 1 1-20 20h20z', '#ffffff'], ['M20 0v20H0A20 20 0 0 1 20 0z', '#f2b33d']]) {
+      const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('fill', f);
+      if (f === '#f2b33d') p.setAttribute('transform', 'translate(2 2)'); sv.append(p);
+    }
+    return sv;
+  }
+
+  // Gestão: todos os gestores lado a lado, 4 por vez (menos em telas menores), rolando sozinho
+  // para o lado e recomeçando no fim. Para ao passar o mouse/focar, tem botão de pausa e não
+  // anda quando o sistema pede menos movimento.
+  function carrosselGestores(lista) {
+    const trilho = el('div', { class: 'gest-trilho' }, lista.map((g) => el('div', { class: 'gest-item' }, cartaoGestor(g))));
+    let pos = 0, timer = null, pausado = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const porVez = () => { const w = trilho.parentElement ? trilho.parentElement.clientWidth : 1200; return w < 560 ? 1 : w < 860 ? 2 : w < 1100 ? 3 : 4; };
+    const ir = (n) => {
+      const max = Math.max(0, lista.length - porVez());
+      pos = n > max ? 0 : n < 0 ? max : n;
+      trilho.style.transform = 'translateX(' + (-100 / porVez() * pos) + '%)';
+      [...trilho.children].forEach((it, k) => { const vis = k >= pos && k < pos + porVez(); it.inert = !vis; it.setAttribute('aria-hidden', vis ? 'false' : 'true'); });
     };
-    // Só os símbolos, alinhados à direita. O nome e o detalhe aparecem num balão ao
-    // passar o mouse ou focar pelo teclado; o leitor de tela lê o texto escondido.
-    return el('section', { class: 'faixa-selos', 'aria-labelledby': 'tit-selos' }, el('div', { class: 'limite' },
-      el('h2', { id: 'tit-selos', class: 'sr' }, 'Selos e certificações'),
-      el('ul', { class: 'selos' }, selos.map((x) => {
-        const conteudo = [
-          el('span', { class: 'selo-marca' + (x.imagem_url ? ' com-imagem' : '') }, x.imagem_url ? el('img', { src: x.imagem_url, alt: '', loading: 'lazy' }) : seloIcone()),
-          el('span', { class: 'selo-balao', role: 'tooltip' }, el('strong', null, x.titulo), x.descricao ? el('span', null, x.descricao) : null)];
-        return el('li', null, x.url ? el('a', { class: 'selo', href: x.url, target: '_blank', rel: 'noopener' }, ...conteudo, el('span', { class: 'sr' }, ' (abre em nova aba)'))
-          : el('span', { class: 'selo', tabindex: '0' }, ...conteudo));
-      }))));
+    const btnPausa = el('button', { type: 'button', 'aria-label': 'Pausar a rolagem automática' }, '❚❚');
+    const iniciar = () => { clearInterval(timer); if (!pausado && lista.length > porVez()) timer = setInterval(() => ir(pos + 1), 4500); };
+    btnPausa.addEventListener('click', () => {
+      pausado = !pausado; btnPausa.textContent = pausado ? '▶' : '❚❚';
+      btnPausa.setAttribute('aria-label', pausado ? 'Retomar a rolagem automática' : 'Pausar a rolagem automática'); iniciar();
+    });
+    const janela = el('div', { class: 'gest-janela' }, trilho);
+    const caixa = el('div', { class: 'gest-carrossel', role: 'region', 'aria-roledescription': 'carrossel', 'aria-label': 'Gestores' }, janela,
+      lista.length > 4 ? el('div', { class: 'banner-controles gest-controles' },
+        el('button', { type: 'button', 'aria-label': 'Anterior', onclick: () => ir(pos - 1) }, '‹'), btnPausa,
+        el('button', { type: 'button', 'aria-label': 'Próximo', onclick: () => ir(pos + 1) }, '›')) : null);
+    caixa.addEventListener('mouseenter', () => clearInterval(timer));
+    caixa.addEventListener('mouseleave', iniciar);
+    caixa.addEventListener('focusin', () => clearInterval(timer));
+    caixa.addEventListener('focusout', iniciar);
+    addEventListener('resize', () => ir(pos));
+    requestAnimationFrame(() => { trilho.style.setProperty('--por-vez', porVez()); ir(0); iniciar(); });
+    addEventListener('resize', () => trilho.style.setProperty('--por-vez', porVez()));
+    return caixa;
   }
 
   function secaoPublicacoes(grupos) {
@@ -542,13 +564,49 @@
     const colunas = [['nome', 'Unidade'], ['sigla', 'Sigla'], ['responsavel', 'Responsável', (v, u) => (responsavel(u.id) || {}).nome || ''],
       ['endereco', 'Endereço'], ['telefone', 'Telefone'], ['email', 'E-mail'], ['horario_atendimento', 'Horário'],
       ['competencias', 'Competências'], ['norma_criacao', 'Norma de criação'], ['norma_url', 'Link da norma']];
+    // Cartões por unidade (responsável com foto, contatos, competências e subunidades),
+    // com pesquisa; a árvore completa fica na aba "Organograma".
+    const iniciais = (n) => String(n || '').split(/\s+/).filter((x) => x.length > 2).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
+    const cartao = (u) => {
+      const r = responsavel(u.id), sub = filhos(u.id);
+      return el('article', { class: 'cartao est-cartao', 'data-busca': normalizar([u.nome, u.sigla, u.competencias, r && r.nome, sub.map((x) => x.nome).join(' ')].join(' ')) },
+        el('div', { class: 'est-topo' },
+          r && r.foto_url ? el('img', { class: 'est-foto', src: r.foto_url, alt: 'Foto de ' + r.nome, loading: 'lazy' }) : el('span', { class: 'est-foto est-sem-foto', 'aria-hidden': 'true' }, iniciais(r ? r.nome : u.nome)),
+          el('div', null, el('h2', null, el('a', { href: '#/unidade/' + u.id }, u.nome)), u.sigla ? el('span', { class: 'etiqueta' }, u.sigla) : null,
+            r ? el('p', { class: 'est-resp' }, el('strong', null, r.nome), r.cargo ? el('span', { class: 'meta' }, r.cargo) : null) : el('p', { class: 'meta' }, 'Responsável não informado'))),
+        el('ul', { class: 'est-contatos' },
+          u.telefone ? el('li', null, el('span', { class: 'meta' }, 'Telefone '), el('a', { href: 'tel:' + u.telefone.replace(/\D/g, '') }, u.telefone)) : null,
+          u.email ? el('li', null, el('span', { class: 'meta' }, 'E-mail '), el('a', { href: 'mailto:' + u.email }, u.email)) : null,
+          u.horario_atendimento ? el('li', null, el('span', { class: 'meta' }, 'Horário '), u.horario_atendimento) : null,
+          u.endereco ? el('li', null, el('span', { class: 'meta' }, 'Endereço '), u.endereco) : null),
+        u.competencias ? el('p', { class: 'est-comp' }, u.competencias.length > 220 ? u.competencias.slice(0, 220) + '…' : u.competencias) : null,
+        sub.length ? el('div', { class: 'est-sub' }, el('span', { class: 'meta' }, 'Unidades vinculadas: '), sub.map((x) => el('a', { class: 'chip-est', href: '#/unidade/' + x.id }, x.nome))) : null,
+        el('a', { class: 'est-mais', href: '#/unidade/' + u.id }, 'Competências, gestores e serviços →', el('span', { class: 'sr' }, ' de ' + u.nome)));
+    };
+    const topo = filhos(null);
+    const grade = el('div', { class: 'grade g2 est-grade' }, topo.map(cartao));
+    const total = el('span', { class: 'meta', role: 'status' }, topo.length + ' unidades principais · ' + ativas.length + ' no total');
+    const busca = el('input', { type: 'search', placeholder: 'Ex.: saúde, tributos, nome do secretário' });
+    busca.addEventListener('input', () => {
+      const t = normalizar(busca.value.trim());
+      // Pesquisa em todas as unidades (inclusive as vinculadas), mostrando o cartão de cada uma.
+      const lista = t ? ativas.filter((u) => normalizar([u.nome, u.sigla, u.competencias, (responsavel(u.id) || {}).nome].join(' ')).includes(t)) : topo;
+      grade.replaceChildren(...lista.map(cartao));
+      total.textContent = t ? lista.length + (lista.length === 1 ? ' unidade encontrada' : ' unidades encontradas') : topo.length + ' unidades principais · ' + ativas.length + ' no total';
+    });
+    const painelCartoes = el('div', null,
+      el('form', { class: 'filtros', role: 'search', onsubmit: (e) => e.preventDefault() }, el('label', null, 'Pesquisar unidade, competência ou responsável', busca)),
+      el('div', { class: 'barra-lista' }, total, S.botoesExportar('estrutura-organizacional', colunas, async (de) => de ? [] : ativas)), grade);
+    const painelArvore = el('div', null, el('ul', { class: 'arvore est-arvore' },
+      el('li', null, el('strong', null, c.nome_exibicao || S.orgao.nome), el('ul', null, topo.map(no)))));
+    const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' }, painelCartoes);
+    const faixa = faixaAbas([['cartoes', 'Unidades'], ['arvore', 'Organograma']], 'cartoes', 'Forma de visualização', false,
+      (id) => conteudo.replaceChildren(id === 'arvore' ? painelArvore : painelCartoes));
     pagina(main, el('h1', null, 'Estrutura organizacional'),
       el('p', { class: 'sub' }, 'Unidades administrativas, responsáveis, competências, contatos e horários de atendimento.'),
-      c.estrutura_norma || c.estrutura_norma_url ? el('p', { class: 'cartao' }, el('strong', null, 'Norma que institui a estrutura: '),
+      c.estrutura_norma || c.estrutura_norma_url ? el('p', { class: 'cartao est-norma' }, el('strong', null, 'Norma que institui a estrutura: '),
         c.estrutura_norma_url ? el('a', { href: c.estrutura_norma_url, target: '_blank', rel: 'noopener' }, c.estrutura_norma || 'Abrir') : c.estrutura_norma) : null,
-      el('div', { class: 'barra-lista' }, el('span', { class: 'meta' }, ativas.length + ' unidades'),
-        S.botoesExportar('estrutura-organizacional', colunas, async (de) => de ? [] : ativas)),
-      ativas.length ? el('ul', { class: 'arvore' }, filhos(null).map(no)) : el('p', { class: 'vazio' }, 'Estrutura em cadastramento.'));
+      ativas.length ? [faixa.lista, conteudo] : el('p', { class: 'vazio' }, 'Estrutura em cadastramento.'));
   };
 
   R.unidade = async function (main, partes) {
@@ -861,21 +919,29 @@
       el('p', null, 'Conte para a gente pela ', el('a', { href: '#/ouvidoria' }, 'Ouvidoria'), (S.conf.email ? [' ou pelo e-mail ', el('a', { href: 'mailto:' + S.conf.email }, S.conf.email)] : null), '.')));
   };
 
+  // Seções do site (mapa do site e busca): [título, chave de destino ou null, rota, palavras extras].
+  // As que têm chave seguem Aparência › Destinos das páginas (portal ou link externo).
+  function secoesDoSite() {
+    const fixas = [['Notícias', null, '#/noticias', 'noticia'], ['Estrutura organizacional', null, '#/estrutura', 'secretarias orgaos unidades organograma'],
+      ['Gestores', null, '#/gestores', 'prefeito secretario autoridades'], ['Perguntas frequentes', null, '#/faq', 'duvidas faq'],
+      ['Portal da Transparência', null, '#/transparencia', 'transparencia'],
+      ['Obras paralisadas', null, '#/obras/paralisadas', ''], ['Proteção de dados (LGPD)', null, '#/lgpd', 'privacidade encarregado'],
+      ['Dados abertos', null, '#/dados-abertos', 'api csv json'], ['Acessibilidade', null, '#/acessibilidade', 'libras contraste'], ['Contato', null, '#/contato', 'telefone email endereco']];
+    const cat = window.DESTINOS_PNTP.filter((d) => S.destino(d[0])).map((d) => [d[1], d[0], null, '']);
+    return cat.concat(fixas).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+  }
+
   R['mapa-do-site'] = async function (main) {
     S.titulo('Mapa do site'); S.trilha(['Mapa do site']);
     const principais = S.menu.filter((i) => !i.pai_id).sort((a, b) => a.ordem - b.ordem);
     const filhos = (id) => S.menu.filter((i) => i.pai_id === id).sort((a, b) => a.ordem - b.ordem);
     const { data: pags } = await sb.from('paginas').select('titulo, slug').eq('orgao_id', org()).order('titulo').limit(300);
-    const fixos = [['Notícias', '#/noticias'], ['Publicações oficiais', '#/publicacoes'], ['Diário Oficial', '#/diario-oficial'],
-      ['Estrutura organizacional', '#/estrutura'], ['Gestores', '#/gestores'], ['Carta de Serviços', '#/servicos'], ['Perguntas frequentes', '#/faq'],
-      ['Transparência', '#/transparencia'], ['Planejamento e prestação de contas', '#/planejamento'], ['Licitações', '#/licitacoes'], ['Plano de contratações anual (PCA)', '#/licitacoes/pca'], ['Sancionados', '#/licitacoes/sancionados'], ['Contratos', '#/contratos'], ['Fiscais de contratos', '#/contratos/fiscais'], ['Obras', '#/obras'], ['Obras paralisadas', '#/obras/paralisadas'], ['Convênios e transferências', '#/convenios'], ['Emendas parlamentares', '#/emendas'], ['Ouvidoria', '#/ouvidoria'], ['e-SIC', '#/esic'],
-      ['Proteção de dados (LGPD)', '#/lgpd'], ['Dados abertos', '#/dados-abertos'], ['Acessibilidade', '#/acessibilidade'], ['Contato', '#/contato']];
     pagina(main, el('h1', null, 'Mapa do site'),
       el('div', { class: 'grade g2' },
         principais.length ? el('section', null, el('h2', null, 'Menu principal'), el('ul', { class: 'arvore' }, principais.map((p) => el('li', null,
           el('a', { href: S.destinoMenu(p) }, p.rotulo), filhos(p.id).length ? el('ul', null, filhos(p.id).map((s) => el('li', null, el('a', { href: S.destinoMenu(s) }, s.rotulo)))) : null)))) : null,
         el('section', null, el('h2', null, 'Todas as seções'), el('ul', { class: 'arvore' },
-          fixos.map(([t, h]) => el('li', null, el('a', { href: h }, t))),
+          secoesDoSite().map(([t, chave, h]) => el('li', null, chave ? S.linkDestino(chave, t) : el('a', { href: h }, t))),
           (pags || []).map((p) => el('li', null, el('a', { href: '#/pagina/' + p.slug }, p.titulo)))))));
   };
 
@@ -1089,7 +1155,13 @@
     const exec = tipo === 'prefeitura', cam = tipo === 'camara', cons = tipo === 'consorcio';
     const ext = c.transparencia_url || null;        // sistema externo (receitas, despesas, folha…)
     // L(texto, critério, destino): destino '#/…' é página do portal; null = sistema externo.
-    const L = (t, cod, h) => ({ t, cod, h: h === undefined ? ext : h });
+    // Cada item segue Aparência › Destinos das páginas: rota interna com link externo escolhido vai
+    // para o link; item sem rota (h undefined) usa a chave do destino (ou o sistema externo geral).
+    const L = (t, cod, h, chave) => {
+      if (chave) { const d = S.destino(chave); return { t, cod, h: d ? d.href : null }; }
+      if (h && h.startsWith('#/')) { const k = window.chaveDaRotaPNTP(h); const e = k && (c.destinos || {})[k]; if (e) return { t, cod, h: e }; }
+      return { t, cod, h: h === undefined ? ext : h };
+    };
     const plan = [];
     if (exec || cam) plan.push(L('Plano Plurianual (PPA)', '11.8', '#/planejamento/ppa'), L('Lei de Diretrizes Orçamentárias (LDO)', '11.9', '#/planejamento/ldo'), L('Lei Orçamentária Anual (LOA)', '11.10', '#/planejamento/loa'));
     if (exec || cons) plan.push(L('RREO', '11.6', '#/planejamento/rreo'));
@@ -1097,32 +1169,32 @@
       L('Relatório de gestão ou atividades', '11.2', '#/planejamento/relatorio_gestao'), L('Parecer do Tribunal de Contas', '11.3', '#/planejamento/parecer_tce'));
     if (exec) plan.push(L('Julgamento das contas pela Câmara', '11.4', '#/planejamento/julgamento_camara'));
     plan.push(L('Plano estratégico institucional', '11.7', '#/planejamento/plano_estrategico'));
-    const receita = [L('Receitas previstas e arrecadadas', '3.1')];
-    if (exec) receita.push(L('Receita por natureza (classificação)', '3.2'), L('Inscritos em dívida ativa', '3.3'));
+    const receita = [L('Receitas previstas e arrecadadas', '3.1', undefined, 'receitas')];
+    if (exec) receita.push(L('Receita por natureza (classificação)', '3.2', undefined, 'receitas'), L('Inscritos em dívida ativa', '3.3', undefined, 'receitas'));
     const g = [
       ['Informações institucionais', 'banco', [L('Estrutura organizacional', '2.1', '#/estrutura'), L('Competências e atribuições', '2.2', '#/estrutura'), L('Gestores responsáveis', '2.3', '#/gestores'),
         L('Endereços, telefones e horários', '2.4–2.5', '#/estrutura'), L('Atos normativos', '2.6', '#/publicacoes'), L('Perguntas frequentes', '2.7', '#/faq')]],
       ['Receitas', 'receita', receita],
-      ['Despesas', 'despesa', [L('Empenhos, liquidações e pagamentos', '4.1 / 4.3'), L('Despesas por classificação', '4.2'), L('Ordem cronológica de pagamentos', '9.4')]],
+      ['Despesas', 'despesa', [L('Empenhos, liquidações e pagamentos', '4.1 / 4.3', undefined, 'despesas'), L('Despesas por classificação', '4.2', undefined, 'despesas'), L('Ordem cronológica de pagamentos', '9.4', undefined, 'ordem_cronologica')]],
       ['Convênios e transferências', 'convenio', [L('Transferências recebidas', '5.1', '#/convenios/recebidas'), L('Transferências realizadas', '5.2', '#/convenios/realizadas'), L('Acordos sem repasse de recursos', '5.3', '#/convenios/acordos')]],
-      ['Pessoal', 'pessoas', [L('Servidores e lotação', '6.1'), L('Remuneração nominal', '6.2'), L('Tabela de cargos e salários', '6.3'), L('Estagiários', '6.4'), L('Terceirizados', '6.5'), L('Concursos e seleções', '6.6–6.7')]],
-      ['Diárias', 'viagem', [L('Diárias concedidas', '7.1'), L('Tabela de valores das diárias', '7.2')]],
+      ['Pessoal', 'pessoas', [L('Servidores e lotação', '6.1', undefined, 'pessoal'), L('Remuneração nominal', '6.2', undefined, 'pessoal'), L('Tabela de cargos e salários', '6.3', undefined, 'pessoal'), L('Estagiários', '6.4', undefined, 'pessoal'), L('Terceirizados', '6.5', undefined, 'pessoal'), L('Concursos e seleções', '6.6–6.7', undefined, 'concursos')]],
+      ['Diárias', 'viagem', [L('Diárias concedidas', '7.1', undefined, 'diarias'), L('Tabela de valores das diárias', '7.2', undefined, 'diarias')]],
       ['Licitações', 'licit', [L('Relação das licitações', '8.1', '#/licitacoes/todos'), L('Editais e documentos das fases', '8.2–8.3', '#/licitacoes/licitacoes'), L('Dispensas e inexigibilidades', '8.4', '#/licitacoes/diretas'),
         L('Adesões a atas (SRP)', '8.5', '#/licitacoes/adesoes'), L('Plano de contratações anual', '8.6', '#/licitacoes/pca'), L('Licitantes e contratados sancionados', '8.7', '#/licitacoes/sancionados')]],
-      ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', '#/contratos'), L('Fiscais de contratos', '9.3', '#/contratos/fiscais'), L('Ordem cronológica de pagamentos', '9.4')]],
+      ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', '#/contratos'), L('Fiscais de contratos', '9.3', '#/contratos/fiscais'), L('Ordem cronológica de pagamentos', '9.4', undefined, 'ordem_cronologica')]],
       ['Obras', 'obra', [L('Obras e situação atual', '10.1', '#/obras'), L('Quantitativos e preços', '10.2–10.3', '#/obras'), L('Obras paralisadas', '10.4', '#/obras/paralisadas')]],
       ['Planejamento e prestação de contas', 'grafico', plan],
       ['Serviço de Informação ao Cidadão', 'chat', [L('e-SIC: fazer pedido', '12.1–12.4', '#/esic'), L('Regulamentação da LAI', '12.5', '#/publicacoes?q=acesso a informacao'),
         L('Prazos e autoridades', '12.6', '#/esic'), L('Relatório estatístico anual', '12.7', '#/esic'), L('Informações classificadas', '12.8', '#/esic'), L('Informações desclassificadas', '12.9', '#/esic')]],
       ['Ouvidoria e serviços', 'ouvido', [L('Ouvidoria: atendimento presencial', '14.1', '#/ouvidoria'), L('Ouvidoria: canal eletrônico', '14.2', '#/ouvidoria'),
-        L('Carta de Serviços ao Usuário', '14.3', '#/servicos'), L('Serviços digitais', '15.3', '#/servicos'), L('Pesquisa de satisfação', '15.6', '#/ouvidoria')]],
+        L('Carta de Serviços ao Usuário', '14.3', '#/servicos'), L('Serviços on-line', '15.3', '#/servicos-online'), L('Pesquisa de satisfação', '15.6', '#/ouvidoria')]],
       ['Privacidade e dados abertos', 'lock', [L('Encarregado de dados (LGPD)', '15.1', '#/lgpd'), L('Política de privacidade', '15.2', '#/lgpd'), L('Dados abertos e API', '15.4', '#/dados-abertos'), L('Regulamentação do Governo Digital', '15.5', '#/lgpd')]]
     ];
     if (exec) {
-      g.push(['Renúncias de receita', 'receita', [L('Desonerações e fundamento legal', '16.1'), L('Renúncia prevista e realizada', '16.2'), L('Beneficiários', '16.3'), L('Incentivo à cultura e ao esporte', '16.4')]],
+      g.push(['Renúncias de receita', 'receita', [L('Desonerações e fundamento legal', '16.1', undefined, 'renuncias'), L('Renúncia prevista e realizada', '16.2', undefined, 'renuncias'), L('Beneficiários', '16.3', undefined, 'renuncias'), L('Incentivo à cultura e ao esporte', '16.4', undefined, 'renuncias')]],
         ['Emendas parlamentares', 'legis', [L('Emendas federais', '17.1', '#/emendas/federais'), L('Emendas estaduais e municipais', '17.2', '#/emendas/estaduais'), L('Execução das emendas', '17.3', '#/emendas/execucao')]],
-        ['Saúde', 'saude', [L('Plano, programação e relatório', '18.1'), L('Serviços, horários e profissionais', '18.2'), L('Lista de espera da regulação', '18.3'), L('Medicamentos do SUS', '18.4'), L('Estoque das farmácias', '18.5'), L('Conselho de Saúde', '18.6')]],
-        ['Educação e assistência social', 'edu', [L('Plano de educação e resultados', '19.1'), L('Lista de espera em creches', '19.2'), L('Conselho do Fundeb', '19.3'), L('Conselho de Assistência Social', '19.4')]]);
+        ['Saúde', 'saude', [L('Plano, programação e relatório', '18.1', undefined, 'saude'), L('Serviços, horários e profissionais', '18.2', undefined, 'saude'), L('Lista de espera da regulação', '18.3', undefined, 'saude'), L('Medicamentos do SUS', '18.4', undefined, 'saude'), L('Estoque das farmácias', '18.5', undefined, 'saude'), L('Conselho de Saúde', '18.6', undefined, 'saude')]],
+        ['Educação e assistência social', 'edu', [L('Plano de educação e resultados', '19.1', undefined, 'educacao'), L('Lista de espera em creches', '19.2', undefined, 'educacao'), L('Conselho do Fundeb', '19.3', undefined, 'educacao'), L('Conselho de Assistência Social', '19.4', undefined, 'educacao')]]);
     }
     if (cam) {
       g.push(['Atividade legislativa', 'legis', [L('Vereadores e biografias', '20.1'), L('Leis e atos produzidos', '20.2', '#/publicacoes'), L('Projetos e tramitação', '20.3'), L('Pauta do plenário e comissões', '20.4–20.5'),
@@ -1157,7 +1229,7 @@
         el('form', { class: 'transp-busca', role: 'search', onsubmit: (e) => { e.preventDefault(); const q = campoBusca.value.trim(); if (q) location.hash = '#/busca?q=' + encodeURIComponent(q); } },
           el('label', { for: 'busca-transp', class: 'sr' }, 'Pesquisar no Portal da Transparência'), campoBusca, el('button', { type: 'submit' }, 'Pesquisar')),
         el('div', { class: 'transp-atalhos' }, el('span', null, 'Mais acessados:'),
-          [['Despesas', ext()], ['Servidores', ext()], ['Licitações', '#/licitacoes'], ['Contratos', '#/contratos'], ['Planejamento e contas', '#/planejamento'], ['Leis e decretos', '#/publicacoes']]
+          [['Despesas', 'despesas'], ['Servidores', 'pessoal'], ['Licitações', 'licitacoes'], ['Contratos', 'contratos'], ['Planejamento e contas', 'planejamento'], ['Leis e decretos', 'publicacoes']].map(([t, k]) => [t, (S.destino(k) || {}).href])
             .filter((x) => x[1]).map(([t, h]) => el('a', { href: h, target: externo(h) ? '_blank' : null, rel: externo(h) ? 'noopener' : null }, t))))),
       el('div', { class: 'transp-fundo' }, el('div', { class: 'limite pagina transp-corpo' },
         el('div', { class: 'transp-status' },
@@ -1172,7 +1244,7 @@
               el('span', null, l.t, externo(l.h) ? el('span', { class: 'sr' }, ' (abre em nova aba, no sistema de transparência)') : null),
               el('span', { class: 'transp-cod', title: 'Critério ' + l.cod + ' do PNTP' }, l.cod))
             : el('span', { class: 'transp-sem' }, el('span', null, l.t, el('span', { class: 'sr' }, ' (endereço ainda não informado)')), el('span', { class: 'transp-cod' }, l.cod)))))))),
-        el('p', { class: 'meta transp-nota' }, 'Os itens de receitas, despesas, pessoal, diárias, convênios e obras abrem o sistema de transparência do órgão em nova aba.',
+        el('p', { class: 'meta transp-nota' }, 'Itens que ficam em sistema externo abrem em nova aba.',
           ' ', el('a', { href: RADAR, target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))))));
     function ext() { return c.transparencia_url || null; }
   };
@@ -1777,7 +1849,7 @@
     if (q.length < 2) { pagina(main, el('h1', null, 'Busca'), el('p', null, 'Digite pelo menos 2 letras no campo de pesquisa.')); return; }
     // Dentro de or() o curinga é * (o % confunde a sintaxe do filtro).
     const n = termo(q), cru = '*' + q.replace(/[%_*(),.]/g, ' ').trim() + '*';
-    const [nt, pb, sv, pg, fq, un, ct, lc, co] = await Promise.all([
+    const [nt, pb, sv, pg, fq, un, ct, lc, co, cv, em, ob] = await Promise.all([
       sb.from('noticias').select('id, titulo, publicado_em').eq('orgao_id', org()).ilike('busca', n).order('publicado_em', { ascending: false }).limit(8),
       sb.from('publicacoes').select('id, tipo, numero, ano, ementa, arquivo_url, link_externo').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8),
       sb.from('servicos').select('id, nome').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
@@ -1786,15 +1858,30 @@
       sb.from('unidades').select('id, nome').eq('orgao_id', org()).or('nome.ilike.' + cru + ',competencias.ilike.' + cru).limit(8),
       sb.from('documentos_contas').select('tipo, exercicio, exercicio_fim, periodo, periodicidade, parte').eq('orgao_id', org()).ilike('busca', n).order('exercicio', { ascending: false }).limit(8),
       sb.from('licitacoes').select('id, modalidade, numero, objeto').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8),
-      sb.from('contratos').select('id, tipo, numero, objeto, contratado_nome').eq('orgao_id', org()).ilike('busca', n).order('data_assinatura', { ascending: false }).limit(8)
+      sb.from('contratos').select('id, tipo, numero, objeto, contratado_nome').eq('orgao_id', org()).ilike('busca', n).order('data_assinatura', { ascending: false }).limit(8),
+      sb.from('convenios').select('id, tipo, instrumento, numero, objeto, parte_nome').eq('orgao_id', org()).ilike('busca', n).order('ano', { ascending: false }).limit(8),
+      sb.from('emendas').select('id, numero, autor, objeto').eq('orgao_id', org()).ilike('busca', n).order('exercicio', { ascending: false }).limit(8),
+      sb.from('obras').select('id, titulo').eq('orgao_id', org()).ilike('busca', n).order('atualizado_em', { ascending: false }).limit(8)
     ]);
+    // Nomes das seções do site: quem digita "contratos" ou "licitação" chega à página, mesmo que
+    // a palavra não apareça dentro dos registros. Compara sem acento e sem plural simples.
+    const raiz = (t) => normalizar(t).replace(/(oes|aes|ais|eis|s)$/, '');
+    const palavras = normalizar(q).split(/\s+/).filter((w) => w.length > 2).map(raiz);
+    const secoes = secoesDoSite().filter(([t, , , extra]) => {
+      const alvo = normalizar(t + ' ' + extra).split(/[^a-z0-9]+/).map(raiz);
+      return palavras.length && palavras.every((w) => alvo.some((x) => x.startsWith(w) || w.startsWith(x) && x.length > 3));
+    });
     const grupos = [
+      ['Páginas do site', secoes.map(([t, chave, h]) => [t, chave ? (S.destino(chave) || {}).href : h]).filter((x) => x[1]), null],
       ['Serviços', (sv.data || []).map((s) => [s.nome, '#/servico/' + s.id]), '#/servicos?q=' + encodeURIComponent(q)],
       ['Notícias', (nt.data || []).map((x) => [x.titulo + ' (' + dataBR(x.publicado_em) + ')', '#/noticia/' + x.id]), '#/noticias?q=' + encodeURIComponent(q)],
       ['Publicações oficiais', (pb.data || []).map((x) => [ato(x) + ' — ' + x.ementa, x.arquivo_url || x.link_externo || '#/publicacoes?q=' + encodeURIComponent(q)]), '#/publicacoes?q=' + encodeURIComponent(q)],
       ['Contratos', (co.data || []).map((x) => [nomeCtr(x) + ' · ' + x.contratado_nome + ' · ' + (x.objeto.length > 70 ? x.objeto.slice(0, 70) + '…' : x.objeto), '#/contrato/' + x.id]), '#/contratos'],
       ['Licitações', (lc.data || []).map((x) => [nomeLic(x) + ' · ' + (x.objeto.length > 90 ? x.objeto.slice(0, 90) + '…' : x.objeto), '#/licitacao/' + x.id]), '#/licitacoes'],
       ['Planejamento e contas', (ct.data || []).map((x) => [curtoContas(x.tipo) + ' · ' + periodoContas(x) + (x.periodo ? ' de ' + x.exercicio : '') + ' · ' + x.parte, '#/planejamento/' + x.tipo + '?ano=' + x.exercicio]), '#/planejamento'],
+      ['Convênios e transferências', (cv.data || []).map((x) => [nomeConv(x) + ' · ' + x.parte_nome + ' · ' + (x.objeto.length > 70 ? x.objeto.slice(0, 70) + '…' : x.objeto), '#/convenio/' + x.id]), '#/convenios'],
+      ['Emendas parlamentares', (em.data || []).map((x) => ['Emenda nº ' + x.numero + ' · ' + x.autor + ' · ' + (x.objeto.length > 70 ? x.objeto.slice(0, 70) + '…' : x.objeto), '#/emenda/' + x.id]), '#/emendas'],
+      ['Obras', (ob.data || []).map((x) => [x.titulo, '#/obra/' + x.id]), '#/obras'],
       ['Unidades', (un.data || []).map((x) => [x.nome, '#/unidade/' + x.id]), null],
       ['Páginas', (pg.data || []).map((x) => [x.titulo, '#/pagina/' + x.slug]), null],
       ['Perguntas frequentes', (fq.data || []).map((x) => [x.pergunta, '#/faq']), null]
@@ -1805,6 +1892,40 @@
       grupos.map(([t, itens, todos]) => el('section', { style: 'margin-bottom:24px' },
         el('div', { class: 'secao-titulo' }, el('h2', null, t), todos && itens.length === 8 ? el('a', { href: todos }, 'Ver todos →') : null),
         el('ul', null, itens.map(([rot, href]) => el('li', { style: 'margin:6px 0' }, el('a', { href, target: href.startsWith('http') ? '_blank' : null, rel: href.startsWith('http') ? 'noopener' : null }, rot)))))));
+  };
+
+  // ---------- Serviços on-line (PNTP 15.3) ----------
+  // Os serviços da Carta que podem ser pedidos pela internet, com o botão para o endereço do pedido.
+  R['servicos-online'] = async function (main, partes, params) {
+    S.titulo('Serviços on-line'); S.trilha(['Serviços on-line']);
+    const { data } = await sb.from('servicos').select('id, nome, categoria, descricao, link_digital, publico_alvo').eq('orgao_id', org())
+      .in('forma_prestacao', ['digital', 'presencial_digital']).order('nome').limit(500);
+    const lista = data || [];
+    const cats = [...new Set(lista.map((x) => x.categoria).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const fBusca = el('input', { type: 'search', placeholder: 'Ex.: alvará, IPTU, matrícula', value: params.get('q') || '' });
+    const fCat = el('select', null, el('option', { value: '' }, 'Todas'), cats.map((c) => el('option', { value: c }, c)));
+    const grade = el('div', { class: 'grade g3' }), total = el('p', { class: 'meta', role: 'status' });
+    const desenhar = () => {
+      const t = normalizar(fBusca.value.trim()), c = fCat.value;
+      const vis = lista.filter((x) => (!c || x.categoria === c) && (!t || normalizar(x.nome + ' ' + (x.descricao || '') + ' ' + (x.categoria || '')).includes(t)));
+      total.textContent = vis.length + (vis.length === 1 ? ' serviço' : ' serviços');
+      grade.replaceChildren(...vis.map((x) => el('div', { class: 'cartao servico-online' },
+        x.categoria ? el('span', { class: 'etiqueta' }, x.categoria) : null,
+        el('h2', { style: 'font-size:1.05rem;margin:8px 0 6px' }, x.nome),
+        x.descricao ? el('p', { class: 'meta' }, x.descricao.length > 160 ? x.descricao.slice(0, 160) + '…' : x.descricao) : null,
+        el('p', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0' },
+          x.link_digital ? el('a', { class: 'botao botao-p', href: x.link_digital, target: '_blank', rel: 'noopener' }, 'Acessar o serviço', el('span', { class: 'sr' }, ' ' + x.nome + ' (abre em nova aba)')) : null,
+          el('a', { class: 'botao botao-claro botao-p', href: '#/servico/' + x.id }, 'Como pedir', el('span', { class: 'sr' }, ' ' + x.nome))))));
+    };
+    let espera;
+    fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(desenhar, 250); });
+    fCat.addEventListener('change', desenhar);
+    pagina(main, el('h1', null, 'Serviços on-line'),
+      el('p', { class: 'sub' }, 'Serviços que você pode pedir pela internet, sem ir ao balcão. As regras de cada um estão na ', el('a', { href: '#/servicos' }, 'Carta de Serviços ao Usuário'), '.'),
+      lista.length ? [el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); desenhar(); } },
+        el('label', null, 'Pesquisar serviço', fBusca), el('label', null, 'Categoria', fCat)), total, grade]
+        : el('p', { class: 'vazio' }, 'Ainda não há serviços oferecidos pela internet. Consulte a Carta de Serviços para saber como pedir cada serviço.'));
+    if (lista.length) desenhar();
   };
 
   // ---------- Convênios e transferências (PNTP 5.1 a 5.3) e emendas parlamentares (17.1 a 17.3) ----------

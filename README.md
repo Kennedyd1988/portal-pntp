@@ -183,7 +183,7 @@ painel/
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
   manifest.json         → instalação como aplicativo (PWA)
-site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas)
+site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas, destinos.js = destinos das páginas, usado também pelo painel)
 supabase/               → scripts SQL, rodar em ordem
 supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 supabase/functions/pncp/index.ts → ponte de consulta ao PNCP (importação de licitações)
@@ -270,6 +270,36 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.12.0 — 13/11/2026 — destinos únicos das páginas e ajustes do site**
+- **Destinos das páginas** (Aparência › Destinos das páginas): para 24 páginas (receitas, despesas,
+  ordem cronológica, pessoal, diárias, convênios, emendas, licitações, PCA, sancionados, contratos,
+  fiscais, obras, planejamento, renúncias, saúde, educação, concursos e seletivos, e-SIC, ouvidoria,
+  Carta de Serviços, serviços on-line, Diário Oficial e publicações) o órgão escolhe "Página do
+  portal" ou "Link externo". Lista única em `site/destinos.js` (o painel carrega o mesmo arquivo).
+  Menu, capa da Transparência, acessos rápidos da página inicial, mapa do site e busca seguem a
+  tabela; quem abrir o endereço interno de uma página mandada para fora vê o botão para o sistema
+  externo. Página que ainda não existe no portal usa o link próprio ou, sem ele, o Portal da
+  Transparência externo geral. Gravado em `configuracoes.destinos`.
+- Menu padrão: Serviços com "Carta de Serviços ao Usuário" e "Serviços on-line"; Transparência com
+  Licitações e Contratos separados, mais Obras, Convênios e Emendas. Botão "Recriar menu padrão"
+  (apaga e recria, com confirmação) para quem já tinha menu.
+- Página nova `#/servicos-online` (PNTP 15.3): serviços da Carta pedidos pela internet, com
+  pesquisa, categoria e botão para o endereço do pedido.
+- Faixa acima do menu em todas as páginas: redes sociais oficiais à esquerda e selos à direita
+  (saíram da página inicial). Menu principal fica preso no alto da tela ao rolar a página.
+- Página inicial: a faixa amarela virou a faixa do Radar da Transparência Pública (link para o
+  painel do Radar). Sem imagem, faixa padrão azul com o texto; com a imagem oficial enviada em
+  Aparência › Selos e Radar, mostra a imagem. A seção "Redes sociais" saiu (está no topo).
+- Gestão: todos os gestores marcados para a página inicial lado a lado, 4 por vez (menos no
+  celular), rolando sozinhos e recomeçando no fim; pausa ao passar o mouse, botão de pausa e setas.
+- Estrutura organizacional: aba "Unidades" com cartões (foto e nome do responsável, contatos,
+  horário, competências, unidades vinculadas) e pesquisa; aba "Organograma" com a árvore.
+- Busca: passa a achar as seções pelo nome (ex.: "contratos", "licitação", "diárias"), sem acento e
+  sem plural, e inclui convênios, emendas e obras.
+- Painel › Aparência e contatos dividido em abas: Identidade (brasão, nome, cor, **ícone da aba do
+  navegador**, domínio), Contatos e redes, Destinos das páginas, Diário Oficial e sistemas, Selos
+  e Radar. Sem ícone próprio, o site usa o brasão na aba do navegador.
 
 **0.11.0 — 13/11/2026 — Fase 2 · Lote 10: convênios, transferências e emendas (PNTP 5.1 a 5.3 e 17.1 a 17.3)**
 - Módulo "Convênios e transferências" no painel (já existia no menu como "em construção") com três
