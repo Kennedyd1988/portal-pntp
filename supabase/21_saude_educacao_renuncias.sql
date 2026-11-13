@@ -8,8 +8,9 @@
 --      sai; as permissões dele passam para saúde e educação, e as de
 --      "financeiro" para renúncias.
 --   2. secoes_setoriais: para cada seção (ex.: lista de espera, estoque,
---      creches), link para o sistema externo, texto da seção (ex.: critérios
---      de prioridade das creches) e a declaração de que não há dados.
+--      creches), o texto da seção (ex.: critérios de prioridade das creches)
+--      e a declaração de que não há dados. O link para sistema externo fica
+--      em Aparência › Destinos das páginas (mesma chave).
 --   3. documentos_setoriais: plano de saúde, programação anual, relatório
 --      de gestão, RDQA (18.1); plano de educação e relatório de resultados
 --      (19.1); planos e relatórios da assistência social.
@@ -116,13 +117,15 @@ create table if not exists public.secoes_setoriais (
                     'saude_documentos', 'saude_servicos', 'saude_espera', 'saude_medicamentos', 'saude_estoque', 'saude_conselho',
                     'educacao_documentos', 'educacao_creches', 'educacao_fundeb', 'educacao_assistencia', 'educacao_conselhos',
                     'renuncias_desoneracoes', 'renuncias_valores', 'renuncias_beneficiarios', 'renuncias_incentivos')),
-  link_externo    text check (link_externo is null or link_externo ~* '^https?://'),  -- sistema próprio (ex.: regulação, farmácia)
   texto           text check (texto is null or char_length(texto) <= 8000),          -- ex.: critérios de prioridade das creches
   sem_ocorrencia  boolean not null default false,                                     -- "não há" (declaração com data)
   criado_em       timestamptz not null default now(),
   atualizado_em   timestamptz not null default now(),
   unique (orgao_id, secao)
 );
+-- O link para sistema externo fica só em Aparência › Destinos das páginas (configuracoes.destinos,
+-- mesma chave da seção). Versões anteriores deste script criavam a coluna aqui: sai.
+alter table public.secoes_setoriais drop column if exists link_externo;
 drop trigger if exists secoes_setoriais_atualizado on public.secoes_setoriais;
 create trigger secoes_setoriais_atualizado before update on public.secoes_setoriais for each row execute function public.marcar_atualizacao();
 drop trigger if exists secoes_setoriais_historico on public.secoes_setoriais;
@@ -765,7 +768,7 @@ grant execute on function public.registrar_importacao(uuid, text, integer, boole
 
 -- ---------------------------------------------------------------------
 -- 9. AVISOS DE DADOS DESATUALIZADOS (script 20 + os novos módulos)
---    Seção com link externo ou declarada "não há" não gera aviso.
+--    Parte com link externo (Destinos das páginas) ou declarada "não há" não gera aviso.
 -- ---------------------------------------------------------------------
 create or replace function public.pendencias_atualizacao(p_orgao uuid)
 returns table (modulo text, nivel text, mensagem text, quantidade bigint)
@@ -777,8 +780,15 @@ declare
   exec boolean;
 begin
   if not public.e_membro(p_orgao) then return; end if;
-  select coalesce(array_agg(s.secao), '{}') into fora from public.secoes_setoriais s
-    where s.orgao_id = p_orgao and (s.link_externo is not null or s.sem_ocorrencia);
+  select coalesce(array_agg(x), '{}') into fora from (
+    select s.secao as x from public.secoes_setoriais s where s.orgao_id = p_orgao and s.sem_ocorrencia
+    union
+    select k from public.orgaos o, jsonb_each_text(coalesce(o.configuracoes -> 'destinos', '{}'::jsonb)) as d(k, v)
+    where o.id = p_orgao and coalesce(d.v, '') <> '') t;
+  -- Página inteira mandada para fora (destino "saude", "educacao" ou "renuncias"): vale para todas as partes.
+  if 'saude' = any (fora) then fora := fora || array['saude_documentos', 'saude_servicos', 'saude_espera', 'saude_medicamentos', 'saude_estoque', 'saude_conselho']; end if;
+  if 'educacao' = any (fora) then fora := fora || array['educacao_documentos', 'educacao_creches', 'educacao_fundeb', 'educacao_assistencia']; end if;
+  if 'renuncias' = any (fora) then fora := fora || array['renuncias_desoneracoes', 'renuncias_valores', 'renuncias_beneficiarios', 'renuncias_incentivos']; end if;
   select o.tipo = 'prefeitura' into exec from public.orgaos o where o.id = p_orgao;
 
   return query

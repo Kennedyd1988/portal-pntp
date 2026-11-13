@@ -22,7 +22,7 @@
   let secoes = null;
   async function secao(chave) {
     if (!secoes || secoes.orgao !== org()) {
-      const { data } = await sb.from('secoes_setoriais').select('secao, link_externo, texto, sem_ocorrencia, atualizado_em').eq('orgao_id', org());
+      const { data } = await sb.from('secoes_setoriais').select('secao, texto, sem_ocorrencia, atualizado_em').eq('orgao_id', org());
       secoes = { orgao: org(), mapa: Object.fromEntries((data || []).map((x) => [x.secao, x])) };
     }
     return secoes.mapa[chave] || {};
@@ -30,9 +30,11 @@
   // Desenha a aba conforme a seção: link externo, declaração "não há" ou os dados.
   async function comSecao(caixa, chave, declaracao, desenhar) {
     const s = await secao(chave);
-    if (s.link_externo) {
+    // Link externo vem de Aparência › Destinos das páginas (lugar único), como no resto do site.
+    const ext = (S.conf.destinos || {})[chave];
+    if (ext) {
       caixa.replaceChildren(el('div', { class: 'cartao' }, el('p', null, 'Esta informação é publicada no sistema indicado pelo órgão:'),
-        el('p', null, el('a', { class: 'botao', href: s.link_externo, target: '_blank', rel: 'noopener' }, 'Acessar', novaAba())), el('p', { class: 'meta' }, s.link_externo)),
+        el('p', null, el('a', { class: 'botao', href: ext, target: '_blank', rel: 'noopener' }, 'Acessar', novaAba())), el('p', { class: 'meta' }, ext)),
         s.texto ? el('p', { style: 'white-space:pre-line;margin-top:14px' }, s.texto) : '');
       return;
     }

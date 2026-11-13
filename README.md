@@ -66,9 +66,10 @@ construída para atender a matriz do PNTP 2026 (Atricon).
   esse pedido) e nos demais casos mostra o passo a passo do aparelho.
 - Página que está no menu não pode ser excluída nem mudar de endereço (link quebrado).
 - Item de menu com subitens não pode ser excluído nem virar subitem (menu de dois níveis).
-- Saúde, educação e renúncias: cada parte (lista de espera, estoque, creches, beneficiários…) escolhe no
-  painel como aparece no site: dados cadastrados, link para o sistema próprio da Secretaria ou declaração
-  de que não há dados (com a data). Seção com link ou "não há" não gera aviso de prazo.
+- Todo direcionamento para sistema externo fica num lugar só: Aparência › Destinos das páginas. Saúde,
+  educação e renúncias têm ali uma linha por parte (lista de espera, estoque, creches, beneficiários…),
+  com a mesma chave da seção do módulo. No módulo fica só o texto da parte e a declaração "não há dados"
+  (com a data). Parte com link externo ou "não há" não gera aviso de prazo.
 - Listas de espera (regulação e creches) nunca levam nome: paciente e criança são identificados pelo
   protocolo (LGPD/ECA). CPF de beneficiário de renúncia ou de incentivo sai mascarado no site
   (***.456.789-**): o visitante não tem permissão de ler a coluna com o CPF inteiro.
@@ -100,7 +101,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/19_lote10_convenios_emendas.sql` | Fase 2 · Lote 10: módulo `convenios` renomeado para "Convênios e transferências" e módulo novo `emendas` (permissões copiadas); tabelas `convenios` (recebidas, realizadas e acordos sem repasse, inteiro teor obrigatório para publicar) e `emendas` (origem, tipo, forma de repasse, autoria, função de governo, valores previsto/realizado/empenhado/liquidado/pago, ligação opcional ao convênio); funções `convenios_anos` e `emendas_anos` |
 | `supabase/teste_convenios_emendas_ficticios.sql` | opcional: 6 instrumentos (recebidos, realizados e acordo) e 8 emendas fictícias de todas as origens |
 | `supabase/20_publicacoes_concursos_pendencias.sql` | tipos próprios de publicação (`publicacoes_tipos`, código `x_…`, aba de cada um); módulo `concursos` (permissões copiadas de "pessoal") com `concursos` e `concursos_documentos` (publicar exige o edital; edital de seleção publicada não pode ser excluído) e `concursos_anos`; função `pendencias_atualizacao` (avisos de dados desatualizados do painel) |
-| `supabase/21_saude_educacao_renuncias.sql` | módulos `saude`, `educacao` e `renuncias` (o antigo `setoriais` sai, permissões copiadas); `secoes_setoriais` (link externo, texto e "não há" por seção); `documentos_setoriais` (18.1, 19.1); `saude_estabelecimentos` + `saude_profissionais` (18.2), `saude_lista_espera` (18.3), `saude_medicamentos` + `saude_estoques` (18.4/18.5); `conselhos` + `conselhos_membros` + `conselhos_documentos` (18.6, 19.3, 19.4); `creches_espera` (19.2); `renuncias` + `renuncias_valores` + `renuncias_beneficiarios` + `incentivos_projetos` (16.1 a 16.4); visões de posição nas filas; `anos_setoriais`; `importar_lista`; avisos novos em `pendencias_atualizacao` |
+| `supabase/21_saude_educacao_renuncias.sql` | módulos `saude`, `educacao` e `renuncias` (o antigo `setoriais` sai, permissões copiadas); `secoes_setoriais` (texto e "não há" por seção; o link externo fica em `configuracoes.destinos`); `documentos_setoriais` (18.1, 19.1); `saude_estabelecimentos` + `saude_profissionais` (18.2), `saude_lista_espera` (18.3), `saude_medicamentos` + `saude_estoques` (18.4/18.5); `conselhos` + `conselhos_membros` + `conselhos_documentos` (18.6, 19.3, 19.4); `creches_espera` (19.2); `renuncias` + `renuncias_valores` + `renuncias_beneficiarios` + `incentivos_projetos` (16.1 a 16.4); visões de posição nas filas; `anos_setoriais`; `importar_lista`; avisos novos em `pendencias_atualizacao` |
 | `supabase/teste_obras_ficticias.sql` | opcional: 4 obras fictícias (em andamento, paralisada, concluídas) com planilha, medições e paralisações |
 | `supabase/teste_pca_sancoes_ficticios.sql` | opcional: PCA de 2024 a 2026 (com revisões) e 6 sanções fictícias de todos os tipos, vigentes e encerradas |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
@@ -293,6 +294,16 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
 
 ## Histórico de mudanças
 
+**0.15.1 — 13/11/2026 — link externo só em Destinos das páginas**
+- Na 0.15.0 cada parte de Saúde, Educação e Renúncias tinha o próprio campo de link externo, fora do
+  cadastro único de destinos. Agora o link é informado só em Aparência › Destinos das páginas, que ganhou
+  14 linhas (16.1 a 16.4, 18.1 a 18.6, 19.1 a 19.4) nos grupos "(por parte)". O cartão "Como esta parte
+  aparece no site" mostra o link em vigor (com atalho para a Aparência) e guarda só a declaração "não
+  há" e o texto da parte. Capa da Transparência, mapa do site, abas do site e avisos de prazo seguem a
+  mesma tabela.
+- Banco: script 21 atualizado (tira a coluna `secoes_setoriais.link_externo`; os avisos leem
+  `configuracoes.destinos`). Quem já rodou a versão anterior roda de novo (pode repetir).
+
 **0.15.0 — 13/11/2026 — Saúde, Educação e assistência social, Renúncias de receita e Conselhos**
 - Módulo **Saúde** (PNTP 18.1 a 18.6), em abas: Planos e relatórios (Plano Municipal de Saúde, PAS,
   RAG, RDQA, com série histórica); Serviços e profissionais (estabelecimento com endereço, horário,
@@ -313,8 +324,8 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   previsão e medidas de compensação do art. 14 da LRF); visão de todos os valores do exercício com
   totais; beneficiários por exercício (importação, CNPJ/CPF conferidos); projetos de incentivo à cultura
   e ao esporte.
-- Toda parte tem "Como esta parte aparece no site": dados do portal, link para o sistema próprio ou
-  declaração "não há" (com a data da informação no site).
+- Toda parte tem "Como esta parte aparece no site": dados do portal ou declaração "não há" (com a data
+  da informação no site); o link externo ficou em Destinos das páginas na 0.15.1.
 - Site: páginas `#/saude`, `#/educacao`, `#/renuncias` (uma aba por critério, com filtros e CSV/JSON)
   e `#/conselhos` / `#/conselho/<id>`. Capa da Transparência, destinos das páginas, menu padrão,
   busca geral, mapa do site e dados abertos (14 conjuntos novos) apontam para elas.

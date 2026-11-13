@@ -1,8 +1,9 @@
 // =====================================================================
 // Peças comuns dos módulos Saúde, Educação e Renúncias (P.setor):
-//   secao()      → "Como esta seção aparece no site": dados do portal, link
-//                  para sistema externo ou declaração de que não há dados,
-//                  mais um texto da seção (ex.: critérios das creches).
+//   secao()      → "Como esta parte aparece no site": dados do portal ou
+//                  declaração de que não há dados, mais um texto da seção
+//                  (ex.: critérios das creches). O link para sistema externo
+//                  fica só em Aparência › Destinos das páginas.
 //   formulario() → janela de cadastro montada a partir da lista de campos
 //                  (rascunho → publicado quando a tabela tem situação).
 //   filhos()     → lista com inclusão/edição dentro da janela (profissionais,
@@ -274,43 +275,43 @@
   // ---------- seção: dados do portal, link externo ou "não há" ----------
   let secoes = { orgao: null, mapa: {} };
   async function carregarSecoes() {
-    const { data, error } = await sb.from('secoes_setoriais').select('*').eq('orgao_id', P.estado.orgao.id);
+    const [{ data, error }, { data: o }] = await Promise.all([sb.from('secoes_setoriais').select('*').eq('orgao_id', P.estado.orgao.id),
+      sb.from('orgaos').select('configuracoes').eq('id', P.estado.orgao.id).maybeSingle()]);
     if (error) throw error;
-    secoes = { orgao: P.estado.orgao.id, mapa: Object.fromEntries((data || []).map((s) => [s.secao, s])) };
+    secoes = { orgao: P.estado.orgao.id, mapa: Object.fromEntries((data || []).map((s) => [s.secao, s])), destinos: ((o || {}).configuracoes || {}).destinos || {} };
     return secoes.mapa;
   }
+  // Link externo da parte (ou da página inteira) definido em Aparência › Destinos das páginas.
+  const destinoExterno = (chave) => secoes.destinos[chave] || secoes.destinos[chave.split('_')[0]] || null;
   const secaoAtual = (chave) => secoes.mapa[chave] || {};
   const ROTULO_MODO = { portal: 'dados do portal', link: 'link externo', nao_ha: 'declaração "não há"' };
-  // o = { titulo, texto: {rotulo, ajuda, obrigatorio}, naoHa: 'texto da declaração', semLink, aoMudar }
+  // o = { titulo, texto: {rotulo, ajuda, obrigatorio}, naoHa: 'texto da declaração' | false, aoMudar }
+  // O link para sistema externo NÃO fica aqui: é definido só em Aparência › Destinos das páginas
+  // (mesma chave), para todo direcionamento do site ficar num lugar só.
   function secao(chave, perm, o) {
     o = o || {};
     const s = secaoAtual(chave);
     const pre = 'ss' + (++seq) + '-';
-    const modo = s.link_externo ? 'link' : s.sem_ocorrencia ? 'nao_ha' : 'portal';
-    const escolha = el('select', { id: pre + 'modo' }, opcoes(Object.assign({ portal: 'Dados cadastrados aqui no painel' }, o.semLink ? {} : { link: 'Link para outro sistema (o site mostra o botão)' },
-      o.naoHa === false ? {} : { nao_ha: 'Não há dados: o site mostra a declaração com a data' }), modo));
-    const link = el('input', { type: 'url', value: s.link_externo || '', placeholder: 'https://… (ex.: sistema da regulação, farmácia, matrícula)' });
+    const ext = destinoExterno(chave);
+    const modo = ext ? 'link' : s.sem_ocorrencia ? 'nao_ha' : 'portal';
+    const escolha = o.naoHa === false ? null : el('select', { id: pre + 'modo' },
+      opcoes({ portal: 'Dados cadastrados aqui no painel', nao_ha: 'Não há dados: o site mostra a declaração com a data' }, s.sem_ocorrencia ? 'nao_ha' : 'portal'));
     const texto = o.texto ? el('textarea', { rows: o.texto.linhas || 4, maxlength: 8000 }) : null;
     if (texto) texto.value = s.texto || '';
-    const campoLink = campo(pre + 'link', 'Endereço do sistema externo', link);
     const btn = el('button', { type: 'button', class: 'btn btn-claro' }, 'Salvar');
-    const atualizar = () => { campoLink.hidden = escolha.value !== 'link'; };
-    escolha.addEventListener('change', atualizar);
     btn.addEventListener('click', async () => {
-      const l = link.value.trim();
-      if (!erroCampo(pre + 'link', escolha.value === 'link' && !P.urlValida(l) ? 'Endereço completo, começando com https://' : '')) return;
-      if (texto && o.texto.obrigatorio && !erroCampo(pre + 'texto', escolha.value === 'portal' && texto.value.trim().length < 20 ? 'Escreva o texto (é pedido pelo PNTP).' : '')) return;
+      const naoHa = !!escolha && escolha.value === 'nao_ha';
+      if (texto && o.texto.obrigatorio && !ext && !erroCampo(pre + 'texto', !naoHa && texto.value.trim().length < 20 ? 'Escreva o texto (é pedido pelo PNTP).' : '')) return;
       ocupado(btn, 'Salvando…');
       try {
-        const reg = { orgao_id: P.estado.orgao.id, secao: chave, link_externo: escolha.value === 'link' ? l : null,
-          sem_ocorrencia: escolha.value === 'nao_ha', texto: texto ? texto.value.trim() || null : s.texto || null };
+        const reg = { orgao_id: P.estado.orgao.id, secao: chave, sem_ocorrencia: naoHa, texto: texto ? texto.value.trim() || null : s.texto || null };
         const { data, error } = await sb.from('secoes_setoriais').upsert(reg, { onConflict: 'orgao_id,secao' }).select('*');
         if (error) throw error;
         if (!data || !data.length) throw P.amigavel('Nada foi gravado: seu perfil não tem permissão.');
         secoes.mapa[chave] = data[0];
         toast('Seção salva.');
         info.replaceChildren(rodape(data[0]));
-        const m = data[0].link_externo ? 'link' : data[0].sem_ocorrencia ? 'nao_ha' : 'portal';
+        const m = ext ? 'link' : data[0].sem_ocorrencia ? 'nao_ha' : 'portal';
         etiqueta.className = 'etiqueta etiqueta-' + (m === 'portal' ? 'publicado' : 'agendado');
         etiqueta.textContent = ROTULO_MODO[m];
         if (o.aoMudar) o.aoMudar(data[0]);
@@ -319,15 +320,18 @@
     const etiqueta = el('span', { class: 'etiqueta etiqueta-' + (modo === 'portal' ? 'publicado' : 'agendado') }, ROTULO_MODO[modo]);
     const rodape = (x) => x && x.atualizado_em ? 'Última alteração desta seção: ' + P.dataHoraBR(x.atualizado_em) + '.' : '';
     const info = el('span', { class: 'ajuda' }, rodape(s));
+    const podeAparencia = P.estado.permissoes.aparencia && P.estado.permissoes.aparencia.ver;
+    const linkAparencia = podeAparencia ? el('a', { href: '#/m/aparencia' }, 'Aparência › Destinos das páginas') : 'Aparência › Destinos das páginas';
     const caixa = el('details', { class: 'cartao secao-setorial', open: modo !== 'portal' || (o.texto && o.texto.obrigatorio && !s.texto) ? true : null, style: 'margin-bottom:14px;padding:12px 16px' },
       el('summary', { style: 'cursor:pointer;font-weight:600' }, (o.titulo || 'Como esta parte aparece no site') + ': ', etiqueta),
       el('div', { style: 'margin-top:10px' },
-        campo(pre + 'modo', 'Como publicar', escolha, o.naoHa && o.naoHa !== false ? 'Declaração usada: "' + o.naoHa + '"' : null),
-        campoLink,
+        ext ? el('p', { class: 'msg msg-info' }, 'No site, esta parte leva para o sistema externo ', el('a', { href: ext, target: '_blank', rel: 'noopener' }, ext),
+          ', definido em ', linkAparencia, '. Os dados cadastrados aqui ficam guardados, mas não aparecem enquanto o link estiver lá.')
+          : el('p', { class: 'ajuda' }, 'Para mandar esta parte para um sistema próprio da Secretaria (regulação, farmácia, matrícula…), informe o link em ', linkAparencia, ' — é o lugar único de todos os direcionamentos do site.'),
+        escolha ? campo(pre + 'modo', 'Como publicar', escolha, 'Declaração usada: "' + o.naoHa + '"') : null,
         texto ? campo(pre + 'texto', o.texto.rotulo, texto, o.texto.ajuda, o.texto.obrigatorio) : null,
-        perm.editar && !P.estado.alcanceUnidade ? el('div', { style: 'display:flex;gap:12px;align-items:center' }, btn, info) : info));
+        (escolha || texto) && perm.editar && !P.estado.alcanceUnidade ? el('div', { style: 'display:flex;gap:12px;align-items:center' }, btn, info) : info));
     if (!perm.editar || P.estado.alcanceUnidade) for (const i of caixa.querySelectorAll('input, select, textarea')) i.disabled = true;
-    atualizar();
     return caixa;
   }
 
