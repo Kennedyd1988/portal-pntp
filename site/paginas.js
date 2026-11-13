@@ -770,7 +770,7 @@
       ['Publicações oficiais (atos normativos)', 'publicacoes', 'tipo,numero,ano,data_publicacao,ementa,vigencia,observacao,arquivo_url,link_externo', '&order=data_publicacao.desc'],
       ['Contratos', 'contratos', 'tipo,numero,ano,processo,objeto,contratado_nome,valor_inicial,valor_atual,data_assinatura,vigencia_inicio,vigencia_fim_atual,rescindido_em,unidade_nome,link_externo', '&order=data_assinatura.desc'],
       ['Fiscais de contratos', 'contratos_fiscais', 'nome,funcao,ato,inicio,fim', '&order=nome'],
-      ['Licitações', 'licitacoes', 'modalidade,numero,ano,processo,objeto,srp,criterio,amparo_legal,unidade_nome,valor_estimado,valor_homologado,data_publicacao,data_abertura,andamento,vencedores,link_externo', '&order=data_publicacao.desc'],
+      ['Licitações', 'licitacoes', 'modalidade,numero,ano,processo,objeto,srp,criterio,amparo_legal,unidade_nome,valor_estimado,valor_homologado,data_publicacao,data_abertura,andamento,vencedores,link_externo', '&order=chave_ordem.asc'],
       ['Plano de contratações anual (PCA)', 'pca', 'ano,tipo,data_aprovacao,ato_aprovacao,valor_total,qtd_itens,descricao,arquivo_url,link_externo', '&order=ano.desc'],
       ['Licitantes e contratados sancionados', 'sancoes', 'sancionado_nome,tipo,fundamento,motivo,processo,referencia,data_aplicacao,inicio,fim,valor_multa,ato,arquivo_url,link_externo', '&order=data_aplicacao.desc'],
       ['Planejamento e prestação de contas', 'documentos_contas', 'tipo,exercicio,exercicio_fim,periodicidade,periodo,parte,resultado,numero_ato,data_publicacao,descricao,arquivo_url,link_externo', '&order=exercicio.desc'],
@@ -1202,7 +1202,7 @@
     homologacao: 'Homologação', ratificacao: 'Ratificação', contrato: 'Contrato / ata de RP', outro: 'Documento' };
   const moedaBR = (v) => v === null || v === undefined ? '' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const nomeLic = (l) => (MOD_LIC[l.modalidade] || l.modalidade) + (l.numero ? ' nº ' + l.numero : '');
-  const CAMPOS_LIC = 'id, modalidade, numero, ano, processo, objeto, srp, criterio, amparo_legal, unidade_nome, valor_estimado, valor_homologado, data_publicacao, data_abertura, andamento, vencedores, link_externo, origem, atualizado_em';
+  const CAMPOS_LIC = 'id, modalidade, numero, ano, processo, objeto, srp, criterio, amparo_legal, unidade_nome, valor_estimado, valor_homologado, data_publicacao, data_abertura, andamento, vencedores, link_externo, origem, atualizado_em, chave_ordem';
   const COLUNAS_LIC = [['modalidade', 'Modalidade', (v) => MOD_LIC[v] || v], ['numero', 'Número'], ['ano', 'Ano'], ['processo', 'Processo'], ['objeto', 'Objeto'],
     ['andamento', 'Andamento', (v) => AND_LIC[v] ? AND_LIC[v][0] : v], ['data_publicacao', 'Publicação'], ['data_abertura', 'Abertura'],
     ['valor_estimado', 'Valor estimado'], ['valor_homologado', 'Valor homologado'], ['vencedores', 'Vencedores'], ['unidade_nome', 'Unidade'],
@@ -1284,6 +1284,7 @@
           return q;
         };
         // Tabela HTML estruturada (PNTP 8.1): nº e modalidade, objeto, data da sessão, valor e situação.
+        // Ordem numérica sequencial por modalidade (Matriz 2026): coluna chave_ordem do script 17.
         const corpoTab = el('tbody');
         const tabela = el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados tabela-lic' },
           el('caption', { class: 'sr' }, g[1] + ' de ' + ano),
@@ -1297,7 +1298,7 @@
         async function carregar(reiniciar) {
           const minha = reiniciar ? ++versao : versao;
           const [linhas, cont] = await Promise.all([
-            paginar(montar, 'data_publicacao', reiniciar ? null : itens[itens.length - 1], 50),
+            paginar(montar, 'chave_ordem', reiniciar ? null : itens[itens.length - 1], 50, true),   // modalidade + número (PNTP 8.1)
             reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
           if (minha !== versao) return;
           if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' processo' : ' processos');
@@ -1319,7 +1320,7 @@
         [fMes, fMod, fAnd].forEach((x) => x.addEventListener('change', aplicar));
         fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
         const exportar = S.botoesExportar('licitacoes-' + grupo + '-' + ano, COLUNAS_LIC, async (de, ate) => {
-          const { data } = await montar().order('data_publicacao', { ascending: false }).order('id').range(de, ate);
+          const { data } = await montar().order('chave_ordem').order('id').range(de, ate);
           return data || [];
         });
         painelAno.replaceChildren(

@@ -86,6 +86,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/14_licitacoes_tipos_documento.sql` | novos tipos de documento das licitações (ETP, justificativa, orçamento, parecer, emergência), conforme Cartilha PNTP 2026 8.3/8.4 |
 | `supabase/15_lote8_contratos.sql` | Fase 2 · Lote 8: módulo `contratos`, tabelas `contratos`, `contratos_aditivos`, `contratos_fiscais`, recálculo de valor/vigência pelos aditivos, função `contratos_anos` |
 | `supabase/16_pca_sancoes.sql` | Lote 8.1: módulos `pca` e `sancoes` (permissões copiadas de licitações), tabela `pca` (plano do ano + atualizações, PDF ou link do PNCP, um plano por ano), tabela `sancoes` (sancionado, CNPJ/CPF, sanção do art. 156, prazo, multa, processo, ato), funções `pca_anos` e `sancoes_anos` |
+| `supabase/17_licitacoes_ordem.sql` | coluna `chave_ordem` (modalidade + número, do maior para o menor) e índice: lista de licitações em ordem numérica sequencial por modalidade (PNTP 8.1) |
 | `supabase/teste_contratos_ficticios.sql` | opcional: contratos fictícios ligados às licitações de teste, com fiscais e aditivos |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
@@ -279,7 +280,13 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   CSV/JSON; CPF mascarado; sem sanções publicadas, declara expressamente que não há
   sancionados). A capa da Transparência, o mapa do site, o menu e os dados abertos passaram
   a apontar para essas páginas (antes, 8.6 ia ao sistema externo e 8.7 ao CEIS).
-- Banco: script 16 (rodar depois do 15).
+- Licitações em ordem de modalidade e número (decisão de 13/11/2026): a Matriz 2026 pede a
+  relação do 8.1 "em ordem numérica sequencial" com número e modalidade. No site, no painel, no
+  CSV/JSON e nos dados abertos a lista vem por modalidade (pregão, concorrência, … dispensa,
+  inexigibilidade, adesão) e, dentro dela, do maior número para o menor. Vale só o primeiro grupo
+  de algarismos do número (3/2026 vem depois de 012/2026); sem número, fica no fim. A data de
+  publicação continua como coluna e como filtro de mês.
+- Banco: scripts 16 e 17 (rodar depois do 15).
 - Varredura PNTP (Cartilha/Matriz 2026): 8.6 atende quando o PCA do ano está publicado (PDF ou
   link do PNCP); 8.7 atende com a relação própria ou com a declaração de que não há
   sancionados (o link do CEIS fica como complemento). Com isso, a dimensão Licitações (8.1 a

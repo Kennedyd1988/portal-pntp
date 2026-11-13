@@ -93,7 +93,7 @@
     if (!ano) { itens = []; fim = true; total = 0; return; }
     const ultimo = reiniciar ? null : itens[itens.length - 1];
     const [pag, t] = await Promise.all([
-      P.paginar(consulta, 'data_publicacao', ultimo, LOTE),
+      P.paginar(consulta, 'chave_ordem', ultimo, LOTE, true),   // modalidade + número (PNTP 8.1; script 17)
       reiniciar ? P.contar(consulta) : Promise.resolve(total)
     ]);
     itens = reiniciar ? pag.linhas : itens.concat(pag.linhas);
