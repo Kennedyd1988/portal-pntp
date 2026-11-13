@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
     const ultima = cfg.pncp_sinc?.ate ? new Date(cfg.pncp_sinc.ate + 'T12:00:00') : null;
     const ate = new Date();
     const de = new Date(ate.getTime() - (ultima ? Math.max(3, Math.ceil((ate.getTime() - ultima.getTime()) / 864e5) + 3) : 120) * 864e5);
-    const res = { quando: new Date().toISOString(), de: de.toISOString().slice(0, 10), ate: ate.toISOString().slice(0, 10), novos: 0, atualizados: 0, arquivos: 0, erro: null as string | null };
+    const res = { quando: new Date().toISOString(), de: de.toISOString().slice(0, 10), ate: ate.toISOString().slice(0, 10), novos: 0, atualizados: 0, arquivos: 0, contratos_novos: 0, contratos_atualizados: 0, aditivos: 0, erro: null as string | null };
     try {
       // deno-lint-ignore no-explicit-any
       const achados = new Map<string, { c: any; cnpj: string }>();
@@ -164,6 +164,88 @@ Deno.serve(async (req) => {
           data: String(d.dataPublicacaoPncp || new Date().toISOString()).slice(0, 10), link_externo: d.url || d.uri, ordem: (n + 1) * 10 }));
         const { error: e } = await db.from('licitacoes_documentos').insert(regs);
         if (!e) res.arquivos += regs.length;
+      }
+      // ---- Contratos (mesma lógica; mapeamento igual ao de painel/modulo-contratos.js) ----
+      // deno-lint-ignore no-explicit-any
+      const contratos = new Map<string, { x: any; cnpj: string }>();
+      for (const cnpj of cnpjs) for (const tipo of ['', '/atualizacao']) {
+        for (let pg = 1; pg <= 50; pg++) {
+          let r;
+          try {
+            r = await pncp('/api/consulta/v1/contratos' + tipo + '?dataInicial=' + aaaammdd(de) + '&dataFinal=' + aaaammdd(ate) + '&cnpjOrgao=' + cnpj + '&pagina=' + pg + '&tamanhoPagina=50');
+          } catch (e) { if (tipo) break; throw e; }
+          const lista = r?.data ?? [];
+          for (const x of lista) contratos.set(x.numeroControlePNCP, { x, cnpj: x.orgaoEntidade?.cnpj || cnpj });
+          if (!r?.paginasRestantes || !lista.length) break;
+        }
+      }
+      const ctrls = [...contratos.keys()];
+      const exC = new Map<string, { id: string; pncp_atualizado: string | null }>();
+      const licPorControle = new Map<string, string>();
+      for (let i = 0; i < ctrls.length; i += 100) {
+        const { data } = await db.from('contratos').select('id, pncp_controle, pncp_atualizado').eq('orgao_id', o.id).in('pncp_controle', ctrls.slice(i, i + 100));
+        for (const x of data ?? []) exC.set(x.pncp_controle, x);
+      }
+      const compras = [...new Set([...contratos.values()].map((v) => v.x.numeroControlePncpCompra).filter(Boolean))] as string[];
+      for (let i = 0; i < compras.length; i += 100) {
+        const { data } = await db.from('licitacoes').select('id, pncp_controle').eq('orgao_id', o.id).in('pncp_controle', compras.slice(i, i + 100));
+        for (const x of data ?? []) licPorControle.set(x.pncp_controle, x.id);
+      }
+      const hoje = new Date().toISOString().slice(0, 10);
+      // deno-lint-ignore no-explicit-any
+      const mapC = (x: any, cnpj: string) => {
+        const num = x.numeroContratoEmpenho ? String(x.numeroContratoEmpenho) : null;
+        const doc = String(x.niFornecedor || '').replace(/\D/g, '');
+        const n = String(x.tipoContrato?.nome || '');
+        return {
+          orgao_id: o.id, origem: 'pncp', pncp_controle: x.numeroControlePNCP,
+          tipo: /empenho/i.test(n) ? 'empenho' : /ata/i.test(n) ? 'ata_registro_precos' : /carta/i.test(n) ? 'carta_contrato' : /contrato/i.test(n) ? 'contrato' : 'outro',
+          numero: num ? num + (num.includes('/') ? '' : '/' + x.anoContrato) : null, ano: x.anoContrato, processo: x.processo || null,
+          objeto: String(x.objetoContrato || 'Objeto não informado no PNCP').slice(0, 4000).padEnd(5, ' '),
+          contratado_nome: String(x.nomeRazaoSocialFornecedor || 'Não informado').slice(0, 200), contratado_doc: doc.length === 11 || doc.length === 14 ? doc : null,
+          unidade_nome: x.unidadeOrgao?.nomeUnidade || null, valor_inicial: x.valorInicial ?? x.valorGlobal ?? null,
+          data_assinatura: x.dataAssinatura || x.dataVigenciaInicio || String(x.dataPublicacaoPncp || hoje).slice(0, 10),
+          vigencia_inicio: x.dataVigenciaInicio || null,
+          vigencia_fim: x.dataVigenciaFim && (!x.dataVigenciaInicio || x.dataVigenciaFim >= x.dataVigenciaInicio) ? x.dataVigenciaFim : null,
+          licitacao_id: licPorControle.get(x.numeroControlePncpCompra) ?? null,
+          link_externo: 'https://pncp.gov.br/app/contratos/' + cnpj + '/' + x.anoContrato + '/' + x.sequencialContrato,
+          pncp_atualizado: x.dataAtualizacao ? new Date(x.dataAtualizacao).toISOString() : null,
+        };
+      };
+      const novosC = [], mudadosC = [];
+      for (const { x, cnpj } of contratos.values()) {
+        const reg = mapC(x, cnpj);
+        const ex = exC.get(reg.pncp_controle);
+        if (!ex) novosC.push({ ...reg, situacao: cfg.pncp_publicar_auto ? 'publicado' : 'rascunho' });
+        else if (!ex.pncp_atualizado || !reg.pncp_atualizado || new Date(reg.pncp_atualizado) > new Date(ex.pncp_atualizado)) mudadosC.push(reg);
+      }
+      const comTermos: { id: string; pncp_controle: string }[] = [];
+      for (let i = 0; i < novosC.length; i += 50) {
+        const { data, error: e } = await db.from('contratos').insert(novosC.slice(i, i + 50)).select('id, pncp_controle');
+        if (e) throw e;
+        res.contratos_novos += data.length; comTermos.push(...data);
+      }
+      for (let i = 0; i < mudadosC.length; i += 50) {
+        const { data, error: e } = await db.from('contratos').upsert(mudadosC.slice(i, i + 50), { onConflict: 'orgao_id,pncp_controle' }).select('id, pncp_controle');
+        if (e) throw e;
+        res.contratos_atualizados += data.length; comTermos.push(...data);
+      }
+      for (const c of comTermos) {
+        if (Date.now() - inicio > LIMITE_MS) break;
+        const a = contratos.get(c.pncp_controle);
+        if (!a) continue;
+        let lista;
+        try { lista = await pncp('/api/pncp/v1/orgaos/' + a.cnpj + '/contratos/' + a.x.anoContrato + '/' + a.x.sequencialContrato + '/termos'); } catch (_) { continue; }
+        await db.from('contratos_aditivos').delete().eq('contrato_id', c.id).eq('origem', 'pncp');
+        // deno-lint-ignore no-explicit-any
+        const regs = (Array.isArray(lista) ? lista : []).filter((t: any) => t.statusAtivo !== false).map((t: any) => ({
+          contrato_id: c.id, orgao_id: o.id, origem: 'pncp', pncp_sequencial: t.sequencialTermoContrato || null,
+          numero: t.numeroTermoContrato ? 'Termo ' + t.numeroTermoContrato : null,
+          tipo: t.qualificacaoVigencia && t.qualificacaoAcrescimoSupressao ? 'prazo_valor' : t.qualificacaoVigencia ? 'prazo' : t.qualificacaoAcrescimoSupressao ? 'valor' : t.qualificacaoReajuste ? 'apostilamento' : 'outro',
+          data_assinatura: t.dataAssinatura || hoje, descricao: t.objetoTermoContrato ? String(t.objetoTermoContrato).slice(0, 500) : null,
+          valor: t.valorAcrescido ?? null, nova_vigencia_fim: t.qualificacaoVigencia ? (t.dataVigenciaFim || null) : null,
+          link_externo: 'https://pncp.gov.br/app/contratos/' + a.cnpj + '/' + a.x.anoContrato + '/' + a.x.sequencialContrato }));
+        if (regs.length) { const { error: e } = await db.from('contratos_aditivos').insert(regs); if (!e) res.aditivos += regs.length; }
       }
     } catch (e) {
       res.erro = e instanceof Error ? e.message : String(e);

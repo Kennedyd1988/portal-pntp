@@ -82,6 +82,8 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/12_lote7_licitacoes.sql` | Fase 2 · Lote 7: `licitacoes` (origem portal/link/pncp, todas as modalidades, andamento, valores), `licitacoes_documentos` (documentos de cada fase, arquivo ou link) e função `licitacoes_anos` |
 | `supabase/13_pncp_automatico.sql` | importação automática do PNCP: função `definir_pncp_automatico` (liga/desliga pelo painel), chave no cofre (`vault`) e agendamento diário `pg_cron` 03:15 chamando a função `pncp-sincronizar` |
 | `supabase/14_licitacoes_tipos_documento.sql` | novos tipos de documento das licitações (ETP, justificativa, orçamento, parecer, emergência), conforme Cartilha PNTP 2026 8.3/8.4 |
+| `supabase/15_lote8_contratos.sql` | Fase 2 · Lote 8: módulo `contratos`, tabelas `contratos`, `contratos_aditivos`, `contratos_fiscais`, recálculo de valor/vigência pelos aditivos, função `contratos_anos` |
+| `supabase/teste_contratos_ficticios.sql` | opcional: contratos fictícios ligados às licitações de teste, com fiscais e aditivos |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
 
@@ -257,6 +259,33 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.9.0 — 13/11/2026 — Fase 2 · Lote 8: contratos (PNTP 9.1 a 9.3)**
+- Módulo novo "Contratos" no painel (o antigo "Licitações e contratos" passou a se chamar
+  "Licitações"; quem tinha acesso a licitações recebeu o mesmo acesso a contratos).
+- Contrato: instrumento (contrato, ata de registro de preços, empenho, carta-contrato), número,
+  objeto, contratado com CNPJ/CPF, valor inicial, assinatura, vigência, rescisão, inteiro teor
+  (PDF ou link) e a licitação de origem (escolha por busca, sem lista do navegador).
+- Aditivos, apostilamentos e rescisão com valor (+/−), nova vigência e inteiro teor. O banco
+  recalcula sozinho "valor atual" e "fim da vigência atual" (trigger `recalcular_contrato`).
+- Fiscais e gestor de cada contrato, com ato de designação e período.
+- Regras no banco: CPF/CNPJ só com 11 ou 14 números; fim da vigência não pode ser antes do
+  início; licitação com contrato não pode ser excluída (FK RESTRICT, com mensagem no painel);
+  em contrato publicado, aditivos e fiscais só com permissão de publicar.
+- PNCP: botão "Importar do PNCP" em Contratos e importação automática noturna (a mesma ligada
+  em Licitações) trazem contratos e termos aditivos, ligando à licitação quando ela também veio
+  do PNCP. Fiscais não existem no PNCP: são informados no painel. A função `pncp` ganhou o
+  endereço dos termos aditivos (refazer o Deploy) e a `pncp-sincronizar` passou a importar
+  contratos (refazer o Deploy).
+- Site `#/contratos`: abas "Contratos e aditivos" (abas de ano, tabela, filtro por período de
+  vigência, situação e texto, CSV/JSON) e "Fiscais de contratos" (`#/contratos/fiscais`): a
+  Cartilha 2026 diz que o 9.3 não é atendido se o fiscal só aparecer dentro de cada contrato.
+  Página do contrato com aditivos e fiscais; página da licitação mostra os contratos decorrentes.
+- CPF de pessoa física aparece mascarado no site e nos arquivos baixados (***.456.789-**).
+- Varredura PNTP (Cartilha/Matriz 2026): 9.1 atende (resumo com contratado, valor, objeto,
+  vigência e aditivos; filtro mínimo "período"); 9.2 atende quando o inteiro teor é anexado ou
+  vem do PNCP; 9.3 atende com a relação de fiscais vigentes e encerrados; 9.4 (ordem
+  cronológica de pagamentos) fica no Portal da Transparência externo, por ser dado financeiro.
 
 **0.8.2 — 13/11/2026 — licitações conforme a Cartilha PNTP 2026**
 - Varredura do módulo contra a Cartilha e a Matriz 2026 (8.1 a 8.7). Ajustes:

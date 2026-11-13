@@ -45,6 +45,7 @@ const CHAVE_PUBLICA = chave('SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY');
 const PERMITIDOS = [
   /^\/api\/consulta\/v1\/(contratacoes\/publicacao|contratacoes\/atualizacao|contratos|contratos\/atualizacao|atas|atas\/atualizacao)\?[A-Za-z0-9=&%._-]+$/,
   /^\/api\/pncp\/v1\/orgaos\/\d{14}\/(compras|contratos)\/\d{4}\/\d{1,9}\/arquivos(\?[A-Za-z0-9=&%._-]+)?$/,
+  /^\/api\/pncp\/v1\/orgaos\/\d{14}\/contratos\/\d{4}\/\d{1,9}\/termos(\?[A-Za-z0-9=&%._-]+)?$/,
   /^\/api\/pncp\/v1\/orgaos\/\d{14}\/atas\/\d{4}\/\d{1,9}\/\d{1,9}\/arquivos(\?[A-Za-z0-9=&%._-]+)?$/,
 ];
 

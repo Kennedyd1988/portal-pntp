@@ -1,8 +1,8 @@
 {
-  "versao": "0.8.2",
+  "versao": "0.9.0",
   "data": "2026-11-13",
   "notas": [
-    "Site: licitações em tabela, com aba \"Todos os processos\" e filtro por mês (Cartilha PNTP 2026).",
-    "Novos tipos de documento: ETP, justificativa, orçamento, parecer e emergência."
+    "Novo módulo Contratos: aditivos, fiscais, inteiro teor e importação do PNCP.",
+    "Site: página de contratos e relação de fiscais de contratos (PNTP 9.1 a 9.3)."
   ]
 }

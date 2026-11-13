@@ -65,6 +65,7 @@
     const t = (e && e.message) || '';
     if (/licitacoes_link/.test(t)) return toast('Informe o link do processo no outro sistema.', true);
     if (/licitacoes_pncp_uk/.test(t)) return toast('Este processo do PNCP já foi importado.', true);
+    if (/contratos_licitacao_id_fkey/.test(t)) return toast('Não dá para excluir: há contratos ligados a este processo. Desvincule ou exclua os contratos antes (em Contratos).', true);
     if (/Este processo está publicado|não pertence/.test(t)) return toast(t.replace(/^.*?(Este processo|O documento)/, '$1'), true);
     toast(P.erroGravacao(e), true);
   };
@@ -494,7 +495,7 @@
       finally { ocupado(btn); }
     });
     return el('fieldset', { class: 'opcoes', style: 'margin-top:14px' }, el('legend', null, 'Importação automática'),
-      el('label', { class: 'checkbox' }, auto, ' Buscar no PNCP todo dia de madrugada, sem ninguém precisar clicar'),
+      el('label', { class: 'checkbox' }, auto, ' Buscar no PNCP todo dia de madrugada as licitações e os contratos, sem ninguém precisar clicar'),
       el('label', { class: 'checkbox' }, pub, ' Publicar no site os processos novos automaticamente (sem marcar, entram como rascunho)'),
       el('p', { class: 'ajuda' }, 'Usa os CNPJs informados acima. Cada noite busca o que foi publicado ou alterado desde a última vez (na primeira, os últimos 120 dias). '
         + 'Para períodos mais antigos, use "Importar" com as datas.'),

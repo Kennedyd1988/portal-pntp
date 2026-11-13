@@ -497,3 +497,6 @@ ul.partes-contas.cartao { padding: 4px 18px; }
   .tabela-lic .lic-obj { min-width: 0; }
 }
 html.contraste .tabela-rolagem, html.contraste .tabela-dados th, html.contraste .tabela-dados tr { background: #000 !important; color: #fff !important; border-color: #fff !important; }
+.tabela-dados .nowrap { white-space: nowrap; }
+.tabela-ctr .lic-obj { min-width: 200px; }
+.tabela-dados td:last-child { width: 1%; }

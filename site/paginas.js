@@ -768,6 +768,8 @@
     const api = (tabela, sel, extra) => cfg.supabaseUrl + '/rest/v1/' + tabela + '?select=' + sel + '&orgao_id=eq.' + org() + (extra || '') + '&apikey=' + cfg.supabaseChave;
     const conjuntos = [
       ['Publicações oficiais (atos normativos)', 'publicacoes', 'tipo,numero,ano,data_publicacao,ementa,vigencia,observacao,arquivo_url,link_externo', '&order=data_publicacao.desc'],
+      ['Contratos', 'contratos', 'tipo,numero,ano,processo,objeto,contratado_nome,valor_inicial,valor_atual,data_assinatura,vigencia_inicio,vigencia_fim_atual,rescindido_em,unidade_nome,link_externo', '&order=data_assinatura.desc'],
+      ['Fiscais de contratos', 'contratos_fiscais', 'nome,funcao,ato,inicio,fim', '&order=nome'],
       ['Licitações', 'licitacoes', 'modalidade,numero,ano,processo,objeto,srp,criterio,amparo_legal,unidade_nome,valor_estimado,valor_homologado,data_publicacao,data_abertura,andamento,vencedores,link_externo', '&order=data_publicacao.desc'],
       ['Planejamento e prestação de contas', 'documentos_contas', 'tipo,exercicio,exercicio_fim,periodicidade,periodo,parte,resultado,numero_ato,data_publicacao,descricao,arquivo_url,link_externo', '&order=exercicio.desc'],
       ['Carta de Serviços', 'servicos', 'nome,categoria,descricao,publico_alvo,requisitos,etapas,prazo_maximo,forma_prestacao,link_digital,local_atendimento,horario,custo', '&order=nome'],
@@ -859,7 +861,7 @@
     const { data: pags } = await sb.from('paginas').select('titulo, slug').eq('orgao_id', org()).order('titulo').limit(300);
     const fixos = [['Notícias', '#/noticias'], ['Publicações oficiais', '#/publicacoes'], ['Diário Oficial', '#/diario-oficial'],
       ['Estrutura organizacional', '#/estrutura'], ['Gestores', '#/gestores'], ['Carta de Serviços', '#/servicos'], ['Perguntas frequentes', '#/faq'],
-      ['Transparência', '#/transparencia'], ['Planejamento e prestação de contas', '#/planejamento'], ['Licitações e contratos', '#/licitacoes'], ['Ouvidoria', '#/ouvidoria'], ['e-SIC', '#/esic'],
+      ['Transparência', '#/transparencia'], ['Planejamento e prestação de contas', '#/planejamento'], ['Licitações', '#/licitacoes'], ['Contratos', '#/contratos'], ['Fiscais de contratos', '#/contratos/fiscais'], ['Ouvidoria', '#/ouvidoria'], ['e-SIC', '#/esic'],
       ['Proteção de dados (LGPD)', '#/lgpd'], ['Dados abertos', '#/dados-abertos'], ['Acessibilidade', '#/acessibilidade'], ['Contato', '#/contato']];
     pagina(main, el('h1', null, 'Mapa do site'),
       el('div', { class: 'grade g2' },
@@ -1101,7 +1103,7 @@
       ['Diárias', 'viagem', [L('Diárias concedidas', '7.1'), L('Tabela de valores das diárias', '7.2')]],
       ['Licitações', 'licit', [L('Relação das licitações', '8.1', '#/licitacoes/todos'), L('Editais e documentos das fases', '8.2–8.3', '#/licitacoes/licitacoes'), L('Dispensas e inexigibilidades', '8.4', '#/licitacoes/diretas'),
         L('Adesões a atas (SRP)', '8.5', '#/licitacoes/adesoes'), L('Plano de contratações anual', '8.6', lic), L('Licitantes sancionados', '8.7', 'https://portaldatransparencia.gov.br/sancoes/ceis')]],
-      ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', lic), L('Fiscais de contratos', '9.3', lic)]],
+      ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', '#/contratos'), L('Fiscais de contratos', '9.3', '#/contratos/fiscais'), L('Ordem cronológica de pagamentos', '9.4')]],
       ['Obras', 'obra', [L('Obras e situação atual', '10.1'), L('Quantitativos e preços', '10.2–10.3'), L('Obras paralisadas', '10.4')]],
       ['Planejamento e prestação de contas', 'grafico', plan],
       ['Serviço de Informação ao Cidadão', 'chat', [L('e-SIC: fazer pedido', '12.1–12.4', '#/esic'), L('Regulamentação da LAI', '12.5', '#/publicacoes?q=acesso a informacao'),
@@ -1149,7 +1151,7 @@
         el('form', { class: 'transp-busca', role: 'search', onsubmit: (e) => { e.preventDefault(); const q = campoBusca.value.trim(); if (q) location.hash = '#/busca?q=' + encodeURIComponent(q); } },
           el('label', { for: 'busca-transp', class: 'sr' }, 'Pesquisar no Portal da Transparência'), campoBusca, el('button', { type: 'submit' }, 'Pesquisar')),
         el('div', { class: 'transp-atalhos' }, el('span', null, 'Mais acessados:'),
-          [['Despesas', ext()], ['Servidores', ext()], ['Licitações', '#/licitacoes'], ['Planejamento e contas', '#/planejamento'], ['Leis e decretos', '#/publicacoes']]
+          [['Despesas', ext()], ['Servidores', ext()], ['Licitações', '#/licitacoes'], ['Contratos', '#/contratos'], ['Planejamento e contas', '#/planejamento'], ['Leis e decretos', '#/publicacoes']]
             .filter((x) => x[1]).map(([t, h]) => el('a', { href: h, target: externo(h) ? '_blank' : null, rel: externo(h) ? 'noopener' : null }, t))))),
       el('div', { class: 'transp-fundo' }, el('div', { class: 'limite pagina transp-corpo' },
         el('div', { class: 'transp-status' },
@@ -1344,8 +1346,9 @@
   R.licitacao = async function (main, partes) {
     const id = partes[0];
     if (!/^[0-9a-f-]{36}$/i.test(id || '')) return R['*'](main);
-    const [{ data: l }, { data: docs }] = await Promise.all([
+    const [{ data: l }, { data: docs }, { data: ctrs }] = await Promise.all([
       sb.from('licitacoes').select(CAMPOS_LIC).eq('orgao_id', org()).eq('id', id).maybeSingle(),
+      sb.from('contratos').select('id, tipo, numero, contratado_nome, valor_atual').eq('licitacao_id', id).order('data_assinatura').limit(100),
       sb.from('licitacoes_documentos').select('tipo, titulo, data, arquivo_url, link_externo, ordem').eq('licitacao_id', id).order('data').order('ordem').limit(500)
     ]);
     if (!l) return R['*'](main);
@@ -1373,7 +1376,243 @@
           : el('p', { class: 'vazio' }, l.link_externo ? 'Os documentos deste processo estão no link abaixo.' : 'Nenhum documento publicado ainda.')),
       l.link_externo ? el('p', { style: 'margin-top:16px' }, el('a', { class: 'botao botao-claro', href: l.link_externo, target: '_blank', rel: 'noopener' },
         l.origem === 'pncp' ? 'Ver no PNCP' : 'Ver o processo no sistema de origem', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
+      (ctrs || []).length ? el('section', { style: 'margin-top:24px' }, el('h2', null, 'Contratos decorrentes'),
+        el('ul', { class: 'partes-contas cartao' }, ctrs.map((c) => el('li', null, el('a', { href: '#/contrato/' + c.id }, nomeCtr(c)),
+          el('span', { class: 'meta' }, c.contratado_nome + (c.valor_atual !== null ? ' · ' + moedaBR(c.valor_atual) : '')))))) : null,
       el('p', { class: 'meta', style: 'margin-top:18px' }, 'Última atualização: ' + dataBR(l.atualizado_em)));
+  };
+
+  // ===================================================================
+  // CONTRATOS (9.1 a 9.3)
+  // Abas: Contratos (com abas de ano) | Fiscais de contratos — a Cartilha
+  // não aceita a lista de fiscais só dentro de cada contrato (9.3).
+  // Filtro mínimo exigido no 9.1: período.
+  // ===================================================================
+  const TIPO_CTR = { contrato: 'Contrato', ata_registro_precos: 'Ata de registro de preços', empenho: 'Nota de empenho', carta_contrato: 'Carta-contrato', outro: 'Instrumento' };
+  const FUNCAO_CTR = { gestor: 'Gestor', fiscal: 'Fiscal', fiscal_tecnico: 'Fiscal técnico', fiscal_administrativo: 'Fiscal administrativo', fiscal_suplente: 'Fiscal suplente' };
+  const ADIT_CTR = { prazo: 'Prazo', valor: 'Valor', prazo_valor: 'Prazo e valor', qualitativo: 'Qualitativo', apostilamento: 'Apostilamento', rescisao: 'Rescisão', outro: 'Outro' };
+  const CAMPOS_CTR = 'id, licitacao_id, tipo, numero, ano, processo, objeto, contratado_nome, contratado_doc, unidade_nome, valor_inicial, valor_atual, data_assinatura, vigencia_inicio, vigencia_fim, vigencia_fim_atual, rescindido_em, arquivo_url, link_externo, origem, atualizado_em';
+  const hojeISO = () => new Date().toISOString().slice(0, 10);
+  // CPF de pessoa física aparece mascarado (LGPD); CNPJ completo.
+  const docCtr = (d) => !d ? '' : d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : '***.' + d.slice(3, 6) + '.' + d.slice(6, 9) + '-**';
+  const nomeCtr = (c) => (TIPO_CTR[c.tipo] || 'Contrato') + (c.numero ? ' nº ' + c.numero : '');
+  const vigCtr = (c) => c.rescindido_em ? ['Rescindido', 'etiqueta-vermelha'] : !c.vigencia_fim_atual ? ['Vigência não informada', 'etiqueta-ambar']
+    : c.vigencia_fim_atual >= hojeISO() ? ['Vigente', 'etiqueta-verde'] : ['Encerrado', 'etiqueta-ambar'];
+  const COLUNAS_CTR = [['tipo', 'Instrumento', (v) => TIPO_CTR[v] || v], ['numero', 'Número'], ['ano', 'Ano'], ['processo', 'Processo'], ['objeto', 'Objeto'],
+    ['contratado_nome', 'Contratado'], ['contratado_doc', 'CNPJ/CPF', (v) => docCtr(v)], ['valor_inicial', 'Valor inicial'], ['valor_atual', 'Valor atual (com aditivos)'],
+    ['data_assinatura', 'Assinatura'], ['vigencia_inicio', 'Início da vigência'], ['vigencia_fim_atual', 'Fim da vigência (atual)'], ['rescindido_em', 'Rescindido em'],
+    ['unidade_nome', 'Unidade'], ['arquivo_url', 'Inteiro teor', (v, r) => v || r.link_externo || '']];
+
+  R.contratos = async function (main, partes, params) {
+    S.titulo('Contratos'); S.trilha(['Transparência', '#/transparencia'], ['Contratos']);
+    let aba = partes[0] === 'fiscais' ? 'fiscais' : 'contratos';
+    const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' });
+    const { lista } = faixaAbas([['contratos', 'Contratos e aditivos'], ['fiscais', 'Fiscais de contratos']], aba, 'Seção', false, (id) => { aba = id; abrir(new URLSearchParams()); });
+    pagina(main, el('h1', null, 'Contratos'),
+      el('p', { class: 'sub' }, 'Contratos celebrados, com contratado, valor, objeto, vigência, aditivos, inteiro teor e fiscais.'),
+      lista, conteudo,
+      el('p', { class: 'meta', style: 'margin-top:18px' }, 'A ordem cronológica de pagamentos fica no ',
+        S.conf.transparencia_url ? el('a', { href: S.conf.transparencia_url, target: '_blank', rel: 'noopener' }, 'Portal da Transparência') : 'Portal da Transparência', '.'));
+    await abrir(params);
+
+    async function abrir(prm) { return aba === 'fiscais' ? abrirFiscais() : abrirContratos(prm); }
+
+    async function abrirContratos(prm) {
+      conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
+      const { data: anosC, error } = await sb.rpc('contratos_anos', { p_orgao: org() });
+      if (error) { conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+      const anoAtual = new Date().getFullYear();
+      const contagem = new Map((anosC || []).map((x) => [x.ano, x.total]));
+      if (!contagem.has(anoAtual)) contagem.set(anoAtual, 0);
+      const anos = [...contagem.keys()].sort((a, b) => b - a);
+      const pedido = parseInt(prm.get('ano'), 10);
+      let ano = anos.includes(pedido) ? pedido : anos[0];
+      const painelAno = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
+      const faixa = faixaAbas(anos.map((a) => [a, a + ' (' + contagem.get(a) + ')']), ano, 'Ano', true, (id) => { ano = Number(id); abrirAno(); });
+      conteudo.replaceChildren(faixa.lista, painelAno);
+      faixa.marcar(ano);
+      abrirAno();
+
+      function abrirAno() {
+        history.replaceState(null, '', '#/contratos?ano=' + ano);
+        if (!contagem.get(ano)) { painelAno.replaceChildren(el('p', { class: 'vazio' }, 'Não foram celebrados contratos em ' + ano + (ano === anoAtual ? ' até esta data.' : '.'))); return; }
+        const f = { busca: '', de: '', ate: '', vig: '' };
+        const montar = (sel, op) => {
+          let q = sb.from('contratos').select(sel || CAMPOS_CTR, op).eq('orgao_id', org()).eq('ano', ano);
+          if (f.busca) q = q.ilike('busca', termo(f.busca));
+          // Período: contratos cuja vigência toca o intervalo escolhido.
+          if (f.de) q = q.gte('vigencia_fim_atual', f.de);
+          if (f.ate) q = q.lte('vigencia_inicio', f.ate);
+          if (f.vig === 'vigente') q = q.is('rescindido_em', null).gte('vigencia_fim_atual', hojeISO());
+          if (f.vig === 'encerrado') q = q.or('vigencia_fim_atual.lt.' + hojeISO() + ',rescindido_em.not.is.null');
+          return q;
+        };
+        const corpoTab = el('tbody');
+        const tabela = el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados tabela-lic tabela-ctr' },
+          el('caption', { class: 'sr' }, 'Contratos de ' + ano),
+          el('thead', null, el('tr', null, ['Nº / Instrumento', 'Contratado', 'Objeto', 'Valor', 'Vigência', 'Situação'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Detalhes')))),
+          corpoTab));
+        const vazio = el('div'), mais = el('div', { class: 'mais' }), totalTxt = el('span', { class: 'meta', role: 'status' });
+        let itens = [], versao = 0;
+        async function carregar(reiniciar) {
+          const minha = reiniciar ? ++versao : versao;
+          const [linhas, cont] = await Promise.all([paginar(montar, 'data_assinatura', reiniciar ? null : itens[itens.length - 1], 50),
+            reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
+          if (minha !== versao) return;
+          if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' contrato' : ' contratos');
+          itens = reiniciar ? linhas : itens.concat(linhas);
+          tabela.hidden = !itens.length;
+          vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhum contrato com esses filtros.'));
+          if (reiniciar) corpoTab.replaceChildren(...linhas.map(linhaCtr)); else corpoTab.append(...linhas.map(linhaCtr));
+          const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
+          btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
+          mais.replaceChildren(linhas.length === 50 ? btn : '');
+        }
+        const fBusca = el('input', { type: 'search', placeholder: 'Contratado, CNPJ, objeto ou número' });
+        const fDe = el('input', { type: 'date' }), fAte = el('input', { type: 'date' });
+        const fVig = el('select', null, el('option', { value: '' }, 'Todos'), el('option', { value: 'vigente' }, 'Vigentes'), el('option', { value: 'encerrado' }, 'Encerrados ou rescindidos'));
+        let espera;
+        const aplicar = () => { Object.assign(f, { busca: fBusca.value.trim(), de: fDe.value, ate: fAte.value, vig: fVig.value }); carregar(true); };
+        [fDe, fAte, fVig].forEach((x) => x.addEventListener('change', aplicar));
+        fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
+        const exportar = S.botoesExportar('contratos-' + ano, COLUNAS_CTR, async (de, ate) => {
+          const { data } = await montar().order('data_assinatura', { ascending: false }).order('id').range(de, ate);
+          return data || [];
+        });
+        painelAno.replaceChildren(
+          el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
+            el('label', null, 'Pesquisar', fBusca), el('label', null, 'Vigência de', fDe), el('label', null, 'até', fAte), el('label', null, 'Situação', fVig)),
+          el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
+        tabela.hidden = true;
+        carregar(true).catch(() => vazio.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
+      }
+    }
+
+    async function abrirFiscais() {
+      history.replaceState(null, '', '#/contratos/fiscais');
+      const f = { busca: '', vig: '' };
+      // Só fiscais de contratos publicados aparecem (regra do banco); a junção traz o contrato.
+      const SEL = 'id, nome, funcao, ato, inicio, fim, contratos!inner(id, numero, ano, tipo, objeto, contratado_nome, vigencia_inicio, vigencia_fim_atual, rescindido_em)';
+      const montar = (sel, op) => {
+        let q = sb.from('contratos_fiscais').select(sel || SEL, op).eq('orgao_id', org());
+        if (f.busca) q = q.ilike('busca', termo(f.busca));
+        if (f.vig === 'vigente') q = q.is('contratos.rescindido_em', null).gte('contratos.vigencia_fim_atual', hojeISO());
+        if (f.vig === 'encerrado') q = q.lt('contratos.vigencia_fim_atual', hojeISO());
+        return q;
+      };
+      const corpoTab = el('tbody');
+      const tabela = el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' },
+        el('caption', { class: 'sr' }, 'Fiscais de contratos'),
+        el('thead', null, el('tr', null, ['Fiscal', 'Função', 'Contrato', 'Contratado', 'Vigência do contrato', 'Situação'].map((t) => el('th', { scope: 'col' }, t)))), corpoTab));
+      const vazio = el('div'), mais = el('div', { class: 'mais' }), totalTxt = el('span', { class: 'meta', role: 'status' });
+      let itens = [], versao = 0;
+      const linha = (x) => {
+        const c = x.contratos, sv = vigCtr(c);
+        return el('tr', null,
+          el('td', { 'data-rotulo': 'Fiscal' }, el('strong', null, x.nome), x.ato ? el('span', { class: 'meta' }, x.ato) : null),
+          el('td', { 'data-rotulo': 'Função' }, FUNCAO_CTR[x.funcao] || x.funcao, x.inicio || x.fim ? el('span', { class: 'meta' }, (x.inicio ? dataBR(x.inicio) : '…') + ' a ' + (x.fim ? dataBR(x.fim) : 'atual')) : null),
+          el('td', { 'data-rotulo': 'Contrato' }, el('a', { href: '#/contrato/' + c.id }, nomeCtr(c)), el('span', { class: 'meta' }, c.objeto.length > 90 ? c.objeto.slice(0, 90) + '…' : c.objeto)),
+          el('td', { 'data-rotulo': 'Contratado' }, c.contratado_nome),
+          el('td', { 'data-rotulo': 'Vigência', class: 'num' }, (dataBR(c.vigencia_inicio) || '?') + ' a ' + (dataBR(c.vigencia_fim_atual) || '?')),
+          el('td', { 'data-rotulo': 'Situação' }, el('span', { class: 'etiqueta ' + sv[1] }, sv[0])));
+      };
+      async function carregar(reiniciar) {
+        const minha = reiniciar ? ++versao : versao;
+        const ultimo = reiniciar ? null : itens[itens.length - 1];
+        // Ordem alfabética por nome (é cadastro de pessoas); cursor nome + id.
+        let q = montar().order('nome').order('id').limit(50);
+        if (ultimo) q = q.or('nome.gt.' + JSON.stringify(ultimo.nome) + ',and(nome.eq.' + JSON.stringify(ultimo.nome) + ',id.gt.' + ultimo.id + ')');
+        const [{ data }, cont] = await Promise.all([q, reiniciar ? montar('id, contratos!inner(id)', { count: 'exact', head: true }) : Promise.resolve(null)]);
+        if (minha !== versao) return;
+        const linhas = data || [];
+        if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' designação' : ' designações');
+        itens = reiniciar ? linhas : itens.concat(linhas);
+        tabela.hidden = !itens.length;
+        vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, f.busca || f.vig ? 'Nenhum fiscal com esses filtros.' : 'Nenhum fiscal publicado ainda.'));
+        if (reiniciar) corpoTab.replaceChildren(...linhas.map(linha)); else corpoTab.append(...linhas.map(linha));
+        const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
+        btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
+        mais.replaceChildren(linhas.length === 50 ? btn : '');
+      }
+      const fBusca = el('input', { type: 'search', placeholder: 'Nome do fiscal ou portaria' });
+      const fVig = el('select', null, el('option', { value: '' }, 'Vigentes e encerrados'), el('option', { value: 'vigente' }, 'Contratos vigentes'), el('option', { value: 'encerrado' }, 'Contratos encerrados'));
+      let espera;
+      const aplicar = () => { Object.assign(f, { busca: fBusca.value.trim(), vig: fVig.value }); carregar(true); };
+      fVig.addEventListener('change', aplicar);
+      fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
+      const exportar = S.botoesExportar('fiscais-de-contratos', [['nome', 'Fiscal'], ['funcao', 'Função', (v) => FUNCAO_CTR[v] || v], ['ato', 'Designação'],
+        ['contrato', 'Contrato', (v, r) => nomeCtr(r.contratos)], ['objeto', 'Objeto', (v, r) => r.contratos.objeto], ['contratado', 'Contratado', (v, r) => r.contratos.contratado_nome],
+        ['vig_ini', 'Início da vigência', (v, r) => r.contratos.vigencia_inicio], ['vig_fim', 'Fim da vigência', (v, r) => r.contratos.vigencia_fim_atual]],
+        async (de, ate) => { const { data } = await montar().order('nome').order('id').range(de, ate); return data || []; });
+      conteudo.replaceChildren(
+        el('p', { class: 'meta' }, 'Relação dos fiscais e gestores de cada contrato, vigente e encerrado (PNTP 9.3).'),
+        el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } }, el('label', null, 'Pesquisar', fBusca), el('label', null, 'Contratos', fVig)),
+        el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
+      tabela.hidden = true;
+      carregar(true).catch(() => vazio.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
+    }
+  };
+
+  function linhaCtr(c) {
+    const sv = vigCtr(c);
+    const link = '#/contrato/' + c.id;
+    return el('tr', null,
+      el('td', { 'data-rotulo': 'Nº / Instrumento' }, el('a', { href: link, class: 'lic-num' }, c.numero || 's/nº'), el('span', { class: 'meta' }, TIPO_CTR[c.tipo] || 'Contrato')),
+      el('td', { 'data-rotulo': 'Contratado' }, c.contratado_nome, c.contratado_doc ? el('span', { class: 'meta nowrap' }, docCtr(c.contratado_doc)) : null),
+      el('td', { 'data-rotulo': 'Objeto', class: 'lic-obj' }, c.objeto.length > 200 ? c.objeto.slice(0, 200) + '…' : c.objeto),
+      el('td', { 'data-rotulo': 'Valor', class: 'num' }, c.valor_atual !== null ? moedaBR(c.valor_atual) : '—',
+        c.valor_atual !== null && c.valor_inicial !== null && Number(c.valor_atual) !== Number(c.valor_inicial) ? el('span', { class: 'meta' }, 'inicial ' + moedaBR(c.valor_inicial)) : null),
+      el('td', { 'data-rotulo': 'Vigência', class: 'num' }, (dataBR(c.vigencia_inicio) || '?') + ' a ' + (dataBR(c.vigencia_fim_atual) || '?'),
+        c.vigencia_fim && c.vigencia_fim_atual && c.vigencia_fim !== c.vigencia_fim_atual ? el('span', { class: 'meta' }, 'prorrogado') : null),
+      el('td', { 'data-rotulo': 'Situação' }, el('span', { class: 'etiqueta ' + sv[1] }, sv[0])),
+      el('td', { 'data-rotulo': '' }, el('a', { href: link, class: 'botao botao-claro botao-p' }, 'Detalhes', el('span', { class: 'sr' }, ' de ' + nomeCtr(c)))));
+  }
+
+  R.contrato = async function (main, partes) {
+    const id = partes[0];
+    if (!/^[0-9a-f-]{36}$/i.test(id || '')) return R['*'](main);
+    const [{ data: c }, { data: ad }, { data: fi }] = await Promise.all([
+      sb.from('contratos').select(CAMPOS_CTR).eq('orgao_id', org()).eq('id', id).maybeSingle(),
+      sb.from('contratos_aditivos').select('numero, tipo, data_assinatura, descricao, valor, nova_vigencia_fim, arquivo_url, link_externo').eq('contrato_id', id).order('data_assinatura').limit(200),
+      sb.from('contratos_fiscais').select('nome, funcao, ato, inicio, fim').eq('contrato_id', id).order('funcao').order('nome').limit(100)
+    ]);
+    if (!c) return R['*'](main);
+    let lic = null;
+    if (c.licitacao_id) { const r = await sb.from('licitacoes').select('id, modalidade, numero').eq('id', c.licitacao_id).maybeSingle(); lic = r.data; }
+    S.titulo(nomeCtr(c)); S.trilha(['Transparência', '#/transparencia'], ['Contratos', '#/contratos?ano=' + c.ano], [nomeCtr(c)]);
+    const sv = vigCtr(c);
+    const linha = (rot, val) => val || val === 0 ? el('div', null, el('dt', null, rot), el('dd', null, val)) : null;
+    const teor = c.arquivo_url || c.link_externo;
+    pagina(main,
+      el('p', { class: 'meta' }, 'Contratos'),
+      el('h1', null, nomeCtr(c)),
+      el('p', null, el('span', { class: 'etiqueta ' + sv[1] }, sv[0])),
+      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { style: 'white-space:pre-line' }, c.objeto)),
+      el('dl', { class: 'ficha-lic' },
+        linha('Contratado', c.contratado_nome), linha('CNPJ / CPF', docCtr(c.contratado_doc)), linha('Processo administrativo', c.processo),
+        linha('Licitação de origem', lic ? el('a', { href: '#/licitacao/' + lic.id }, (MOD_LIC[lic.modalidade] || '') + (lic.numero ? ' nº ' + lic.numero : '')) : null),
+        linha('Assinatura', dataBR(c.data_assinatura)), linha('Vigência', (dataBR(c.vigencia_inicio) || '?') + ' a ' + (dataBR(c.vigencia_fim_atual) || '?')),
+        linha('Rescindido em', c.rescindido_em ? dataBR(c.rescindido_em) : null),
+        linha('Valor inicial', c.valor_inicial !== null ? moedaBR(c.valor_inicial) : null), linha('Valor atual (com aditivos)', c.valor_atual !== null ? moedaBR(c.valor_atual) : null),
+        linha('Unidade contratante', c.unidade_nome)),
+      teor ? el('p', { style: 'margin-top:16px' }, el('a', { class: 'botao', href: teor, target: '_blank', rel: 'noopener' },
+        c.arquivo_url ? 'Inteiro teor do contrato (PDF)' : c.origem === 'pncp' ? 'Ver o contrato no PNCP' : 'Ver o contrato no sistema de origem', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
+      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Aditivos e apostilamentos'),
+        (ad || []).length ? el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' },
+          el('thead', null, el('tr', null, ['Termo', 'Assinatura', 'Valor', 'Nova vigência', 'Inteiro teor'].map((t) => el('th', { scope: 'col' }, t)))),
+          el('tbody', null, ad.map((a) => el('tr', null,
+            el('td', { 'data-rotulo': 'Termo' }, el('strong', null, a.numero || ADIT_CTR[a.tipo]), el('span', { class: 'meta' }, ADIT_CTR[a.tipo] + (a.descricao ? ' · ' + a.descricao : ''))),
+            el('td', { 'data-rotulo': 'Assinatura', class: 'num' }, dataBR(a.data_assinatura)),
+            el('td', { 'data-rotulo': 'Valor', class: 'num' }, a.valor !== null ? moedaBR(a.valor) : '—'),
+            el('td', { 'data-rotulo': 'Nova vigência', class: 'num' }, a.nova_vigencia_fim ? dataBR(a.nova_vigencia_fim) : '—'),
+            el('td', { 'data-rotulo': 'Inteiro teor' }, a.arquivo_url || a.link_externo ? el('a', { href: a.arquivo_url || a.link_externo, target: '_blank', rel: 'noopener' }, a.arquivo_url ? 'PDF' : 'Link', el('span', { class: 'sr' }, ' (abre em nova aba)')) : '—'))))))
+          : el('p', { class: 'vazio' }, 'Este contrato não tem aditivos.')),
+      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Fiscais e gestor'),
+        (fi || []).length ? el('ul', { class: 'partes-contas cartao' }, fi.map((x) => el('li', null, el('strong', null, x.nome),
+          el('span', { class: 'meta' }, (FUNCAO_CTR[x.funcao] || x.funcao) + (x.ato ? ' · ' + x.ato : '') + (x.inicio || x.fim ? ' · ' + (x.inicio ? dataBR(x.inicio) : '…') + ' a ' + (x.fim ? dataBR(x.fim) : 'atual') : '')))))
+          : el('p', { class: 'vazio' }, 'Fiscal não informado.'),
+        el('p', { class: 'meta' }, el('a', { href: '#/contratos/fiscais' }, 'Ver a relação de todos os fiscais de contratos'))),
+      el('p', { class: 'meta', style: 'margin-top:18px' }, 'Última atualização: ' + dataBR(c.atualizado_em)));
   };
 
   R.ouvidoria = externo('ouvidoria', 'Ouvidoria', 'Elogios, sugestões, reclamações, solicitações e denúncias sobre os serviços.', 'ouvidoria_url');
@@ -1389,7 +1628,7 @@
     if (q.length < 2) { pagina(main, el('h1', null, 'Busca'), el('p', null, 'Digite pelo menos 2 letras no campo de pesquisa.')); return; }
     // Dentro de or() o curinga é * (o % confunde a sintaxe do filtro).
     const n = termo(q), cru = '*' + q.replace(/[%_*(),.]/g, ' ').trim() + '*';
-    const [nt, pb, sv, pg, fq, un, ct, lc] = await Promise.all([
+    const [nt, pb, sv, pg, fq, un, ct, lc, co] = await Promise.all([
       sb.from('noticias').select('id, titulo, publicado_em').eq('orgao_id', org()).ilike('busca', n).order('publicado_em', { ascending: false }).limit(8),
       sb.from('publicacoes').select('id, tipo, numero, ano, ementa, arquivo_url, link_externo').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8),
       sb.from('servicos').select('id, nome').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
@@ -1397,12 +1636,14 @@
       sb.from('faq').select('pergunta').eq('orgao_id', org()).or('pergunta.ilike.' + cru + ',resposta.ilike.' + cru).limit(8),
       sb.from('unidades').select('id, nome').eq('orgao_id', org()).or('nome.ilike.' + cru + ',competencias.ilike.' + cru).limit(8),
       sb.from('documentos_contas').select('tipo, exercicio, exercicio_fim, periodo, periodicidade, parte').eq('orgao_id', org()).ilike('busca', n).order('exercicio', { ascending: false }).limit(8),
-      sb.from('licitacoes').select('id, modalidade, numero, objeto').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8)
+      sb.from('licitacoes').select('id, modalidade, numero, objeto').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8),
+      sb.from('contratos').select('id, tipo, numero, objeto, contratado_nome').eq('orgao_id', org()).ilike('busca', n).order('data_assinatura', { ascending: false }).limit(8)
     ]);
     const grupos = [
       ['Serviços', (sv.data || []).map((s) => [s.nome, '#/servico/' + s.id]), '#/servicos?q=' + encodeURIComponent(q)],
       ['Notícias', (nt.data || []).map((x) => [x.titulo + ' (' + dataBR(x.publicado_em) + ')', '#/noticia/' + x.id]), '#/noticias?q=' + encodeURIComponent(q)],
       ['Publicações oficiais', (pb.data || []).map((x) => [ato(x) + ' — ' + x.ementa, x.arquivo_url || x.link_externo || '#/publicacoes?q=' + encodeURIComponent(q)]), '#/publicacoes?q=' + encodeURIComponent(q)],
+      ['Contratos', (co.data || []).map((x) => [nomeCtr(x) + ' · ' + x.contratado_nome + ' · ' + (x.objeto.length > 70 ? x.objeto.slice(0, 70) + '…' : x.objeto), '#/contrato/' + x.id]), '#/contratos'],
       ['Licitações', (lc.data || []).map((x) => [nomeLic(x) + ' · ' + (x.objeto.length > 90 ? x.objeto.slice(0, 90) + '…' : x.objeto), '#/licitacao/' + x.id]), '#/licitacoes'],
       ['Planejamento e contas', (ct.data || []).map((x) => [curtoContas(x.tipo) + ' · ' + periodoContas(x) + (x.periodo ? ' de ' + x.exercicio : '') + ' · ' + x.parte, '#/planejamento/' + x.tipo + '?ano=' + x.exercicio]), '#/planejamento'],
       ['Unidades', (un.data || []).map((x) => [x.nome, '#/unidade/' + x.id]), null],
