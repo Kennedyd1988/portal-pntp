@@ -95,6 +95,19 @@ window.CLASSIF_PNTP = {
     patrimonio_essencial: 'V · Objeto imprescindível ao patrimônio público ou às atividades finalísticas, com risco de descontinuidade' }
 };
 
+// Período de uma declaração de que não há dados (declaracoes_inexistencia), por extenso.
+window.periodoDeclaracaoPNTP = function (d) {
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const br = (x) => x ? x.split('-').reverse().join('/') : '';
+  switch (d.abrangencia) {
+    case 'atual': return 'Situação atual';
+    case 'mes': return MESES[d.numero - 1].replace(/^./, (c) => c.toUpperCase()) + '/' + d.exercicio;
+    case 'bimestre': case 'trimestre': case 'quadrimestre': case 'semestre': return d.numero + 'º ' + d.abrangencia + ' de ' + d.exercicio;
+    case 'ano': return 'Exercício de ' + d.exercicio;
+    default: return br(d.data_inicio) + ' a ' + br(d.data_fim);
+  }
+};
+
 // Resolve o destino de uma chave para o órgão: { href, externo, rotulo } ou null (sem destino).
 window.destinoPNTP = function (conf, chave) {
   const d = window.DESTINOS_PNTP.find((x) => x[0] === chave);

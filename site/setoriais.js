@@ -38,12 +38,38 @@
         s.texto ? el('p', { style: 'white-space:pre-line;margin-top:14px' }, s.texto) : '');
       return;
     }
-    if (s.sem_ocorrencia) {
-      caixa.replaceChildren(el('div', { class: 'cartao' }, el('p', null, el('strong', null, declaracao)),
-        el('p', { class: 'meta' }, 'Informação atualizada em ' + dataBR(s.atualizado_em) + '.')));
+    // Declarações de que não há dados (script 23): a da situação atual substitui a lista; as de
+    // período ficam no alto, junto da lista (com a data em que foram registradas).
+    const decl = await declaracoesDa(chave);
+    const atual = decl.find((d) => d.abrangencia === 'atual');
+    if (atual || (s.sem_ocorrencia && !decl.length)) {
+      caixa.replaceChildren(el('div', { class: 'cartao' }, el('p', null, el('strong', null, atual ? atual.texto : declaracao)),
+        el('p', { class: 'meta' }, 'Declaração registrada em ' + dataBR(((atual && atual.criado_em) || s.atualizado_em || '').slice(0, 10)) + '.')));
       return;
     }
-    return desenhar(caixa, s);
+    const r = await desenhar(caixa, s);
+    const periodos = decl.filter((d) => d.abrangencia !== 'atual');
+    if (periodos.length) caixa.prepend(quadroDeclaracoes(periodos));
+    return r;
+  }
+  let declCache = null;
+  async function declaracoesDa(chave) {
+    if (!declCache || declCache.orgao !== org()) {
+      const { data } = await sb.from('declaracoes_inexistencia').select('secao, abrangencia, exercicio, numero, data_inicio, data_fim, texto, criado_em')
+        .eq('orgao_id', org()).order('data_fim', { ascending: false, nullsFirst: true }).limit(2000);
+      declCache = { orgao: org(), lista: data || [] };   // sem o script 23, a consulta falha e a lista fica vazia
+    }
+    return declCache.lista.filter((d) => d.secao === chave);
+  }
+  // Quadro "Períodos sem ocorrência": os 6 mais recentes e, se houver mais, botão para ver todos.
+  function quadroDeclaracoes(lista) {
+    const linha = (d) => el('li', null, el('strong', null, window.periodoDeclaracaoPNTP(d) + ': '), d.texto,
+      el('span', { class: 'meta' }, ' (declarado em ' + dataBR(d.criado_em.slice(0, 10)) + ')'));
+    const ul = el('ul', { class: 'declaracoes-lista' }, lista.slice(0, 6).map(linha));
+    const mais = lista.length > 6 ? el('button', { type: 'button', class: 'botao botao-claro', onclick: () => { ul.replaceChildren(...lista.map(linha)); mais.remove(); } },
+      'Ver todas as declarações (' + lista.length + ')') : '';
+    return el('section', { class: 'cartao declaracoes-site', 'aria-label': 'Períodos sem ocorrência' },
+      el('h3', null, 'Períodos sem ocorrência'), ul, mais);
   }
 
   // ---------- tabela e lista filtrada no navegador ----------

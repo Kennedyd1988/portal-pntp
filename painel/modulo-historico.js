@@ -31,7 +31,7 @@
     receitas: 'Receitas', receitas_naturezas: 'Receitas: descrição dos níveis', divida_ativa: 'Dívida ativa', despesas: 'Despesas (empenhos)',
     despesas_movimentos: 'Despesas: liquidações e pagamentos', ordem_cronologica: 'Ordem cronológica de pagamentos', pessoal_vinculos: 'Pessoal: servidores',
     pessoal_remuneracoes: 'Pessoal: remuneração', pessoal_cargos: 'Pessoal: cargos e salários', pessoal_estagiarios: 'Pessoal: estagiários',
-    pessoal_terceirizados: 'Pessoal: terceirizados', diarias: 'Diárias', diarias_valores: 'Diárias: tabela de valores'
+    pessoal_terceirizados: 'Pessoal: terceirizados', diarias: 'Diárias', diarias_valores: 'Diárias: tabela de valores', declaracoes_inexistencia: 'Declarações de que não há dados'
   };
   const ACOES = { inserir: 'Inclusão', editar: 'Edição', excluir: 'Exclusão' };
 
@@ -86,7 +86,7 @@
     indenizacoes: 'Indenizações', bruto: 'Bruto', descontos: 'Descontos', liquido: 'Líquido', referencia: 'Referência', vencimento: 'Vencimento', norma: 'Norma',
     vigencia_inicio: 'Vigente desde', vigencia_fim: 'Vigente até', instituicao: 'Instituição', curso: 'Curso', bolsa: 'Bolsa', data_inicio: 'Início', data_fim: 'Fim',
     empresa: 'Empresa', empresa_cnpj: 'CNPJ da empresa', abrangencia: 'Abrangência', motivo: 'Motivo', valor_unitario: 'Valor da diária',
-    valor_total: 'Valor total', ato_concessao: 'Ato de concessão', grupo: 'Grupo', destino_descricao: 'Descrição do destino', moeda: 'Moeda'
+    valor_total: 'Valor total', ato_concessao: 'Ato de concessão', grupo: 'Grupo', destino_descricao: 'Descrição do destino', moeda: 'Moeda', abrangencia: 'Vale para', numero: 'Período (número)'
   };
   // Campos técnicos que não interessam ao usuário.
   const IGNORAR = new Set(['id', 'orgao_id', 'criado_em', 'atualizado_em', 'busca', 'data_ordem', 'autor_id', 'documento_publico', 'credor_doc_publico', 'credor_doc_resumo', 'modalidade_aplicacao', 'elemento']);

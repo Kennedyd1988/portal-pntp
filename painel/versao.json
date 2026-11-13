@@ -1,7 +1,7 @@
 {
-  "versao": "0.16.2",
+  "versao": "0.16.3",
   "data": "2026-11-13",
   "notas": [
-    "Saiu o cartão \"Como esta parte aparece no site\". No alto da aba ficam só a caixa \"Não há dados a publicar\" (quando a parte admite) e o texto da parte que sai no site."
+    "Declarações de que não há dados por período (mês, bimestre, trimestre, quadrimestre, semestre, ano ou datas) ou para a situação atual. No site, as de período aparecem em \"Períodos sem ocorrência\". Rodar os scripts 21, 22 e 23."
   ]
 }

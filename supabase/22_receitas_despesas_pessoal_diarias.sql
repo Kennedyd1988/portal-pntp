@@ -866,7 +866,7 @@ declare
 begin
   if not public.e_membro(p_orgao) then return; end if;
   select coalesce(array_agg(x), '{}') into fora from (
-    select s.secao as x from public.secoes_setoriais s where s.orgao_id = p_orgao and s.sem_ocorrencia
+    select x from public.partes_sem_dados(p_orgao) x
     union
     select k from public.orgaos o, jsonb_each_text(coalesce(o.configuracoes -> 'destinos', '{}'::jsonb)) as d(k, v)
     where o.id = p_orgao and coalesce(d.v, '') <> '') t;

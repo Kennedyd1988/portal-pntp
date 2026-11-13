@@ -770,6 +770,19 @@ grant execute on function public.registrar_importacao(uuid, text, integer, boole
 -- 9. AVISOS DE DADOS DESATUALIZADOS (script 20 + os novos módulos)
 --    Parte com link externo (Destinos das páginas) ou declarada "não há" não gera aviso.
 -- ---------------------------------------------------------------------
+-- Partes com declaração de que não há dados. Versão simples (só o sim/não da parte); o
+-- script 23 troca por uma que considera as declarações por período. Só cria se não existir,
+-- para rodar este script de novo não desfazer a do 23.
+do $$
+begin
+  if to_regprocedure('public.partes_sem_dados(uuid)') is null then
+    execute $f$create function public.partes_sem_dados(p_orgao uuid) returns setof text language sql stable security invoker set search_path = public as
+      'select s.secao from public.secoes_setoriais s where s.orgao_id = p_orgao and s.sem_ocorrencia'$f$;
+    execute 'grant execute on function public.partes_sem_dados(uuid) to authenticated';
+  end if;
+end;
+$$;
+
 create or replace function public.pendencias_atualizacao(p_orgao uuid)
 returns table (modulo text, nivel text, mensagem text, quantidade bigint)
 language plpgsql stable security invoker set search_path = public as $$
@@ -781,7 +794,7 @@ declare
 begin
   if not public.e_membro(p_orgao) then return; end if;
   select coalesce(array_agg(x), '{}') into fora from (
-    select s.secao as x from public.secoes_setoriais s where s.orgao_id = p_orgao and s.sem_ocorrencia
+    select x from public.partes_sem_dados(p_orgao) x
     union
     select k from public.orgaos o, jsonb_each_text(coalesce(o.configuracoes -> 'destinos', '{}'::jsonb)) as d(k, v)
     where o.id = p_orgao and coalesce(d.v, '') <> '') t;

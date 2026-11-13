@@ -126,6 +126,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/20_publicacoes_concursos_pendencias.sql` | tipos próprios de publicação (`publicacoes_tipos`, código `x_…`, aba de cada um); módulo `concursos` (permissões copiadas de "pessoal") com `concursos` e `concursos_documentos` (publicar exige o edital; edital de seleção publicada não pode ser excluído) e `concursos_anos`; função `pendencias_atualizacao` (avisos de dados desatualizados do painel) |
 | `supabase/21_saude_educacao_renuncias.sql` | módulos `saude`, `educacao` e `renuncias` (o antigo `setoriais` sai, permissões copiadas); `secoes_setoriais` (texto e "não há" por seção; o link externo fica em `configuracoes.destinos`); `documentos_setoriais` (18.1, 19.1); `saude_estabelecimentos` + `saude_profissionais` (18.2), `saude_lista_espera` (18.3), `saude_medicamentos` + `saude_estoques` (18.4/18.5); `conselhos` + `conselhos_membros` + `conselhos_documentos` (18.6, 19.3, 19.4); `creches_espera` (19.2); `renuncias` + `renuncias_valores` + `renuncias_beneficiarios` + `incentivos_projetos` (16.1 a 16.4); visões de posição nas filas; `anos_setoriais`; `importar_lista`; avisos novos em `pendencias_atualizacao` |
 | `supabase/22_receitas_despesas_pessoal_diarias.sql` | módulos `financeiro` ("Receitas, despesas e pagamentos"), `pessoal` ("Pessoal e folha de pagamento") e `diarias` (novo, permissões copiadas de pessoal); partes novas em `secoes_setoriais`; `receitas` + `receitas_naturezas` (3.1/3.2), `divida_ativa` (3.3), `despesas` + `despesas_movimentos` (4.1 a 4.3, totais pelo banco), `ordem_cronologica` + visão `ordem_cronologica_posicoes` (9.4), `pessoal_vinculos`, `pessoal_remuneracoes`, `pessoal_cargos`, `pessoal_estagiarios`, `pessoal_terceirizados` (6.1 a 6.5), `diarias` + `diarias_valores` (7.1/7.2); funções `receitas_niveis`, `receitas_mensal`, `despesas_resumo`, `despesas_opcoes`, `anos_financeiros`; avisos `pendencias_financeiras` |
+| `supabase/23_declaracoes_inexistencia.sql` | declarações de que não há dados por parte: `declaracoes_inexistencia` (situação atual, mês, bimestre, trimestre, quadrimestre, semestre, ano ou datas; o banco calcula início e fim), `secoes_setoriais.sem_ocorrencia` espelhada da declaração atual, migração das antigas, `partes_sem_dados` (avisos de prazo) |
 | `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
 | `supabase/teste_obras_ficticias.sql` | opcional: 4 obras fictícias (em andamento, paralisada, concluídas) com planilha, medições e paralisações |
 | `supabase/teste_pca_sancoes_ficticios.sql` | opcional: PCA de 2024 a 2026 (com revisões) e 6 sanções fictícias de todos os tipos, vigentes e encerradas |
@@ -324,6 +325,16 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.16.3 — 13/11/2026 — declarações de que não há dados por período**
+- A caixa única "não há dados" virou uma lista de declarações por parte, cada uma valendo para a situação
+  atual ("O órgão não tem estagiários") ou para um período: mês, bimestre, trimestre, quadrimestre,
+  semestre, ano ou intervalo de datas. O texto de cada declaração é editável (vem com a frase padrão da parte).
+- Site: a declaração de situação atual substitui a lista (como antes); as de período aparecem no alto da
+  aba, no quadro "Períodos sem ocorrência" (as 6 mais recentes e "Ver todas"), com a data do registro.
+- Avisos de prazo: parte com declaração atual, ou de período terminado há no máximo 30 dias, não é cobrada.
+- Banco: script 23 novo; scripts 21 e 22 atualizados (avisos leem `partes_sem_dados`). Rodar 21, 22 e 23,
+  nessa ordem (todos podem repetir). As declarações antigas viram "situação atual" automaticamente.
 
 **0.16.2 — 13/11/2026 — sai o cartão "Como esta parte aparece no site"**
 - O cartão saiu de todas as abas (Saúde, Educação, Renúncias, Receitas e despesas, Pessoal, Diárias): o aviso

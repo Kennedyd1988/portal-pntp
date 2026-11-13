@@ -447,3 +447,10 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .secao-parte .checkbox { font-weight: 600; }
 .secao-parte .msg { margin: 0; }
 .secao-parte-acoes { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+/* v0.16.3 — declarações de que não há dados (por período) */
+.declaracoes { border: 1px solid var(--line); border-radius: var(--raio); padding: 10px 14px; background: #fff; }
+.declaracoes > summary { cursor: pointer; font-weight: 600; }
+.declaracoes[open] > summary { margin-bottom: 8px; }
+.declaracoes .tabela { min-width: 560px; }
+.declaracao-nova { margin-top: 12px; }
+.declaracao-nova [hidden] { display: none !important; }
