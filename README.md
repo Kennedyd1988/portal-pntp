@@ -271,6 +271,20 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
 
 ## Histórico de mudanças
 
+**0.13.0 — 13/11/2026 — painel: menu lateral, paginação, largura e CPF/CNPJ**
+- Menu lateral reformulado: grupos destacados (faixa com traço amarelo) e itens recuados com
+  marcador; fica preso na tela ao rolar a página (computador).
+- Campo "Pesquisar no menu" no alto do menu lateral: filtra os módulos pelo nome, sem acento;
+  Enter abre o primeiro resultado, Esc limpa.
+- Toda troca de tela pelo menu volta ao alto da página.
+- Paginação automática: toda listagem do painel com mais de 25 linhas ganha páginas numeradas
+  (25 por página, "Linhas x–y de z"), somando com o "Carregar mais".
+- Telas largas: o conteúdo usa toda a largura disponível (antes ficava preso em 1.200 px e as
+  tabelas largas criavam rolagem lateral).
+- CPF e CNPJ conferidos pelos dígitos verificadores em todos os campos (contratos, obras,
+  sanções, convênios e CNPJs da importação do PNCP), com máscara ao sair do campo e aviso na hora.
+  Funções `P.cpfValido`, `P.cnpjValido`, `P.erroDoc`, `P.mascaraDoc` para os módulos novos.
+
 **0.12.0 — 13/11/2026 — destinos únicos das páginas e ajustes do site**
 - **Destinos das páginas** (Aparência › Destinos das páginas): para 24 páginas (receitas, despesas,
   ordem cronológica, pessoal, diárias, convênios, emendas, licitações, PCA, sancionados, contratos,

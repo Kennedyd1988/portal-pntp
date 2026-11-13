@@ -117,7 +117,7 @@
       processo: el('input', { type: 'text', maxlength: 60, value: c.processo || '' }),
       objeto: el('textarea', { rows: 3, maxlength: 4000 }),
       contratado: el('input', { type: 'text', maxlength: 200, value: c.contratado_nome || '' }),
-      doc: el('input', { type: 'text', maxlength: 18, value: docFormatado(c.contratado_doc), placeholder: 'CNPJ ou CPF' }),
+      doc: P.mascaraDoc(el('input', { type: 'text', maxlength: 18, value: docFormatado(c.contratado_doc), placeholder: 'CNPJ ou CPF' })),
       unidade: el('input', { type: 'text', maxlength: 150, value: c.unidade_nome || '' }),
       valor: el('input', { type: 'number', min: 0, step: '0.01', value: c.valor_inicial ?? '' }),
       assinatura: el('input', { type: 'date', value: c.data_assinatura || '' }),
@@ -176,7 +176,7 @@
       if (!erroCampo('ct-obj', f.objeto.value.trim().length >= 5 ? '' : 'Descreva o objeto.')) return;
       if (!erroCampo('ct-ctd', f.contratado.value.trim().length >= 2 ? '' : 'Informe o contratado.')) return;
       const doc = f.doc.value.replace(/\D/g, '');
-      if (!erroCampo('ct-doc', !doc || doc.length === 11 || doc.length === 14 ? '' : 'CPF tem 11 números; CNPJ, 14.')) return;
+      if (!erroCampo('ct-doc', P.erroDoc(doc))) return;
       if (!erroCampo('ct-ass', f.assinatura.value ? '' : 'Informe a data de assinatura.')) return;
       if (situacao === 'publicado') {
         if (!erroCampo('ct-ini', f.inicio.value ? '' : 'Informe o início da vigência.')) return;
@@ -378,7 +378,7 @@
     dlg.classList.add('dialogo-largo');
     btn.addEventListener('click', async () => {
       const cnpjs = [...new Set(f.cnpjs.value.split(/[,;\s]+/).map((x) => x.replace(/\D/g, '')).filter(Boolean))];
-      if (!erroCampo('cp-cnpj', cnpjs.length && cnpjs.every((x) => x.length === 14) ? '' : 'Informe CNPJ(s) com 14 números.')) return;
+      if (!erroCampo('cp-cnpj', !cnpjs.length ? 'Informe o CNPJ.' : (cnpjs.map((x) => P.erroDoc(x, 'cnpj')).find(Boolean) || ''))) return;
       if (!erroCampo('cp-fim', f.inicio.value && f.fim.value >= f.inicio.value ? '' : 'Período inválido.')) return;
       ocupado(btn, 'Consultando…');
       const linha = (t) => progresso.append(el('p', null, t));

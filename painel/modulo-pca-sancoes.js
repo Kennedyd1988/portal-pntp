@@ -253,7 +253,7 @@
       const editando = !!s.id, publicado = s.situacao === 'publicado', travado = publicado && !perm.publicar;
       const f = {
         nome: el('input', { type: 'text', maxlength: 200, value: s.sancionado_nome || '' }),
-        doc: el('input', { type: 'text', maxlength: 18, value: docFormatado(s.sancionado_doc), placeholder: 'CNPJ ou CPF' }),
+        doc: P.mascaraDoc(el('input', { type: 'text', maxlength: 18, value: docFormatado(s.sancionado_doc), placeholder: 'CNPJ ou CPF' })),
         tipo: el('select', null, el('option', { value: '' }, '— Escolha —'), Object.entries(TIPOS).map(([k, v]) => el('option', { value: k, selected: s.tipo === k }, v))),
         fundamento: el('input', { type: 'text', maxlength: 300, value: s.fundamento || '' }),
         motivo: el('textarea', { rows: 3, maxlength: 2000, placeholder: 'Ex.: Não entregou os itens empenhados no prazo do contrato.' }),
@@ -302,7 +302,7 @@
       async function salvar(situacao, btn) {
         if (!erroCampo('sa-nome', f.nome.value.trim().length >= 2 ? '' : 'Informe o licitante ou contratado.')) return;
         const d = f.doc.value.replace(/\D/g, '');
-        if (!erroCampo('sa-doc', !d || d.length === 11 || d.length === 14 ? '' : 'CPF tem 11 números; CNPJ, 14.')) return;
+        if (!erroCampo('sa-doc', P.erroDoc(d))) return;
         if (!erroCampo('sa-tipo', f.tipo.value ? '' : 'Escolha a sanção.')) return;
         if (!erroCampo('sa-data', f.data.value ? '' : 'Informe a data da aplicação.')) return;
         const prazo = COM_PRAZO.includes(f.tipo.value);

@@ -529,22 +529,46 @@
     $('btn-trocar-orgao').hidden = estado.orgaos.length < 2;
 
     // Menu: só módulos que o perfil pode ver, agrupados e na ordem do catálogo.
+    // Cada grupo é um bloco (título + itens recuados), para a pesquisa do menu esconder grupos vazios.
     const menu = $('menu');
-    menu.replaceChildren(el('a', { href: '#/inicio', 'data-rota': 'inicio' }, 'Início'));
-    let grupoAtual = null;
+    menu.replaceChildren(el('a', { href: '#/inicio', 'data-rota': 'inicio', class: 'menu-inicio' }, 'Início'));
+    let bloco = null, grupoAtual = null;
     for (const m of estado.modulos) {
       if (!(estado.permissoes[m.codigo] && estado.permissoes[m.codigo].ver)) continue;
       if (m.grupo !== grupoAtual) {
         grupoAtual = m.grupo;
-        menu.append(el('span', { class: 'menu-grupo' }, m.grupo));
+        bloco = el('div', { class: 'menu-bloco', role: 'group', 'aria-label': m.grupo }, el('span', { class: 'menu-grupo', 'aria-hidden': 'true' }, m.grupo));
+        menu.append(bloco);
       }
-      menu.append(el('a', { href: '#/m/' + m.codigo, 'data-rota': m.codigo }, m.nome));
+      bloco.append(el('a', { href: '#/m/' + m.codigo, 'data-rota': m.codigo, 'data-busca': normalizar(m.nome + ' ' + m.grupo) }, m.nome));
     }
+    menu.append(el('p', { class: 'menu-nada', hidden: true }, 'Nenhum item com esse nome.'));
+    const busca = $('menu-busca');
+    busca.value = '';
     mostrarTela('tela-painel');
     rotear();
   }
 
   $('btn-trocar-orgao').addEventListener('click', () => { estado.orgao = null; mostrarListaOrgaos(); });
+  // Pesquisa no menu lateral: filtra os itens pelo nome (sem acento); Enter abre o primeiro.
+  $('menu-busca').addEventListener('input', () => {
+    const t = normalizar($('menu-busca').value.trim());
+    let algum = false;
+    for (const b of $('menu').querySelectorAll('.menu-bloco')) {
+      let n = 0;
+      for (const a of b.querySelectorAll('a')) { const ok = !t || a.dataset.busca.includes(t); a.hidden = !ok; if (ok) n++; }
+      b.hidden = !n; if (n) algum = true;
+    }
+    $('menu').querySelector('.menu-inicio').hidden = !!t && !'inicio'.includes(t);
+    $('menu').querySelector('.menu-nada').hidden = algum || !t;
+  });
+  $('menu-busca').addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') { ev.target.value = ''; ev.target.dispatchEvent(new Event('input')); }
+    if (ev.key !== 'Enter') return;
+    ev.preventDefault();
+    const a = [...$('menu').querySelectorAll('a')].find((x) => !x.hidden && !(x.closest('.menu-bloco') || {}).hidden);
+    if (a) { location.hash = a.getAttribute('href'); ev.target.value = ''; ev.target.dispatchEvent(new Event('input')); }
+  });
   $('btn-menu').addEventListener('click', () => {
     const aberta = $('lateral').classList.toggle('aberta');
     $('btn-menu').setAttribute('aria-expanded', aberta ? 'true' : 'false');
@@ -565,6 +589,8 @@
     if (rota === 'inicio') telaInicio(conteudo);
     else telaModulo(conteudo, rota);
     conteudo.focus({ preventScroll: true });
+    // Toda troca de tela começa do alto da página.
+    window.scrollTo(0, 0);
   }
   window.addEventListener('hashchange', rotear);
 
@@ -643,6 +669,50 @@
       )
     );
   }
+
+  // ---------- paginação automática das listagens ----------
+  // Toda tabela de listagem do painel (.tabela-caixa) com mais de 25 linhas ganha páginas
+  // numeradas (25 por página). Funciona junto com "Carregar mais": as linhas novas entram nas
+  // páginas seguintes. As linhas escondidas continuam no formulário (ex.: planilha de obras).
+  const POR_PAGINA = 25;
+  function paginarTabela(caixa) {
+    const corpo = caixa.querySelector('tbody');
+    if (!corpo) return;
+    const linhas = [...corpo.children];
+    let nav = caixa.nextElementSibling && caixa.nextElementSibling.classList.contains('paginacao') ? caixa.nextElementSibling : null;
+    const paginas = Math.ceil(linhas.length / POR_PAGINA);
+    if (paginas <= 1) { linhas.forEach((l) => { if (l.dataset.pag) { l.hidden = false; delete l.dataset.pag; } }); if (nav) nav.remove(); return; }
+    let atual = Math.min(Number(caixa.dataset.pagina || 1), paginas);
+    const mostrar = (n, rolar) => {
+      atual = n; caixa.dataset.pagina = n;
+      linhas.forEach((l, k) => { l.dataset.pag = '1'; l.hidden = Math.floor(k / POR_PAGINA) + 1 !== n; });
+      const botao = (rot, alvo, extra) => el('button', Object.assign({ type: 'button', class: 'pag-btn', disabled: alvo < 1 || alvo > paginas || alvo === n ? (alvo === n && typeof rot === 'number' ? null : true) : null,
+        'aria-current': typeof rot === 'number' && alvo === n ? 'page' : null, onclick: () => mostrar(alvo, true) }, extra || {}), String(rot));
+      const nums = [];
+      for (let i = 1; i <= paginas; i++) {
+        if (i === 1 || i === paginas || Math.abs(i - n) <= 2) nums.push(botao(i, i));
+        else if (nums.length && nums[nums.length - 1].textContent !== '…') nums.push(el('span', { class: 'pag-reticencias' }, '…'));
+      }
+      const novo = el('nav', { class: 'paginacao', 'aria-label': 'Páginas da lista' },
+        botao('‹', n - 1, { 'aria-label': 'Página anterior' }), nums, botao('›', n + 1, { 'aria-label': 'Próxima página' }),
+        el('span', { class: 'ajuda pag-info' }, 'Linhas ' + ((n - 1) * POR_PAGINA + 1) + '–' + Math.min(n * POR_PAGINA, linhas.length) + ' de ' + linhas.length));
+      if (nav) nav.replaceWith(novo); else caixa.after(novo);
+      nav = novo;
+      if (rolar) caixa.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    };
+    mostrar(atual, false);
+  }
+  let pagPendente = false;
+  new MutationObserver((mut) => {
+    // Ignora as mudanças feitas pela própria paginação.
+    if (mut.every((m) => [...m.addedNodes, ...m.removedNodes].every((n) => n.nodeType === 1 && n.classList.contains('paginacao')))) return;
+    if (pagPendente) return;
+    pagPendente = true;
+    requestAnimationFrame(() => {
+      pagPendente = false;
+      for (const caixa of document.querySelectorAll('#conteudo .tabela-caixa')) paginarTabela(caixa);
+    });
+  }).observe(document.getElementById('conteudo'), { childList: true, subtree: true });
 
   // ---------- início ----------
   // Link de recuperação de senha: a Supabase abre a página já com sessão e avisa por este evento.
@@ -917,6 +987,42 @@
     return count || 0;
   }
 
+  // ---------- CPF e CNPJ: dígitos verificadores e máscara ----------
+  function cpfValido(d) {
+    if (!/^\d{11}$/.test(d) || /^(\d)\1{10}$/.test(d)) return false;
+    for (const t of [9, 10]) {
+      let soma = 0;
+      for (let i = 0; i < t; i++) soma += Number(d[i]) * (t + 1 - i);
+      if ((soma * 10 % 11) % 10 !== Number(d[t])) return false;
+    }
+    return true;
+  }
+  function cnpjValido(d) {
+    if (!/^\d{14}$/.test(d) || /^(\d)\1{13}$/.test(d)) return false;
+    const calc = (n) => { const pesos = n === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+      const r = pesos.reduce((t, p, i) => t + Number(d[i]) * p, 0) % 11; return r < 2 ? 0 : 11 - r; };
+    return calc(12) === Number(d[12]) && calc(13) === Number(d[13]);
+  }
+  // Mensagem de erro para um CPF/CNPJ (só números) ou '' se estiver certo. tipo: 'cpf', 'cnpj' ou os dois.
+  function erroDoc(d, tipo) {
+    if (!d) return '';
+    if (tipo !== 'cnpj' && d.length === 11) return cpfValido(d) ? '' : 'CPF inválido: confira os números.';
+    if (tipo !== 'cpf' && d.length === 14) return cnpjValido(d) ? '' : 'CNPJ inválido: confira os números.';
+    return tipo === 'cnpj' ? 'O CNPJ tem 14 números.' : tipo === 'cpf' ? 'O CPF tem 11 números.' : 'CPF tem 11 números; CNPJ, 14.';
+  }
+  const formatarDoc = (d) => d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : d.length === 11 ? d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4') : d;
+  // Máscara no campo: ao sair, formata e avisa na hora se o número não confere.
+  function mascaraDoc(input, tipo) {
+    input.setAttribute('inputmode', 'numeric');
+    input.addEventListener('blur', () => {
+      const d = input.value.replace(/\D/g, '');
+      if (!d) return;
+      input.value = formatarDoc(d);
+      if (input.id) erroCampo(input.id, erroDoc(d, tipo));
+    });
+    return input;
+  }
+
   // Erros comuns de gravação traduzidos (regras do banco já escrevem em português).
   function erroGravacao(e) {
     const t = (e && e.message) || '';
@@ -950,6 +1056,7 @@
   // Registro das telas de cada módulo (preenchido pelos arquivos modulo-*.js).
   window.PNTP = {
     sb, estado, el, $, toast, msg, ocupado, erroCampo, traduzirErro, emailValido,
+    cpfValido, cnpjValido, erroDoc, formatarDoc, mascaraDoc,
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
     campo, campoOutra, abas, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,

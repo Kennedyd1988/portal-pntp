@@ -1,9 +1,9 @@
 {
-  "versao": "0.12.0",
+  "versao": "0.13.0",
   "data": "2026-11-13",
   "notas": [
-    "Destinos das páginas: cada página do portal ou link externo, igual em todo o site.",
-    "Menu preso no alto, redes e selos acima do menu, faixa do Radar, gestores em carrossel, nova Estrutura organizacional e Serviços on-line.",
-    "Aparência dividida em abas, com ícone da aba do navegador."
+    "Menu lateral com pesquisa, grupos destacados e itens recuados.",
+    "Listagens com páginas numeradas; telas largas sem rolagem lateral.",
+    "CPF e CNPJ conferidos pelos dígitos verificadores."
   ]
 }

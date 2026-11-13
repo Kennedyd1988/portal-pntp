@@ -391,3 +391,33 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .preview-favicon img { width: 48px; height: 48px; object-fit: contain; }
 .preview-radar { width: 260px; height: 80px; }
 .preview-radar img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* v0.13.0 — menu lateral: preso na tela, pesquisa, grupos destacados e itens recuados */
+@media (min-width: 861px) {
+  .lateral { position: sticky; top: 0; height: 100vh; overflow: hidden; }
+}
+.menu-pesquisa input { width: 100%; height: 36px; border: 1px solid #2c4e78; border-radius: 8px; background: #16365c; color: #fff; padding: 0 10px; font: inherit; font-size: 14px; }
+.menu-pesquisa input::placeholder { color: #9fb4cc; }
+.menu-pesquisa input:focus { outline: 2px solid #7fb0ff; outline-offset: 1px; }
+.menu-inicio { font-weight: 600; }
+.menu-bloco { margin-top: 10px; }
+.menu-bloco[hidden] { display: none; }
+.menu .menu-grupo { display: block; margin: 0 0 4px; padding: 7px 10px; font-size: 11.5px; font-weight: 800; letter-spacing: .09em; color: #fff;
+  background: rgba(255, 255, 255, .06); border-left: 3px solid #f2b33d; border-radius: 0 6px 6px 0; }
+.menu-bloco a { padding: 7px 10px 7px 22px; font-size: 13.5px; position: relative; }
+.menu-bloco a::before { content: ""; position: absolute; left: 11px; top: 50%; width: 5px; height: 5px; border-radius: 50%; background: #5d7ea6; transform: translateY(-50%); }
+.menu-bloco a[aria-current="page"]::before { background: #f2b33d; }
+.menu a[hidden] { display: none; }
+.menu-nada { color: #9fb4cc; font-size: 13px; margin: 10px; }
+/* Telas largas: o conteúdo ocupa a largura disponível (antes ficava preso em 1200 px) */
+.conteudo { max-width: none; }
+.tabela-caixa { max-width: 100%; }
+/* Paginação automática das listagens (25 por página) */
+.paginacao { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 12px 0 4px; }
+.pag-btn { min-width: 34px; height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--raio); background: #fff; font: inherit; font-size: 14px; cursor: pointer; }
+.pag-btn:hover:not(:disabled) { border-color: var(--primary, #0d4fc4); }
+.pag-btn[aria-current="page"] { background: #0f2947; border-color: #0f2947; color: #fff; font-weight: 700; }
+.pag-btn:disabled:not([aria-current]) { opacity: .4; cursor: default; }
+.pag-reticencias { padding: 0 4px; color: var(--text-dim); }
+.pag-info { margin-left: 8px; }
+.tabela td.quebra { min-width: 200px; }

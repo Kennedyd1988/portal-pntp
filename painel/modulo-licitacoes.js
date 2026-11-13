@@ -373,7 +373,7 @@
 
     btn.addEventListener('click', async () => {
       const cnpjs = [...new Set(f.cnpjs.value.split(/[,;\s]+/).map((x) => x.replace(/\D/g, '')).filter(Boolean))];
-      if (!erroCampo('pn-cnpj', cnpjs.length && cnpjs.every((x) => x.length === 14) ? '' : 'Informe CNPJ(s) com 14 números.')) return;
+      if (!erroCampo('pn-cnpj', !cnpjs.length ? 'Informe o CNPJ.' : (cnpjs.map((x) => P.erroDoc(x, 'cnpj')).find(Boolean) || ''))) return;
       if (!erroCampo('pn-ini', f.inicio.value ? '' : 'Informe a data inicial.')) return;
       if (!erroCampo('pn-fim', f.fim.value && f.fim.value >= f.inicio.value ? '' : 'A data final deve ser igual ou depois da inicial.')) return;
       ocupado(btn, 'Importando…');
@@ -491,7 +491,7 @@
     const btn = el('button', { type: 'button', class: 'btn btn-claro' }, 'Salvar importação automática');
     btn.addEventListener('click', async () => {
       const cnpjs = [...new Set(document.getElementById('pn-cnpj').value.split(/[,;\s]+/).map((x) => x.replace(/\D/g, '')).filter(Boolean))];
-      if (auto.checked && !erroCampo('pn-cnpj', cnpjs.length && cnpjs.every((x) => x.length === 14) ? '' : 'Informe CNPJ(s) com 14 números.')) return;
+      if (auto.checked && !erroCampo('pn-cnpj', !cnpjs.length ? 'Informe o CNPJ.' : (cnpjs.map((x) => P.erroDoc(x, 'cnpj')).find(Boolean) || ''))) return;
       ocupado(btn, 'Salvando…');
       try {
         const { error } = await sb.rpc('definir_pncp_automatico', { p_orgao: P.estado.orgao.id, p_auto: auto.checked, p_publicar: pub.checked, p_cnpjs: cnpjs });

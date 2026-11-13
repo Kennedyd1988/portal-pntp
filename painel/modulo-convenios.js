@@ -136,7 +136,7 @@
         processo: el('input', { type: 'text', maxlength: 100, value: c.processo || '' }),
         objeto: el('textarea', { rows: 3, maxlength: 2000, placeholder: 'Ex.: Aquisição de patrulha mecanizada para a agricultura familiar.' }),
         parte: el('input', { type: 'text', maxlength: 500, value: c.parte_nome || '' }),
-        doc: el('input', { type: 'text', maxlength: 18, value: docFormatado(c.parte_doc), placeholder: 'CNPJ ou CPF' }),
+        doc: P.mascaraDoc(el('input', { type: 'text', maxlength: 18, value: docFormatado(c.parte_doc), placeholder: 'CNPJ ou CPF' })),
         esfera: el('select', null, opcoes(ESFERAS, c.esfera || '', '— Não informada —')),
         unidade: el('input', { type: 'text', maxlength: 150, value: c.unidade_nome || '', placeholder: 'Secretaria responsável pela execução' }),
         programa: el('input', { type: 'text', maxlength: 300, value: c.programa || '', placeholder: 'Ex.: Programa Nacional de Fortalecimento da Agricultura Familiar' }),
@@ -196,7 +196,7 @@
         if (!erroCampo('cv-obj', f.objeto.value.trim().length >= 5 ? '' : 'Descreva o objeto.')) return;
         if (!erroCampo('cv-parte', f.parte.value.trim().length >= 2 ? '' : 'Informe: ' + TIPOS[t][2].toLowerCase() + '.')) return;
         const d = f.doc.value.replace(/\D/g, '');
-        if (!erroCampo('cv-doc', !d || d.length === 11 || d.length === 14 ? '' : 'CPF tem 11 números; CNPJ, 14.')) return;
+        if (!erroCampo('cv-doc', P.erroDoc(d))) return;
         if (!erroCampo('cv-fim', !f.inicio.value || !f.fimV.value || f.fimV.value >= f.inicio.value ? '' : 'O fim não pode ser antes do início.')) return;
         if (situacao === 'publicado' && !erroCampo('cv-fim', f.inicio.value && f.fimV.value ? '' : 'Para publicar, informe a vigência (início e fim).')) return;
         if (!semValor) {

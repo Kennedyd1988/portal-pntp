@@ -120,7 +120,7 @@
       local: el('input', { type: 'text', maxlength: 300, value: o.local || '', placeholder: 'Endereço, bairro ou comunidade' }),
       unidade: el('input', { type: 'text', maxlength: 150, value: o.unidade_nome || '', placeholder: 'Secretaria responsável' }),
       contratada: el('input', { type: 'text', maxlength: 200, value: o.contratada_nome || '' }),
-      doc: el('input', { type: 'text', maxlength: 18, value: docFormatado(o.contratada_doc), placeholder: 'CNPJ ou CPF' }),
+      doc: P.mascaraDoc(el('input', { type: 'text', maxlength: 18, value: docFormatado(o.contratada_doc), placeholder: 'CNPJ ou CPF' })),
       fonte: el('input', { type: 'text', maxlength: 200, value: o.fonte_recurso || '', placeholder: 'Ex.: Convênio 912345/2025 (União) + recursos próprios' }),
       valor: el('input', { type: 'number', min: 0, step: '0.01', value: o.valor_contratado ?? '' }),
       link: el('input', { type: 'url', value: o.link_externo || '', placeholder: 'https://… (ex.: Obrasgov.br)' }),
@@ -192,7 +192,7 @@
     async function salvar(situacao, btn) {
       if (!erroCampo('ob-tit', f.titulo.value.trim().length >= 5 ? '' : 'Informe o nome da obra (pelo menos 5 letras).')) return;
       const d = f.doc.value.replace(/\D/g, '');
-      if (!erroCampo('ob-doc', !d || d.length === 11 || d.length === 14 ? '' : 'CPF tem 11 números; CNPJ, 14.')) return;
+      if (!erroCampo('ob-doc', P.erroDoc(d))) return;
       const link = f.link.value.trim();
       if (!erroCampo('ob-link', link && !P.urlValida(link) ? 'Endereço completo, começando com https://' : '')) return;
       const perc = Number(f.perc.value);
