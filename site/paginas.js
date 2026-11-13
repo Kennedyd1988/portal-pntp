@@ -15,6 +15,10 @@
     lei: 'Lei Ordinária', decreto: 'Decreto', portaria: 'Portaria', resolucao: 'Resolução',
     instrucao_normativa: 'Instrução Normativa', ato: 'Ato', edital: 'Edital', outro: 'Outro'
   };
+  // Tipos de publicação criados pelo órgão (painel › Publicações › Tipos personalizados).
+  let tiposCarregados = null;
+  const tiposPub = () => tiposCarregados || (tiposCarregados = sb.from('publicacoes_tipos').select('codigo, nome').eq('orgao_id', org())
+    .then(({ data }) => { for (const t of data || []) TIPOS[t.codigo] = t.nome; }, () => {}));
   const VIGENCIA = { vigente: 'Vigente', alterada: 'Alterada', revogada: 'Revogada', sem_efeito: 'Sem efeito' };
   const COR_VIG = { vigente: 'etiqueta-verde', alterada: 'etiqueta-ambar', revogada: 'etiqueta-vermelha', sem_efeito: 'etiqueta-vermelha' };
   const FORMAS = { presencial: 'Presencial', digital: 'Pela internet', presencial_digital: 'Presencial e pela internet' };
@@ -114,6 +118,7 @@
   // ===================================================================
   R[''] = async function (main) {
     S.titulo('');
+    await tiposPub();
     const c = S.conf;
     const agora = new Date().toISOString();
     const [bn, nt, pb, gs, sv] = await Promise.all([
@@ -452,6 +457,7 @@
   // PUBLICAÇÕES OFICIAIS (2.6 atos normativos) — filtros, total e exportação
   // ===================================================================
   R.publicacoes = async function (main, partes, params) {
+    await tiposPub();
     S.titulo('Publicações oficiais'); S.trilha(['Publicações oficiais']);
     const f = { busca: params.get('q') || '', tipo: '', ano: '', vigencia: '' };
     const LOTE = 20;
@@ -834,6 +840,7 @@
       ['Obras', 'obras', 'titulo,local,situacao_obra,percentual,etapa_atual,data_inicio,previsao_conclusao,data_conclusao,contratada_nome,valor_contratado,fonte_recurso,unidade_nome,link_externo', '&order=atualizado_em.desc'],
       ['Obras: planilha contratada e executada', 'obras_itens', 'obra_id,codigo,descricao,unidade,quantidade,preco_unitario,total_contratado,quantidade_executada,preco_praticado,total_executado', '&order=obra_id.asc'],
       ['Convênios e transferências (recebidas, realizadas e acordos)', 'convenios', 'tipo,instrumento,numero,ano,objeto,parte_nome,esfera,valor_previsto,valor_contrapartida,valor_repassado,data_assinatura,vigencia_inicio,vigencia_fim,andamento,obrigacoes,arquivo_url,link_externo', '&order=ano.desc'],
+      ['Concursos e processos seletivos', 'concursos', 'tipo,numero,ano,titulo,vagas,inscricoes_inicio,inscricoes_fim,data_prova,validade_ate,andamento,organizadora,link_externo', '&order=ano.desc'],
       ['Emendas parlamentares', 'emendas', 'exercicio,origem,tipo,forma_repasse,numero,autor,objeto,funcao,beneficiario,valor_previsto,valor_realizado,valor_empenhado,valor_liquidado,valor_pago,execucao_em,andamento', '&order=exercicio.desc'],
       ['Obras: paralisações', 'obras_paralisacoes', 'obra_id,inicio,reinicio,motivo,responsavel,previsao_reinicio,ato', '&order=inicio.desc'],
       ['Planejamento e prestação de contas', 'documentos_contas', 'tipo,exercicio,exercicio_fim,periodicidade,periodo,parte,resultado,numero_ato,data_publicacao,descricao,arquivo_url,link_externo', '&order=exercicio.desc'],
@@ -1844,12 +1851,13 @@
   // ===================================================================
   R.busca = async function (main, partes, params) {
     const q = (params.get('q') || '').trim();
+    await tiposPub();
     S.titulo('Busca'); S.trilha(['Busca']);
     const campo = document.getElementById('campo-busca'); if (campo) campo.value = q;
     if (q.length < 2) { pagina(main, el('h1', null, 'Busca'), el('p', null, 'Digite pelo menos 2 letras no campo de pesquisa.')); return; }
     // Dentro de or() o curinga é * (o % confunde a sintaxe do filtro).
     const n = termo(q), cru = '*' + q.replace(/[%_*(),.]/g, ' ').trim() + '*';
-    const [nt, pb, sv, pg, fq, un, ct, lc, co, cv, em, ob] = await Promise.all([
+    const [nt, pb, sv, pg, fq, un, ct, lc, co, cv, em, ob, cs] = await Promise.all([
       sb.from('noticias').select('id, titulo, publicado_em').eq('orgao_id', org()).ilike('busca', n).order('publicado_em', { ascending: false }).limit(8),
       sb.from('publicacoes').select('id, tipo, numero, ano, ementa, arquivo_url, link_externo').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8),
       sb.from('servicos').select('id, nome').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
@@ -1861,7 +1869,8 @@
       sb.from('contratos').select('id, tipo, numero, objeto, contratado_nome').eq('orgao_id', org()).ilike('busca', n).order('data_assinatura', { ascending: false }).limit(8),
       sb.from('convenios').select('id, tipo, instrumento, numero, objeto, parte_nome').eq('orgao_id', org()).ilike('busca', n).order('ano', { ascending: false }).limit(8),
       sb.from('emendas').select('id, numero, autor, objeto').eq('orgao_id', org()).ilike('busca', n).order('exercicio', { ascending: false }).limit(8),
-      sb.from('obras').select('id, titulo').eq('orgao_id', org()).ilike('busca', n).order('atualizado_em', { ascending: false }).limit(8)
+      sb.from('obras').select('id, titulo').eq('orgao_id', org()).ilike('busca', n).order('atualizado_em', { ascending: false }).limit(8),
+      sb.from('concursos').select('id, tipo, numero, titulo').eq('orgao_id', org()).ilike('busca', n).order('ano', { ascending: false }).limit(8)
     ]);
     // Nomes das seções do site: quem digita "contratos" ou "licitação" chega à página, mesmo que
     // a palavra não apareça dentro dos registros. Compara sem acento e sem plural simples.
@@ -1882,6 +1891,7 @@
       ['Convênios e transferências', (cv.data || []).map((x) => [nomeConv(x) + ' · ' + x.parte_nome + ' · ' + (x.objeto.length > 70 ? x.objeto.slice(0, 70) + '…' : x.objeto), '#/convenio/' + x.id]), '#/convenios'],
       ['Emendas parlamentares', (em.data || []).map((x) => ['Emenda nº ' + x.numero + ' · ' + x.autor + ' · ' + (x.objeto.length > 70 ? x.objeto.slice(0, 70) + '…' : x.objeto), '#/emenda/' + x.id]), '#/emendas'],
       ['Obras', (ob.data || []).map((x) => [x.titulo, '#/obra/' + x.id]), '#/obras'],
+      ['Concursos e seleções', (cs.data || []).map((x) => [nomeSel(x) + ' · ' + x.titulo, '#/concurso/' + x.id]), '#/concursos'],
       ['Unidades', (un.data || []).map((x) => [x.nome, '#/unidade/' + x.id]), null],
       ['Páginas', (pg.data || []).map((x) => [x.titulo, '#/pagina/' + x.slug]), null],
       ['Perguntas frequentes', (fq.data || []).map((x) => [x.pergunta, '#/faq']), null]
@@ -1892,6 +1902,78 @@
       grupos.map(([t, itens, todos]) => el('section', { style: 'margin-bottom:24px' },
         el('div', { class: 'secao-titulo' }, el('h2', null, t), todos && itens.length === 8 ? el('a', { href: todos }, 'Ver todos →') : null),
         el('ul', null, itens.map(([rot, href]) => el('li', { style: 'margin:6px 0' }, el('a', { href, target: href.startsWith('http') ? '_blank' : null, rel: href.startsWith('http') ? 'noopener' : null }, rot)))))));
+  };
+
+  // ---------- Concursos e processos seletivos (PNTP 6.6 e 6.7) ----------
+  const TIPO_SEL = { concurso: 'Concurso público', processo_seletivo: 'Processo seletivo simplificado', estagio: 'Seleção de estágio',
+    chamamento: 'Chamamento público', credenciamento: 'Credenciamento', outro: 'Seleção' };
+  const AND_SEL = { previsto: ['Previsto', 'etiqueta-ambar'], inscricoes_abertas: ['Inscrições abertas', 'etiqueta-verde'], em_andamento: ['Em andamento', 'etiqueta-ambar'],
+    resultado: ['Resultado divulgado', 'etiqueta-ambar'], homologado: ['Homologado', 'etiqueta-verde'], suspenso: ['Suspenso', 'etiqueta-vermelha'],
+    cancelado: ['Cancelado', 'etiqueta-vermelha'], encerrado: ['Encerrado', 'etiqueta-ambar'] };
+  const DOC_SEL = { edital: 'Edital', retificacao: 'Retificação', anexo: 'Anexo', inscritos: 'Inscritos', gabarito: 'Gabarito', resultado_preliminar: 'Resultado preliminar',
+    recurso: 'Recursos', resultado_final: 'Resultado final', homologacao: 'Homologação', convocacao: 'Convocação', nomeacao: 'Nomeação', prorrogacao: 'Prorrogação', outro: 'Documento' };
+  const nomeSel = (c) => (TIPO_SEL[c.tipo] || 'Seleção') + (c.numero ? ' nº ' + c.numero : '');
+  const CAMPOS_SEL = 'id, tipo, numero, ano, titulo, descricao, unidade_nome, vagas, organizadora, inscricoes_inicio, inscricoes_fim, data_prova, validade_ate, andamento, link_externo, atualizado_em';
+
+  R.concursos = async function (main, partes, params) {
+    S.titulo('Concursos e processos seletivos'); S.trilha(['Transparência', '#/transparencia'], ['Concursos e processos seletivos']);
+    const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' }, el('p', { class: 'carregando' }, 'Carregando…'));
+    pagina(main, el('h1', null, 'Concursos e processos seletivos'),
+      el('p', { class: 'sub' }, 'Editais (íntegra) e todos os atos de concursos públicos, processos seletivos, seleções de estágio e chamamentos: retificações, inscritos, resultados, recursos, homologação e convocações.'),
+      conteudo);
+    return listaAnual(conteudo, params, {
+      base: '#/concursos', titulo: 'Concursos e processos seletivos', rotuloAno: 'Ano', nome: 'concursos-e-selecoes', unidade: ['seleção', 'seleções'],
+      vazio: 'Não há concursos públicos ou processos seletivos realizados por este órgão até esta data. Atualizado em ' + new Date().toLocaleDateString('pt-BR') + '.',
+      anos: async () => { const { data, error } = await sb.rpc('concursos_anos', { p_orgao: org() }); return error ? null : data || []; },
+      montar: (sel, op, ano, f) => {
+        let q = sb.from('concursos').select(sel || CAMPOS_SEL, op).eq('orgao_id', org());
+        if (ano !== 'todos') q = q.eq('ano', ano);
+        if (f.busca) q = q.ilike('busca', termo(f.busca));
+        if (f.tipo) q = q.eq('tipo', f.tipo);
+        if (f.andamento) q = q.eq('andamento', f.andamento);
+        return q;
+      },
+      filtros: () => [['busca', 'Pesquisar (título, cargo, edital)', el('input', { type: 'search', placeholder: 'Ex.: agente de saúde, professor, 01/2026' })],
+        ['tipo', 'Tipo', selecao(TIPO_SEL)], ['andamento', 'Andamento', selecao(AND_SEL)]],
+      cabecalho: ['Seleção', 'Inscrições', 'Vagas', 'Andamento'],
+      colunas: [['tipo', 'Tipo', (v) => TIPO_SEL[v] || v], ['numero', 'Edital'], ['ano', 'Ano'], ['titulo', 'Título'], ['vagas', 'Vagas'], ['inscricoes_inicio', 'Início das inscrições'],
+        ['inscricoes_fim', 'Fim das inscrições'], ['data_prova', 'Prova'], ['validade_ate', 'Validade até'], ['andamento', 'Andamento', (v) => AND_SEL[v] ? AND_SEL[v][0] : v], ['organizadora', 'Organizadora'], ['unidade_nome', 'Unidade']],
+      linha: (c) => {
+        const a = AND_SEL[c.andamento] || [c.andamento, 'etiqueta-ambar'];
+        return el('tr', null,
+          el('td', { 'data-rotulo': 'Seleção', class: 'lic-obj' }, el('a', { href: '#/concurso/' + c.id }, el('strong', null, nomeSel(c))), el('span', { class: 'meta' }, c.titulo)),
+          el('td', { 'data-rotulo': 'Inscrições', class: 'num' }, periodoBR(c.inscricoes_inicio, c.inscricoes_fim)),
+          el('td', { 'data-rotulo': 'Vagas' }, c.vagas || '—'),
+          el('td', { 'data-rotulo': 'Andamento' }, el('span', { class: 'etiqueta ' + a[1] }, a[0])),
+          el('td', { 'data-rotulo': '' }, el('a', { href: '#/concurso/' + c.id, class: 'botao botao-claro botao-p' }, 'Edital e atos', el('span', { class: 'sr' }, ' de ' + nomeSel(c)))));
+      }
+    });
+  };
+
+  R.concurso = async function (main, partes) {
+    const id = partes[0];
+    if (!/^[0-9a-f-]{36}$/i.test(id || '')) return R['*'](main);
+    const [{ data: c }, { data: docs }] = await Promise.all([
+      sb.from('concursos').select(CAMPOS_SEL).eq('orgao_id', org()).eq('id', id).maybeSingle(),
+      sb.from('concursos_documentos').select('tipo, titulo, data, arquivo_url, link_externo').eq('concurso_id', id).order('data').limit(300)
+    ]);
+    if (!c) return R['*'](main);
+    S.titulo(nomeSel(c)); S.trilha(['Transparência', '#/transparencia'], ['Concursos e processos seletivos', '#/concursos'], [nomeSel(c)]);
+    const linha = (rot, val) => val ? el('div', null, el('dt', null, rot), el('dd', null, val)) : null;
+    const a = AND_SEL[c.andamento] || [c.andamento, 'etiqueta-ambar'];
+    const lista = docs || [];
+    pagina(main, el('p', { class: 'meta' }, 'Concursos e processos seletivos · ' + c.ano), el('h1', null, nomeSel(c)),
+      el('p', { class: 'sub' }, c.titulo), el('p', null, el('span', { class: 'etiqueta ' + a[1] }, a[0])),
+      c.descricao ? el('section', { class: 'cartao' }, el('h2', null, 'Sobre a seleção'), el('p', { style: 'white-space:pre-line' }, c.descricao)) : null,
+      el('dl', { class: 'ficha-lic' }, linha('Vagas', c.vagas), linha('Inscrições', c.inscricoes_inicio || c.inscricoes_fim ? periodoBR(c.inscricoes_inicio, c.inscricoes_fim) : null),
+        linha('Prova / avaliação', c.data_prova ? dataBR(c.data_prova) : null), linha('Validade até', c.validade_ate ? dataBR(c.validade_ate) : null),
+        linha('Organizadora', c.organizadora), linha('Unidade', c.unidade_nome)),
+      c.link_externo ? el('p', { style: 'margin-top:16px' }, el('a', { class: 'botao botao-claro', href: c.link_externo, target: '_blank', rel: 'noopener' }, 'Página da seleção (inscrições)', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
+      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Edital e atos da seleção'),
+        lista.length ? el('ul', { class: 'partes-contas cartao' }, lista.map((d) => el('li', null,
+          el('a', { href: d.arquivo_url || d.link_externo, target: '_blank', rel: 'noopener' }, d.titulo, el('span', { class: 'sr' }, ' (abre em nova aba)')),
+          el('span', { class: 'meta' }, (DOC_SEL[d.tipo] || 'Documento') + ' · ' + dataBR(d.data) + (d.arquivo_url ? ' · PDF' : '')))))
+          : el('p', { class: 'vazio' }, 'Nenhum documento publicado.')));
   };
 
   // ---------- Serviços on-line (PNTP 15.3) ----------

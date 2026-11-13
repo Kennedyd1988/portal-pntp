@@ -36,7 +36,7 @@
   // Fase em que cada módulo será construído (só para a tela "em construção").
   const FASE_MODULO = {
     noticias: 1, institucional: 1, paginas: 1, servicos: 1, publicacoes: 1, lgpd: 1, aparencia: 1, menu: 1, usuarios: 1, historico: 1,
-    licitacoes: 2, contratos: 2, contas: 2, financeiro: 2, pessoal: 2, convenios: 2, emendas: 2, obras: 2, setoriais: 2, importacoes: 2,
+    licitacoes: 2, contratos: 2, contas: 2, financeiro: 2, pessoal: 2, convenios: 2, emendas: 2, concursos: 2, obras: 2, setoriais: 2, importacoes: 2,
     atendimento: 3
   };
 
@@ -610,36 +610,41 @@
             el('dt', null, 'Seu perfil'), el('dd', null, o.perfil)
           )
         ),
-        el('section', { class: 'cartao' },
-          el('h2', null, 'Fase 0 · Fundação'),
-          el('ul', { class: 'lista-check' },
-            el('li', null, 'Login e recuperação de senha'),
-            el('li', null, 'Separação de dados entre órgãos'),
-            el('li', null, 'Menu conforme as permissões do perfil'),
-            el('li', null, 'Histórico automático de alterações'),
-            el('li', null, 'Controle de versões do painel')
-          )
-        ),
-        el('section', { class: 'cartao' },
-          el('h2', null, 'Fase 1 · Conteúdo do site'),
-          el('ul', { class: 'lista-check' },
-            el('li', null, 'Aparência e contatos do órgão'),
-            el('li', null, 'Unidades e gestores'),
-            el('li', null, 'Usuários, perfis e convites'),
-            el('li', null, 'Histórico de alterações'),
-            el('li', null, 'Notícias, banners e avisos'),
-            el('li', null, 'Publicações oficiais e Diário Oficial'),
-            el('li', null, 'Páginas e perguntas frequentes'),
-            el('li', null, 'Menu do site'),
-            el('li', null, 'Carta de Serviços'),
-            el('li', null, 'LGPD e Governo Digital')
-          ),
-          el('ul', { class: 'lista-check lista-proximos', style: 'margin-top:8px' },
-            el('li', null, 'Site público (busca, acessibilidade, mapa do site)')
-          )
-        )
+        quadroPendencias()
       )
     );
+  }
+
+  // ---------- avisos de dados desatualizados ----------
+  // pendencias_atualizacao (script 20) diz, por módulo, o que passou do prazo. Aparece no alto de
+  // cada módulo e reunido na tela inicial. Consulta guardada por 2 minutos (troca de tela rápida).
+  let pend = { quando: 0, linhas: [] };
+  async function pendencias(forcar) {
+    if (!forcar && Date.now() - pend.quando < 120000 && pend.orgao === estado.orgao.id) return pend.linhas;
+    const { data, error } = await sb.rpc('pendencias_atualizacao', { p_orgao: estado.orgao.id });
+    pend = { quando: Date.now(), orgao: estado.orgao.id, linhas: error ? [] : (data || []).filter((x) => estado.permissoes[x.modulo] && estado.permissoes[x.modulo].ver) };
+    return pend.linhas;
+  }
+  const caixaPendencias = (linhas, comLink) => el('div', { class: 'pendencias', role: 'status' },
+    el('strong', null, linhas.some((x) => x.nivel === 'alerta') ? '⚠ Dados a atualizar' : 'Lembrete'),
+    el('ul', null, linhas.map((x) => {
+      const mod = estado.modulos.find((m) => m.codigo === x.modulo);
+      return el('li', { class: 'pend-' + x.nivel }, comLink && mod ? [el('a', { href: '#/m/' + x.modulo }, mod.nome), ': '] : null, x.quantidade > 1 || !/^falta|^nenhuma/.test(x.mensagem) ? x.quantidade + ' ' : '', x.mensagem);
+    })));
+  async function avisosDoModulo(c, codigo) {
+    const linhas = (await pendencias()).filter((x) => x.modulo === codigo);
+    if (!linhas.length || !c.isConnected) return;
+    const antes = c.querySelector('.cabecalho-modulo') || c.querySelector('h1');
+    const caixa = caixaPendencias(linhas, false);
+    if (antes) antes.after(caixa); else c.prepend(caixa);
+  }
+  function quadroPendencias() {
+    const sec = el('section', { class: 'cartao cartao-largo' }, el('h2', null, 'Situação dos dados (prazos do PNTP)'), el('p', { class: 'ajuda' }, 'Conferindo…'));
+    pendencias(true).then((linhas) => {
+      sec.replaceChildren(el('h2', null, 'Situação dos dados (prazos do PNTP)'),
+        linhas.length ? caixaPendencias(linhas, true) : el('p', { class: 'msg msg-ok' }, '✓ Nenhuma pendência de atualização encontrada nos módulos que você acessa.'));
+    });
+    return sec;
   }
 
   function telaModulo(c, codigo) {
@@ -650,7 +655,11 @@
         el('p', { class: 'sub' }, 'Seu perfil não tem acesso a este módulo.'));
       return;
     }
-    if (telas[codigo]) { telas[codigo](c, mod, p); return; }
+    if (telas[codigo]) {
+      // Depois que a tela termina de desenhar, coloca os avisos de prazo do módulo no alto.
+      Promise.resolve(telas[codigo](c, mod, p)).then(() => avisosDoModulo(c, codigo)).catch(() => {});
+      return;
+    }
     const chip = (rotulo, ok) => el('span', { class: 'chip ' + (ok ? 'chip-sim' : 'chip-nao') }, rotulo);
     c.replaceChildren(
       el('h1', null, mod.nome),

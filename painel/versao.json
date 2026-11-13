@@ -1,9 +1,9 @@
 {
-  "versao": "0.13.0",
+  "versao": "0.14.0",
   "data": "2026-11-13",
   "notas": [
-    "Menu lateral com pesquisa, grupos destacados e itens recuados.",
-    "Listagens com páginas numeradas; telas largas sem rolagem lateral.",
-    "CPF e CNPJ conferidos pelos dígitos verificadores."
+    "Publicações em abas, com tipos personalizados.",
+    "Novo módulo Concursos e processos seletivos (PNTP 6.6 e 6.7).",
+    "Avisos de dados desatualizados em cada módulo e na tela inicial."
   ]
 }

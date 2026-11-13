@@ -29,7 +29,7 @@ window.DESTINOS_PNTP = [
   ['renuncias', 'Renúncias de receita', null, '16.1–16.4', 'Transparência'],
   ['saude', 'Saúde', null, '18.1–18.6', 'Transparência'],
   ['educacao', 'Educação', null, '19.1–19.4', 'Transparência'],
-  ['concursos', 'Concursos e processos seletivos', null, '6.6–6.7', 'Transparência'],
+  ['concursos', 'Concursos e processos seletivos', '/concursos', '6.6–6.7', 'Transparência'],
   ['esic', 'e-SIC (acesso à informação)', '/esic', '12.1–12.9', 'Atendimento e publicações'],
   ['ouvidoria', 'Ouvidoria', '/ouvidoria', '14.1–14.2', 'Atendimento e publicações'],
   ['carta_servicos', 'Carta de Serviços ao Usuário', '/servicos', '14.3', 'Atendimento e publicações'],

@@ -10,11 +10,25 @@
   const { sb, el, toast, ocupado, erroCampo, normalizar, ordemAlfabetica, campo } = P;
   const LOTE = 50;
 
-  const TIPOS = {
+  // Tipos fixos + tipos criados pelo órgão (tabela publicacoes_tipos, código "x_…").
+  // Cada tipo pertence a uma aba (grupo) da tela.
+  const TIPOS_BASE = {
     lei_organica: 'Lei Orgânica', emenda_lei_organica: 'Emenda à Lei Orgânica', lei_complementar: 'Lei Complementar',
     lei: 'Lei Ordinária', decreto: 'Decreto', portaria: 'Portaria', resolucao: 'Resolução',
     instrucao_normativa: 'Instrução Normativa', ato: 'Ato', edital: 'Edital', outro: 'Outro'
   };
+  const GRUPO_BASE = { lei_organica: 'leis', emenda_lei_organica: 'leis', lei_complementar: 'leis', lei: 'leis', decreto: 'decretos', portaria: 'portarias',
+    resolucao: 'normas', instrucao_normativa: 'normas', edital: 'editais', ato: 'outros', outro: 'outros' };
+  const ABAS = [['todas', 'Todas'], ['leis', 'Leis'], ['decretos', 'Decretos'], ['portarias', 'Portarias'], ['normas', 'Resoluções e instruções'], ['editais', 'Editais'], ['outros', 'Outros atos']];
+  let TIPOS = Object.assign({}, TIPOS_BASE), GRUPO = Object.assign({}, GRUPO_BASE), personalizados = [];
+  let aba = 'todas';
+  const tiposDaAba = () => Object.keys(TIPOS).filter((k) => aba === 'todas' || GRUPO[k] === aba);
+  async function carregarTipos() {
+    const { data, error } = await sb.from('publicacoes_tipos').select('*').eq('orgao_id', P.estado.orgao.id).order('nome');
+    personalizados = error ? [] : data || [];   // sem o script 20, segue só com os tipos fixos
+    TIPOS = Object.assign({}, TIPOS_BASE); GRUPO = Object.assign({}, GRUPO_BASE);
+    for (const t of personalizados) { TIPOS[t.codigo] = t.nome; GRUPO[t.codigo] = t.grupo; }
+  }
   const VIGENCIA = { vigente: 'Vigente', alterada: 'Alterada', revogada: 'Revogada', sem_efeito: 'Sem efeito' };
 
   let perm = {};
@@ -38,6 +52,7 @@
     const f = filtros;
     if (f.busca) q = q.ilike('busca', '%' + normalizar(f.busca).replace(/[%_]/g, '') + '%');
     if (f.tipo) q = q.eq('tipo', f.tipo);
+    else if (aba !== 'todas') q = q.in('tipo', tiposDaAba());
     if (f.ano) q = q.eq('ano', parseInt(f.ano, 10));
     if (f.vigencia) q = q.eq('vigencia', f.vigencia);
     if (f.situacao) q = q.eq('situacao', f.situacao);
@@ -63,7 +78,8 @@
     const cfg = P.estado.orgao.configuracoes || {};
     const f = {
       tipo: el('select', null, el('option', { value: '' }, '— Escolha —'),
-        Object.entries(TIPOS).map(([k, v]) => el('option', { value: k, selected: x.tipo === k }, v))),
+        ABAS.slice(1).map(([g, rot]) => el('optgroup', { label: rot }, Object.keys(TIPOS).filter((k) => GRUPO[k] === g)
+          .map((k) => el('option', { value: k, selected: (x.tipo || (aba !== 'todas' && tiposDaAba().length === 1 ? tiposDaAba()[0] : '')) === k }, TIPOS[k]))))),
       numero: el('input', { type: 'text', maxlength: 20, value: x.numero || '', placeholder: 'Ex.: 012' }),
       data: el('input', { type: 'date', value: x.data_publicacao || '' }),
       ano: el('input', { type: 'number', min: 1900, max: 2100, value: x.ano || new Date().getFullYear() }),
@@ -178,8 +194,8 @@
   function desenhar() {
     const cfg = P.estado.orgao.configuracoes || {};
     const busca = el('input', { type: 'search', placeholder: 'Número ou ementa', value: filtros.busca, 'aria-label': 'Buscar por número ou ementa' });
-    const tipo = el('select', { 'aria-label': 'Tipo' }, el('option', { value: '' }, 'Todos os tipos'),
-      Object.entries(TIPOS).map(([k, v]) => el('option', { value: k, selected: filtros.tipo === k }, v)));
+    const tipo = el('select', { 'aria-label': 'Tipo' }, el('option', { value: '' }, 'Todos os tipos' + (aba === 'todas' ? '' : ' desta aba')),
+      tiposDaAba().map((k) => el('option', { value: k, selected: filtros.tipo === k }, TIPOS[k])));
     const ano = el('input', { type: 'number', min: 1900, max: 2100, placeholder: 'Ano', value: filtros.ano, 'aria-label': 'Ano' });
     const vig = el('select', { 'aria-label': 'Situação do ato' }, el('option', { value: '' }, 'Qualquer situação do ato'),
       Object.entries(VIGENCIA).map(([k, v]) => el('option', { value: k, selected: filtros.vigencia === k }, v)));
@@ -241,10 +257,64 @@
             ? 'Publicado em sistema externo: ' + (cfg.diario_oficial_nome || cfg.diario_oficial_url) + '. O site leva o cidadão até lá.'
             : 'Endereço do Diário Oficial ainda não informado (tela "Aparência e contatos").')),
         cfg.diario_oficial_url ? el('a', { class: 'btn btn-claro btn-p', href: cfg.diario_oficial_url, target: '_blank', rel: 'noopener' }, 'Abrir') : null),
-      el('div', { class: 'filtros filtros-6' }, busca, tipo, ano, vig, sit, un),
-      lista
+      el('div', { class: 'abas', role: 'tablist', 'aria-label': 'Tipo de publicação' },
+        ABAS.map(([id, rot]) => el('button', { type: 'button', role: 'tab', class: 'aba', 'aria-selected': aba === id ? 'true' : 'false',
+          onclick: async () => { if (aba === id) return; aba = id; filtros.tipo = ''; await recarregar(); } }, rot)),
+        el('button', { type: 'button', role: 'tab', class: 'aba', 'aria-selected': aba === 'tipos' ? 'true' : 'false',
+          onclick: () => { aba = 'tipos'; desenhar(); } }, 'Tipos personalizados')),
+      aba === 'tipos' ? el('div', { class: 'painel-guia' }, telaTipos())
+        : el('div', { class: 'painel-guia' }, el('div', { class: 'filtros filtros-6' }, busca, tipo, ano, vig, sit, un), lista)
     ].filter(Boolean));
-    desenharLista();
+    if (aba !== 'tipos') desenharLista();
+  }
+
+  // ----- Tipos personalizados (ex.: Ata de conselho, Parecer, Termo de cooperação) -----
+  function telaTipos() {
+    const GRUPOS = Object.fromEntries(ABAS.slice(1));
+    const slug = (t) => 'x_' + normalizar(t).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40);
+    function formTipo(t) {
+      t = t || {};
+      const nome = el('input', { type: 'text', maxlength: 60, value: t.nome || '', placeholder: 'Ex.: Ata do Conselho Municipal de Saúde' });
+      const grupo = el('select', null, Object.entries(GRUPOS).map(([k, v]) => el('option', { value: k, selected: (t.grupo || 'outros') === k }, v)));
+      const corpo = el('form', { class: 'form-dialogo', novalidate: true },
+        campo('pt-nome', 'Nome do tipo', nome, 'Aparece no site como o tipo do ato (ex.: "Ata do Conselho nº 3/2026").', true),
+        campo('pt-grupo', 'Aba onde aparece', grupo, 'No painel e nos filtros do site.'));
+      const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
+      const dlg = P.abrirDialogo(t.id ? 'Editar tipo de publicação' : 'Novo tipo de publicação', corpo,
+        [el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn]);
+      btn.addEventListener('click', async () => {
+        const n = nome.value.trim();
+        if (!erroCampo('pt-nome', n.length >= 2 ? '' : 'Informe o nome.')) return;
+        if (!erroCampo('pt-nome', Object.entries(TIPOS).some(([k, v]) => k !== t.codigo && normalizar(v) === normalizar(n)) ? 'Já existe um tipo com esse nome.' : '')) return;
+        ocupado(btn, 'Salvando…');
+        try {
+          const dados = t.id ? { nome: n, grupo: grupo.value } : { nome: n, grupo: grupo.value, codigo: slug(n) };
+          await P.gravarRegistro('publicacoes_tipos', dados, t.id);
+          dlg.close(); toast('Tipo salvo.'); await carregarTipos(); desenhar();
+        } catch (e) { toast(/duplicate|_uk|unique/i.test(e.message || '') ? 'Já existe um tipo com esse nome.' : P.erroGravacao(e), true); }
+        finally { ocupado(btn); }
+      });
+    }
+    async function excluirTipo(t) {
+      if (!await P.confirmar('Excluir tipo', 'Excluir o tipo "' + t.nome + '"?', 'Excluir', true)) return;
+      const { data, error } = await sb.from('publicacoes_tipos').delete().eq('id', t.id).select('id');
+      if (error) return toast(P.erroGravacao(error), true);
+      if (!data || !data.length) return toast('Seu perfil não pode excluir este tipo.', true);
+      toast('Tipo excluído.'); await carregarTipos(); desenhar();
+    }
+    const pode = perm.editar && !alcance();
+    return [
+      el('div', { class: 'cabecalho-modulo', style: 'margin-bottom:8px' },
+        el('p', { class: 'ajuda' }, 'Além dos tipos fixos (Lei, Decreto, Portaria, Resolução, Edital…), o órgão pode criar os seus. Cada tipo fica numa aba.'),
+        pode ? el('button', { type: 'button', class: 'btn btn-primario', onclick: () => formTipo() }, '+ Novo tipo') : null),
+      personalizados.length ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
+        el('thead', null, el('tr', null, ['Tipo', 'Aba'].map((h) => el('th', { scope: 'col' }, h)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
+        el('tbody', null, personalizados.map((t) => el('tr', null, el('td', null, el('strong', null, t.nome)), el('td', null, GRUPOS[t.grupo] || t.grupo),
+          el('td', { class: 'acoes' },
+            pode ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formTipo(t) }, 'Editar') : null,
+            pode && perm.excluir ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirTipo(t) }, 'Excluir') : null))))))
+        : el('p', { class: 'vazio' }, 'Nenhum tipo personalizado. Os tipos fixos atendem a maioria dos atos.')
+    ];
   }
 
   async function recarregar() {
@@ -262,6 +332,7 @@
       ]);
       if (u.error) throw u.error;
       unidades = u.data;
+      await carregarTipos();
       P.estado.orgao.configuracoes = (o.data && o.data.configuracoes) || {};
       await carregar(true);
       desenhar();

@@ -91,6 +91,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/18_lote9_obras.sql` | Fase 2 · Lote 9: tabelas `obras`, `obras_itens` (planilha contratada × executada), `obras_medicoes`, `obras_paralisacoes`; situação "paralisada" mantida pelo banco; visão `obras_resumo`; função `obras_anos` |
 | `supabase/19_lote10_convenios_emendas.sql` | Fase 2 · Lote 10: módulo `convenios` renomeado para "Convênios e transferências" e módulo novo `emendas` (permissões copiadas); tabelas `convenios` (recebidas, realizadas e acordos sem repasse, inteiro teor obrigatório para publicar) e `emendas` (origem, tipo, forma de repasse, autoria, função de governo, valores previsto/realizado/empenhado/liquidado/pago, ligação opcional ao convênio); funções `convenios_anos` e `emendas_anos` |
 | `supabase/teste_convenios_emendas_ficticios.sql` | opcional: 6 instrumentos (recebidos, realizados e acordo) e 8 emendas fictícias de todas as origens |
+| `supabase/20_publicacoes_concursos_pendencias.sql` | tipos próprios de publicação (`publicacoes_tipos`, código `x_…`, aba de cada um); módulo `concursos` (permissões copiadas de "pessoal") com `concursos` e `concursos_documentos` (publicar exige o edital; edital de seleção publicada não pode ser excluído) e `concursos_anos`; função `pendencias_atualizacao` (avisos de dados desatualizados do painel) |
 | `supabase/teste_obras_ficticias.sql` | opcional: 4 obras fictícias (em andamento, paralisada, concluídas) com planilha, medições e paralisações |
 | `supabase/teste_pca_sancoes_ficticios.sql` | opcional: PCA de 2024 a 2026 (com revisões) e 6 sanções fictícias de todos os tipos, vigentes e encerradas |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
@@ -178,6 +179,7 @@ painel/
   modulo-lgpd.js        → "LGPD e Governo Digital" (encarregado, política, norma 14.129, dados abertos)
   modulo-pca-sancoes.js → "Plano de Contratações Anual (PCA)" e "Sanções a licitantes e contratados"
   modulo-obras.js       → "Obras" (dados, andamento, planilha, medições, paralisações)
+  modulo-concursos.js   → "Concursos e processos seletivos" (6.6 e 6.7: seleção + edital e atos)
   modulo-convenios.js   → "Convênios e transferências" (5.1 a 5.3) e "Emendas parlamentares" (17.1 a 17.3)
   modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
@@ -270,6 +272,39 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.14.0 — 13/11/2026 — publicações com tipos próprios, concursos e seleções, avisos de prazo**
+- Publicações: a tela do painel ganhou abas pelos principais tipos (Todas, Leis, Decretos,
+  Portarias, Resoluções e instruções, Editais, Outros atos) e a aba **Tipos personalizados**, onde
+  o órgão cria tipos próprios (ex.: "Ata do Conselho de Saúde", "Parecer jurídico") e escolhe em
+  qual aba cada um aparece. O site mostra o nome do tipo próprio nas listas, filtros, busca e
+  página inicial. Tipo em uso não pode ser excluído.
+- Módulo novo **Concursos e processos seletivos** (PNTP 6.6 e 6.7): concurso público, processo
+  seletivo simplificado, seleção de estágio, chamamento, credenciamento; número do edital, título,
+  cargos/descrição, vagas, organizadora, inscrições, prova, validade e andamento. Aba Documentos com
+  edital, retificações, inscritos, gabarito, resultados, recursos, homologação, convocação,
+  nomeação e prorrogação (PDF ou link). Publicar exige o edital. Seleção nova reabre na aba
+  Documentos. Site `#/concursos` (abas de ano, filtros, CSV/JSON; sem seleções, declara que não há)
+  e `#/concurso/<id>` com o edital e todos os atos em ordem de data. Entrou nos destinos das
+  páginas, no menu do painel, na busca, no mapa do site, na capa da Transparência e nos dados abertos.
+- **Avisos de dados desatualizados**: cada módulo mostra no alto o que passou do prazo, e a tela
+  inicial do painel reúne tudo ("Situação dos dados"), com link para o módulo. Regras (função
+  `pendencias_atualizacao`): obra em andamento sem medição há mais de 30 dias (PNTP 10.1) ou com
+  previsão vencida; convênio em execução sem conferência do repasse há mais de 30 dias ou com a
+  vigência encerrada; emenda em execução sem atualizar empenhado/liquidado/pago há mais de 30 dias
+  (17.3); licitação com a abertura já passada ainda "aberta"/"prevista"; contrato vencido há menos
+  de 30 dias (lembrete do aditivo); contrato vigente sem fiscal vigente (9.3); falta do PCA do ano
+  (8.6); seleção com inscrições encerradas ainda "inscrições abertas" (6.7); nenhuma notícia nos
+  últimos 30 dias. Cada pessoa só vê os avisos dos módulos a que tem acesso.
+- Banco: script 20 (rodar depois do 19). Testado no PostgreSQL local (duas execuções; admin,
+  cadastrador sem publicar e visitante) e no navegador com PostgREST local.
+- Varredura PNTP (Cartilha/Matriz 2026) desta etapa e das versões 0.12 e 0.13:
+  - 6.6 atende com a íntegra do edital de cada seleção; 6.7 com os demais atos de cada fase, em
+    página própria por seleção, com filtros e CSV/JSON; sem seleções, há a declaração.
+  - 2.9 (botão do Radar) atende com a faixa do Radar na página inicial e o link no rodapé.
+  - 15.3 ganha página própria "Serviços on-line", além da Carta de Serviços.
+  - Atualidade (10.1, 17.3 e demais): os avisos do painel apontam o que está fora do prazo antes da
+    avaliação.
 
 **0.13.0 — 13/11/2026 — painel: menu lateral, paginação, largura e CPF/CNPJ**
 - Menu lateral reformulado: grupos destacados (faixa com traço amarelo) e itens recuados com
