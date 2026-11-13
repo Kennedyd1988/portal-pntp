@@ -88,6 +88,8 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/16_pca_sancoes.sql` | Lote 8.1: módulos `pca` e `sancoes` (permissões copiadas de licitações), tabela `pca` (plano do ano + atualizações, PDF ou link do PNCP, um plano por ano), tabela `sancoes` (sancionado, CNPJ/CPF, sanção do art. 156, prazo, multa, processo, ato), funções `pca_anos` e `sancoes_anos` |
 | `supabase/17_licitacoes_ordem.sql` | coluna `chave_ordem` (modalidade + número, do maior para o menor) e índice: lista de licitações em ordem numérica sequencial por modalidade (PNTP 8.1) |
 | `supabase/teste_contratos_ficticios.sql` | opcional: contratos fictícios ligados às licitações de teste, com fiscais e aditivos |
+| `supabase/18_lote9_obras.sql` | Fase 2 · Lote 9: tabelas `obras`, `obras_itens` (planilha contratada × executada), `obras_medicoes`, `obras_paralisacoes`; situação "paralisada" mantida pelo banco; visão `obras_resumo`; função `obras_anos` |
+| `supabase/teste_obras_ficticias.sql` | opcional: 4 obras fictícias (em andamento, paralisada, concluídas) com planilha, medições e paralisações |
 | `supabase/teste_pca_sancoes_ficticios.sql` | opcional: PCA de 2024 a 2026 (com revisões) e 6 sanções fictícias de todos os tipos, vigentes e encerradas |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
@@ -173,6 +175,7 @@ painel/
   modulo-servicos.js    → "Carta de Serviços" (serviços + textos gerais da Carta)
   modulo-lgpd.js        → "LGPD e Governo Digital" (encarregado, política, norma 14.129, dados abertos)
   modulo-pca-sancoes.js → "Plano de Contratações Anual (PCA)" e "Sanções a licitantes e contratados"
+  modulo-obras.js       → "Obras" (dados, andamento, planilha, medições, paralisações)
   modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
@@ -258,12 +261,52 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   pode levar alguns minutos (o PNCP é lento). A primeira vez de cada CNPJ conferir no PNCP se
   os processos batem. Se o PNCP mudar a resposta, os campos que mudarem de nome ficam em branco
   até a função/painel serem ajustados.
-- Obras (10.1 a 10.4) ainda apontam para o sistema externo (próximo lote).
+- Obras: a planilha de cada obra é lida inteira (até 2.000 itens) e filtrada no navegador.
 
 - Excluir um órgão ou o login de uma pessoa apaga os vínculos em cascata, mesmo que
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.10.0 — 13/11/2026 — Fase 2 · Lote 9: obras (PNTP 10.1 a 10.4)**
+- Módulo "Obras" no painel (já existia no menu como "em construção"; as permissões são as que
+  cada perfil já tinha). Janela da obra em abas:
+  - **Dados da obra**: nome, descrição, local, unidade, contrato (busca no módulo Contratos;
+    ao escolher, preenche contratada, CNPJ, valor e início), fonte do recurso, link externo.
+  - **Andamento**: situação, % concluído, etapa atual, início, previsão e conclusão. O painel
+    sugere o % pela planilha executada ("usar este valor").
+  - **Planilha (quantitativos)**: itens com quantidade e preço unitário contratados (10.2) e
+    quantidade executada com preço praticado (10.3); totais calculados pelo banco. Dá para
+    **colar as linhas direto do Excel/LibreOffice/Google Planilhas** (cabeçalhos e títulos de
+    grupo são ignorados) e salvar o executado de todos os itens de uma vez.
+  - **Medições e pagamentos**: cada etapa medida, com período, valor medido, valor pago, data
+    do pagamento, % acumulado e boletim (PDF ou link).
+  - **Paralisações** (10.4): motivo, responsável pela inexecução, previsão de reinício e ato.
+    Registrar uma paralisação deixa a obra "Paralisada"; informar o reinício a devolve para "Em
+    andamento". A situação "Paralisada" não se escolhe à mão (o banco bloqueia), para nunca
+    ficar obra paralisada sem motivo e responsável.
+- Obra nova reabre na aba Planilha depois de salva (10.2 é obrigatório).
+- Site `#/obras`: abas "Obras" (todas e por ano de início, tabela com situação, barra de %,
+  início, previsão/conclusão e valor; filtros por texto e situação; CSV/JSON) e "Obras
+  paralisadas" (`#/obras/paralisadas`: motivo, responsável e previsão de reinício, CSV/JSON).
+  Página de cada obra (`#/obra/<id>`) com a planilha (filtro e CSV/JSON), medições,
+  paralisações e o link para o contrato. CPF da contratada mascarado.
+- Sem obras publicadas, o site declara "Não há obras públicas executadas ou em execução"; sem
+  obras paralisadas, "Não há obras paralisadas neste órgão. Atualizado em …" (Cartilha).
+- Capa da Transparência, mapa do site, menu e dados abertos (obras, planilhas e paralisações)
+  passaram a apontar para essas páginas.
+- Banco: script 18 (rodar depois do 17).
+- Varredura PNTP (Cartilha/Matriz 2026):
+  - 10.1 (recomendada) atende: início, etapas (etapa atual + medições), % concluído, situação e
+    previsão de conclusão, com filtro e arquivo editável.
+  - 10.2 (obrigatória) atende quando a planilha contratada é cadastrada (quantitativos, preços
+    unitários e totais), na seção de obras, com filtro e CSV/JSON.
+  - 10.3 (obrigatória) atende com as quantidades executadas, o preço praticado e os valores
+    pagos nas medições.
+  - 10.4 (obrigatória) atende com a relação das paralisadas (motivo, responsável e previsão de
+    reinício) e com a declaração quando não há.
+  - Atualidade: 10.1 pede dados de até 30 dias; o órgão precisa atualizar % e medições ao
+    menos uma vez por mês.
 
 **0.9.2 — 13/11/2026 — PCA e sancionados (PNTP 8.6 e 8.7)**
 - Dois módulos novos no painel, com as permissões de quem já cuida de licitações:

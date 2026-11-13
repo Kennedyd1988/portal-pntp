@@ -773,6 +773,9 @@
       ['Licitações', 'licitacoes', 'modalidade,numero,ano,processo,objeto,srp,criterio,amparo_legal,unidade_nome,valor_estimado,valor_homologado,data_publicacao,data_abertura,andamento,vencedores,link_externo', '&order=chave_ordem.asc'],
       ['Plano de contratações anual (PCA)', 'pca', 'ano,tipo,data_aprovacao,ato_aprovacao,valor_total,qtd_itens,descricao,arquivo_url,link_externo', '&order=ano.desc'],
       ['Licitantes e contratados sancionados', 'sancoes', 'sancionado_nome,tipo,fundamento,motivo,processo,referencia,data_aplicacao,inicio,fim,valor_multa,ato,arquivo_url,link_externo', '&order=data_aplicacao.desc'],
+      ['Obras', 'obras', 'titulo,local,situacao_obra,percentual,etapa_atual,data_inicio,previsao_conclusao,data_conclusao,contratada_nome,valor_contratado,fonte_recurso,unidade_nome,link_externo', '&order=atualizado_em.desc'],
+      ['Obras: planilha contratada e executada', 'obras_itens', 'obra_id,codigo,descricao,unidade,quantidade,preco_unitario,total_contratado,quantidade_executada,preco_praticado,total_executado', '&order=obra_id.asc'],
+      ['Obras: paralisações', 'obras_paralisacoes', 'obra_id,inicio,reinicio,motivo,responsavel,previsao_reinicio,ato', '&order=inicio.desc'],
       ['Planejamento e prestação de contas', 'documentos_contas', 'tipo,exercicio,exercicio_fim,periodicidade,periodo,parte,resultado,numero_ato,data_publicacao,descricao,arquivo_url,link_externo', '&order=exercicio.desc'],
       ['Carta de Serviços', 'servicos', 'nome,categoria,descricao,publico_alvo,requisitos,etapas,prazo_maximo,forma_prestacao,link_digital,local_atendimento,horario,custo', '&order=nome'],
       ['Estrutura organizacional (unidades)', 'unidades', 'nome,sigla,endereco,telefone,email,horario_atendimento,competencias,norma_criacao,norma_url', '&order=nome'],
@@ -863,7 +866,7 @@
     const { data: pags } = await sb.from('paginas').select('titulo, slug').eq('orgao_id', org()).order('titulo').limit(300);
     const fixos = [['Notícias', '#/noticias'], ['Publicações oficiais', '#/publicacoes'], ['Diário Oficial', '#/diario-oficial'],
       ['Estrutura organizacional', '#/estrutura'], ['Gestores', '#/gestores'], ['Carta de Serviços', '#/servicos'], ['Perguntas frequentes', '#/faq'],
-      ['Transparência', '#/transparencia'], ['Planejamento e prestação de contas', '#/planejamento'], ['Licitações', '#/licitacoes'], ['Plano de contratações anual (PCA)', '#/licitacoes/pca'], ['Sancionados', '#/licitacoes/sancionados'], ['Contratos', '#/contratos'], ['Fiscais de contratos', '#/contratos/fiscais'], ['Ouvidoria', '#/ouvidoria'], ['e-SIC', '#/esic'],
+      ['Transparência', '#/transparencia'], ['Planejamento e prestação de contas', '#/planejamento'], ['Licitações', '#/licitacoes'], ['Plano de contratações anual (PCA)', '#/licitacoes/pca'], ['Sancionados', '#/licitacoes/sancionados'], ['Contratos', '#/contratos'], ['Fiscais de contratos', '#/contratos/fiscais'], ['Obras', '#/obras'], ['Obras paralisadas', '#/obras/paralisadas'], ['Ouvidoria', '#/ouvidoria'], ['e-SIC', '#/esic'],
       ['Proteção de dados (LGPD)', '#/lgpd'], ['Dados abertos', '#/dados-abertos'], ['Acessibilidade', '#/acessibilidade'], ['Contato', '#/contato']];
     pagina(main, el('h1', null, 'Mapa do site'),
       el('div', { class: 'grade g2' },
@@ -1105,7 +1108,7 @@
       ['Licitações', 'licit', [L('Relação das licitações', '8.1', '#/licitacoes/todos'), L('Editais e documentos das fases', '8.2–8.3', '#/licitacoes/licitacoes'), L('Dispensas e inexigibilidades', '8.4', '#/licitacoes/diretas'),
         L('Adesões a atas (SRP)', '8.5', '#/licitacoes/adesoes'), L('Plano de contratações anual', '8.6', '#/licitacoes/pca'), L('Licitantes e contratados sancionados', '8.7', '#/licitacoes/sancionados')]],
       ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', '#/contratos'), L('Fiscais de contratos', '9.3', '#/contratos/fiscais'), L('Ordem cronológica de pagamentos', '9.4')]],
-      ['Obras', 'obra', [L('Obras e situação atual', '10.1'), L('Quantitativos e preços', '10.2–10.3'), L('Obras paralisadas', '10.4')]],
+      ['Obras', 'obra', [L('Obras e situação atual', '10.1', '#/obras'), L('Quantitativos e preços', '10.2–10.3', '#/obras'), L('Obras paralisadas', '10.4', '#/obras/paralisadas')]],
       ['Planejamento e prestação de contas', 'grafico', plan],
       ['Serviço de Informação ao Cidadão', 'chat', [L('e-SIC: fazer pedido', '12.1–12.4', '#/esic'), L('Regulamentação da LAI', '12.5', '#/publicacoes?q=acesso a informacao'),
         L('Prazos e autoridades', '12.6', '#/esic'), L('Relatório estatístico anual', '12.7', '#/esic'), L('Informações classificadas', '12.8', '#/esic'), L('Informações desclassificadas', '12.9', '#/esic')]],
@@ -1800,6 +1803,236 @@
       grupos.map(([t, itens, todos]) => el('section', { style: 'margin-bottom:24px' },
         el('div', { class: 'secao-titulo' }, el('h2', null, t), todos && itens.length === 8 ? el('a', { href: todos }, 'Ver todos →') : null),
         el('ul', null, itens.map(([rot, href]) => el('li', { style: 'margin:6px 0' }, el('a', { href, target: href.startsWith('http') ? '_blank' : null, rel: href.startsWith('http') ? 'noopener' : null }, rot)))))));
+  };
+
+  // ---------- Obras (PNTP 10.1 a 10.4) ----------
+  // Aba "Obras": abas de ano, tabela com situação, % concluído, início e previsão (10.1), filtros e
+  // CSV/JSON. Aba "Obras paralisadas": motivo, responsável e previsão de reinício (10.4). Sem obras,
+  // ou sem obras paralisadas, a página declara isso expressamente. Planilha (10.2/10.3) na página da obra.
+  const SIT_OBRA = { nao_iniciada: ['Não iniciada', 'etiqueta-ambar'], em_andamento: ['Em andamento', 'etiqueta-ambar'], paralisada: ['Paralisada', 'etiqueta-vermelha'],
+    concluida: ['Concluída', 'etiqueta-verde'], cancelada: ['Cancelada', 'etiqueta-vermelha'] };
+  const CAMPOS_OBRA = 'id, contrato_id, titulo, descricao, local, unidade_nome, contratada_nome, contratada_doc, fonte_recurso, valor_contratado, situacao_obra, percentual, etapa_atual, data_inicio, previsao_conclusao, data_conclusao, ano, link_externo, atualizado_em';
+  const COLUNAS_OBRA = [['titulo', 'Obra'], ['local', 'Local'], ['situacao_obra', 'Situação', (v) => SIT_OBRA[v] ? SIT_OBRA[v][0] : v], ['percentual', '% concluído'],
+    ['etapa_atual', 'Etapa atual'], ['data_inicio', 'Início'], ['previsao_conclusao', 'Previsão de conclusão'], ['data_conclusao', 'Conclusão'],
+    ['contratada_nome', 'Contratada'], ['contratada_doc', 'CNPJ/CPF', (v) => docCtr(v)], ['valor_contratado', 'Valor contratado'], ['fonte_recurso', 'Fonte do recurso'], ['unidade_nome', 'Unidade']];
+  const pctBR = (v) => Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%';
+  const qtdBR = (v) => v === null || v === undefined ? '' : Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 4 });
+  const barraObra = (v) => el('span', { class: 'barra-obra', role: 'img', 'aria-label': pctBR(v) + ' concluído' }, el('span', { style: 'width:' + Math.max(0, Math.min(100, Number(v || 0))) + '%' }));
+
+  R.obras = async function (main, partes, params) {
+    S.titulo('Obras'); S.trilha(['Transparência', '#/transparencia'], ['Obras']);
+    let aba = partes[0] === 'paralisadas' ? 'paralisadas' : 'todas';
+    const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' });
+    const { lista } = faixaAbas([['todas', 'Obras'], ['paralisadas', 'Obras paralisadas']], aba, 'Obras', false, (id) => { aba = id; abrir(new URLSearchParams()); });
+    pagina(main, el('h1', null, 'Obras'),
+      el('p', { class: 'sub' }, 'Obras do órgão com a situação, o percentual concluído, as etapas, a planilha contratada e executada, os pagamentos e as paralisações.'),
+      lista, conteudo);
+    await abrir(params);
+
+    async function abrir(prm) {
+      conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
+      return aba === 'paralisadas' ? paralisadas() : todas(prm);
+    }
+
+    async function paralisadas() {
+      history.replaceState(null, '', '#/obras/paralisadas');
+      const { data, error } = await sb.from('obras_paralisacoes')
+        .select('id, inicio, motivo, responsavel, previsao_reinicio, ato, arquivo_url, obras!inner(id, titulo, local, contratada_nome, percentual, situacao)')
+        .eq('orgao_id', org()).is('reinicio', null).eq('obras.situacao', 'publicado').order('inicio').limit(500);
+      if (error) { conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+      const ps = data || [];
+      const hojeTxt = new Date().toLocaleDateString('pt-BR');
+      if (!ps.length) {
+        conteudo.replaceChildren(el('p', { class: 'vazio' }, 'Não há obras paralisadas neste órgão. Atualizado em ' + hojeTxt + '.'));
+        return;
+      }
+      const COL = [['obra', 'Obra', (v, r) => r.obras.titulo], ['local', 'Local', (v, r) => r.obras.local || ''], ['inicio', 'Paralisada desde'], ['motivo', 'Motivo'],
+        ['responsavel', 'Responsável pela inexecução'], ['previsao_reinicio', 'Previsão de reinício'], ['ato', 'Ato']];
+      conteudo.replaceChildren(
+        el('p', { class: 'meta' }, 'Obras com execução interrompida (Lei 14.133/2021, art. 115, § 6º). Atualizado em ' + hojeTxt + '.'),
+        el('div', { class: 'barra-lista' }, el('span', { class: 'meta', role: 'status' }, ps.length + (ps.length === 1 ? ' obra paralisada' : ' obras paralisadas')),
+          S.botoesExportar('obras-paralisadas', COL, async (de, ate) => ps.slice(de, ate + 1))),
+        el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados tabela-lic' },
+          el('caption', { class: 'sr' }, 'Obras paralisadas'),
+          el('thead', null, el('tr', null, ['Obra', 'Paralisada desde', 'Motivo', 'Responsável pela inexecução', 'Previsão de reinício'].map((t) => el('th', { scope: 'col' }, t)))),
+          el('tbody', null, ps.map((p) => el('tr', null,
+            el('td', { 'data-rotulo': 'Obra' }, el('a', { href: '#/obra/' + p.obras.id }, el('strong', null, p.obras.titulo)), p.obras.local ? el('span', { class: 'meta' }, p.obras.local) : null,
+              el('span', { class: 'meta' }, pctBR(p.obras.percentual) + ' concluído')),
+            el('td', { 'data-rotulo': 'Paralisada desde', class: 'num' }, dataBR(p.inicio)),
+            el('td', { 'data-rotulo': 'Motivo', class: 'lic-obj' }, p.motivo, p.ato ? el('span', { class: 'meta' }, p.ato) : null),
+            el('td', { 'data-rotulo': 'Responsável pela inexecução' }, p.responsavel),
+            el('td', { 'data-rotulo': 'Previsão de reinício', class: 'num' }, p.previsao_reinicio ? dataBR(p.previsao_reinicio) : 'Não informada')))))));
+    }
+
+    async function todas(prm) {
+      const { data: anosOb, error } = await sb.rpc('obras_anos', { p_orgao: org() });
+      if (error) { conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+      if (!(anosOb || []).length) {
+        history.replaceState(null, '', '#/obras');
+        conteudo.replaceChildren(el('p', { class: 'vazio' }, 'Não há obras públicas executadas ou em execução por este órgão até esta data.'));
+        return;
+      }
+      const contagem = new Map(anosOb.map((x) => [x.ano, x.total]));
+      // "Todos os anos" primeiro: obra em andamento iniciada em ano anterior continua à vista.
+      const anos = ['todos'].concat([...contagem.keys()].sort((a, b) => b - a));
+      const pedido = prm.get('ano');
+      let ano = pedido && anos.includes(Number(pedido)) ? Number(pedido) : 'todos';
+      const painelAno = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
+      const totalGeral = [...contagem.values()].reduce((s, n) => s + Number(n), 0);
+      const faixa = faixaAbas(anos.map((a) => [a, a === 'todos' ? 'Todas (' + totalGeral + ')' : a + ' (' + contagem.get(a) + ')']), ano, 'Ano de início', true,
+        (id) => { ano = id === 'todos' ? 'todos' : Number(id); abrirAno(); });
+      conteudo.replaceChildren(faixa.lista, painelAno);
+      faixa.marcar(ano);
+      abrirAno();
+
+      function abrirAno() {
+        history.replaceState(null, '', '#/obras' + (ano === 'todos' ? '' : '?ano=' + ano));
+        const f = { busca: '', situacao: '' };
+        const montar = (sel, op) => {
+          let q = sb.from('obras').select(sel || CAMPOS_OBRA, op).eq('orgao_id', org());
+          if (ano !== 'todos') q = q.eq('ano', ano);
+          if (f.busca) q = q.ilike('busca', termo(f.busca));
+          if (f.situacao) q = q.eq('situacao_obra', f.situacao);
+          return q;
+        };
+        const corpoTab = el('tbody');
+        const tabela = el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados tabela-lic' },
+          el('caption', { class: 'sr' }, 'Obras' + (ano === 'todos' ? '' : ' iniciadas em ' + ano)),
+          el('thead', null, el('tr', null, ['Obra', 'Situação', '% concluído', 'Início', 'Previsão / conclusão', 'Valor contratado'].map((t) => el('th', { scope: 'col' }, t)),
+            el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Detalhes')))), corpoTab));
+        const vazio = el('div'), mais = el('div', { class: 'mais' }), totalTxt = el('span', { class: 'meta', role: 'status' });
+        let itens = [], versao = 0;
+        const linha = (o) => {
+          const s = SIT_OBRA[o.situacao_obra] || [o.situacao_obra, 'etiqueta-ambar'];
+          return el('tr', null,
+            el('td', { 'data-rotulo': 'Obra', class: 'lic-obj' }, el('a', { href: '#/obra/' + o.id }, el('strong', null, o.titulo)),
+              o.local ? el('span', { class: 'meta' }, o.local) : null, o.contratada_nome ? el('span', { class: 'meta' }, o.contratada_nome) : null),
+            el('td', { 'data-rotulo': 'Situação' }, el('span', { class: 'etiqueta ' + s[1] }, s[0]), o.etapa_atual ? el('span', { class: 'meta' }, o.etapa_atual) : null),
+            el('td', { 'data-rotulo': '% concluído', class: 'num' }, pctBR(o.percentual), barraObra(o.percentual)),
+            el('td', { 'data-rotulo': 'Início', class: 'num' }, o.data_inicio ? dataBR(o.data_inicio) : '—'),
+            el('td', { 'data-rotulo': 'Previsão / conclusão', class: 'num' }, o.data_conclusao ? dataBR(o.data_conclusao) : o.previsao_conclusao ? dataBR(o.previsao_conclusao) : '—',
+              el('span', { class: 'meta' }, o.data_conclusao ? 'concluída' : o.previsao_conclusao ? 'previsão' : '')),
+            el('td', { 'data-rotulo': 'Valor contratado', class: 'num' }, o.valor_contratado != null ? moedaBR(o.valor_contratado) : '—'),
+            el('td', { 'data-rotulo': '' }, el('a', { href: '#/obra/' + o.id, class: 'botao botao-claro botao-p' }, 'Detalhes', el('span', { class: 'sr' }, ' de ' + o.titulo))));
+        };
+        async function carregar(reiniciar) {
+          const minha = reiniciar ? ++versao : versao;
+          const [linhas, cont] = await Promise.all([
+            paginar(montar, 'atualizado_em', reiniciar ? null : itens[itens.length - 1], 50),
+            reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
+          if (minha !== versao) return;
+          if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' obra' : ' obras');
+          itens = reiniciar ? linhas : itens.concat(linhas);
+          tabela.hidden = !itens.length;
+          vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhuma obra com esses filtros.'));
+          if (reiniciar) corpoTab.replaceChildren(...linhas.map(linha)); else corpoTab.append(...linhas.map(linha));
+          const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
+          btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
+          mais.replaceChildren(linhas.length === 50 ? btn : '');
+        }
+        const fBusca = el('input', { type: 'search', placeholder: 'Ex.: pavimentação, escola, nome da empresa' });
+        const fSit = el('select', null, el('option', { value: '' }, 'Todas'), Object.entries(SIT_OBRA).map(([k, v]) => el('option', { value: k }, v[0])));
+        let espera;
+        const aplicar = () => { Object.assign(f, { busca: fBusca.value.trim(), situacao: fSit.value }); carregar(true); };
+        fSit.addEventListener('change', aplicar);
+        fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
+        const exportar = S.botoesExportar('obras' + (ano === 'todos' ? '' : '-' + ano), COLUNAS_OBRA, async (de, ate) => {
+          const { data } = await montar().order('atualizado_em', { ascending: false }).order('id', { ascending: false }).range(de, ate);
+          return data || [];
+        });
+        painelAno.replaceChildren(
+          el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
+            el('label', null, 'Pesquisar (obra, local ou empresa)', fBusca), el('label', null, 'Situação', fSit)),
+          el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
+        tabela.hidden = true;
+        carregar(true).catch(() => vazio.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
+      }
+    }
+  };
+
+  R.obra = async function (main, partes) {
+    const id = partes[0];
+    if (!/^[0-9a-f-]{36}$/i.test(id || '')) return R['*'](main);
+    const [{ data: o }, { data: it }, { data: md }, { data: pa }] = await Promise.all([
+      sb.from('obras').select(CAMPOS_OBRA).eq('orgao_id', org()).eq('id', id).maybeSingle(),
+      sb.from('obras_itens').select('codigo, descricao, unidade, quantidade, preco_unitario, total_contratado, quantidade_executada, preco_praticado, total_executado').eq('obra_id', id).order('ordem').order('id').limit(2000),
+      sb.from('obras_medicoes').select('numero, descricao, periodo_inicio, periodo_fim, valor_medido, valor_pago, data_pagamento, percentual_acumulado, arquivo_url, link_externo').eq('obra_id', id).order('numero').limit(500),
+      sb.from('obras_paralisacoes').select('inicio, reinicio, motivo, responsavel, previsao_reinicio, ato, arquivo_url').eq('obra_id', id).order('inicio', { ascending: false }).limit(200)
+    ]);
+    if (!o) return R['*'](main);
+    let ctr = null;
+    if (o.contrato_id) { const r = await sb.from('contratos').select('id, tipo, numero').eq('id', o.contrato_id).maybeSingle(); ctr = r.data; }
+    S.titulo(o.titulo); S.trilha(['Transparência', '#/transparencia'], ['Obras', '#/obras'], [o.titulo]);
+    const s = SIT_OBRA[o.situacao_obra] || [o.situacao_obra, 'etiqueta-ambar'];
+    const linha = (rot, val) => val || val === 0 ? el('div', null, el('dt', null, rot), el('dd', null, val)) : null;
+    const itens = it || [], meds = md || [], pars = pa || [];
+    const soma = (lst, k) => lst.reduce((t, x) => t + Number(x[k] || 0), 0);
+    const aberta = pars.find((p) => !p.reinicio);
+    const COL_ITENS = [['codigo', 'Item'], ['descricao', 'Descrição'], ['unidade', 'Unidade'], ['quantidade', 'Quantidade contratada'], ['preco_unitario', 'Preço unitário contratado'],
+      ['total_contratado', 'Total contratado'], ['quantidade_executada', 'Quantidade executada'], ['preco_praticado', 'Preço praticado', (v, r) => v ?? r.preco_unitario], ['total_executado', 'Total executado']];
+    pagina(main,
+      el('p', { class: 'meta' }, 'Obras'),
+      el('h1', null, o.titulo),
+      el('p', null, el('span', { class: 'etiqueta ' + s[1] }, s[0]), ' ', el('span', { class: 'meta' }, pctBR(o.percentual) + ' concluído')),
+      barraObra(o.percentual),
+      aberta ? el('div', { class: 'cartao aviso-obra' }, el('h2', null, 'Obra paralisada desde ' + dataBR(aberta.inicio)),
+        el('p', null, el('strong', null, 'Motivo: '), aberta.motivo), el('p', null, el('strong', null, 'Responsável pela inexecução: '), aberta.responsavel),
+        el('p', null, el('strong', null, 'Previsão de reinício: '), aberta.previsao_reinicio ? dataBR(aberta.previsao_reinicio) : 'não informada')) : null,
+      o.descricao ? el('section', { class: 'cartao' }, el('h2', null, 'Descrição'), el('p', { style: 'white-space:pre-line' }, o.descricao)) : null,
+      el('dl', { class: 'ficha-lic' },
+        linha('Local', o.local), linha('Unidade responsável', o.unidade_nome), linha('Etapa atual', o.etapa_atual),
+        linha('Início', o.data_inicio ? dataBR(o.data_inicio) : 'Não iniciada'), linha('Previsão de conclusão', o.previsao_conclusao ? dataBR(o.previsao_conclusao) : null),
+        linha('Conclusão', o.data_conclusao ? dataBR(o.data_conclusao) : null),
+        linha('Empresa contratada', o.contratada_nome), linha('CNPJ / CPF', docCtr(o.contratada_doc)),
+        linha('Contrato', ctr ? el('a', { href: '#/contrato/' + ctr.id }, 'Contrato' + (ctr.numero ? ' nº ' + ctr.numero : '') + ' (aditivos e fiscais)') : null),
+        linha('Valor contratado', o.valor_contratado != null ? moedaBR(o.valor_contratado) : null), linha('Fonte do recurso', o.fonte_recurso),
+        linha('Total medido', meds.length ? moedaBR(soma(meds, 'valor_medido')) : null), linha('Total pago', meds.length ? moedaBR(soma(meds, 'valor_pago')) : null)),
+      o.link_externo ? el('p', { style: 'margin-top:16px' }, el('a', { class: 'botao botao-claro', href: o.link_externo, target: '_blank', rel: 'noopener' }, 'Mais informações sobre a obra', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
+      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Planilha: quantitativos contratados e executados'),
+        itens.length ? [
+          // Filtro da planilha (PNTP 10.2/10.3 exigem filtro): no próprio navegador, a planilha já veio inteira.
+          el('form', { class: 'filtros', role: 'search', onsubmit: (e) => e.preventDefault() }, el('label', null, 'Pesquisar na planilha (item ou descrição)',
+            el('input', { type: 'search', placeholder: 'Ex.: meio-fio, 2.1', oninput: (e) => {
+              const t = normalizar(e.target.value.trim());
+              let n = 0;
+              for (const tr of e.target.closest('section').querySelectorAll('tbody tr')) { const ok = !t || normalizar(tr.textContent).includes(t); tr.hidden = !ok; if (ok) n++; }
+              e.target.closest('section').querySelector('.qtd-itens').textContent = n + (n === 1 ? ' item' : ' itens');
+            } }))),
+          el('div', { class: 'barra-lista' }, el('span', { class: 'meta qtd-itens', role: 'status' }, itens.length + (itens.length === 1 ? ' item' : ' itens')), S.botoesExportar('obra-planilha', COL_ITENS, async (de, ate) => itens.slice(de, ate + 1))),
+          el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' },
+            el('caption', { class: 'sr' }, 'Quantitativos e preços contratados e executados'),
+            el('thead', null, el('tr', null, ['Item', 'Descrição', 'Un.', 'Qtd. contratada', 'Preço unit.', 'Total contratado', 'Qtd. executada', 'Preço praticado', 'Total executado'].map((t) => el('th', { scope: 'col' }, t)))),
+            el('tbody', null, itens.map((i) => el('tr', null,
+              el('td', { 'data-rotulo': 'Item' }, i.codigo || ''), el('td', { 'data-rotulo': 'Descrição' }, i.descricao), el('td', { 'data-rotulo': 'Unidade' }, i.unidade || ''),
+              el('td', { 'data-rotulo': 'Qtd. contratada', class: 'num' }, qtdBR(i.quantidade)), el('td', { 'data-rotulo': 'Preço unitário', class: 'num' }, moedaBR(i.preco_unitario)),
+              el('td', { 'data-rotulo': 'Total contratado', class: 'num' }, moedaBR(i.total_contratado)),
+              el('td', { 'data-rotulo': 'Qtd. executada', class: 'num' }, qtdBR(i.quantidade_executada)),
+              el('td', { 'data-rotulo': 'Preço praticado', class: 'num' }, moedaBR(i.preco_praticado ?? i.preco_unitario)),
+              el('td', { 'data-rotulo': 'Total executado', class: 'num' }, moedaBR(i.total_executado))))),
+            el('tfoot', null, el('tr', null, el('th', { scope: 'row', colspan: 5 }, 'Totais'), el('td', { class: 'num' }, el('strong', null, moedaBR(soma(itens, 'total_contratado')))),
+              el('td', { colspan: 2 }), el('td', { class: 'num' }, el('strong', null, moedaBR(soma(itens, 'total_executado'))))))))]
+          : el('p', { class: 'vazio' }, 'Planilha ainda não informada.')),
+      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Etapas medidas e pagamentos'),
+        meds.length ? el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' },
+          el('thead', null, el('tr', null, ['Medição', 'Período', 'Valor medido', 'Valor pago', '% acumulado', 'Boletim'].map((t) => el('th', { scope: 'col' }, t)))),
+          el('tbody', null, meds.map((m) => el('tr', null,
+            el('td', { 'data-rotulo': 'Medição' }, el('strong', null, m.numero + 'ª medição'), m.descricao ? el('span', { class: 'meta' }, m.descricao) : null),
+            el('td', { 'data-rotulo': 'Período', class: 'num' }, m.periodo_inicio || m.periodo_fim ? (dataBR(m.periodo_inicio) || '…') + ' a ' + (dataBR(m.periodo_fim) || '…') : '—'),
+            el('td', { 'data-rotulo': 'Valor medido', class: 'num' }, m.valor_medido != null ? moedaBR(m.valor_medido) : '—'),
+            el('td', { 'data-rotulo': 'Valor pago', class: 'num' }, m.valor_pago != null ? moedaBR(m.valor_pago) : '—', m.data_pagamento ? el('span', { class: 'meta' }, 'em ' + dataBR(m.data_pagamento)) : null),
+            el('td', { 'data-rotulo': '% acumulado', class: 'num' }, m.percentual_acumulado != null ? pctBR(m.percentual_acumulado) : '—'),
+            el('td', { 'data-rotulo': 'Boletim' }, m.arquivo_url || m.link_externo ? el('a', { href: m.arquivo_url || m.link_externo, target: '_blank', rel: 'noopener' }, m.arquivo_url ? 'PDF' : 'Link', el('span', { class: 'sr' }, ' da ' + m.numero + 'ª medição (abre em nova aba)')) : '—'))))))
+          : el('p', { class: 'vazio' }, 'Nenhuma medição registrada.')),
+      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Paralisações'),
+        pars.length ? el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' },
+          el('thead', null, el('tr', null, ['Período', 'Motivo', 'Responsável pela inexecução', 'Previsão de reinício'].map((t) => el('th', { scope: 'col' }, t)))),
+          el('tbody', null, pars.map((p) => el('tr', null,
+            el('td', { 'data-rotulo': 'Período', class: 'num' }, dataBR(p.inicio) + ' a ' + (p.reinicio ? dataBR(p.reinicio) : 'em aberto')),
+            el('td', { 'data-rotulo': 'Motivo' }, p.motivo, p.ato ? el('span', { class: 'meta' }, p.ato) : null),
+            el('td', { 'data-rotulo': 'Responsável pela inexecução' }, p.responsavel),
+            el('td', { 'data-rotulo': 'Previsão de reinício', class: 'num' }, p.previsao_reinicio ? dataBR(p.previsao_reinicio) : '—'))))))
+          : el('p', { class: 'vazio' }, 'Esta obra não teve paralisações.')),
+      el('p', { class: 'meta', style: 'margin-top:18px' }, 'Última atualização: ' + dataBR(o.atualizado_em)));
   };
 
   R['*'] = async function (main) {

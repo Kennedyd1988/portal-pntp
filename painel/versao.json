@@ -1,10 +1,9 @@
 {
-  "versao": "0.9.2",
+  "versao": "0.10.0",
   "data": "2026-11-13",
   "notas": [
-    "Novo módulo Plano de Contratações Anual (PNTP 8.6): plano do ano e atualizações, com PDF ou link do PNCP.",
-    "Novo módulo Sanções a licitantes e contratados (PNTP 8.7), com declaração automática no site quando não há sancionados.",
-    "Site: abas PCA e Sancionados na página Licitações.",
-    "Licitações ordenadas por modalidade e número (PNTP 8.1)."
+    "Novo módulo Obras (PNTP 10.1 a 10.4): andamento, planilha contratada e executada, medições e paralisações.",
+    "Planilha da obra pode ser colada direto do Excel.",
+    "Site: páginas de obras, obras paralisadas e detalhe de cada obra."
   ]
 }

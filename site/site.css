@@ -500,3 +500,11 @@ html.contraste .tabela-rolagem, html.contraste .tabela-dados th, html.contraste 
 .tabela-dados .nowrap { white-space: nowrap; }
 .tabela-ctr .lic-obj { min-width: 200px; }
 .tabela-dados td:last-child { width: 1%; }
+
+/* Obras (v0.10.0) */
+.barra-obra { display: block; height: 6px; margin-top: 4px; min-width: 70px; background: var(--cor-clara, #e8eef8); border-radius: 3px; overflow: hidden; }
+.barra-obra > span { display: block; height: 100%; background: var(--cor); }
+h1 + p + .barra-obra { max-width: 360px; height: 10px; border-radius: 5px; margin-bottom: 16px; }
+.aviso-obra { border-left: 4px solid #b42318; margin: 16px 0; }
+.aviso-obra h2 { color: #b42318; }
+.aviso-obra p { margin: 4px 0; }
