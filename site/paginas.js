@@ -22,7 +22,6 @@
   const VIGENCIA = { vigente: 'Vigente', alterada: 'Alterada', revogada: 'Revogada', sem_efeito: 'Sem efeito' };
   const COR_VIG = { vigente: 'etiqueta-verde', alterada: 'etiqueta-ambar', revogada: 'etiqueta-vermelha', sem_efeito: 'etiqueta-vermelha' };
   const FORMAS = { presencial: 'Presencial', digital: 'Pela internet', presencial_digital: 'Presencial e pela internet' };
-  const RADAR = 'https://radardatransparencia.atricon.org.br/panel.html';
   const org = () => S.orgao.id;
   const ato = (x) => (TIPOS[x.tipo] || x.tipo) + (x.numero ? ' nº ' + x.numero + '/' + x.ano : ' de ' + x.ano);
   const pagina = (main, ...filhos) => main.replaceChildren(el('div', { class: 'limite pagina' }, ...filhos));
@@ -126,7 +125,7 @@
       sb.from('noticias').select('id, titulo, resumo, conteudo, capa_url, capa_legenda, categoria, publicado_em, destaque').eq('orgao_id', org())
         .lte('publicado_em', agora).order('publicado_em', { ascending: false }).limit(7),
       ultimasPublicacoes(),
-      sb.from('gestores').select('*').eq('orgao_id', org()).eq('destaque_capa', true).order('ordem').limit(60),
+      sb.from('gestores').select('*').eq('orgao_id', org()).order('destaque_capa', { ascending: false }).order('ordem').order('nome').limit(120),
       sb.from('servicos').select('id, nome, categoria, link_digital').eq('orgao_id', org())
         .in('forma_prestacao', ['digital', 'presencial_digital']).order('nome').limit(6)
     ]);
@@ -162,9 +161,9 @@
     // Aparência, a faixa inteira é a imagem; sem ela, faixa nas cores do Radar com o texto.
     blocos.push(el('section', { class: 'secao', style: 'padding-top:0', 'aria-labelledby': 'tit-radar' }, el('div', { class: 'limite' },
       c.radar_imagem_url
-        ? el('a', { class: 'faixa-radar-img', href: RADAR, target: '_blank', rel: 'noopener' },
+        ? el('a', { class: 'faixa-radar-img', href: S.radar(), target: '_blank', rel: 'noopener' },
           el('img', { src: c.radar_imagem_url, alt: 'Radar da Transparência Pública' }), el('h2', { id: 'tit-radar', class: 'sr' }, 'Radar da Transparência Pública (abre em nova aba)'))
-        : el('a', { class: 'faixa-radar', href: RADAR, target: '_blank', rel: 'noopener' },
+        : el('a', { class: 'faixa-radar', href: S.radar(), target: '_blank', rel: 'noopener' },
           iconeRadar(),
           el('span', { class: 'faixa-radar-textos' }, el('h2', { id: 'tit-radar' }, 'Radar da Transparência Pública'),
             el('span', null, 'Consulte a avaliação dos portais de transparência de todo o país (Atricon e Tribunais de Contas).')),
@@ -243,36 +242,67 @@
   }
 
   // Gestão: todos os gestores lado a lado, 4 por vez (menos em telas menores), rolando sozinho
-  // para o lado e recomeçando no fim. Para ao passar o mouse/focar, tem botão de pausa e não
-  // anda quando o sistema pede menos movimento.
+  // para o lado um cartão por vez. No fim, segue em frente para o primeiro (cópias dos primeiros
+  // cartões no final do trilho, trocadas sem animação), sem voltar de ré. Para ao passar o
+  // mouse/focar, tem botão de pausa e não anda quando o sistema pede menos movimento.
   function carrosselGestores(lista) {
+    const n = lista.length;
     const trilho = el('div', { class: 'gest-trilho' }, lista.map((g) => el('div', { class: 'gest-item' }, cartaoGestor(g))));
-    let pos = 0, timer = null, pausado = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let pos = 0, timer = null, clones = 0, pausado = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const porVez = () => { const w = trilho.parentElement ? trilho.parentElement.clientWidth : 1200; return w < 560 ? 1 : w < 860 ? 2 : w < 1100 ? 3 : 4; };
-    const ir = (n) => {
-      const max = Math.max(0, lista.length - porVez());
-      pos = n > max ? 0 : n < 0 ? max : n;
+    const roda = () => n > porVez();
+    // Cópias (só visuais) dos primeiros cartões no fim do trilho, para emendar o fim no começo.
+    function montarClones() {
+      const k = roda() ? porVez() : 0;
+      if (k === clones) return;
+      [...trilho.querySelectorAll('.gest-clone')].forEach((x) => x.remove());
+      for (let i = 0; i < k; i++) {
+        const c = trilho.children[i].cloneNode(true);
+        c.classList.add('gest-clone'); c.inert = true; c.setAttribute('aria-hidden', 'true');
+        trilho.append(c);
+      }
+      clones = k;
+    }
+    function mover(animar) {
+      trilho.style.transition = animar ? '' : 'none';
       trilho.style.transform = 'translateX(' + (-100 / porVez() * pos) + '%)';
-      [...trilho.children].forEach((it, k) => { const vis = k >= pos && k < pos + porVez(); it.inert = !vis; it.setAttribute('aria-hidden', vis ? 'false' : 'true'); });
+      [...trilho.children].forEach((it, k) => {
+        if (it.classList.contains('gest-clone')) return;
+        const vis = k >= pos && k < pos + porVez();
+        it.inert = !vis; it.setAttribute('aria-hidden', vis ? 'false' : 'true');
+      });
+      if (!animar) void trilho.offsetWidth;   // aplica a posição antes de religar a animação
+    }
+    const ir = (alvo) => {
+      if (!roda()) { pos = 0; mover(false); return; }
+      if (alvo < 0) { pos = n; mover(false); alvo = n - 1; }   // voltar do primeiro: parte das cópias
+      pos = alvo; mover(true);
+      if (pos >= n) setTimeout(() => { if (pos >= n) { pos -= n; mover(false); } }, 520);   // chegou nas cópias: troca pelo original
     };
     const btnPausa = el('button', { type: 'button', 'aria-label': 'Pausar a rolagem automática' }, '❚❚');
-    const iniciar = () => { clearInterval(timer); if (!pausado && lista.length > porVez()) timer = setInterval(() => ir(pos + 1), 4500); };
+    const iniciar = () => { clearInterval(timer); if (!pausado && roda()) timer = setInterval(() => ir(pos + 1), 3500); };
     btnPausa.addEventListener('click', () => {
       pausado = !pausado; btnPausa.textContent = pausado ? '▶' : '❚❚';
       btnPausa.setAttribute('aria-label', pausado ? 'Retomar a rolagem automática' : 'Pausar a rolagem automática'); iniciar();
     });
     const janela = el('div', { class: 'gest-janela' }, trilho);
-    const caixa = el('div', { class: 'gest-carrossel', role: 'region', 'aria-roledescription': 'carrossel', 'aria-label': 'Gestores' }, janela,
-      lista.length > 4 ? el('div', { class: 'banner-controles gest-controles' },
-        el('button', { type: 'button', 'aria-label': 'Anterior', onclick: () => ir(pos - 1) }, '‹'), btnPausa,
-        el('button', { type: 'button', 'aria-label': 'Próximo', onclick: () => ir(pos + 1) }, '›')) : null);
+    const controles = el('div', { class: 'banner-controles gest-controles' },
+      el('button', { type: 'button', 'aria-label': 'Anterior', onclick: () => ir(pos - 1) }, '‹'), btnPausa,
+      el('button', { type: 'button', 'aria-label': 'Próximo', onclick: () => ir(pos + 1) }, '›'));
+    const caixa = el('div', { class: 'gest-carrossel', role: 'region', 'aria-roledescription': 'carrossel', 'aria-label': 'Gestores' }, janela, controles);
     caixa.addEventListener('mouseenter', () => clearInterval(timer));
     caixa.addEventListener('mouseleave', iniciar);
     caixa.addEventListener('focusin', () => clearInterval(timer));
     caixa.addEventListener('focusout', iniciar);
-    addEventListener('resize', () => ir(pos));
-    requestAnimationFrame(() => { trilho.style.setProperty('--por-vez', porVez()); ir(0); iniciar(); });
-    addEventListener('resize', () => trilho.style.setProperty('--por-vez', porVez()));
+    const ajustar = () => {
+      trilho.style.setProperty('--por-vez', porVez());
+      montarClones();
+      controles.hidden = !roda();
+      if (pos >= n) pos = 0;
+      mover(false); iniciar();
+    };
+    addEventListener('resize', ajustar);
+    requestAnimationFrame(ajustar);
     return caixa;
   }
 
@@ -990,7 +1020,7 @@
         url ? el('p', null, el('a', { class: 'botao', href: url, target: '_blank', rel: 'noopener' }, 'Acessar ' + titulo, el('span', { class: 'sr' }, ' (abre em nova aba)')))
           : el('div', { class: 'cartao' }, el('p', null, 'Esta seção está em implantação.'),
             el('p', null, 'Enquanto isso, fale com o órgão: ', c.telefone || '', c.telefone && c.email ? ' · ' : '', c.email ? el('a', { href: 'mailto:' + c.email }, c.email) : '', c.horario ? ' · ' + c.horario : '')),
-        chave === 'transparencia' ? el('p', { style: 'margin-top:20px' }, el('a', { class: 'botao botao-claro', href: RADAR, target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null);
+        chave === 'transparencia' ? el('p', { style: 'margin-top:20px' }, el('a', { class: 'botao botao-claro', href: S.radar(), target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null);
     };
   }
 
@@ -1282,7 +1312,7 @@
               el('span', { class: 'transp-cod', title: 'Critério ' + l.cod + ' do PNTP' }, l.cod))
             : el('span', { class: 'transp-sem' }, el('span', null, l.t, el('span', { class: 'sr' }, ' (endereço ainda não informado)')), el('span', { class: 'transp-cod' }, l.cod)))))))),
         el('p', { class: 'meta transp-nota' }, 'Itens que ficam em sistema externo abrem em nova aba.',
-          ' ', el('a', { href: RADAR, target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))))));
+          ' ', el('a', { href: S.radar(), target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))))));
     function ext() { return c.transparencia_url || null; }
   };
   // ===================================================================

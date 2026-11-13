@@ -19,6 +19,7 @@
 
   let perm = {}, conteiner = null;
   let ano = null, anos = [], itens = [], fim = false, total = 0;
+  let abaTopo = 'obras';   // 'obras' (por ano de início) ou 'paralisadas' (todas, como a aba do site)
   const filtros = { busca: '', obra: '', situacao: '' };
 
   const podeGravar = () => perm.editar && !P.estado.alcanceUnidade;
@@ -52,7 +53,8 @@
   // ---------------------------------------------------------------------
   function consulta(sel, opcoes) {
     let q = sb.from('obras').select(sel, opcoes).eq('orgao_id', P.estado.orgao.id);
-    if (ano) q = q.eq('ano', ano);
+    if (abaTopo === 'paralisadas') q = q.eq('situacao_obra', 'paralisada');
+    else if (ano) q = q.eq('ano', ano);
     if (filtros.busca) q = q.ilike('busca', '%' + P.normalizar(filtros.busca).replace(/[%_]/g, '') + '%');
     if (filtros.obra) q = q.eq('situacao_obra', filtros.obra);
     if (filtros.situacao) q = q.eq('situacao', filtros.situacao);
@@ -65,7 +67,7 @@
     if (!anos.some((x) => x.ano === ano)) ano = anos.length ? anos[0].ano : null;
   }
   async function carregar(reiniciar) {
-    if (!ano) { itens = []; fim = true; total = 0; return; }
+    if (!ano && abaTopo !== 'paralisadas') { itens = []; fim = true; total = 0; return; }
     const ultimo = reiniciar ? null : itens[itens.length - 1];
     const [pag, t] = await Promise.all([P.paginar(consulta, 'atualizado_em', ultimo, LOTE), reiniciar ? P.contar(consulta) : Promise.resolve(total)]);
     itens = reiniciar ? pag.linhas : itens.concat(pag.linhas);
@@ -525,7 +527,7 @@
     let espera; fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
 
     function desenharLista() {
-      if (!itens.length) { lista.replaceChildren(el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhuma obra com esses filtros.' : 'Nenhuma obra neste ano.')); return; }
+      if (!itens.length) { lista.replaceChildren(el('p', { class: 'vazio' }, Object.values(filtros).some(Boolean) ? 'Nenhuma obra com esses filtros.' : abaTopo === 'paralisadas' ? 'Nenhuma obra paralisada: o site declara que não há obras paralisadas.' : 'Nenhuma obra neste ano.')); return; }
       const btnMais = el('button', { type: 'button', class: 'btn btn-claro' }, 'Carregar mais');
       btnMais.addEventListener('click', async () => { ocupado(btnMais, 'Carregando…'); try { await carregar(false); desenharLista(); } catch (e) { mostrarErro(e); ocupado(btnMais); } });
       lista.replaceChildren(
@@ -552,12 +554,19 @@
         podeGravar() ? el('div', { class: 'botoes-cabecalho' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form() }, '+ Nova obra')) : null),
       P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Obras são do órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
       el('p', { class: 'ajuda' }, 'Sem obras publicadas, o site declara que não há obras; sem obras paralisadas, declara que não há obras paralisadas (exigência do PNTP).'),
-      el('div', { class: 'painel-guia' },
-        anos.length ? el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': 'Ano de início' }, anos.map(botaoAno)) : null,
-        anos.length ? el('div', { class: 'painel-guia painel-guia-interno' }, el('div', { class: 'filtros' }, fBusca, fObra, fSit), lista)
-          : el('p', { class: 'vazio' }, 'Nenhuma obra cadastrada. Use "+ Nova obra".'))
+      // Abas iguais às do site: Obras (por ano de início) e Obras paralisadas (10.4).
+      el('div', { class: 'abas', role: 'tablist', 'aria-label': 'Obras' }, [['obras', 'Obras'], ['paralisadas', 'Obras paralisadas']].map(([id, rot]) =>
+        el('button', { type: 'button', role: 'tab', class: 'aba', 'aria-selected': abaTopo === id ? 'true' : 'false',
+          onclick: async () => { if (abaTopo === id) return; abaTopo = id; filtros.obra = ''; await recarregarLista(); } }, rot))),
+      abaTopo === 'paralisadas'
+        ? el('div', { class: 'painel-guia' }, el('p', { class: 'ajuda' }, 'Obras com paralisação aberta, de qualquer ano. O motivo, o responsável e a previsão de reinício ficam na aba "Paralisações" de cada obra.'),
+          el('div', { class: 'filtros' }, fBusca, fSit), lista)
+        : el('div', { class: 'painel-guia' },
+          anos.length ? el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': 'Ano de início' }, anos.map(botaoAno)) : null,
+          anos.length ? el('div', { class: 'painel-guia painel-guia-interno' }, el('div', { class: 'filtros' }, fBusca, fObra, fSit), lista)
+            : el('p', { class: 'vazio' }, 'Nenhuma obra cadastrada. Use "+ Nova obra".'))
     ].filter(Boolean));
-    if (anos.length) desenharLista();
+    if (anos.length || abaTopo === 'paralisadas') desenharLista();
   }
 
   async function recarregarLista() { try { await carregar(true); desenhar(); } catch (e) { mostrarErro(e); } }

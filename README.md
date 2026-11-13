@@ -70,6 +70,15 @@ construída para atender a matriz do PNTP 2026 (Atricon).
   educação e renúncias têm ali uma linha por parte (lista de espera, estoque, creches, beneficiários…),
   com a mesma chave da seção do módulo. No módulo fica só o texto da parte e a declaração "não há dados"
   (com a data). Parte com link externo ou "não há" não gera aviso de prazo.
+- Página ou parte com link externo em Destinos das páginas fica com o cadastro manual desativado no painel:
+  a aba aparece em itálico com ↗ e mostra só o aviso (com o link e o atalho para a Aparência); módulo que é
+  uma página inteira (licitações, contratos, obras…) mostra só o aviso. Os dados já cadastrados ficam guardados.
+  Regra no núcleo (`P.externo`, 5º item de cada aba em `P.abas`, `DESTINO_MODULO` em `app.js`).
+- Abas do painel seguem as abas da página do site quando o módulo corresponde a ela (mesmos nomes e ordem).
+- Bloco "Gestão" da página inicial: todos os gestores, 4 por vez, rolando um cartão por vez e emendando o
+  fim no começo; "destaque na capa" só põe o gestor entre os primeiros.
+- Faixa do Radar, rodapé e página da Transparência usam o link definido em Aparência › Selos e Radar
+  (`radar_url`) ou, em branco, o painel geral do Radar.
 - Listas de espera (regulação e creches) nunca levam nome: paciente e criança são identificados pelo
   protocolo (LGPD/ECA). CPF de beneficiário de renúncia ou de incentivo sai mascarado no site
   (***.456.789-**): o visitante não tem permissão de ler a coluna com o CPF inteiro.
@@ -315,6 +324,23 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.16.1 — 13/11/2026 — ajustes do painel antes do próximo lote**
+- Aparência › Destinos das páginas: todas as tabelas com as mesmas larguras de coluna (ficam alinhadas).
+- Destino com link externo desativa o cadastro manual da aba (ou do módulo inteiro) no painel, com aviso e
+  atalho para `#/m/aparencia?aba=destinos`.
+- Abas do painel como as do site: Licitações ganhou "Todos os processos" (abre nela); Contratos, "Contratos e
+  aditivos" e "Fiscais de contratos" (todos os fiscais, com atalho para o contrato); Obras, "Obras" e "Obras
+  paralisadas"; Emendas, "Todas", "Federais (17.1)" e "Estaduais e municipais (17.2)"; Planejamento e contas,
+  uma aba por documento na ordem do site (o "+ Novo documento" já vem com o tipo da aba); Educação passa a ter
+  "Conselho do Fundeb", "Assistência social" (conselho + planos) e "Outros conselhos"; Renúncias, "Cultura e
+  esporte"; Receitas e despesas, "Previsão e arrecadação", "Dívida ativa", "Empenhos e pagamentos" e "Ordem
+  cronológica"; Pessoal ganhou a aba "Concursos e seleções" (atalho para o módulo).
+- Página inicial: o bloco "Gestão" mostra todos os gestores (antes só os marcados para a capa), rolando um por
+  vez e recomeçando sem voltar de ré.
+- Link da faixa do Radar definido manualmente em Aparência › Selos e Radar.
+- Testado no navegador com PostgREST local: 25 módulos do painel abertos sem erro, abas bloqueadas por destino
+  externo, aba de fiscais, obras paralisadas, gravação do link do Radar e o carrossel completo dos 14 gestores.
 
 **0.16.0 — 13/11/2026 — Receitas, Despesas, Ordem cronológica, Pessoal e Diárias**
 - Módulo **Receitas, despesas e pagamentos**, em abas: Receitas (lançamento mensal por natureza e fonte, com

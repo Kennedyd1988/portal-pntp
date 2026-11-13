@@ -30,6 +30,9 @@
   };
   const RESULTADOS = { aprovadas: 'Aprovadas', aprovadas_ressalvas: 'Aprovadas com ressalvas', rejeitadas: 'Rejeitadas', pendente: 'Pendente de apreciação' };
   const nomeCurto = (t) => TIPOS[t][0].split(' – ')[0];
+  // Mesmas abas (e ordem) da página "Planejamento e prestação de contas" do site.
+  const ABAS_SITE = [['ppa', 'PPA'], ['ldo', 'LDO'], ['loa', 'LOA'], ['plano_estrategico', 'Plano Estratégico'], ['rreo', 'RREO'], ['rgf', 'RGF'],
+    ['balanco', 'Balanço'], ['relatorio_gestao', 'Relatório de Gestão'], ['parecer_tce', 'Parecer TCE'], ['julgamento_camara', 'Julgamento Câmara']];
 
   let perm = {};
   let conteiner = null;
@@ -371,11 +374,14 @@
       el('div', { class: 'cabecalho-modulo' },
         el('div', null, el('h1', null, 'Planejamento e prestação de contas'),
           el('p', { class: 'sub' }, 'PPA, LDO, LOA, RREO, RGF, Balanço Geral, Relatório de Gestão, pareceres e julgamentos das contas (PNTP 11.1 a 11.10).')),
-        podeGravar() ? el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form() }, '+ Novo documento') : null),
+        podeGravar() ? el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form(filtros.tipo ? { tipo: filtros.tipo } : null) }, '+ Novo documento') : null),
       P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Estes documentos são do órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
       quadroPntp(),
-      el('div', { class: 'filtros filtros-6' }, fBusca, fTipo, fEx, fDoc, fSit),
-      lista
+      // Abas na mesma ordem das do site (uma por documento), com "Todos" à frente.
+      el('div', { class: 'abas', role: 'tablist', 'aria-label': 'Documento' }, [['', 'Todos']].concat(ABAS_SITE).map(([k, rot]) =>
+        el('button', { type: 'button', role: 'tab', class: 'aba', 'aria-selected': filtros.tipo === k ? 'true' : 'false', title: k ? TIPOS[k][0] : null,
+          onclick: async () => { if (filtros.tipo === k) return; filtros.tipo = k; try { await carregar(true); desenhar(); } catch (e) { mostrarErro(e); } } }, rot))),
+      el('div', { class: 'painel-guia' }, el('div', { class: 'filtros filtros-6' }, fBusca, fEx, fDoc, fSit), lista)
     ].filter(Boolean));
     desenharLista();
   }

@@ -40,7 +40,7 @@
     nome: 'Nome', sigla: 'Sigla', telefone: 'Telefone', email: 'E-mail', endereco: 'Endereço',
     horario_atendimento: 'Horário de atendimento', competencias: 'Competências', norma_criacao: 'Norma de criação',
     norma_url: 'PDF da norma', unidade_pai_id: 'Fica dentro de', ativo: 'Ativo', ordem: 'Ordem',
-    cargo: 'Cargo', foto_url: 'Foto', curriculo_url: 'Currículo', destaque_capa: 'Na página inicial',
+    cargo: 'Cargo', foto_url: 'Foto', curriculo_url: 'Currículo', destaque_capa: 'Destaque na página inicial',
     unidade_id: 'Unidade / alcance', unidades_relacionadas: 'Outras secretarias envolvidas',
     titulo: 'Título', resumo: 'Resumo', conteudo: 'Texto', capa_url: 'Foto de capa', capa_legenda: 'Descrição da foto',
     categoria: 'Categoria', situacao: 'Situação', publicado_em: 'Data de publicação', destaque: 'Destaque',

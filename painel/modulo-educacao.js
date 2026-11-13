@@ -95,18 +95,22 @@
         ['edu-docs', 'Plano e resultados', () => [S.secao('educacao_documentos', perm, { naoHa: false }),
           S.documentos(caixa(), { area: 'educacao', modulo: 'educacao', perm, exemplo: 'Ex.: Plano Municipal de Educação 2015-2025',
             tipos: { plano_educacao: 'Plano Municipal de Educação (PME)', relatorio_educacao: 'Relatório de monitoramento / resultados do PME' },
-            ajuda: 'PNTP 19.1: o Plano Municipal de Educação (com o período de vigência) e o relatório de resultados (monitoramento das metas). Mantenha os anteriores (série histórica).' })]],
-        ['edu-creches', 'Creches: lista de espera', () => creches(caixa())],
-        ['edu-conselhos', 'Conselhos', () => [
+            ajuda: 'PNTP 19.1: o Plano Municipal de Educação (com o período de vigência) e o relatório de resultados (monitoramento das metas). Mantenha os anteriores (série histórica).' })], null, 'educacao_documentos'],
+        ['edu-creches', 'Creches: lista de espera', () => creches(caixa()), null, 'educacao_creches'],
+        ['edu-fundeb', 'Conselho do Fundeb', () => [
           S.secao('educacao_fundeb', perm, { titulo: 'Conselho do Fundeb (19.3) no site', naoHa: false }),
+          el('p', { class: 'ajuda' }, 'Composição atual (titulares e suplentes, com quem cada um representa), funcionamento, atas, pautas e resoluções.'),
+          S.conselhos(caixa(), { tipos: ['fundeb'], obrigatorios: { fundeb: 'PNTP 19.3' }, perm, modulo: 'educacao' })], null, 'educacao_fundeb'],
+        ['edu-assist', 'Assistência social', () => [
           S.secao('educacao_assistencia', perm, { titulo: 'Conselho de Assistência Social (19.4) no site', naoHa: false }),
-          el('p', { class: 'ajuda' }, 'Composição atual (titulares e suplentes, com quem cada um representa), funcionamento, atas, pautas e resoluções. Os conselhos de Saúde ficam no módulo Saúde.'),
-          S.conselhos(caixa(), { tipos: ['fundeb', 'assistencia_social', 'educacao', 'alimentacao_escolar', 'crianca_adolescente', 'outro'],
-            obrigatorios: { fundeb: 'PNTP 19.3', assistencia_social: 'PNTP 19.4' }, perm, modulo: 'educacao' })]],
-        ['edu-assist', 'Assistência social: planos', () => [
+          S.conselhos(caixa(), { tipos: ['assistencia_social'], obrigatorios: { assistencia_social: 'PNTP 19.4' }, perm, modulo: 'educacao' }),
+          el('h2', { style: 'margin-top:20px' }, 'Planos e relatórios da assistência social'),
           S.documentos(caixa(), { area: 'assistencia_social', modulo: 'educacao', perm, exemplo: 'Ex.: Plano Municipal de Assistência Social 2026-2029',
             tipos: { plano_assistencia: 'Plano Municipal de Assistência Social', relatorio_assistencia: 'Relatório de gestão da assistência social' },
-            ajuda: 'Opcional: planos e relatórios da assistência social (aparecem na página de Educação e assistência social).' })]]
+            ajuda: 'Opcional: planos e relatórios da assistência social (aparecem na mesma aba do site).' })], null, 'educacao_assistencia'],
+        ['edu-outros', 'Outros conselhos', () => [
+          el('p', { class: 'ajuda' }, 'Conselhos de Educação, Alimentação Escolar, Criança e Adolescente e outros. Os conselhos de Saúde ficam no módulo Saúde.'),
+          S.conselhos(caixa(), { tipos: ['educacao', 'alimentacao_escolar', 'crianca_adolescente', 'outro'], perm, modulo: 'educacao' })]]
       ])
     ].filter(Boolean));
   };

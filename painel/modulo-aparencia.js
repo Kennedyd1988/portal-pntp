@@ -156,7 +156,9 @@
       return st;
     }
     const favicon = blocoImagem('ap-favicon', cfg.favicon_url, 128, 'Escolher ícone', 'Imagem quadrada (PNG, JPG ou WebP), de preferência só o símbolo. Sem ícone, o site usa o brasão.');
-    const radarImg = blocoImagem('ap-radar', cfg.radar_imagem_url, 1600, 'Enviar faixa oficial', 'Opcional: a imagem oficial do Radar da Transparência Pública (Atricon). Sem ela, o site mostra a faixa padrão com o texto do Radar. O link é sempre o painel do Radar (PNTP 2.9).');
+    const radarImg = blocoImagem('ap-radar', cfg.radar_imagem_url, 1600, 'Enviar faixa oficial', 'Opcional: a imagem oficial do Radar da Transparência Pública (Atricon). Sem ela, o site mostra a faixa padrão com o texto do Radar.');
+    const RADAR_PADRAO = 'https://radardatransparencia.atricon.org.br/panel.html';
+    const radarLink = texto(cfg.radar_url || '', { type: 'url', placeholder: RADAR_PADRAO });
 
     // ----- Destinos das páginas (fonte única em site/destinos.js) -----
     // Para cada página: "Página do portal" (cadastro/importação) ou "Link externo".
@@ -248,8 +250,9 @@
             listaSelos, btnAddSelo),
           el('section', { class: 'cartao', style: 'margin-top:16px' },
             el('h2', null, 'Faixa do Radar da Transparência Pública'),
-            radarImg.bloco))]
-      ]),
+            radarImg.bloco,
+            campo('ap-radar-url', 'Link da faixa (opcional)', radarLink, 'Para onde a faixa, o rodapé e a página da Transparência levam (PNTP 2.9). Ex.: a página do órgão no Radar. Em branco: painel geral do Radar (' + RADAR_PADRAO + ').')))]
+      ], (/[?&]aba=([a-z]+)/.exec(location.hash) || [])[1]),
       podeEditar ? el('div', { class: 'barra-salvar' }, btnSalvar) : el('p', { class: 'msg msg-info' }, 'Seu perfil pode ver, mas não alterar a aparência.')
     );
     corTexto.id = 'ap-cor';
@@ -272,6 +275,7 @@
         ['ap-esic', 'esic_url'], ['ap-ouvidoria', 'ouvidoria_url'], ['ap-estrutura-url', 'estrutura_norma_url']]) {
         if (!erroCampo(id, urlValida(v(k)) ? '' : 'Informe o endereço completo, começando com https://')) return;
       }
+      if (!erroCampo('ap-radar-url', urlValida(radarLink.value.trim()) ? '' : 'Informe o endereço completo, começando com https://')) return;
       for (let k = 0; k < selos.length; k++) {
         if (!erroCampo('ap-selo-t-' + k, selos[k].titulo.value.trim() ? '' : 'Informe o nome do selo (ou remova a linha).')) return;
         if (!erroCampo('ap-selo-u-' + k, urlValida(selos[k].url.value.trim()) ? '' : 'Informe o endereço completo, começando com https://')) return;
@@ -303,7 +307,7 @@
           diario_oficial_nome: v('diario_nome'), diario_oficial_url: v('diario_url'),
           transparencia_url: v('transparencia_url'), licitacoes_url: v('licitacoes_url'), esic_url: v('esic_url'),
           ouvidoria_url: v('ouvidoria_url'), estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url'),
-          selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, destinos: destinosGravar
+          selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, radar_url: radarLink.value.trim() || null, destinos: destinosGravar
         });
         const { data, error: e2 } = await sb.from('orgaos')
           .update({ configuracoes: novaCfg, dominio: dominio || null })

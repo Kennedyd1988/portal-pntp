@@ -278,14 +278,14 @@
       P.abas([
         ['saude-docs', 'Planos e relatórios', () => [S.secao('saude_documentos', perm, { naoHa: false }),
           S.documentos(caixa(), { area: 'saude', modulo: 'saude', tipos: TIPOS_DOC, perm, exemplo: 'Ex.: Programação Anual de Saúde 2026',
-            ajuda: 'PNTP 18.1: Plano Municipal de Saúde (4 anos), Programação Anual de cada ano e Relatório Anual de Gestão (e os RDQA quadrimestrais). Mantenha os dos anos anteriores (série histórica).' })]],
+            ajuda: 'PNTP 18.1: Plano Municipal de Saúde (4 anos), Programação Anual de cada ano e Relatório Anual de Gestão (e os RDQA quadrimestrais). Mantenha os dos anos anteriores (série histórica).' })], null, 'saude_documentos'],
         ['saude-servicos', 'Serviços e profissionais', () => [S.secao('saude_servicos', perm, { naoHa: false }),
-          el('p', { class: 'ajuda' }, 'PNTP 18.2: cada estabelecimento com endereço, dias e horários, especialidades e os profissionais que atendem.'), estabelecimentos(caixa())]],
-        ['saude-espera', 'Lista de espera', () => listaEspera(caixa())],
-        ['saude-medicamentos', 'Medicamentos', () => [el('p', { class: 'ajuda' }, 'PNTP 18.4: medicamentos fornecidos pelo SUS e como obtê-los, inclusive os de alto custo (componente especializado).'), medicamentos(caixa())]],
-        ['saude-estoque', 'Estoque das farmácias', () => [el('p', { class: 'ajuda' }, 'PNTP 18.5: quantidade disponível de cada medicamento em cada farmácia pública.'), estoque(caixa())]],
+          el('p', { class: 'ajuda' }, 'PNTP 18.2: cada estabelecimento com endereço, dias e horários, especialidades e os profissionais que atendem.'), estabelecimentos(caixa())], null, 'saude_servicos'],
+        ['saude-espera', 'Lista de espera', () => listaEspera(caixa()), null, 'saude_espera'],
+        ['saude-medicamentos', 'Medicamentos', () => [el('p', { class: 'ajuda' }, 'PNTP 18.4: medicamentos fornecidos pelo SUS e como obtê-los, inclusive os de alto custo (componente especializado).'), medicamentos(caixa())], null, 'saude_medicamentos'],
+        ['saude-estoque', 'Estoque das farmácias', () => [el('p', { class: 'ajuda' }, 'PNTP 18.5: quantidade disponível de cada medicamento em cada farmácia pública.'), estoque(caixa())], null, 'saude_estoque'],
         ['saude-conselho', 'Conselho de Saúde', () => [S.secao('saude_conselho', perm, { naoHa: false }),
-          S.conselhos(caixa(), { tipos: ['saude'], obrigatorios: { saude: 'PNTP 18.6' }, perm, modulo: 'saude' })]]
+          S.conselhos(caixa(), { tipos: ['saude'], obrigatorios: { saude: 'PNTP 18.6' }, perm, modulo: 'saude' })], null, 'saude_conselho']
       ])
     ].filter(Boolean));
   };

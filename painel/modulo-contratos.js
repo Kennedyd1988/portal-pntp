@@ -475,6 +475,44 @@
   // ---------------------------------------------------------------------
   // Tela
   // ---------------------------------------------------------------------
+  // Aba "Fiscais de contratos" (igual à do site, PNTP 9.3): todos os fiscais e gestores, com o contrato.
+  // A inclusão e a troca de fiscais continuam dentro de cada contrato (aba "Fiscais e gestor").
+  let abaTopo = 'contratos';
+  function telaFiscais(caixa) {
+    const fBusca = el('input', { type: 'search', placeholder: 'Nome do fiscal ou portaria', 'aria-label': 'Buscar fiscal' });
+    const fVig = el('select', { 'aria-label': 'Designação' }, el('option', { value: 'atuais' }, 'Designações atuais'), el('option', { value: '' }, 'Todas, inclusive encerradas'));
+    const lista = el('div', null, el('p', { class: 'vazio' }, 'Carregando…'));
+    async function carregarFiscais() {
+      const hojeTxt = new Date().toISOString().slice(0, 10);
+      let q = sb.from('contratos_fiscais').select('id, nome, funcao, ato, inicio, fim, contrato_id, contratos(id, tipo, numero, ano, objeto, contratado_nome, situacao)')
+        .eq('orgao_id', P.estado.orgao.id).order('nome').limit(1000);
+      if (fBusca.value.trim()) q = q.ilike('busca', '%' + P.normalizar(fBusca.value.trim()).replace(/[%_]/g, '') + '%');
+      if (fVig.value === 'atuais') q = q.or('fim.is.null,fim.gte.' + hojeTxt);
+      const { data, error } = await q;
+      if (error) { lista.replaceChildren(el('p', { class: 'msg msg-erro' }, P.erroGravacao(error))); return; }
+      const l = data || [];
+      lista.replaceChildren(!l.length ? el('p', { class: 'vazio' }, 'Nenhum fiscal designado com esses filtros. Os fiscais são incluídos dentro de cada contrato.')
+        : el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
+          el('thead', null, el('tr', null, ['Fiscal ou gestor', 'Função', 'Contrato', 'Designação', 'Período'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
+          el('tbody', null, l.map((x) => el('tr', null,
+            el('td', null, el('strong', null, x.nome)), el('td', null, FUNCOES[x.funcao] || x.funcao),
+            el('td', { class: 'quebra' }, x.contratos ? [rotulo(x.contratos) + (x.contratos.ano && !String(x.contratos.numero || '').includes('/') ? '/' + x.contratos.ano : ''),
+              el('span', { class: 'sub-linha' }, x.contratos.contratado_nome)] : '—'),
+            el('td', null, x.ato || '—'),
+            el('td', { class: 'num' }, (P.dataBR(x.inicio) || '…') + ' a ' + (P.dataBR(x.fim) || 'atual')),
+            el('td', { class: 'acoes' }, el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: async () => {
+              const { data: ct } = await sb.from('contratos').select('*').eq('id', x.contrato_id).maybeSingle();
+              if (ct) form(ct, 'fiscais');
+            } }, 'Abrir contrato'))))))),
+        el('p', { class: 'ajuda' }, l.length + ' designação(ões).'));
+    }
+    let espera; fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(carregarFiscais, 400); });
+    fVig.addEventListener('change', carregarFiscais);
+    caixa.replaceChildren(el('p', { class: 'ajuda' }, 'Fiscais e gestores de todos os contratos, como aparecem no site (PNTP 9.3). Para incluir, trocar ou encerrar uma designação, abra o contrato.'),
+      el('div', { class: 'filtros' }, fBusca, fVig), lista);
+    carregarFiscais();
+  }
+
   function desenhar() {
     const botaoAno = (x) => el('button', { type: 'button', role: 'tab', class: 'aba', 'aria-selected': ano === x.ano ? 'true' : 'false',
       onclick: async () => { if (ano === x.ano) return; ano = x.ano; await recarregarLista(); } }, String(x.ano), el('span', { class: 'aba-qtd' }, String(x.total)));
@@ -526,11 +564,17 @@
           el('button', { type: 'button', class: 'btn btn-claro', onclick: importar }, 'Importar do PNCP'),
           el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form() }, '+ Novo contrato')) : null),
       P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Contratos são do órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
-      anos.length ? el('div', { class: 'abas', role: 'tablist', 'aria-label': 'Ano' }, anos.map(botaoAno)) : null,
-      anos.length ? el('div', { class: 'painel-guia' }, el('div', { class: 'filtros' }, fBusca, fVig, fOri, fSit), lista)
-        : el('p', { class: 'vazio' }, 'Nenhum contrato cadastrado. Use "+ Novo contrato" ou "Importar do PNCP".')
+      // Abas iguais às do site: Contratos e aditivos (por ano) e Fiscais de contratos.
+      el('div', { class: 'abas', role: 'tablist', 'aria-label': 'Contratos' }, [['contratos', 'Contratos e aditivos'], ['fiscais', 'Fiscais de contratos']].map(([id, rot]) =>
+        el('button', { type: 'button', role: 'tab', class: 'aba', 'aria-selected': abaTopo === id ? 'true' : 'false',
+          onclick: () => { if (abaTopo === id) return; abaTopo = id; desenhar(); } }, rot))),
+      abaTopo === 'fiscais' ? (() => { const cx = el('div', { class: 'painel-guia' }); telaFiscais(cx); return cx; })()
+        : el('div', { class: 'painel-guia' },
+          anos.length ? el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': 'Ano' }, anos.map((x) => { const b = botaoAno(x); b.classList.add('aba-p'); return b; })) : null,
+          anos.length ? el('div', { class: 'painel-guia painel-guia-interno' }, el('div', { class: 'filtros' }, fBusca, fVig, fOri, fSit), lista)
+            : el('p', { class: 'vazio' }, 'Nenhum contrato cadastrado. Use "+ Novo contrato" ou "Importar do PNCP".'))
     ].filter(Boolean));
-    if (anos.length) desenharLista();
+    if (anos.length && abaTopo === 'contratos') desenharLista();
   }
 
   async function recarregarLista() { try { await carregar(true); desenhar(); } catch (e) { mostrarErro(e); } }

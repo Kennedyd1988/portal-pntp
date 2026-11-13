@@ -28,6 +28,7 @@
   };
   // Abas de grupo: o PNTP trata licitação (8.1–8.3), contratação direta (8.4) e adesão (8.5) separadamente.
   const GRUPOS = [
+    ['todos', 'Todos os processos', Object.keys(MODALIDADES)],
     ['licitacoes', 'Licitações', Object.keys(MODALIDADES).filter((m) => !['dispensa', 'inexigibilidade', 'adesao_ata'].includes(m))],
     ['diretas', 'Dispensas e inexigibilidades', ['dispensa', 'inexigibilidade']],
     ['adesoes', 'Adesões a atas', ['adesao_ata']]
@@ -53,7 +54,7 @@
     11: 'pre_qualificacao', 12: 'credenciamento', 13: 'leilao_presencial' };
 
   let perm = {}, conteiner = null;
-  let grupo = 'licitacoes', ano = null, anos = [];
+  let grupo = 'todos', ano = null, anos = [];
   let itens = [], fim = false, total = 0;
   const filtros = { busca: '', modalidade: '', andamento: '', origem: '', situacao: '' };
 

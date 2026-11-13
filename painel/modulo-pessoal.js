@@ -282,15 +282,18 @@
   const caixa = () => el('div');
 
   P.telas.pessoal = (c, mod, p) => iniciar(c, mod, p, [
-    ['pes-servidores', 'Servidores', () => servidores(caixa())],
-    ['pes-remuneracao', 'Remuneração', () => remuneracao(caixa())],
-    ['pes-cargos', 'Cargos e salários', () => cargos(caixa())],
-    ['pes-estagiarios', 'Estagiários', () => estagiarios(caixa())],
-    ['pes-terceirizados', 'Terceirizados', () => terceirizados(caixa())]
+    ['pes-servidores', 'Servidores', () => servidores(caixa()), null, 'pessoal_servidores'],
+    ['pes-remuneracao', 'Remuneração', () => remuneracao(caixa()), null, 'pessoal_remuneracao'],
+    ['pes-cargos', 'Cargos e salários', () => cargos(caixa()), null, 'pessoal_cargos'],
+    ['pes-estagiarios', 'Estagiários', () => estagiarios(caixa()), null, 'pessoal_estagiarios'],
+    ['pes-terceirizados', 'Terceirizados', () => terceirizados(caixa()), null, 'pessoal_terceirizados'],
+    ['pes-concursos', 'Concursos e seleções', () => el('div', { class: 'cartao' }, el('h2', null, 'Concursos e processos seletivos'),
+      el('p', null, 'No site, esta aba mostra os concursos e seleções (PNTP 6.6 e 6.7), cadastrados no módulo próprio.'),
+      P.estado.permissoes.concursos && P.estado.permissoes.concursos.ver ? el('p', null, el('a', { class: 'btn btn-claro', href: '#/m/concursos' }, 'Abrir Concursos e processos seletivos')) : null)]
   ], 'Servidores e agentes políticos, remuneração mês a mês, tabela de cargos e salários, estagiários e terceirizados (PNTP 6.1 a 6.5). Concursos e seleções ficam no módulo próprio.');
 
   P.telas.diarias = (c, mod, p) => iniciar(c, mod, p, [
-    ['dia-concedidas', 'Diárias concedidas', () => diarias(caixa())],
-    ['dia-tabela', 'Tabela de valores', () => tabelaDiarias(caixa())]
+    ['dia-concedidas', 'Diárias concedidas', () => diarias(caixa()), null, 'diarias_concedidas'],
+    ['dia-tabela', 'Tabela de valores', () => tabelaDiarias(caixa()), null, 'diarias_tabela']
   ], 'Diárias pagas, com o beneficiário, destino, motivo, período e valor, e a tabela de valores conforme a norma local (PNTP 7.1 e 7.2).');
 })();

@@ -258,10 +258,10 @@
       S.avisoSetorial(perm),
       el('p', { class: 'msg msg-info' }, 'Os dados entram no ar ao salvar (vêm do sistema de contabilidade, sem rascunho). A importação de arquivos do sistema contábil será liberada na próxima etapa; até lá, inclua ou corrija aqui.'),
       P.abas([
-        ['fin-receitas', 'Receitas', () => receitas(caixa())],
-        ['fin-divida', 'Dívida ativa', () => dividaAtiva(caixa())],
-        ['fin-despesas', 'Despesas (empenhos)', () => despesas(caixa())],
-        ['fin-ordem', 'Ordem cronológica', () => ordemCronologica(caixa())]
+        ['fin-receitas', 'Previsão e arrecadação', () => receitas(caixa()), null, 'receitas_arrecadacao'],
+        ['fin-divida', 'Dívida ativa', () => dividaAtiva(caixa()), null, 'receitas_divida_ativa'],
+        ['fin-despesas', 'Empenhos e pagamentos', () => despesas(caixa()), null, 'despesas'],
+        ['fin-ordem', 'Ordem cronológica', () => ordemCronologica(caixa()), null, 'ordem_cronologica']
       ])
     ].filter(Boolean));
   };

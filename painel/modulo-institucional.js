@@ -299,7 +299,7 @@
           curriculoUrl ? el('a', { href: curriculoUrl, target: '_blank', rel: 'noopener', class: 'ajuda' }, 'Ver currículo atual') : null]],
         ['site', 'No site', [
           el('div', { class: 'grade-campos' },
-            el('label', { class: 'checkbox' }, f.capa, ' Mostrar no bloco "Gestão" da página inicial'),
+            el('label', { class: 'checkbox' }, f.capa, ' Destacar no bloco "Gestão" da página inicial (todos os gestores aparecem lá, rolando; os destacados vêm primeiro)'),
             campo('ge-ordem', 'Ordem no bloco', f.ordem, '1 = primeiro')),
           el('label', { class: 'checkbox' }, f.ativo, ' Gestor ativo (aparece no site)')]]
       ])
@@ -359,7 +359,7 @@
       el('table', { class: 'tabela' },
         el('thead', null, el('tr', null,
           el('th', { scope: 'col' }, 'Gestor'), el('th', { scope: 'col' }, 'Unidade'),
-          el('th', { scope: 'col' }, 'Contato'), el('th', { scope: 'col' }, 'Na capa'),
+          el('th', { scope: 'col' }, 'Contato'), el('th', { scope: 'col' }, 'Destaque na capa'),
           el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
         el('tbody', null, lista.map((g) => el('tr', null,
           el('td', null,

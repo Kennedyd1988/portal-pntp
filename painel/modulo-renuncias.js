@@ -226,10 +226,10 @@
       S.cabecalho('Renúncias de receita', 'Desonerações tributárias e fundamento legal, previsto × realizado, beneficiários e incentivos à cultura e ao esporte (PNTP 16.1 a 16.4).'),
       S.avisoSetorial(perm),
       P.abas([
-        ['ren-deson', 'Desonerações', () => desoneracoes(caixa())],
-        ['ren-valores', 'Previsto × realizado', () => valores(caixa())],
-        ['ren-benef', 'Beneficiários', () => beneficiarios(caixa())],
-        ['ren-incent', 'Incentivos', () => incentivos(caixa())]
+        ['ren-deson', 'Desonerações', () => desoneracoes(caixa()), null, 'renuncias_desoneracoes'],
+        ['ren-valores', 'Previsto × realizado', () => valores(caixa()), null, 'renuncias_valores'],
+        ['ren-benef', 'Beneficiários', () => beneficiarios(caixa()), null, 'renuncias_beneficiarios'],
+        ['ren-incent', 'Cultura e esporte', () => incentivos(caixa()), null, 'renuncias_incentivos']
       ])
     ].filter(Boolean));
   };

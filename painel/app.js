@@ -115,8 +115,29 @@
   // Todas as abas ficam no formulário ao mesmo tempo (só escondidas), então os
   // campos de todas são lidos e validados juntos ao salvar.
   // ---------------------------------------------------------------------
+  // ---------- Destinos externos (Aparência › Destinos das páginas) ----------
+  // Página (ou parte) com link externo não recebe cadastro manual no painel: o site leva para o
+  // sistema externo e não mostraria o que fosse cadastrado aqui.
+  function externo(chave) {
+    if (!chave || !window.externoPNTP) return null;
+    for (const k of [].concat(chave)) { const u = window.externoPNTP((estado.orgao || {}).configuracoes || {}, k); if (u) return { chave: k, url: u }; }
+    return null;
+  }
+  function avisoExterno(ext) {
+    const d = (window.DESTINOS_PNTP || []).find((x) => x[0] === ext.chave);
+    const podeAparencia = estado.permissoes.aparencia && estado.permissoes.aparencia.ver;
+    const lugar = podeAparencia ? el('a', { href: '#/m/aparencia?aba=destinos' }, 'Aparência › Destinos das páginas') : el('strong', null, 'Aparência › Destinos das páginas');
+    return el('div', { class: 'cartao aviso-externo' },
+      el('h2', null, 'Cadastro desativado: link externo'),
+      el('p', null, 'Em ', lugar, ', "' + (d ? d[1] : ext.chave) + '" leva para o sistema externo ',
+        el('a', { href: ext.url, target: '_blank', rel: 'noopener' }, ext.url), '. Enquanto for assim, o cadastro manual fica desativado aqui e o site mostra só o sistema externo.'),
+      el('p', { class: 'ajuda' }, 'Para voltar a cadastrar no portal, escolha "Página do portal" nessa linha. O que já estava cadastrado continua guardado.'));
+  }
+
+  // lista: [id, rótulo, conteúdo, motivo (desativa a aba), chave(s) de destino (aba vira aviso se tiver link externo)]
   function abas(lista, inicial) {
     const botoes = [], paineis = [];
+    lista.forEach((x) => { const ext = !x[3] && externo(x[4]); if (ext) { x[2] = () => avisoExterno(ext); x._externo = true; } });
     let atual = null;
     const ir = (id, focar) => {
       const k = lista.findIndex((x) => x[0] === id);
@@ -132,8 +153,10 @@
       if (focar) botoes[k].focus();
     };
     lista.forEach(([id, rotulo, conteudo, motivo], n) => {
-      const b = el('button', { type: 'button', role: 'tab', class: 'aba', id: 'aba-j-' + id, 'aria-controls': 'painel-j-' + id,
-        disabled: !!motivo, title: motivo || null, onclick: () => ir(id) }, rotulo);
+      const ext = lista[n]._externo;
+      const b = el('button', { type: 'button', role: 'tab', class: 'aba' + (ext ? ' aba-externa' : ''), id: 'aba-j-' + id, 'aria-controls': 'painel-j-' + id,
+        disabled: !!motivo, title: motivo || (ext ? 'Cadastro desativado: esta parte leva a um link externo' : null), onclick: () => ir(id) },
+        rotulo, ext ? el('span', { class: 'aba-ext' }, el('span', { 'aria-hidden': 'true' }, '↗'), el('span', { class: 'sr' }, ' (link externo, cadastro desativado)')) : null);
       const p = el('div', { role: 'tabpanel', id: 'painel-j-' + id, 'aria-labelledby': 'aba-j-' + id, 'data-aba-painel': id, hidden: true },
         motivo ? el('p', { class: 'vazio' }, motivo) : typeof conteudo === 'function' ? null : [].concat(conteudo || []).filter(Boolean));
       p._abrir = () => ir(id);
@@ -160,7 +183,7 @@
       if (abrir) ir(id);
     };
     caixa.recarregar = (id) => { const k = lista.findIndex((x) => x[0] === id); if (k >= 0) { paineis[k]._montado = false; if (atual === id) ir(id); } };
-    ir(inicial && lista.some((x) => x[0] === inicial && !x[3]) ? inicial : lista.find((x) => !x[3])[0]);
+    ir(inicial && lista.some((x) => x[0] === inicial && !x[3]) ? inicial : (lista.find((x) => !x[3] && !x._externo) || lista.find((x) => !x[3]))[0]);
     return caixa;
   }
 
@@ -580,7 +603,7 @@
   function rotear() {
     if (!estado.orgao) return;
     const hash = location.hash || '#/inicio';
-    const m = hash.match(/^#\/m\/([a-z_]+)$/);
+    const m = hash.match(/^#\/m\/([a-z_]+)(?:\?.*)?$/);
     const rota = m ? m[1] : 'inicio';
     for (const a of $('menu').querySelectorAll('a')) {
       if (a.dataset.rota === rota) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
@@ -647,6 +670,11 @@
     return sec;
   }
 
+  // Módulo que corresponde a uma página inteira do site (os que têm várias páginas, como Receitas e
+  // despesas, desativam aba por aba).
+  const DESTINO_MODULO = { licitacoes: 'licitacoes', pca: 'pca', sancoes: 'sancionados', contratos: 'contratos', obras: 'obras', convenios: 'convenios',
+    emendas: 'emendas', contas: 'planejamento', concursos: 'concursos', servicos: 'carta_servicos', publicacoes: 'publicacoes',
+    saude: 'saude', educacao: 'educacao', renuncias: 'renuncias', pessoal: 'pessoal', diarias: 'diarias' };
   function telaModulo(c, codigo) {
     const mod = estado.modulos.find((m) => m.codigo === codigo);
     const p = estado.permissoes[codigo];
@@ -656,8 +684,16 @@
       return;
     }
     if (telas[codigo]) {
-      // Depois que a tela termina de desenhar, coloca os avisos de prazo do módulo no alto.
-      Promise.resolve(telas[codigo](c, mod, p)).then(() => avisosDoModulo(c, codigo)).catch(() => {});
+      c.replaceChildren(el('h1', null, mod.nome), el('p', { class: 'sub' }, 'Carregando…'));
+      // Destinos atualizados (podem ter mudado em Aparência) antes de desenhar a tela.
+      sb.from('orgaos').select('configuracoes').eq('id', estado.orgao.id).maybeSingle().then(({ data }) => {
+        if (data) estado.orgao.configuracoes = data.configuracoes || {};
+        if (location.hash.split('?')[0] !== '#/m/' + codigo) return;
+        const ext = externo(DESTINO_MODULO[codigo]);
+        if (ext) { c.replaceChildren(el('h1', null, mod.nome), el('p', { class: 'sub' }, mod.grupo), avisoExterno(ext)); return; }
+        // Depois que a tela termina de desenhar, coloca os avisos de prazo do módulo no alto.
+        Promise.resolve(telas[codigo](c, mod, p)).then(() => avisosDoModulo(c, codigo)).catch(() => {});
+      });
       return;
     }
     const chip = (rotulo, ok) => el('span', { class: 'chip ' + (ok ? 'chip-sim' : 'chip-nao') }, rotulo);
@@ -1068,7 +1104,7 @@
     cpfValido, cnpjValido, erroDoc, formatarDoc, mascaraDoc,
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
-    campo, campoOutra, abas, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
+    campo, campoOutra, abas, externo, avisoExterno, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
     paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf
   };
 })();

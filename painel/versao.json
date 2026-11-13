@@ -1,10 +1,10 @@
 {
-  "versao": "0.16.0",
+  "versao": "0.16.1",
   "data": "2026-11-13",
   "notas": [
-    "Novo módulo Receitas, despesas e pagamentos (PNTP 3.1 a 3.3, 4.1 a 4.3 e 9.4): receitas por natureza, dívida ativa, empenhos com liquidações e pagamentos, ordem cronológica.",
-    "Pessoal e folha de pagamento (6.1 a 6.5): servidores, remuneração mês a mês, cargos e salários, estagiários e terceirizados.",
-    "Novo módulo Diárias (7.1 e 7.2): concessões e tabela de valores.",
-    "Site: páginas de receitas, despesas, ordem cronológica, pessoal e diárias, com os filtros mínimos da Cartilha 2026 e CSV/JSON."
+    "Destinos das páginas com colunas alinhadas; página com link externo desativa o cadastro manual no painel.",
+    "Abas do painel iguais às do site (licitações, contratos e fiscais, obras paralisadas, emendas, planejamento, educação, renúncias, receitas e despesas, pessoal).",
+    "Gestores da página inicial: todos, rolando um por vez e recomeçando no fim.",
+    "Link da faixa do Radar definido em Aparência › Selos e Radar."
   ]
 }

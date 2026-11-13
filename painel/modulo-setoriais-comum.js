@@ -288,7 +288,7 @@
     return secoes.mapa;
   }
   // Link externo da parte (ou da página inteira) definido em Aparência › Destinos das páginas.
-  const destinoExterno = (chave) => secoes.destinos[chave] || secoes.destinos[chave.split('_')[0]] || null;
+  const destinoExterno = (chave) => window.externoPNTP({ destinos: secoes.destinos }, chave);
   const secaoAtual = (chave) => secoes.mapa[chave] || {};
   const ROTULO_MODO = { portal: 'dados do portal', link: 'link externo', nao_ha: 'declaração "não há"' };
   // o = { titulo, texto: {rotulo, ajuda, obrigatorio}, naoHa: 'texto da declaração' | false, aoMudar }
@@ -327,7 +327,7 @@
     const rodape = (x) => x && x.atualizado_em ? 'Última alteração desta seção: ' + P.dataHoraBR(x.atualizado_em) + '.' : '';
     const info = el('span', { class: 'ajuda' }, rodape(s));
     const podeAparencia = P.estado.permissoes.aparencia && P.estado.permissoes.aparencia.ver;
-    const linkAparencia = podeAparencia ? el('a', { href: '#/m/aparencia' }, 'Aparência › Destinos das páginas') : 'Aparência › Destinos das páginas';
+    const linkAparencia = podeAparencia ? el('a', { href: '#/m/aparencia?aba=destinos' }, 'Aparência › Destinos das páginas') : 'Aparência › Destinos das páginas';
     const caixa = el('details', { class: 'cartao secao-setorial', open: modo !== 'portal' || (o.texto && o.texto.obrigatorio && !s.texto) ? true : null, style: 'margin-bottom:14px;padding:12px 16px' },
       el('summary', { style: 'cursor:pointer;font-weight:600' }, (o.titulo || 'Como esta parte aparece no site') + ': ', etiqueta),
       el('div', { style: 'margin-top:10px' },

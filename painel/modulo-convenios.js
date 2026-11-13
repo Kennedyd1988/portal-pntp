@@ -341,6 +341,7 @@
   (function () {
     let perm = {}, conteiner = null, ano = null, anos = [], itens = [], fim = false, total = 0;
     const filtros = { busca: '', origem: '', forma: '', andamento: '', situacao: '' };
+    let abaOrigem = 'todas';
     const podeGravar = () => perm.editar && !P.estado.alcanceUnidade;
     const mostrarErro = (e) => {
       const t = (e && e.message) || '';
@@ -355,8 +356,11 @@
 
     function consulta(sel, op) {
       let q = sb.from('emendas').select(sel, op).eq('orgao_id', P.estado.orgao.id);
+      // abaOrigem: abas iguais às do site (Todas, Federais 17.1, Estaduais e municipais 17.2).
       if (ano) q = q.eq('exercicio', ano);
       if (filtros.busca) q = q.ilike('busca', buscaLike(filtros.busca));
+      if (abaOrigem === 'federal') q = q.eq('origem', 'federal');
+      else if (abaOrigem === 'estmun') q = q.in('origem', ['estadual', 'municipal']);
       for (const [k, col] of [['origem', 'origem'], ['forma', 'forma_repasse'], ['andamento', 'andamento'], ['situacao', 'situacao']]) if (filtros[k]) q = q.eq(col, filtros[k]);
       return q;
     }
@@ -568,9 +572,13 @@
           podeGravar() ? el('div', { class: 'botoes-cabecalho' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form() }, '+ Nova emenda')) : null),
         P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Emendas são do órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
         el('p', { class: 'ajuda' }, 'O município divulga as emendas de todas as origens, inclusive as aprovadas no próprio orçamento (emendas dos vereadores). Sem emenda publicada, o site declara que não há emendas recebidas.'),
+        el('div', { class: 'abas', role: 'tablist', 'aria-label': 'Origem das emendas' },
+          [['todas', 'Todas as emendas'], ['federal', 'Federais (17.1)'], ['estmun', 'Estaduais e municipais (17.2)']].map(([id, rot]) =>
+            el('button', { type: 'button', role: 'tab', class: 'aba', 'aria-selected': abaOrigem === id ? 'true' : 'false',
+              onclick: async () => { if (abaOrigem === id) return; abaOrigem = id; filtros.origem = ''; await recarregarLista(); } }, rot))),
         el('div', { class: 'painel-guia' },
           anos.length ? el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': 'Exercício' }, anos.map(botaoAno)) : null,
-          anos.length ? el('div', { class: 'painel-guia painel-guia-interno' }, quadro, el('div', { class: 'filtros filtros-5' }, fBusca, fOri, fForma, fAnd, fSit), lista)
+          anos.length ? el('div', { class: 'painel-guia painel-guia-interno' }, quadro, el('div', { class: 'filtros filtros-5' }, fBusca, abaOrigem === 'todas' ? fOri : null, fForma, fAnd, fSit), lista)
             : el('p', { class: 'vazio' }, 'Nenhuma emenda cadastrada.'))
       ].filter(Boolean));
       if (anos.length) desenharLista();

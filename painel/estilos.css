@@ -386,7 +386,20 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 /* v0.12.0 — Aparência: destinos das páginas, ícone e faixa do Radar */
 .destinos-grupo { font-size: 15px; margin: 18px 0 8px; }
 .tabela-destinos select, .tabela-destinos input { height: 36px; border: 1px solid var(--line); border-radius: var(--raio); padding: 0 8px; font: inherit; font-size: 14px; background: #fff; width: 100%; min-width: 180px; }
-.tabela-destinos td:last-child { min-width: 280px; }
+.tabela-destinos td:last-child { min-width: 0; }
+/* Todas as tabelas de destinos com as mesmas colunas: uma embaixo da outra ficam alinhadas. */
+.tabela-destinos { table-layout: fixed; }
+.tabela-destinos th:nth-child(1), .tabela-destinos td:nth-child(1) { width: 36%; }
+.tabela-destinos th:nth-child(2), .tabela-destinos td:nth-child(2) { width: 10%; }
+.tabela-destinos th:nth-child(3), .tabela-destinos td:nth-child(3) { width: 20%; }
+.tabela-destinos th:nth-child(4), .tabela-destinos td:nth-child(4) { width: 34%; }
+.tabela-destinos td { overflow-wrap: anywhere; }
+.tabela-destinos select, .tabela-destinos input { min-width: 0; }
+/* Aba de módulo cujo destino é link externo: cadastro desativado. */
+.aba.aba-externa { color: var(--muted, #667085); font-style: italic; }
+.aba-ext { font-style: normal; font-size: 12px; }
+.aviso-externo { border-left: 4px solid #f2b33d; }
+.aviso-externo h2 { margin-top: 0; }
 .preview-favicon { width: 72px; height: 72px; }
 .preview-favicon img { width: 48px; height: 48px; object-fit: contain; }
 .preview-radar { width: 260px; height: 80px; }

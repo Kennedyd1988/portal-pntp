@@ -133,6 +133,9 @@
   S.link = (rota) => '#' + (rota.startsWith('/') ? rota : '/' + rota);
   // Destino único de cada página (site/destinos.js): portal ou link externo escolhido em Aparência.
   S.destino = (chave) => window.destinoPNTP(S.conf, chave);
+  // Radar da Transparência Pública: link definido em Aparência (ex.: página do órgão no Radar) ou o painel geral.
+  S.RADAR_PADRAO = 'https://radardatransparencia.atricon.org.br/panel.html';
+  S.radar = () => (S.conf && /^https?:\/\//.test(S.conf.radar_url || '') ? S.conf.radar_url : S.RADAR_PADRAO);
   // Link pronto para uma chave de destino: abre em nova aba quando é externo. Sem destino: texto simples.
   S.linkDestino = (chave, conteudo, attrs) => {
     const d = S.destino(chave);
@@ -290,7 +293,7 @@
           l.encarregado_email ? el('p', null, el('a', { href: 'mailto:' + l.encarregado_email }, l.encarregado_email)) : null,
           l.encarregado_telefone ? el('p', null, l.encarregado_telefone) : null,
           el('p', null, el('a', { href: '#/lgpd' }, 'Política de privacidade')),
-          el('p', null, el('a', { href: 'https://radardatransparencia.atricon.org.br/panel.html', target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública')))),
+          el('p', null, el('a', { href: S.radar(), target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública')))),
       el('div', { class: 'rodape-fim' }, el('div', { class: 'limite' },
         el('span', { id: 'ultima-atualizacao' }, ''),
         el('span', null, 'Plataforma SOFT+ · Portal Institucional · versão ' + (window.VERSAO_SITE || '')))));
