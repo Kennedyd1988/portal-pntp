@@ -31,7 +31,7 @@
   async function comSecao(caixa, chave, declaracao, desenhar) {
     const s = await secao(chave);
     // Link externo vem de Aparência › Destinos das páginas (lugar único), como no resto do site.
-    const ext = (S.conf.destinos || {})[chave];
+    const ext = window.externoPNTP(S.conf, chave);
     if (ext) {
       caixa.replaceChildren(el('div', { class: 'cartao' }, el('p', null, 'Esta informação é publicada no sistema indicado pelo órgão:'),
         el('p', null, el('a', { class: 'botao', href: ext, target: '_blank', rel: 'noopener' }, 'Acessar', novaAba())), el('p', { class: 'meta' }, ext)),
@@ -485,6 +485,9 @@
         td('Liberado', moeda(i.valor_liberado), 'num'), td('Andamento', etq(AND_INC[i.andamento])), el('td', { 'data-rotulo': '' }))
     });
   }
+
+  // Peças usadas também pelas páginas de receitas, despesas, pessoal e diárias (financeiro.js).
+  S.setor = { comSecao, paginaAbas, listaLocal, tabela, td, busca, contem, linkDoc, etq, novaAba };
 
   R.renuncias = function (main, partes, params) {
     return paginaAbas(main, { rota: 'renuncias', titulo: 'Renúncias de receita', sub: 'Benefícios fiscais concedidos pelo município (isenções, anistias, remissões e outros), com o fundamento legal, os valores previstos e realizados, os beneficiários e os projetos de incentivo à cultura e ao esporte.',

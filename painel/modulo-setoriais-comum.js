@@ -58,7 +58,13 @@
     if (/saude_medicamentos_uk/.test(t)) return toast('Esse medicamento (com essa apresentação) já está cadastrado.', true);
     if (/saude_estoques_uk/.test(t)) return toast('Esse medicamento já tem estoque nesse local: altere a linha existente.', true);
     if (/renuncias_valores_renuncia_id_exercicio_key/.test(t)) return toast('Esse exercício já tem valores nesta renúncia: altere a linha existente.', true);
-    if (/Seu perfil|publicad[oa]\. Só quem|não pertence|beneficiários cadastrados|Envie de 1|Informe o exercício|Nenhuma coluna/.test(t)) return toast(t, true);
+    if (/despesas_numero_uk/.test(t)) return toast('Já existe um empenho com esse número neste exercício.', true);
+    if (/receitas_uk/.test(t)) return toast('Esse mês já tem lançamento dessa natureza e fonte: altere a linha existente.', true);
+    if (/receitas_naturezas_orgao_id_codigo_key/.test(t)) return toast('Esse código já tem descrição: altere a linha existente.', true);
+    if (/natureza_codigo_check|codigo_check/.test(t)) return toast('Código da natureza fora do padrão: use os números separados por pontos (ex.: 1.1.1.2.50.0.1 ou 3.3.90.30).', true);
+    if (/ordem_cronologica_justificativa/.test(t)) return toast('Pagamento fora da ordem precisa da hipótese legal e da justificativa (mínimo de 20 letras).', true);
+    if (/_datas"?$|_datas\b/.test(t)) return toast('Confira as datas: o fim (ou desligamento) não pode ser antes do início.', true);
+    if (/Seu perfil|publicad[oa]\. Só quem|não pertence|beneficiários cadastrados|Envie de 1|Informe o exercício|Nenhuma coluna|não fecham|data do movimento|Há movimentos|ficaria menor|não é deste órgão/.test(t)) return toast(t, true);
     toast(P.erroGravacao(e), true);
   };
 
@@ -69,7 +75,7 @@
     const id = pre + c.k;
     let input;
     if (c.t === 'area') { input = el('textarea', { rows: c.linhas || 3, maxlength: c.max || 2000, placeholder: c.ph || null }); input.value = valor || ''; }
-    else if (c.t === 'sel') input = el('select', null, opcoes(c.op, valor === undefined || valor === null ? c.padrao || Object.keys(c.op)[0] : valor, c.vazio));
+    else if (c.t === 'sel') input = el('select', null, opcoes(c.op, valor === undefined || valor === null ? (c.vazio ? c.padrao || '' : c.padrao || Object.keys(c.op)[0]) : valor, c.vazio));
     else if (c.t === 'data') input = el('input', { type: 'date', value: valor || '' });
     else if (c.t === 'int') input = el('input', { type: 'number', step: 1, min: c.min, max: c.maxv, value: valor === undefined || valor === null ? (c.padrao !== undefined ? c.padrao : '') : valor });
     else if (c.t === 'num') input = el('input', { type: 'text', inputmode: 'decimal', value: valor === undefined || valor === null ? '' : Number(valor).toLocaleString('pt-BR', { maximumFractionDigits: 2 }), placeholder: c.ph || '0,00' });
@@ -97,11 +103,11 @@
     if (c.t === 'bool') return { ok: true, valor: i.checked };
     if (c.t === 'sel' || c.t === 'data') v = i.value || null;
     else if (c.t === 'int') { v = i.value === '' ? null : parseInt(i.value, 10); if (v !== null && (Number.isNaN(v) || (c.min !== undefined && v < c.min) || (c.maxv !== undefined && v > c.maxv))) return { ok: erroCampo(id, 'Número inválido.') }; }
-    else if (c.t === 'num') { v = lerNumero(i.value); if (Number.isNaN(v) || (v !== null && v < 0)) return { ok: erroCampo(id, 'Valor inválido. Ex.: 1.234,56') }; }
+    else if (c.t === 'num') { v = lerNumero(i.value); if (Number.isNaN(v) || (v !== null && v < 0 && !c.negativo)) return { ok: erroCampo(id, 'Valor inválido. Ex.: 1.234,56') }; }
     else if (c.t === 'doc') { v = i.value.replace(/\D/g, '') || null; const e = P.erroDoc(v || '', c.doc); if (e) return { ok: erroCampo(id, e) }; }
     else { v = i.value.trim() || null; if (v && c.t === 'url' && !P.urlValida(v)) return { ok: erroCampo(id, 'Endereço completo, começando com https://') }; }
     if (v === null && c.padrao !== undefined && (c.t === 'int' || c.t === 'num')) v = c.padrao;   // coluna obrigatória com valor padrão (ex.: ordem)
-    if (c.ob && (v === null || v === '')) return { ok: erroCampo(id, 'Preencha este campo.') };
+    if (c.ob && (v === null || v === '')) return { ok: erroCampo(id, c.obMsg || 'Preencha este campo.') };
     if (v && c.minimo && String(v).length < c.minimo) return { ok: erroCampo(id, 'Mínimo de ' + c.minimo + ' caracteres.') };
     erroCampo(id, '');
     return { ok: true, valor: v };
@@ -220,7 +226,7 @@
           if (c.t === 'bool') m.input.checked = !!v;
           else if (c.t === 'num') m.input.value = v === null || v === undefined ? '' : Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
           else if (c.t === 'doc') m.input.value = v ? P.formatarDoc(v) : '';
-          else if (c.t === 'sel') m.input.value = v || c.padrao || Object.keys(c.op)[0];
+          else if (c.t === 'sel') m.input.value = v || c.padrao || (c.vazio ? '' : Object.keys(c.op)[0]);
           else if (c.t === 'data') m.input.value = v || (c.hoje && !l ? hoje() : '');
           else m.input.value = v === null || v === undefined ? (c.padrao !== undefined && !l ? c.padrao : '') : v;
         }
@@ -527,11 +533,89 @@
     return caixa;
   }
 
+  // ---------- lista por exercício (abas de ano + filtros + "Carregar mais") ----------
+  // cfg = { tabela, anos: async () => [{ano, total}] (sem = lista sem abas de ano), filtroAno(q, ano),
+  //         ordem, crescente, filtros: [{k, r, t: 'busca'|'sel', op, vazio, ph, aplicar(q, v)}],
+  //         colunas, acoes(linha) → botões, botoes() → botões do alto, aoTrocarAno(ano) → {k: valor} (async),
+  //         rodape(ano) → elemento, vazio, rotuloAno }
+  // Devolve { recarregar(manterAno), ano() }.
+  function listaAno(caixa, cfg) {
+    let anos = [], ano = null, itens = [], fim = false, total = 0, versao = 0;
+    const f = {};
+    const termoBusca = (v) => /^[\d.\/-]+$/.test(v) ? v.replace(/\D/g, '') : P.normalizar(v).replace(/[%_]/g, '');
+    const consulta = (sel, op) => {
+      let q = sb.from(cfg.tabela).select(sel, op).eq('orgao_id', P.estado.orgao.id);
+      if (cfg.anos && ano !== null) q = cfg.filtroAno ? cfg.filtroAno(q, ano) : q.eq('exercicio', ano);
+      for (const x of cfg.filtros || []) {
+        const v = f[x.k];
+        if (v === undefined || v === null || v === '') continue;
+        q = x.aplicar ? x.aplicar(q, v) : x.t === 'busca' ? q.ilike('busca', '%' + termoBusca(v) + '%') : q.eq(x.k, v);
+      }
+      return q;
+    };
+    const lista = el('div'), corpo = el('div', null, el('p', { class: 'vazio' }, 'Carregando…'));
+    async function carregar(reiniciar) {
+      const minha = reiniciar ? ++versao : versao;
+      const ultimo = reiniciar ? null : itens[itens.length - 1];
+      const [pag, t] = await Promise.all([P.paginar(consulta, cfg.ordem, ultimo, 100, cfg.crescente), reiniciar ? P.contar(consulta) : Promise.resolve(total)]);
+      if (minha !== versao) return;
+      itens = reiniciar ? pag.linhas : itens.concat(pag.linhas); fim = pag.fim; total = t;
+      const btnMais = el('button', { type: 'button', class: 'btn btn-claro' }, 'Carregar mais');
+      btnMais.addEventListener('click', async () => { ocupado(btnMais, 'Carregando…'); try { await carregar(false); } catch (e) { mostrarErro(e); ocupado(btnMais); } });
+      lista.replaceChildren(tabela(cfg.colunas, itens, cfg.acoes || null, Object.values(f).some(Boolean) ? 'Nenhum registro com esses filtros.' : cfg.vazio || 'Nada cadastrado ainda.'),
+        el('div', { class: 'rodape-lista' }, el('span', { class: 'ajuda' }, 'Mostrando ' + itens.length + ' de ' + total), fim ? '' : btnMais));
+    }
+    function desenhar() {
+      const campos = (cfg.filtros || []).map((x) => {
+        const e = x.t === 'sel' ? el('select', { 'aria-label': x.r }, opcoes(x.op, f[x.k] || '', x.vazio || x.r + ': todos'))
+          : el('input', { type: 'search', placeholder: x.ph || 'Pesquisar', 'aria-label': x.r, value: f[x.k] || '' });
+        return [x.k, e];
+      });
+      const aplicar = () => { for (const [k, e] of campos) f[k] = e.value.trim(); carregar(true).catch(mostrarErro); };
+      let espera;
+      for (const [, e] of campos) {
+        if (e.tagName === 'SELECT') e.addEventListener('change', aplicar);
+        else e.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
+      }
+      const miolo = el('div', null, campos.length ? el('div', { class: 'filtros' }, campos.map((x) => x[1])) : '', cfg.rodape ? cfg.rodape(ano) : '', lista);
+      corpo.replaceChildren(
+        cfg.botoes ? el('p', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, cfg.botoes()) : '',
+        !cfg.anos ? miolo : anos.length ? el('div', null,
+          el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': cfg.rotuloAno || 'Exercício' }, anos.map((x) => el('button', { type: 'button', role: 'tab', class: 'aba aba-p',
+            'aria-selected': x.ano === ano ? 'true' : 'false', onclick: () => { ano = x.ano; recarregar(true); } }, String(x.ano), el('span', { class: 'aba-qtd' }, String(x.total))))),
+          el('div', { class: 'painel-guia painel-guia-interno' }, miolo))
+          : el('p', { class: 'vazio' }, cfg.vazio || 'Nada cadastrado ainda.'));
+    }
+    async function recarregar(manterAno) {
+      try {
+        if (cfg.anos) {
+          anos = (await cfg.anos()) || [];
+          if (!manterAno || !anos.some((x) => x.ano === ano)) ano = anos.length ? anos[0].ano : null;
+          if (cfg.aoTrocarAno && ano !== null) Object.assign(f, await cfg.aoTrocarAno(ano));
+        }
+        desenhar();
+        if (!cfg.anos || ano !== null) await carregar(true);
+      } catch (e) { corpo.replaceChildren(el('p', { class: 'msg msg-erro' }, P.erroGravacao(e))); }
+    }
+    caixa.append(corpo);
+    recarregar();
+    return { recarregar, ano: () => ano, irPara: (a) => { ano = a; return recarregar(true); } };
+  }
+  // Exercícios com dados das tabelas do script 22 (receitas, despesas, pessoal, diárias).
+  const anosFinanceiros = (tabela) => async () => {
+    const { data, error } = await sb.rpc('anos_financeiros', { p_orgao: P.estado.orgao.id, p_tabela: tabela });
+    if (error) throw error;
+    return data || [];
+  };
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const opMeses = Object.fromEntries(MESES.map((m, i) => [String(i + 1), m[0].toUpperCase() + m.slice(1)]));
+
   // Cabeçalho padrão dos três módulos.
   const cabecalho = (titulo, sub) => el('div', { class: 'cabecalho-modulo' }, el('div', null, el('h1', null, titulo), el('p', { class: 'sub' }, sub)));
   const avisoSetorial = (perm) => P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Estes dados são do órgão todo: só quem tem acesso ao órgão inteiro altera.') : null;
   const faltaScript = (e) => /secoes_setoriais|documentos_setoriais|Could not find|does not exist/i.test((e && e.message) || '') ? 'Falta rodar o script 21 no banco.' : P.erroGravacao(e);
 
   P.setor = { opcoes, moeda, numBR, hoje, lerNumero, lerData, etiquetaSituacao, linkArquivo, mostrarErro, formulario, excluir, tabela, botao, filhos,
-    carregarSecoes, secaoAtual, secao, importar, documentos, conselhos, cabecalho, avisoSetorial, faltaScript, TIPOS_CONSELHO };
+    carregarSecoes, secaoAtual, secao, importar, documentos, conselhos, cabecalho, avisoSetorial, faltaScript, TIPOS_CONSELHO,
+    listaAno, anosFinanceiros, MESES, opMeses };
 })();

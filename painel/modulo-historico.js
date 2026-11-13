@@ -27,7 +27,11 @@
     saude_estabelecimentos: 'Saúde: estabelecimentos', saude_profissionais: 'Saúde: profissionais', saude_lista_espera: 'Saúde: lista de espera',
     saude_medicamentos: 'Saúde: medicamentos', saude_estoques: 'Saúde: estoque', conselhos: 'Conselhos', conselhos_membros: 'Conselhos: membros',
     conselhos_documentos: 'Conselhos: atas e documentos', creches_espera: 'Creches: lista de espera', renuncias: 'Renúncias de receita',
-    renuncias_valores: 'Renúncias: previsto e realizado', renuncias_beneficiarios: 'Renúncias: beneficiários', incentivos_projetos: 'Incentivos à cultura e ao esporte'
+    renuncias_valores: 'Renúncias: previsto e realizado', renuncias_beneficiarios: 'Renúncias: beneficiários', incentivos_projetos: 'Incentivos à cultura e ao esporte',
+    receitas: 'Receitas', receitas_naturezas: 'Receitas: descrição dos níveis', divida_ativa: 'Dívida ativa', despesas: 'Despesas (empenhos)',
+    despesas_movimentos: 'Despesas: liquidações e pagamentos', ordem_cronologica: 'Ordem cronológica de pagamentos', pessoal_vinculos: 'Pessoal: servidores',
+    pessoal_remuneracoes: 'Pessoal: remuneração', pessoal_cargos: 'Pessoal: cargos e salários', pessoal_estagiarios: 'Pessoal: estagiários',
+    pessoal_terceirizados: 'Pessoal: terceirizados', diarias: 'Diárias', diarias_valores: 'Diárias: tabela de valores'
   };
   const ACOES = { inserir: 'Inclusão', editar: 'Edição', excluir: 'Exclusão' };
 
@@ -67,10 +71,25 @@
     valor_previsto: 'Valor previsto', valor_realizado: 'Valor realizado', compensacao: 'Medidas de compensação', valor: 'Valor', documento: 'CPF/CNPJ',
     funcao: 'Função', condicao: 'Titular/suplente', segmento: 'Segmento', entidade: 'Entidade', mandato_inicio: 'Início do mandato', mandato_fim: 'Fim do mandato',
     sem_ocorrencia: 'Declara que não há dados', secao: 'Seção', projeto: 'Projeto', proponente: 'Proponente',
-    valor_aprovado: 'Valor aprovado', valor_liberado: 'Valor liberado'
+    valor_aprovado: 'Valor aprovado', valor_liberado: 'Valor liberado',
+    mes: 'Mês', natureza_codigo: 'Natureza (código)', natureza_descricao: 'Natureza (descrição)', natureza_nome: 'Natureza (nome)', fonte_codigo: 'Fonte (código)',
+    fonte_descricao: 'Fonte (nome)', fonte_nome: 'Fonte (nome)', previsto_inicial: 'Previsão inicial', previsto_atualizado: 'Previsão atualizada', arrecadado: 'Arrecadado no mês',
+    codigo: 'Código', ano_inscricao: 'Ano da inscrição', data_empenho: 'Data do empenho', tipo_empenho: 'Tipo de empenho', unidade_codigo: 'Unidade (código)',
+    unidade_nome: 'Unidade orçamentária', funcao_codigo: 'Função', subfuncao_codigo: 'Subfunção', subfuncao_nome: 'Subfunção (nome)', programa_codigo: 'Programa',
+    programa_nome: 'Programa (nome)', acao_codigo: 'Ação', acao_nome: 'Ação (nome)', credor_nome: 'Credor', credor_doc: 'CPF/CNPJ do credor', objeto: 'Objeto',
+    modalidade: 'Procedimento de origem', licitacao_numero: 'Número do procedimento', processo: 'Processo', valor_empenhado: 'Valor empenhado (original)',
+    total_empenhado: 'Total empenhado', total_liquidado: 'Total liquidado', total_pago: 'Total pago', ultima_movimentacao: 'Último movimento', data: 'Data',
+    documento_fiscal: 'Documento de cobrança', empenho_numero: 'Empenho', contrato_numero: 'Contrato', data_exigibilidade: 'Exigível desde', data_pagamento: 'Pago em',
+    fora_da_ordem: 'Fora da ordem', motivo_alteracao: 'Hipótese legal', justificativa: 'Justificativa', ato_justificativa: 'Ato da justificativa', justificativa_url: 'Link da justificativa',
+    matricula: 'Matrícula', vinculo: 'Vínculo', lotacao: 'Lotação', carga_horaria: 'Carga horária', data_admissao: 'Admissão', data_desligamento: 'Desligamento',
+    motivo_desligamento: 'Motivo do desligamento', folha: 'Folha', remuneracao_basica: 'Remuneração básica', vantagens: 'Vantagens', eventuais: 'Eventuais',
+    indenizacoes: 'Indenizações', bruto: 'Bruto', descontos: 'Descontos', liquido: 'Líquido', referencia: 'Referência', vencimento: 'Vencimento', norma: 'Norma',
+    vigencia_inicio: 'Vigente desde', vigencia_fim: 'Vigente até', instituicao: 'Instituição', curso: 'Curso', bolsa: 'Bolsa', data_inicio: 'Início', data_fim: 'Fim',
+    empresa: 'Empresa', empresa_cnpj: 'CNPJ da empresa', abrangencia: 'Abrangência', motivo: 'Motivo', valor_unitario: 'Valor da diária',
+    valor_total: 'Valor total', ato_concessao: 'Ato de concessão', grupo: 'Grupo', destino_descricao: 'Descrição do destino', moeda: 'Moeda'
   };
   // Campos técnicos que não interessam ao usuário.
-  const IGNORAR = new Set(['id', 'orgao_id', 'criado_em', 'atualizado_em', 'busca', 'data_ordem', 'autor_id', 'documento_publico']);
+  const IGNORAR = new Set(['id', 'orgao_id', 'criado_em', 'atualizado_em', 'busca', 'data_ordem', 'autor_id', 'documento_publico', 'credor_doc_publico', 'credor_doc_resumo', 'modalidade_aplicacao', 'elemento']);
 
   let conteiner = null;
   let itens = [];

@@ -629,7 +629,7 @@
     el('strong', null, linhas.some((x) => x.nivel === 'alerta') ? '⚠ Dados a atualizar' : 'Lembrete'),
     el('ul', null, linhas.map((x) => {
       const mod = estado.modulos.find((m) => m.codigo === x.modulo);
-      return el('li', { class: 'pend-' + x.nivel }, comLink && mod ? [el('a', { href: '#/m/' + x.modulo }, mod.nome), ': '] : null, x.quantidade > 1 || !/^falta|^nenhuma/.test(x.mensagem) ? x.quantidade + ' ' : '', x.mensagem);
+      return el('li', { class: 'pend-' + x.nivel }, comLink && mod ? [el('a', { href: '#/m/' + x.modulo }, mod.nome), ': '] : null, /^[^\s(]+\([a-zõ]+\)/.test(x.mensagem) ? x.quantidade + ' ' : '', x.mensagem);
     })));
   async function avisosDoModulo(c, codigo) {
     const linhas = (await pendencias()).filter((x) => x.modulo === codigo);

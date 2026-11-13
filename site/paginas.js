@@ -831,6 +831,19 @@
     const cfg = window.CONFIG_PNTP;
     const api = (tabela, sel, extra) => cfg.supabaseUrl + '/rest/v1/' + tabela + '?select=' + sel + '&orgao_id=eq.' + org() + (extra || '') + '&apikey=' + cfg.supabaseChave;
     const conjuntos = [
+      ['Receitas: previsão e arrecadação mensal por natureza', 'receitas', 'exercicio,mes,natureza_codigo,natureza_descricao,fonte_codigo,fonte_descricao,previsto_inicial,previsto_atualizado,arrecadado', '&order=exercicio.desc'],
+      ['Receitas: descrição dos níveis da classificação', 'receitas_naturezas', 'codigo,descricao', '&order=codigo.asc'],
+      ['Dívida ativa: inscritos', 'divida_ativa', 'exercicio,nome,documento_publico,ano_inscricao,tributo,valor', '&order=exercicio.desc'],
+      ['Despesas: empenhos', 'despesas', 'id,numero,data_empenho,tipo_empenho,unidade_codigo,unidade_nome,funcao_codigo,subfuncao_codigo,subfuncao_nome,programa_codigo,programa_nome,acao_codigo,acao_nome,natureza_codigo,natureza_nome,fonte_codigo,fonte_nome,credor_nome,credor_doc_publico,objeto,modalidade,licitacao_numero,processo,valor_empenhado,total_empenhado,total_liquidado,total_pago', '&order=data_empenho.desc'],
+      ['Despesas: liquidações e pagamentos', 'despesas_movimentos', 'despesa_id,tipo,data,valor,documento,observacao', '&order=data.desc'],
+      ['Ordem cronológica de pagamentos', 'ordem_cronologica_posicoes', 'exercicio,categoria,fonte_codigo,fonte_nome,posicao,credor_nome,credor_doc_publico,documento_fiscal,empenho_numero,contrato_numero,objeto,data_exigibilidade,data_pagamento,valor,fora_da_ordem,motivo_alteracao,justificativa,ato_justificativa,justificativa_url', '&order=data_exigibilidade.desc'],
+      ['Pessoal: servidores e agentes públicos', 'pessoal_vinculos', 'matricula,nome,cargo,funcao,vinculo,lotacao,carga_horaria,data_admissao,data_desligamento,motivo_desligamento', '&order=nome.asc'],
+      ['Pessoal: remuneração mensal', 'pessoal_remuneracoes', 'exercicio,mes,folha,matricula,nome,cargo,vinculo,lotacao,remuneracao_basica,vantagens,eventuais,indenizacoes,bruto,descontos,liquido', '&order=exercicio.desc'],
+      ['Pessoal: cargos e salários', 'pessoal_cargos', 'cargo,tipo,referencia,carga_horaria,vencimento,norma,norma_url,vigencia_inicio,vigencia_fim', '&order=ordem.asc'],
+      ['Pessoal: estagiários', 'pessoal_estagiarios', 'nome,instituicao,curso,nivel,lotacao,carga_horaria,bolsa,data_inicio,data_fim,data_desligamento', '&order=data_inicio.desc'],
+      ['Pessoal: terceirizados', 'pessoal_terceirizados', 'exercicio,nome,documento_publico,funcao,empresa,empresa_cnpj,contrato_numero,lotacao,data_inicio,data_fim', '&order=exercicio.desc'],
+      ['Diárias concedidas', 'diarias', 'nome,cargo,unidade,destino,abrangencia,motivo,data_inicio,data_fim,quantidade,valor_unitario,valor_total,data_pagamento,empenho_numero,ato_concessao', '&order=data_inicio.desc'],
+      ['Diárias: tabela de valores', 'diarias_valores', 'grupo,abrangencia,destino_descricao,valor,moeda,norma,norma_url,vigencia_inicio,vigencia_fim', '&order=ordem.asc'],
       ['Publicações oficiais (atos normativos)', 'publicacoes', 'tipo,numero,ano,data_publicacao,ementa,vigencia,observacao,arquivo_url,link_externo', '&order=data_publicacao.desc'],
       ['Contratos', 'contratos', 'tipo,numero,ano,processo,objeto,contratado_nome,valor_inicial,valor_atual,data_assinatura,vigencia_inicio,vigencia_fim_atual,rescindido_em,unidade_nome,link_externo', '&order=data_assinatura.desc'],
       ['Fiscais de contratos', 'contratos_fiscais', 'nome,funcao,ato,inicio,fim', '&order=nome'],
@@ -1180,7 +1193,7 @@
     // para o link; item sem rota (h undefined) usa a chave do destino (ou o sistema externo geral).
     const L = (t, cod, h, chave) => {
       if (chave) { const d = S.destino(chave); return { t, cod, h: d ? d.href : null }; }
-      if (h && h.startsWith('#/')) { const k = window.chaveDaRotaPNTP(h); const e = k && (c.destinos || {})[k]; if (e) return { t, cod, h: e }; }
+      if (h && h.startsWith('#/')) { const k = window.chaveDaRotaPNTP(h); const e = k && window.externoPNTP(c, k); if (e) return { t, cod, h: e }; }
       return { t, cod, h: h === undefined ? ext : h };
     };
     const plan = [];
@@ -1190,19 +1203,19 @@
       L('Relatório de gestão ou atividades', '11.2', '#/planejamento/relatorio_gestao'), L('Parecer do Tribunal de Contas', '11.3', '#/planejamento/parecer_tce'));
     if (exec) plan.push(L('Julgamento das contas pela Câmara', '11.4', '#/planejamento/julgamento_camara'));
     plan.push(L('Plano estratégico institucional', '11.7', '#/planejamento/plano_estrategico'));
-    const receita = [L('Receitas previstas e arrecadadas', '3.1', undefined, 'receitas')];
-    if (exec) receita.push(L('Receita por natureza (classificação)', '3.2', undefined, 'receitas'), L('Inscritos em dívida ativa', '3.3', undefined, 'receitas'));
+    const receita = [L('Receitas previstas e arrecadadas', '3.1', '#/receitas/arrecadacao'), L('Receita por natureza (classificação)', '3.2', '#/receitas/arrecadacao')];
+    if (exec) receita.push(L('Inscritos em dívida ativa', '3.3', '#/receitas/divida-ativa'));
     const g = [
       ['Informações institucionais', 'banco', [L('Estrutura organizacional', '2.1', '#/estrutura'), L('Competências e atribuições', '2.2', '#/estrutura'), L('Gestores responsáveis', '2.3', '#/gestores'),
         L('Endereços, telefones e horários', '2.4–2.5', '#/estrutura'), L('Atos normativos', '2.6', '#/publicacoes'), L('Perguntas frequentes', '2.7', '#/faq')]],
       ['Receitas', 'receita', receita],
-      ['Despesas', 'despesa', [L('Empenhos, liquidações e pagamentos', '4.1 / 4.3', undefined, 'despesas'), L('Despesas por classificação', '4.2', undefined, 'despesas'), L('Ordem cronológica de pagamentos', '9.4', undefined, 'ordem_cronologica')]],
+      ['Despesas', 'despesa', [L('Empenhos, liquidações e pagamentos', '4.1 / 4.3', '#/despesas/empenhos'), L('Despesas por classificação', '4.2', '#/despesas/classificacao'), L('Ordem cronológica de pagamentos', '9.4', '#/ordem-cronologica')]],
       ['Convênios e transferências', 'convenio', [L('Transferências recebidas', '5.1', '#/convenios/recebidas'), L('Transferências realizadas', '5.2', '#/convenios/realizadas'), L('Acordos sem repasse de recursos', '5.3', '#/convenios/acordos')]],
-      ['Pessoal', 'pessoas', [L('Servidores e lotação', '6.1', undefined, 'pessoal'), L('Remuneração nominal', '6.2', undefined, 'pessoal'), L('Tabela de cargos e salários', '6.3', undefined, 'pessoal'), L('Estagiários', '6.4', undefined, 'pessoal'), L('Terceirizados', '6.5', undefined, 'pessoal'), L('Concursos e seleções', '6.6–6.7', undefined, 'concursos')]],
-      ['Diárias', 'viagem', [L('Diárias concedidas', '7.1', undefined, 'diarias'), L('Tabela de valores das diárias', '7.2', undefined, 'diarias')]],
+      ['Pessoal', 'pessoas', [L('Servidores e lotação', '6.1', '#/pessoal/servidores'), L('Remuneração nominal', '6.2', '#/pessoal/remuneracao'), L('Tabela de cargos e salários', '6.3', '#/pessoal/cargos'), L('Estagiários', '6.4', '#/pessoal/estagiarios'), L('Terceirizados', '6.5', '#/pessoal/terceirizados'), L('Concursos e seleções', '6.6–6.7', undefined, 'concursos')]],
+      ['Diárias', 'viagem', [L('Diárias concedidas', '7.1', '#/diarias/concedidas'), L('Tabela de valores das diárias', '7.2', '#/diarias/tabela')]],
       ['Licitações', 'licit', [L('Relação das licitações', '8.1', '#/licitacoes/todos'), L('Editais e documentos das fases', '8.2–8.3', '#/licitacoes/licitacoes'), L('Dispensas e inexigibilidades', '8.4', '#/licitacoes/diretas'),
         L('Adesões a atas (SRP)', '8.5', '#/licitacoes/adesoes'), L('Plano de contratações anual', '8.6', '#/licitacoes/pca'), L('Licitantes e contratados sancionados', '8.7', '#/licitacoes/sancionados')]],
-      ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', '#/contratos'), L('Fiscais de contratos', '9.3', '#/contratos/fiscais'), L('Ordem cronológica de pagamentos', '9.4', undefined, 'ordem_cronologica')]],
+      ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', '#/contratos'), L('Fiscais de contratos', '9.3', '#/contratos/fiscais'), L('Ordem cronológica de pagamentos', '9.4', '#/ordem-cronologica')]],
       ['Obras', 'obra', [L('Obras e situação atual', '10.1', '#/obras'), L('Quantitativos e preços', '10.2–10.3', '#/obras'), L('Obras paralisadas', '10.4', '#/obras/paralisadas')]],
       ['Planejamento e prestação de contas', 'grafico', plan],
       ['Serviço de Informação ao Cidadão', 'chat', [L('e-SIC: fazer pedido', '12.1–12.4', '#/esic'), L('Regulamentação da LAI', '12.5', '#/publicacoes?q=acesso a informacao'),
@@ -1874,7 +1887,7 @@
     if (q.length < 2) { pagina(main, el('h1', null, 'Busca'), el('p', null, 'Digite pelo menos 2 letras no campo de pesquisa.')); return; }
     // Dentro de or() o curinga é * (o % confunde a sintaxe do filtro).
     const n = termo(q), cru = '*' + q.replace(/[%_*(),.]/g, ' ').trim() + '*';
-    const [nt, pb, sv, pg, fq, un, ct, lc, co, cv, em, ob, cs, rn, ds, es, md, cn] = await Promise.all([
+    const [nt, pb, sv, pg, fq, un, ct, lc, co, cv, em, ob, cs, rn, ds, es, md, cn, pv, dp] = await Promise.all([
       sb.from('noticias').select('id, titulo, publicado_em').eq('orgao_id', org()).ilike('busca', n).order('publicado_em', { ascending: false }).limit(8),
       sb.from('publicacoes').select('id, tipo, numero, ano, ementa, arquivo_url, link_externo').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8),
       sb.from('servicos').select('id, nome').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
@@ -1892,7 +1905,9 @@
       sb.from('documentos_setoriais').select('area, titulo, arquivo_url, link_externo').eq('orgao_id', org()).ilike('busca', n).order('exercicio', { ascending: false }).limit(8),
       sb.from('saude_estabelecimentos').select('nome').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
       sb.from('saude_medicamentos').select('nome, apresentacao').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
-      sb.from('conselhos').select('id, nome').eq('orgao_id', org()).or('nome.ilike.' + cru + ',sigla.ilike.' + cru).limit(8)
+      sb.from('conselhos').select('id, nome').eq('orgao_id', org()).or('nome.ilike.' + cru + ',sigla.ilike.' + cru).limit(8),
+      sb.from('pessoal_vinculos').select('nome, cargo, lotacao').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
+      sb.from('despesas').select('id, numero, credor_nome, objeto').eq('orgao_id', org()).ilike('busca', n).order('data_empenho', { ascending: false }).limit(8)
     ]);
     // Nomes das seções do site: quem digita "contratos" ou "licitação" chega à página, mesmo que
     // a palavra não apareça dentro dos registros. Compara sem acento e sem plural simples.
@@ -1919,6 +1934,8 @@
       ['Unidades de saúde', (es.data || []).map((x) => [x.nome, '#/saude/servicos']), '#/saude/servicos'],
       ['Medicamentos do SUS', (md.data || []).map((x) => [x.nome + (x.apresentacao ? ' ' + x.apresentacao : ''), '#/saude/medicamentos']), '#/saude/medicamentos'],
       ['Conselhos municipais', (cn.data || []).map((x) => [x.nome, '#/conselho/' + x.id]), '#/conselhos'],
+      ['Servidores', (pv.data || []).map((x) => [x.nome + ' · ' + x.cargo + (x.lotacao ? ' · ' + x.lotacao : ''), (S.destino('pessoal_servidores') || {}).href]).filter((x) => x[1]), (S.destino('pessoal_servidores') || {}).href],
+      ['Despesas (empenhos)', (dp.data || []).map((x) => ['Empenho ' + x.numero + ' · ' + x.credor_nome + ' · ' + (x.objeto.length > 70 ? x.objeto.slice(0, 70) + '…' : x.objeto), '#/despesa/' + x.id]), (S.destino('despesas') || {}).href],
       ['Unidades', (un.data || []).map((x) => [x.nome, '#/unidade/' + x.id]), null],
       ['Páginas', (pg.data || []).map((x) => [x.titulo, '#/pagina/' + x.slug]), null],
       ['Perguntas frequentes', (fq.data || []).map((x) => [x.pergunta, '#/faq']), null]
@@ -2048,7 +2065,8 @@
       const contagem = new Map(anosLst.map((x) => [x.ano, Number(x.total)]));
       const anos = ['todos'].concat([...contagem.keys()].sort((a, b) => b - a));
       const pedido = Number(prm.get('ano'));
-      let ano = anos.includes(pedido) ? pedido : 'todos';
+      // abrirRecente: abre no último exercício (os filtros de mês só existem com um ano escolhido).
+      let ano = anos.includes(pedido) ? pedido : cfg.abrirRecente && prm.get('ano') !== 'todos' && anos.length > 1 ? anos[1] : 'todos';
       const painelAno = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
       const totalGeral = [...contagem.values()].reduce((s, n) => s + n, 0);
       const faixa = faixaAbas(anos.map((a) => [a, a === 'todos' ? 'Todos (' + totalGeral + ')' : a + ' (' + contagem.get(a) + ')']), ano, cfg.rotuloAno, true,
@@ -2058,7 +2076,7 @@
       abrirAno();
 
       function abrirAno() {
-        history.replaceState(null, '', cfg.base + (ano === 'todos' ? '' : '?ano=' + ano));
+        history.replaceState(null, '', cfg.base + (ano === 'todos' ? (cfg.abrirRecente ? '?ano=todos' : '') : '?ano=' + ano));
         const f = {};
         const montar = (sel, op) => cfg.montar(sel, op, ano, f);
         const corpoTab = el('tbody');
@@ -2070,7 +2088,7 @@
         async function carregar(reiniciar) {
           const minha = reiniciar ? ++versao : versao;
           const [linhas, cont] = await Promise.all([
-            paginar(montar, 'atualizado_em', reiniciar ? null : itens[itens.length - 1], 50),
+            paginar(montar, cfg.ordem || 'atualizado_em', reiniciar ? null : itens[itens.length - 1], 50, !!cfg.crescente),
             reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
           if (minha !== versao) return;
           if (cont) totalTxt.textContent = (cont.count || 0) + ' ' + ((cont.count || 0) === 1 ? cfg.unidade[0] : cfg.unidade[1]);
@@ -2082,7 +2100,8 @@
           btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
           mais.replaceChildren(linhas.length === 50 ? btn : '');
         }
-        const campos = cfg.filtros();
+        const campos = cfg.filtros(ano);
+        for (const [k, , e] of campos) if (e.value) f[k] = e.value.trim();   // filtro que já vem marcado (ex.: último mês)
         let espera;
         const aplicar = () => { for (const [k, , e] of campos) f[k] = e.value.trim(); carregar(true); };
         for (const [, , e] of campos) {
@@ -2090,7 +2109,7 @@
           else e.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
         }
         const exportar = S.botoesExportar(cfg.nome + (ano === 'todos' ? '' : '-' + ano), cfg.colunas, async (de, ate) => {
-          const { data } = await montar().order('atualizado_em', { ascending: false }).order('id', { ascending: false }).range(de, ate);
+          const { data } = await montar().order(cfg.ordem || 'atualizado_em', { ascending: !!cfg.crescente }).order('id', { ascending: !!cfg.crescente }).range(de, ate);
           return data || [];
         });
         painelAno.replaceChildren(

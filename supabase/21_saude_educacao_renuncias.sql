@@ -939,6 +939,12 @@ begin
   return query
   select 'renuncias', 'info', 'nenhum projeto de incentivo à cultura ou ao esporte publicado (PNTP 16.4). Se não houve, declare "não há" na aba Incentivos.', 1::bigint
   where not ('renuncias_incentivos' = any (fora)) and not exists (select 1 from public.incentivos_projetos i where i.orgao_id = p_orgao and i.situacao = 'publicado');
+
+  -- Gancho do script 22 (receitas, despesas, ordem cronológica, pessoal e diárias):
+  -- chamado só se a função já existir, para este script continuar rodando sozinho.
+  if to_regprocedure('public.pendencias_financeiras(uuid)') is not null then
+    return query execute 'select * from public.pendencias_financeiras($1)' using p_orgao;
+  end if;
 end;
 $$;
 grant execute on function public.pendencias_atualizacao(uuid) to authenticated;

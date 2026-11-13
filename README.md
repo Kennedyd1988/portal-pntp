@@ -75,6 +75,20 @@ construída para atender a matriz do PNTP 2026 (Atricon).
   (***.456.789-**): o visitante não tem permissão de ler a coluna com o CPF inteiro.
 - Listas grandes (espera, estoque, creches, beneficiários) entram por importação (colar da planilha ou
   CSV), trocando a lista anterior; o histórico guarda uma linha por importação, não uma por registro.
+- Receitas, despesas, ordem cronológica, pessoal e diárias não têm rascunho: entram no ar ao salvar (dado
+  contábil e de folha). A importação de arquivos dos sistemas contábil e de pessoal será definida na próxima
+  etapa; até lá, digitação e correção pelo painel.
+- Empenho: os totais (empenhado, liquidado, pago) e a data do último movimento são mantidos pelo banco a partir
+  dos movimentos (reforço, anulação, liquidação, pagamento e estornos). O banco recusa liquidado acima do
+  empenhado e pago acima do liquidado. Todo empenho informa o procedimento de origem (ou "Não se aplica").
+- CPF/CNPJ de credor, inscrito em dívida ativa, terceirizado e beneficiário de diária: o visitante só lê a
+  versão mascarada (CNPJ inteiro, CPF ***.456.789-**) e um resumo para busca; a coluna com o número fica
+  fechada para o site. O número da nota/ordem de pagamento (movimentos do empenho) é público.
+- Ordem cronológica (art. 141 da Lei 14.133/2021): fila por exercício, categoria (bens, locações, serviços,
+  obras) e fonte, na ordem da data de exigibilidade. Pagamento fora da ordem exige a hipótese legal do § 1º e
+  a justificativa (mínimo de 20 letras), publicadas junto.
+- Páginas com filtro de mês (despesas, remuneração, diárias) abrem no último exercício; "Todos" fica na
+  primeira aba. Tabela de cargos e de diárias em vigor mostra "vigente para o exercício de <ano>" (6.3/7.2).
 
 ## Scripts do banco (rodar em ordem no SQL Editor)
 
@@ -102,6 +116,8 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/teste_convenios_emendas_ficticios.sql` | opcional: 6 instrumentos (recebidos, realizados e acordo) e 8 emendas fictícias de todas as origens |
 | `supabase/20_publicacoes_concursos_pendencias.sql` | tipos próprios de publicação (`publicacoes_tipos`, código `x_…`, aba de cada um); módulo `concursos` (permissões copiadas de "pessoal") com `concursos` e `concursos_documentos` (publicar exige o edital; edital de seleção publicada não pode ser excluído) e `concursos_anos`; função `pendencias_atualizacao` (avisos de dados desatualizados do painel) |
 | `supabase/21_saude_educacao_renuncias.sql` | módulos `saude`, `educacao` e `renuncias` (o antigo `setoriais` sai, permissões copiadas); `secoes_setoriais` (texto e "não há" por seção; o link externo fica em `configuracoes.destinos`); `documentos_setoriais` (18.1, 19.1); `saude_estabelecimentos` + `saude_profissionais` (18.2), `saude_lista_espera` (18.3), `saude_medicamentos` + `saude_estoques` (18.4/18.5); `conselhos` + `conselhos_membros` + `conselhos_documentos` (18.6, 19.3, 19.4); `creches_espera` (19.2); `renuncias` + `renuncias_valores` + `renuncias_beneficiarios` + `incentivos_projetos` (16.1 a 16.4); visões de posição nas filas; `anos_setoriais`; `importar_lista`; avisos novos em `pendencias_atualizacao` |
+| `supabase/22_receitas_despesas_pessoal_diarias.sql` | módulos `financeiro` ("Receitas, despesas e pagamentos"), `pessoal` ("Pessoal e folha de pagamento") e `diarias` (novo, permissões copiadas de pessoal); partes novas em `secoes_setoriais`; `receitas` + `receitas_naturezas` (3.1/3.2), `divida_ativa` (3.3), `despesas` + `despesas_movimentos` (4.1 a 4.3, totais pelo banco), `ordem_cronologica` + visão `ordem_cronologica_posicoes` (9.4), `pessoal_vinculos`, `pessoal_remuneracoes`, `pessoal_cargos`, `pessoal_estagiarios`, `pessoal_terceirizados` (6.1 a 6.5), `diarias` + `diarias_valores` (7.1/7.2); funções `receitas_niveis`, `receitas_mensal`, `despesas_resumo`, `despesas_opcoes`, `anos_financeiros`; avisos `pendencias_financeiras` |
+| `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
 | `supabase/teste_obras_ficticias.sql` | opcional: 4 obras fictícias (em andamento, paralisada, concluídas) com planilha, medições e paralisações |
 | `supabase/teste_pca_sancoes_ficticios.sql` | opcional: PCA de 2024 a 2026 (com revisões) e 6 sanções fictícias de todos os tipos, vigentes e encerradas |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
@@ -195,11 +211,13 @@ painel/
   modulo-saude.js       → "Saúde" (18.1 a 18.6)
   modulo-educacao.js    → "Educação, assistência social e conselhos" (19.1 a 19.4)
   modulo-renuncias.js   → "Renúncias de receita" (16.1 a 16.4)
+  modulo-financeiro.js  → "Receitas, despesas e pagamentos" (3.1 a 3.3, 4.1 a 4.3, 9.4)
+  modulo-pessoal.js     → "Pessoal e folha de pagamento" (6.1 a 6.5) e "Diárias" (7.1 e 7.2)
   modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
   manifest.json         → instalação como aplicativo (PWA)
-site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas, setoriais.js = saúde, educação, renúncias e conselhos, destinos.js = destinos das páginas, usado também pelo painel)
+site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas, setoriais.js = saúde, educação, renúncias e conselhos, financeiro.js = receitas, despesas, ordem cronológica, pessoal e diárias, destinos.js = destinos das páginas, usado também pelo painel)
 supabase/               → scripts SQL, rodar em ordem
 supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 supabase/functions/pncp/index.ts → ponte de consulta ao PNCP (importação de licitações)
@@ -255,7 +273,9 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   abertos (download e endereço de API por conjunto), contato, acessibilidade, mapa do site,
   busca geral e páginas de sistemas externos (transparência, licitações, ouvidoria, e-SIC); saúde
   (`#/saude/<aba>`), educação e assistência social (`#/educacao/<aba>`), renúncias de receita
-  (`#/renuncias/<aba>`) e conselhos (`#/conselhos`, `#/conselho/<id>`).
+  (`#/renuncias/<aba>`) e conselhos (`#/conselhos`, `#/conselho/<id>`); receitas (`#/receitas/<aba>`), despesas
+  (`#/despesas/<aba>`, detalhe `#/despesa/<id>`), ordem cronológica (`#/ordem-cronologica`), pessoal
+  (`#/pessoal/<aba>`) e diárias (`#/diarias/<aba>`).
 - Acessibilidade: atalhos Alt+1 a 4, alto contraste e tamanho do texto lembrados no navegador,
   VLibras, foco levado ao conteúdo a cada página, carrossel com pausa e sem rodar quando o
   sistema pede menos movimento, textos alternativos obrigatórios nas imagens.
@@ -288,11 +308,54 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
 - Medicamentos, estoque e creches são lidos inteiros no site (até 5.000/10.000 linhas) e filtrados no
   navegador; a lista de espera da regulação e os beneficiários são paginados no banco.
 - Beneficiários de renúncia: o site pesquisa por nome, CNPJ, setor e produto, não por CPF (proteção).
+- Receitas, despesas, pessoal e diárias: sem importação de arquivo até o layout ser definido (próxima etapa).
+  Credor e inscrito são procurados pelo CPF/CNPJ inteiro por resumo (SHA-256), sem o site ler o número.
 
 - Excluir um órgão ou o login de uma pessoa apaga os vínculos em cascata, mesmo que
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.16.0 — 13/11/2026 — Receitas, Despesas, Ordem cronológica, Pessoal e Diárias**
+- Módulo **Receitas, despesas e pagamentos**, em abas: Receitas (lançamento mensal por natureza e fonte, com
+  previsão inicial, atualizada e arrecadado; descrição de cada nível da classificação); Dívida ativa (inscrito,
+  CPF/CNPJ, ano da inscrição, origem e valor, posição em 31/12); Despesas (empenho com unidade, função,
+  subfunção, programa, ação, natureza, fonte, credor, objeto, procedimento de origem e processo; liquidações,
+  pagamentos, reforços, anulações e estornos com data, totais pelo banco); Ordem cronológica (crédito por
+  categoria e fonte, vencimento, pagamento e justificativa quando fora da ordem).
+- Módulo **Pessoal e folha de pagamento**: servidores e agentes políticos (vínculo, cargo, função, lotação,
+  admissão, desligamento, carga horária), remuneração mês a mês por folha (básica, vantagens, eventuais,
+  indenizações, bruto, descontos, líquido), cargos e salários com a lei, estagiários e terceirizados.
+- Módulo novo **Diárias**: concessões (beneficiário, cargo, destino, motivo, período, quantidade, valor, ato)
+  e tabela de valores por grupo e destino (estado, fora do estado, exterior) com a norma.
+- Site: `#/receitas` (níveis da classificação clicáveis, de categoria até o desdobramento, com totais e % da
+  previsão), `#/despesas` (empenhos com filtros, detalhe do empenho com movimentos, totais por classificação em
+  qualquer período), `#/ordem-cronologica` (posição na fila), `#/pessoal` e `#/diarias`, todos com CSV/JSON.
+  Destinos das páginas apontam para as páginas internas e ganharam uma linha por parte (receitas, pessoal,
+  diárias); capa da Transparência, menu padrão, busca geral, mapa do site e dados abertos atualizados.
+- Avisos de prazo: receita, despesa, folha e servidores com mais de 30 dias, dívida ativa do exercício
+  encerrado, ordem cronológica vazia, empenho de licitação sem número do processo.
+- Banco: script 21 atualizado (gancho dos avisos novos: rodar de novo) e, depois dele, o script 22 (pode
+  repetir). Testado no PostgreSQL local (banco novo + duas execuções seguidas,
+  admin e visitante) e no navegador com PostgREST local: todas as páginas do site e abas do painel abertas,
+  empenho incluído pelo painel com liquidação e pagamento (e o pagamento acima do liquidado recusado).
+- Correções feitas no teste: lista de níveis da receita que aparecia como endereço solto; o número da nota
+  nos movimentos do empenho estava fechado para o site; abas de estagiários iam até o ano do fim do estágio
+  (2027); CNPJs inválidos nos dados fictícios; asterisco em "Procedimento de origem".
+- Varredura PNTP (Cartilha 2026, filtros mínimos):
+  - 3.1 atende: previsão e arrecadação por exercício e por período (mês inicial e final). 3.2 atende: código e
+    descrição por extenso de categoria, origem, espécie e desdobramentos, por nível ou pesquisa. 3.3
+    (Prefeitura) atende: nome e valor, filtro por nome e por ano da inscrição.
+  - 4.1 atende: empenhado, liquidado e pago por exercício e mês. 4.2 atende: totais por categoria, grupo,
+    modalidade, elemento, função, subfunção, programa, ação, unidade e fonte, por exercício e período. 4.3
+    atende: empenho com credor, valor, objeto e procedimento de origem; filtro por número, nome, CPF/CNPJ do
+    credor, mês e exercício.
+  - 9.4 (recomendada) atende: fila por fonte e categoria, com as justificativas das alterações.
+  - 6.1 atende (filtro por nome); 6.2 atende (nome, mês e ano); 6.3 atende com a frase de tabela vigente; 6.4
+    atende (filtro por ano de contratação); 6.5 atende (por ano). 6.6/6.7 seguem no módulo de concursos.
+  - 7.1 atende (nome, mês e ano); 7.2 atende (dentro e fora do estado e exterior, com a frase de vigência).
+  - Série histórica (2023 a 2025) depende da carga dos dados: as abas de exercício já existem em todas as
+    listas. Pendente: definir o layout de importação de cada parte.
 
 **0.15.1 — 13/11/2026 — link externo só em Destinos das páginas**
 - Na 0.15.0 cada parte de Saúde, Educação e Renúncias tinha o próprio campo de link externo, fora do

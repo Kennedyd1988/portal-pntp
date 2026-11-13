@@ -141,7 +141,7 @@
       conteudo, d.externo ? el('span', { class: 'sr' }, ' (abre em nova aba)') : null);
   };
   // Item interno do menu cuja página o órgão mandou para link externo segue o link.
-  const externoDaRota = (rota) => { const k = window.chaveDaRotaPNTP(rota); return k && (S.conf.destinos || {})[k] ? S.conf.destinos[k] : null; };
+  const externoDaRota = (rota) => { const k = window.chaveDaRotaPNTP(rota); return k ? window.externoPNTP(S.conf, k) : null; };
   S.destinoMenu = (i) => i.tipo === 'link' ? i.destino : i.tipo === 'pagina' ? S.link('/pagina/' + i.destino) : externoDaRota(i.destino) || S.link(i.destino);
 
   function montarMenu() {
