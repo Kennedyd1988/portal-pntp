@@ -79,6 +79,9 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/09_banner_noticia_visualizacoes.sql` | banner ligado a notícia (`banners.noticia_id`, mesma prefeitura, notícia usada em banner não pode ser excluída) e contador de visualizações (`noticias_visualizacoes` + `registrar_visualizacao`, que só soma em notícia publicada) |
 | `supabase/10_lote6_planejamento_contas.sql` | Fase 2 · Lote 6: módulo `contas` (permissões copiadas de "financeiro"), tabela `documentos_contas` (PPA, LDO, LOA, RREO, RGF, Balanço, Relatório de Gestão, parecer do TCE, julgamento da Câmara, Plano Estratégico), limite do bucket em 50 MB e `rgf_periodicidade` em configurações |
 | `supabase/11_avisos_titulo.sql` | avisos com `titulo` (até 60) e `link_rotulo` (texto do botão de ação, até 30), ambos opcionais |
+| `supabase/12_lote7_licitacoes.sql` | Fase 2 · Lote 7: `licitacoes` (origem portal/link/pncp, todas as modalidades, andamento, valores), `licitacoes_documentos` (documentos de cada fase, arquivo ou link) e função `licitacoes_anos` |
+| `supabase/13_pncp_automatico.sql` | importação automática do PNCP: função `definir_pncp_automatico` (liga/desliga pelo painel), chave no cofre (`vault`) e agendamento diário `pg_cron` 03:15 chamando a função `pncp-sincronizar` |
+| `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
 
 ## Função de convite (Supabase Edge Function)
@@ -103,6 +106,44 @@ Entrega do convite:
   projeto (no máximo 2 por hora). O mesmo vale para "Esqueci minha senha".
 - Validade do link: Authentication › Providers › Email › "Email OTP Expiration"
   (padrão 1 hora; recomendado 86400 = 24 horas).
+
+## Função pncp (Supabase Edge Function)
+
+`supabase/functions/pncp/index.ts` repassa ao PNCP as consultas do botão "Importar do PNCP"
+(o site do PNCP não aceita chamadas diretas do navegador de outro domínio — CORS). Só atende
+quem está logado e é membro do órgão, e só repassa endereços de consulta pública do PNCP
+(lista fixa na função). Não usa chave secreta: quem grava é o painel, com o login de quem
+importou, então as regras de permissão do banco valem normalmente. Edge Functions entram
+na cota gratuita da Supabase (500 mil chamadas/mês); uma importação de um ano faz dezenas.
+
+Instalação (uma vez, igual à função de convite):
+1. Edge Functions › Deploy a new function › **Via Editor**.
+2. Nome: `pncp` (exatamente assim). Colar o conteúdo de `index.ts`. Deploy.
+3. Nos detalhes da função, **desligar "Verify JWT"** (a própria função confere o login).
+
+### Importação automática (todo dia de madrugada)
+
+`supabase/functions/pncp-sincronizar/index.ts` faz a mesma importação sem ninguém clicar. O
+agendamento fica no próprio banco (pg_cron + pg_net, gratuitos): todo dia às 03:15 (Brasília)
+o banco chama a função, que busca, para cada órgão com a opção ligada no painel, o que foi
+publicado ou alterado no PNCP desde a última vez (com 3 dias de folga; 120 dias na primeira).
+Com erro, a data não avança e a próxima noite cobre o mesmo período. O resultado aparece no
+módulo Licitações.
+
+Esta função grava sem login (usa a chave secreta da Supabase, que fica só no servidor). Por isso
+ela exige uma chave própria no cabeçalho e não aceita parâmetros: o que importar vem só do banco.
+
+Instalação (uma vez):
+1. Edge Functions › Deploy a new function › Via Editor › nome `pncp-sincronizar`, colar
+   `index.ts`, Deploy, **desligar "Verify JWT"**.
+2. SQL Editor: rodar `supabase/13_pncp_automatico.sql`. O resultado mostra uma chave.
+3. Edge Functions › **Secrets** › Add new secret: nome `PNCP_SINC_CHAVE`, valor = a chave do
+   passo 2. Salvar.
+4. No painel, Licitações › Importar do PNCP › "Importação automática": marcar e salvar.
+5. Para testar sem esperar a madrugada: o fim do script 13 tem o comando (comentado).
+
+O mapeamento PNCP → licitações existe em dois lugares (painel `modulo-licitacoes.js` e esta
+função). Mudou um, mude o outro.
 
 ## Estrutura de arquivos
 
@@ -130,6 +171,8 @@ painel/
 site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas)
 supabase/               → scripts SQL, rodar em ordem
 supabase/functions/convidar-usuario/index.ts → função de servidor do convite
+supabase/functions/pncp/index.ts → ponte de consulta ao PNCP (importação de licitações)
+supabase/functions/pncp-sincronizar/index.ts → importação automática diária do PNCP
 ```
 
 ## Controle de versões
@@ -202,10 +245,57 @@ supabase/functions/convidar-usuario/index.ts → função de servidor do convite
   Resend (exige domínio próprio).
 - A lista de pessoas do órgão carrega de uma vez (são dezenas); o histórico é paginado.
 
+- Importação do PNCP: consulta as 13 modalidades em janelas de até 1 ano; um período longo
+  pode levar alguns minutos (o PNCP é lento). A primeira vez de cada CNPJ conferir no PNCP se
+  os processos batem. Se o PNCP mudar a resposta, os campos que mudarem de nome ficam em branco
+  até a função/painel serem ajustados.
+- Contratos, atas de registro de preços, PCA (8.6) e obras ainda apontam para o sistema externo
+  (próximos lotes).
+
 - Excluir um órgão ou o login de uma pessoa apaga os vínculos em cascata, mesmo que
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.8.1 — 12/11/2026 — importação automática do PNCP**
+- As licitações podem vir do PNCP sozinhas: todo dia às 03:15 o banco chama a função
+  `pncp-sincronizar`, que traz o que foi publicado ou alterado (homologação, revogação…) desde
+  a última vez e atualiza a lista de arquivos. Liga-se em Licitações › Importar do PNCP ›
+  "Importação automática", com a opção de publicar direto ou deixar como rascunho.
+- Quem tem permissão de editar licitações liga/desliga (função `definir_pncp_automatico`, que
+  mexe só nas chaves do PNCP dentro das configurações); publicar direto exige permissão de
+  publicar.
+- O módulo mostra no topo quando foi a última execução e o resultado (ou o erro).
+- O botão "Importar" continua para trazer períodos antigos (série histórica).
+- Instalação: seção "Importação automática" no README (script 13 + função + segredo).
+
+**0.8.0 — 12/11/2026 — Fase 2 · Lote 7: licitações (PNTP 8.1 a 8.5)**
+- Novo módulo "Licitações e contratos" no painel (a parte de contratos vem no Lote 8). Cada
+  processo tem uma fonte, à escolha:
+  - **Portal**: cadastrado aqui, com os documentos enviados aqui;
+  - **Link**: só os dados básicos e o link do processo no sistema de outra empresa;
+  - **PNCP**: importado pelo botão "Importar do PNCP".
+- Importação do PNCP: escolhe-se o período e os CNPJs (o da Prefeitura vem preenchido; dá para
+  incluir os fundos com CNPJ próprio). Busca as 13 modalidades, grava em lotes de 50, não cria
+  repetidos (índice único por número de controle do PNCP) e, na reimportação, atualiza só os
+  campos que vêm do PNCP. Vencedores, critério e documentos acrescentados aqui são mantidos.
+  Os arquivos do PNCP entram como links (não ocupam o armazenamento). Processos novos entram
+  publicados ou como rascunho para revisão, à escolha.
+- Telas no padrão de abas: grupo (Licitações / Dispensas e inexigibilidades / Adesões a atas)
+  e, dentro, o ano, com a quantidade de processos em cada aba. Filtros por texto, modalidade,
+  andamento, origem e situação; lista paginada de 50 em 50.
+- Documentos: vários PDFs de uma vez (até 50 MB cada), com o tipo sugerido pelo nome do arquivo
+  (edital, ata, homologação, ratificação…), ou link. Num processo já publicado, só quem tem
+  permissão de publicar mexe nos documentos (regra no banco, igual ao próprio processo).
+- "Andamento" (aberta, homologada, revogada…) é separado de "situação" (rascunho/publicado no
+  portal). Modalidades da Lei 14.133 (as mesmas do PNCP), chamada pública, adesão a ata e as
+  antigas tomada de preços e convite (Lei 8.666), para a série histórica.
+- Site: `#/licitacoes/<grupo>?ano=` com as duas faixas de abas, filtros, CSV/JSON e cartões; e
+  a página de cada processo (`#/licitacao/<id>`) com todos os dados, documentos por data e o
+  link para o PNCP ou o sistema de origem. Links para o PNCP e para o cadastro de empresas
+  punidas (CEIS/CNEP, PNTP 8.7).
+- A capa da Transparência, a busca geral e os dados abertos passaram a usar as licitações daqui.
+- Função de servidor nova `pncp` (ver seção "Função pncp").
 
 **0.7.5 — 12/11/2026 — selos só com o símbolo**
 - A faixa de selos da página inicial mostra só o símbolo de cada selo, redondo e alinhado à

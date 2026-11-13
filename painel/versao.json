@@ -1,7 +1,7 @@
 {
-  "versao": "0.7.5",
+  "versao": "0.8.1",
   "data": "2026-11-12",
   "notas": [
-    "Site: selos só com o símbolo, alinhados à direita; nome ao passar o mouse e link ao clicar."
+    "Licitações: importação automática do PNCP todo dia de madrugada, sem precisar clicar."
   ]
 }
