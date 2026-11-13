@@ -38,7 +38,10 @@
   };
   const COR_ANDAMENTO = { aberta: 'publicado', em_andamento: 'agendado', prevista: 'agendado', suspensa: 'rascunho', homologada: 'publicado', encerrada: 'publicado',
     deserta: 'desativado', fracassada: 'desativado', revogada: 'desativado', anulada: 'desativado' };
+  // Tipos de documento: cobrem a lista do PNTP 8.3 (fase interna e externa) e 8.4 (contratação direta).
   const TIPOS_DOC = {
+    estudo_tecnico: 'Estudo técnico preliminar (ETP)', justificativa: 'Justificativa (da contratação, do contratado e do preço)',
+    orcamento: 'Orçamento / pesquisa de preços / mapa', parecer: 'Parecer técnico ou jurídico', emergencia: 'Caracterização da emergência ou calamidade',
     aviso: 'Aviso de licitação', edital: 'Edital', anexo: 'Anexo', termo_referencia: 'Termo de referência / projeto básico',
     esclarecimento: 'Esclarecimento', impugnacao: 'Impugnação e resposta', retificacao: 'Retificação / errata', ata: 'Ata da sessão',
     resultado: 'Resultado / julgamento', recurso: 'Recurso e decisão', adjudicacao: 'Adjudicação', homologacao: 'Homologação',
@@ -236,7 +239,9 @@
       const linhas = el('div', { class: 'lista-arquivos' });
       let partes = [];
       const selTipo = (padrao) => el('select', { 'aria-label': 'Tipo do documento' }, Object.entries(TIPOS_DOC).map(([k, v]) => el('option', { value: k, selected: k === padrao }, v)));
-      const palpite = (nome) => /edital/i.test(nome) ? 'edital' : /aviso/i.test(nome) ? 'aviso' : /termo.?de.?refer|^tr\b/i.test(nome) ? 'termo_referencia'
+      const palpite = (nome) => /\betp\b|estudo.?t[eé]cnico/i.test(nome) ? 'estudo_tecnico' : /parecer/i.test(nome) ? 'parecer'
+        : /justificativa/i.test(nome) ? 'justificativa' : /or[cç]amento|pesquisa.?de.?pre[cç]o|cota[cç][aã]o|mapa/i.test(nome) ? 'orcamento'
+        : /emerg[eê]ncia|calamidade/i.test(nome) ? 'emergencia' : /edital/i.test(nome) ? 'edital' : /aviso/i.test(nome) ? 'aviso' : /termo.?de.?refer|^tr\b/i.test(nome) ? 'termo_referencia'
         : /\bata\b/i.test(nome) ? 'ata' : /homolog/i.test(nome) ? 'homologacao' : /adjudic/i.test(nome) ? 'adjudicacao' : /ratific/i.test(nome) ? 'ratificacao'
         : /result/i.test(nome) ? 'resultado' : /anexo/i.test(nome) ? 'anexo' : /esclarec/i.test(nome) ? 'esclarecimento' : /impugna/i.test(nome) ? 'impugnacao'
         : /contrato/i.test(nome) ? 'contrato' : 'outro';
@@ -328,7 +333,7 @@
       pncp_atualizado: c.dataAtualizacao ? new Date(c.dataAtualizacao).toISOString() : null
     };
   }
-  const tipoDocPncp = (n) => { n = n || ''; return /aviso/i.test(n) ? 'aviso' : /edital/i.test(n) ? 'edital' : /termo de refer|projeto b/i.test(n) ? 'termo_referencia'
+  const tipoDocPncp = (n) => { n = n || ''; return /estudo t[eé]cnico/i.test(n) ? 'estudo_tecnico' : /parecer/i.test(n) ? 'parecer' : /aviso/i.test(n) ? 'aviso' : /edital/i.test(n) ? 'edital' : /termo de refer|projeto b/i.test(n) ? 'termo_referencia'
     : /ata/i.test(n) ? 'ata' : /contrato/i.test(n) ? 'contrato' : /anexo/i.test(n) ? 'anexo' : /homolog/i.test(n) ? 'homologacao' : /ratific/i.test(n) ? 'ratificacao' : 'outro'; };
 
   function importar() {

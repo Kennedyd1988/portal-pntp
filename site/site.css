@@ -472,3 +472,28 @@ a.cartao-lic:hover { border-color: var(--cor); }
 .ficha-lic dd { margin: 2px 0 0; font-weight: 600; white-space: pre-line; }
 @media (max-width: 600px) { .painel-guia-interno { padding: 12px 10px; } .painel-guia .painel-guia-interno { margin: 0 -4px; } }
 ul.partes-contas.cartao { padding: 4px 18px; }
+
+/* ---------- Tabela de dados (PNTP 8.1: "tabela estruturada em HTML", v0.8.2) ----------
+   No celular cada linha vira um bloco com o rótulo de cada coluna (data-rotulo),
+   sem rolagem lateral e sem perder a estrutura de tabela para leitores de tela. */
+.tabela-rolagem { overflow-x: auto; background: #fff; border: 1px solid var(--linha); border-radius: 12px; }
+.tabela-dados { width: 100%; border-collapse: collapse; font-size: .93rem; }
+.tabela-dados th { text-align: left; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: var(--texto-suave); background: #f6f8fb; padding: 10px 12px; border-bottom: 1px solid var(--linha); white-space: nowrap; }
+.tabela-dados td { padding: 12px; border-bottom: 1px solid #edf0f4; vertical-align: top; }
+.tabela-dados tbody tr:last-child td { border-bottom: 0; }
+.tabela-dados tbody tr:hover { background: #fafbfd; }
+.tabela-dados td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tabela-dados td .meta { display: block; font-size: .78rem; }
+.tabela-lic .lic-num { font-weight: 800; }
+.tabela-lic .lic-obj { min-width: 260px; line-height: 1.45; }
+.botao.botao-p { padding: 6px 12px; font-size: .85rem; white-space: nowrap; }
+@media (max-width: 760px) {
+  .tabela-rolagem { border: 0; background: transparent; }
+  .tabela-dados thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .tabela-dados, .tabela-dados tbody, .tabela-dados tr, .tabela-dados td { display: block; width: 100%; }
+  .tabela-dados tr { background: #fff; border: 1px solid var(--linha); border-radius: 12px; margin-bottom: 10px; padding: 6px 0; }
+  .tabela-dados td { border: 0; padding: 6px 14px; }
+  .tabela-dados td[data-rotulo]:not([data-rotulo=""])::before { content: attr(data-rotulo); display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: var(--texto-suave); }
+  .tabela-lic .lic-obj { min-width: 0; }
+}
+html.contraste .tabela-rolagem, html.contraste .tabela-dados th, html.contraste .tabela-dados tr { background: #000 !important; color: #fff !important; border-color: #fff !important; }

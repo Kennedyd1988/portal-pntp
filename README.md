@@ -81,6 +81,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/11_avisos_titulo.sql` | avisos com `titulo` (até 60) e `link_rotulo` (texto do botão de ação, até 30), ambos opcionais |
 | `supabase/12_lote7_licitacoes.sql` | Fase 2 · Lote 7: `licitacoes` (origem portal/link/pncp, todas as modalidades, andamento, valores), `licitacoes_documentos` (documentos de cada fase, arquivo ou link) e função `licitacoes_anos` |
 | `supabase/13_pncp_automatico.sql` | importação automática do PNCP: função `definir_pncp_automatico` (liga/desliga pelo painel), chave no cofre (`vault`) e agendamento diário `pg_cron` 03:15 chamando a função `pncp-sincronizar` |
+| `supabase/14_licitacoes_tipos_documento.sql` | novos tipos de documento das licitações (ETP, justificativa, orçamento, parecer, emergência), conforme Cartilha PNTP 2026 8.3/8.4 |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
 
@@ -256,6 +257,25 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.8.2 — 13/11/2026 — licitações conforme a Cartilha PNTP 2026**
+- Varredura do módulo contra a Cartilha e a Matriz 2026 (8.1 a 8.7). Ajustes:
+  - 8.1 exige "tabela estruturada em HTML" (a palavra "preferencialmente" saiu em 2026): a
+    lista do site virou tabela com Nº/modalidade, objeto, data da sessão (ou de publicação,
+    quando não há sessão), valor estimado/homologado e situação. No celular cada linha vira um
+    bloco com o rótulo de cada coluna.
+  - 8.1 pede que dispensas e inexigibilidades constem da mesma relação: nova primeira aba
+    "Todos os processos". As abas por tipo continuam (8.2/8.3, 8.4 e 8.5).
+  - 8.1 exige filtros mínimos por ano, mês, situação e modalidade: entrou o filtro de mês
+    (pela data de publicação).
+  - 8.1 pede declarar expressamente quando não houve licitação: o ano corrente aparece sempre;
+    sem processos, a página diz "Não foram realizadas licitações em AAAA até esta data".
+  - 8.3/8.4 listam os documentos esperados: novos tipos ETP, justificativa, orçamento/pesquisa
+    de preços, parecer e caracterização de emergência (script 14), sugeridos pelo nome do PDF e
+    reconhecidos na importação do PNCP.
+- Pendências do PNTP nesta dimensão (próximo lote): 8.6 Plano de Contratações Anual
+  (recomendada; declarar que não existe não vale) e 8.7 relação dos sancionados pelo próprio
+  órgão (recomendada; o link do CEIS não substitui).
 
 **0.8.1 — 12/11/2026 — importação automática do PNCP**
 - As licitações podem vir do PNCP sozinhas: todo dia às 03:15 o banco chama a função

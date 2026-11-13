@@ -1099,7 +1099,7 @@
       ['Convênios e transferências', 'convenio', [L('Transferências recebidas', '5.1'), L('Transferências realizadas', '5.2'), L('Acordos sem repasse de recursos', '5.3')]],
       ['Pessoal', 'pessoas', [L('Servidores e lotação', '6.1'), L('Remuneração nominal', '6.2'), L('Tabela de cargos e salários', '6.3'), L('Estagiários', '6.4'), L('Terceirizados', '6.5'), L('Concursos e seleções', '6.6–6.7')]],
       ['Diárias', 'viagem', [L('Diárias concedidas', '7.1'), L('Tabela de valores das diárias', '7.2')]],
-      ['Licitações', 'licit', [L('Licitações e editais', '8.1–8.3', '#/licitacoes/licitacoes'), L('Dispensas e inexigibilidades', '8.4', '#/licitacoes/diretas'),
+      ['Licitações', 'licit', [L('Relação das licitações', '8.1', '#/licitacoes/todos'), L('Editais e documentos das fases', '8.2–8.3', '#/licitacoes/licitacoes'), L('Dispensas e inexigibilidades', '8.4', '#/licitacoes/diretas'),
         L('Adesões a atas (SRP)', '8.5', '#/licitacoes/adesoes'), L('Plano de contratações anual', '8.6', lic), L('Licitantes sancionados', '8.7', 'https://portaldatransparencia.gov.br/sancoes/ceis')]],
       ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', lic), L('Fiscais de contratos', '9.3', lic)]],
       ['Obras', 'obra', [L('Obras e situação atual', '10.1'), L('Quantitativos e preços', '10.2–10.3'), L('Obras paralisadas', '10.4')]],
@@ -1181,15 +1181,19 @@
     manifestacao_interesse: 'Manifestação de interesse', chamada_publica: 'Chamada pública', tomada_precos: 'Tomada de preços', convite: 'Convite',
     dispensa: 'Dispensa de licitação', inexigibilidade: 'Inexigibilidade', adesao_ata: 'Adesão a ata de registro de preços', outra: 'Outra'
   };
+  // "Todos os processos" é a relação do PNTP 8.1, que inclui dispensas e inexigibilidades;
+  // as outras abas separam por tipo (8.2/8.3, 8.4 e 8.5). O 4º item é a frase para ano sem processo.
   const GRUPOS_LIC = [
-    ['licitacoes', 'Licitações', Object.keys(MOD_LIC).filter((m) => !['dispensa', 'inexigibilidade', 'adesao_ata'].includes(m))],
-    ['diretas', 'Dispensas e inexigibilidades', ['dispensa', 'inexigibilidade']],
-    ['adesoes', 'Adesões a atas', ['adesao_ata']]
+    ['todos', 'Todos os processos', Object.keys(MOD_LIC), 'Não foram realizadas licitações nem contratações diretas em {ano}'],
+    ['licitacoes', 'Licitações', Object.keys(MOD_LIC).filter((m) => !['dispensa', 'inexigibilidade', 'adesao_ata'].includes(m)), 'Não foram realizadas licitações em {ano}'],
+    ['diretas', 'Dispensas e inexigibilidades', ['dispensa', 'inexigibilidade'], 'Não houve dispensas nem inexigibilidades em {ano}'],
+    ['adesoes', 'Adesões a atas', ['adesao_ata'], 'Não houve adesões a atas de registro de preços em {ano}']
   ];
   const AND_LIC = { prevista: ['Prevista', 'etiqueta-ambar'], aberta: ['Aberta', 'etiqueta-verde'], em_andamento: ['Em andamento', 'etiqueta-ambar'],
     suspensa: ['Suspensa', 'etiqueta-ambar'], homologada: ['Homologada', 'etiqueta-verde'], encerrada: ['Encerrada', 'etiqueta-verde'],
     deserta: ['Deserta', 'etiqueta-vermelha'], fracassada: ['Fracassada', 'etiqueta-vermelha'], revogada: ['Revogada', 'etiqueta-vermelha'], anulada: ['Anulada', 'etiqueta-vermelha'] };
-  const DOC_LIC = { aviso: 'Aviso de licitação', edital: 'Edital', anexo: 'Anexo', termo_referencia: 'Termo de referência', esclarecimento: 'Esclarecimento',
+  const DOC_LIC = { estudo_tecnico: 'Estudo técnico preliminar', justificativa: 'Justificativa', orcamento: 'Orçamento / pesquisa de preços', parecer: 'Parecer',
+    emergencia: 'Caracterização da emergência', aviso: 'Aviso de licitação', edital: 'Edital', anexo: 'Anexo', termo_referencia: 'Termo de referência', esclarecimento: 'Esclarecimento',
     impugnacao: 'Impugnação', retificacao: 'Retificação', ata: 'Ata da sessão', resultado: 'Resultado', recurso: 'Recurso', adjudicacao: 'Adjudicação',
     homologacao: 'Homologação', ratificacao: 'Ratificação', contrato: 'Contrato / ata de RP', outro: 'Documento' };
   const moedaBR = (v) => v === null || v === undefined ? '' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -1223,12 +1227,12 @@
   R.licitacoes = async function (main, partes, params) {
     S.titulo('Licitações'); S.trilha(['Transparência', '#/transparencia'], ['Licitações']);
     const c = S.conf;
-    let grupo = GRUPOS_LIC.some((g) => g[0] === partes[0]) ? partes[0] : 'licitacoes';
+    let grupo = GRUPOS_LIC.some((g) => g[0] === partes[0]) ? partes[0] : 'todos';
     const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' });
     const { lista } = faixaAbas(GRUPOS_LIC.map((g) => [g[0], g[1]]), grupo, 'Tipo de processo', false, (id) => { grupo = id; abrirGrupo(new URLSearchParams()); });
     const ext = c.licitacoes_url;
     pagina(main, el('h1', null, 'Licitações'),
-      el('p', { class: 'sub' }, 'Licitações de todas as modalidades, dispensas, inexigibilidades e adesões a atas de registro de preços, com edital e documentos de cada fase.'),
+      el('p', { class: 'sub' }, 'Relação das licitações, dispensas, inexigibilidades e adesões a atas de registro de preços, com edital e documentos de cada fase.'),
       ext ? el('p', { class: 'meta' }, 'Também disponível no sistema de licitações: ', el('a', { href: ext, target: '_blank', rel: 'noopener' }, 'acessar', el('span', { class: 'sr' }, ' (abre em nova aba)')), '.') : null,
       lista, conteudo,
       el('p', { class: 'meta', style: 'margin-top:18px' }, 'Consulte também: ',
@@ -1237,35 +1241,48 @@
     await abrirGrupo(params);
 
     async function abrirGrupo(prm) {
-      const mods = GRUPOS_LIC.find((g) => g[0] === grupo)[2];
+      const g = GRUPOS_LIC.find((x) => x[0] === grupo);
+      const mods = g[2];
       conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
       const { data: anosLic, error } = await sb.rpc('licitacoes_anos', { p_orgao: org(), p_modalidades: mods });
       if (error) { conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
-      const anos = (anosLic || []).map((x) => x.ano);
-      if (!anos.length) {
-        history.replaceState(null, '', '#/licitacoes/' + grupo);
-        conteudo.replaceChildren(el('p', { class: 'vazio' }, 'Nenhum processo publicado neste grupo.' + (ext ? ' Consulte o sistema de licitações pelo link acima.' : '')));
-        return;
-      }
+      // O ano corrente sempre aparece: sem processos, a página diz isso expressamente (exigência do PNTP 8.1).
+      const anoAtual = new Date().getFullYear();
+      const contagem = new Map((anosLic || []).map((x) => [x.ano, x.total]));
+      if (!contagem.has(anoAtual)) contagem.set(anoAtual, 0);
+      const anos = [...contagem.keys()].sort((a, b) => b - a);
       const pedido = parseInt(prm.get('ano'), 10);
       let ano = anos.includes(pedido) ? pedido : anos[0];
       const painelAno = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
-      const faixa = faixaAbas((anosLic || []).map((x) => [x.ano, x.ano + ' (' + x.total + ')']), ano, 'Ano', true, (id) => { ano = Number(id); abrirAno(); });
+      const faixa = faixaAbas(anos.map((a) => [a, a + ' (' + contagem.get(a) + ')']), ano, 'Ano', true, (id) => { ano = Number(id); abrirAno(); });
       conteudo.replaceChildren(faixa.lista, painelAno);
       faixa.marcar(ano);
       abrirAno();
 
       function abrirAno() {
         history.replaceState(null, '', '#/licitacoes/' + grupo + '?ano=' + ano);
-        const f = { busca: '', modalidade: '', andamento: '' };
+        if (!contagem.get(ano)) {
+          painelAno.replaceChildren(el('p', { class: 'vazio' }, g[3].replace('{ano}', ano) + (ano === anoAtual ? ' até esta data.' : '.')));
+          return;
+        }
+        const f = { busca: '', mes: '', modalidade: '', andamento: '' };
         const montar = (sel, op) => {
           let q = sb.from('licitacoes').select(sel || CAMPOS_LIC, op).eq('orgao_id', org()).in('modalidade', mods).eq('ano', ano);
           if (f.busca) q = q.ilike('busca', termo(f.busca));
+          // Mês pela data de publicação (dentro do ano escolhido).
+          if (f.mes) { const m = Number(f.mes); q = q.gte('data_publicacao', ano + '-' + String(m).padStart(2, '0') + '-01').lt('data_publicacao', (m === 12 ? (ano + 1) + '-01' : ano + '-' + String(m + 1).padStart(2, '0')) + '-01'); }
           if (f.modalidade) q = q.eq('modalidade', f.modalidade);
           if (f.andamento) q = q.eq('andamento', f.andamento);
           return q;
         };
-        const listaEl = el('div', { class: 'lista-lic' });
+        // Tabela HTML estruturada (PNTP 8.1): nº e modalidade, objeto, data da sessão, valor e situação.
+        const corpoTab = el('tbody');
+        const tabela = el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados tabela-lic' },
+          el('caption', { class: 'sr' }, g[1] + ' de ' + ano),
+          el('thead', null, el('tr', null, ['Nº / Modalidade', 'Objeto', 'Data da sessão', 'Valor estimado / homologado', 'Situação'].map((t) => el('th', { scope: 'col' }, t)),
+            el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Detalhes')))),
+          corpoTab));
+        const vazio = el('div');
         const mais = el('div', { class: 'mais' });
         const totalTxt = el('span', { class: 'meta', role: 'status' });
         let itens = [], versao = 0;
@@ -1277,18 +1294,21 @@
           if (minha !== versao) return;
           if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' processo' : ' processos');
           itens = reiniciar ? linhas : itens.concat(linhas);
-          if (!itens.length) listaEl.replaceChildren(el('p', { class: 'vazio' }, 'Nenhum processo com esses filtros.'));
-          else if (reiniciar) listaEl.replaceChildren(...linhas.map(cartaoLic)); else listaEl.append(...linhas.map(cartaoLic));
+          tabela.hidden = !itens.length;
+          vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhum processo com esses filtros.'));
+          if (reiniciar) corpoTab.replaceChildren(...linhas.map(linhaLic)); else corpoTab.append(...linhas.map(linhaLic));
           const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
           btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
           mais.replaceChildren(linhas.length === 50 ? btn : '');
         }
+        const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
         const fBusca = el('input', { type: 'search', placeholder: 'Ex.: merenda, combustível, 012/2026' });
+        const fMes = el('select', null, el('option', { value: '' }, 'Todos'), MESES.map((m, k) => el('option', { value: k + 1 }, m)));
         const fMod = el('select', null, el('option', { value: '' }, 'Todas'), mods.map((m) => el('option', { value: m }, MOD_LIC[m])));
-        const fAnd = el('select', null, el('option', { value: '' }, 'Todos'), Object.entries(AND_LIC).map(([k, v]) => el('option', { value: k }, v[0])));
+        const fAnd = el('select', null, el('option', { value: '' }, 'Todas'), Object.entries(AND_LIC).map(([k, v]) => el('option', { value: k }, v[0])));
         let espera;
-        const aplicar = () => { Object.assign(f, { busca: fBusca.value.trim(), modalidade: fMod.value, andamento: fAnd.value }); listaEl.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…')); carregar(true); };
-        [fMod, fAnd].forEach((x) => x.addEventListener('change', aplicar));
+        const aplicar = () => { Object.assign(f, { busca: fBusca.value.trim(), mes: fMes.value, modalidade: fMod.value, andamento: fAnd.value }); carregar(true); };
+        [fMes, fMod, fAnd].forEach((x) => x.addEventListener('change', aplicar));
         fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
         const exportar = S.botoesExportar('licitacoes-' + grupo + '-' + ano, COLUNAS_LIC, async (de, ate) => {
           const { data } = await montar().order('data_publicacao', { ascending: false }).order('id').range(de, ate);
@@ -1296,25 +1316,29 @@
         });
         painelAno.replaceChildren(
           el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
-            el('label', null, 'Pesquisar', fBusca), mods.length > 1 ? el('label', null, 'Modalidade', fMod) : null, el('label', null, 'Andamento', fAnd)),
-          el('div', { class: 'barra-lista' }, totalTxt, exportar), listaEl, mais);
-        listaEl.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
-        carregar(true).catch(() => listaEl.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
+            el('label', null, 'Pesquisar (objeto ou número)', fBusca), el('label', null, 'Mês', fMes),
+            mods.length > 1 ? el('label', null, 'Modalidade', fMod) : null, el('label', null, 'Situação', fAnd)),
+          el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
+        tabela.hidden = true;
+        carregar(true).catch(() => vazio.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
       }
     }
   };
 
-  function cartaoLic(l) {
+  function linhaLic(l) {
     const and = AND_LIC[l.andamento] || [l.andamento, 'etiqueta-ambar'];
-    const valor = l.valor_homologado ?? l.valor_estimado;
-    return el('a', { class: 'cartao cartao-lic', href: '#/licitacao/' + l.id },
-      el('div', { class: 'lic-topo' }, el('strong', null, nomeLic(l)), el('span', { class: 'etiqueta ' + and[1] }, and[0]), l.srp ? el('span', { class: 'etiqueta' }, 'Registro de preços') : null),
-      el('p', { class: 'lic-objeto' }, l.objeto.length > 260 ? l.objeto.slice(0, 260) + '…' : l.objeto),
-      el('div', { class: 'meta lic-dados' },
-        el('span', null, 'Publicação: ' + dataBR(l.data_publicacao)),
-        l.data_abertura ? el('span', null, 'Abertura: ' + new Date(l.data_abertura).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })) : null,
-        valor !== null && valor !== undefined ? el('span', null, (l.valor_homologado !== null && l.valor_homologado !== undefined ? 'Homologado: ' : 'Estimado: ') + moedaBR(valor)) : null,
-        l.unidade_nome ? el('span', null, l.unidade_nome) : null));
+    const homologado = l.valor_homologado !== null && l.valor_homologado !== undefined;
+    const valor = homologado ? l.valor_homologado : l.valor_estimado;
+    const data = l.data_abertura ? new Date(l.data_abertura).toLocaleDateString('pt-BR') : dataBR(l.data_publicacao);
+    const link = '#/licitacao/' + l.id;
+    return el('tr', null,
+      el('td', { 'data-rotulo': 'Nº / Modalidade' }, el('a', { href: link, class: 'lic-num' }, l.numero || 's/nº'), el('span', { class: 'meta' }, MOD_LIC[l.modalidade] || l.modalidade),
+        l.srp ? el('span', { class: 'meta' }, 'Registro de preços') : null),
+      el('td', { 'data-rotulo': 'Objeto', class: 'lic-obj' }, l.objeto.length > 220 ? l.objeto.slice(0, 220) + '…' : l.objeto),
+      el('td', { 'data-rotulo': 'Data da sessão', class: 'num' }, data, l.data_abertura ? null : el('span', { class: 'meta' }, 'publicação')),
+      el('td', { 'data-rotulo': 'Valor', class: 'num' }, valor !== null && valor !== undefined ? moedaBR(valor) : '—', valor !== null && valor !== undefined ? el('span', { class: 'meta' }, homologado ? 'homologado' : 'estimado') : null),
+      el('td', { 'data-rotulo': 'Situação' }, el('span', { class: 'etiqueta ' + and[1] }, and[0])),
+      el('td', { 'data-rotulo': '' }, el('a', { href: link, class: 'botao botao-claro botao-p' }, 'Detalhes', el('span', { class: 'sr' }, ' de ' + nomeLic(l)))));
   }
 
   R.licitacao = async function (main, partes) {
@@ -1325,7 +1349,7 @@
       sb.from('licitacoes_documentos').select('tipo, titulo, data, arquivo_url, link_externo, ordem').eq('licitacao_id', id).order('data').order('ordem').limit(500)
     ]);
     if (!l) return R['*'](main);
-    const grupo = (GRUPOS_LIC.find((g) => g[2].includes(l.modalidade)) || GRUPOS_LIC[0]);
+    const grupo = (GRUPOS_LIC.slice(1).find((g) => g[2].includes(l.modalidade)) || GRUPOS_LIC[0]);
     S.titulo(nomeLic(l)); S.trilha(['Transparência', '#/transparencia'], ['Licitações', '#/licitacoes/' + grupo[0] + '?ano=' + l.ano], [nomeLic(l)]);
     const and = AND_LIC[l.andamento] || [l.andamento, 'etiqueta-ambar'];
     const linha = (rot, val) => val || val === 0 ? el('div', null, el('dt', null, rot), el('dd', null, val)) : null;

@@ -5,6 +5,7 @@
 -- Não faz parte da instalação: serve só para ver como o painel e o site
 -- ficam. Rodar no SQL Editor DEPOIS do script 12. Pode rodar mais de uma
 -- vez: apaga os dados de teste anteriores e insere de novo.
+-- Precisa do script 14 (tipos de documento parecer, orçamento, justificativa).
 -- Todos os processos de teste têm o "processo administrativo" começando
 -- com "TESTE", o que permite apagar tudo de uma vez (comando no fim).
 -- =====================================================================
@@ -53,6 +54,9 @@ cross join lateral (values
   ('aviso', 'Aviso de licitação', 0, 10, i.modalidade not in ('dispensa', 'inexigibilidade', 'adesao_ata') and i.origem = 'portal'),
   ('edital', 'Edital e anexos', 0, 20, i.modalidade not in ('dispensa', 'inexigibilidade', 'adesao_ata') and i.origem = 'portal'),
   ('termo_referencia', 'Termo de referência', 0, 30, i.origem = 'portal'),
+  ('orcamento', 'Pesquisa de preços e mapa comparativo', -10, 25, i.origem = 'portal'),
+  ('parecer', 'Parecer jurídico', -3, 28, i.origem = 'portal'),
+  ('justificativa', 'Justificativa da escolha do contratado e do preço', 0, 35, i.modalidade in ('dispensa', 'inexigibilidade', 'adesao_ata')),
   ('ata', 'Ata da sessão pública', 16, 40, i.andamento in ('homologada', 'deserta', 'encerrada') and i.modalidade not in ('dispensa', 'inexigibilidade', 'adesao_ata')),
   ('homologacao', 'Termo de homologação e adjudicação', 22, 50, i.andamento in ('homologada', 'encerrada') and i.modalidade not in ('dispensa', 'inexigibilidade', 'adesao_ata')),
   ('ratificacao', 'Termo de ratificação', 2, 50, i.modalidade in ('dispensa', 'inexigibilidade', 'adesao_ata')),

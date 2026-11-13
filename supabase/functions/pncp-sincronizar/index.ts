@@ -82,7 +82,7 @@ function mapear(c: any, orgaoId: string, cnpj: string) {
     pncp_atualizado: c.dataAtualizacao ? new Date(c.dataAtualizacao).toISOString() : null,
   };
 }
-const tipoDoc = (n: string) => /aviso/i.test(n) ? 'aviso' : /edital/i.test(n) ? 'edital' : /termo de refer|projeto b/i.test(n) ? 'termo_referencia'
+const tipoDoc = (n: string) => /estudo t[eé]cnico/i.test(n) ? 'estudo_tecnico' : /parecer/i.test(n) ? 'parecer' : /aviso/i.test(n) ? 'aviso' : /edital/i.test(n) ? 'edital' : /termo de refer|projeto b/i.test(n) ? 'termo_referencia'
   : /ata/i.test(n) ? 'ata' : /contrato/i.test(n) ? 'contrato' : /anexo/i.test(n) ? 'anexo' : /homolog/i.test(n) ? 'homologacao' : /ratific/i.test(n) ? 'ratificacao' : 'outro';
 
 Deno.serve(async (req) => {

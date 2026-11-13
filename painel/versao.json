@@ -1,7 +1,8 @@
 {
-  "versao": "0.8.1",
-  "data": "2026-11-12",
+  "versao": "0.8.2",
+  "data": "2026-11-13",
   "notas": [
-    "Licitações: importação automática do PNCP todo dia de madrugada, sem precisar clicar."
+    "Site: licitações em tabela, com aba \"Todos os processos\" e filtro por mês (Cartilha PNTP 2026).",
+    "Novos tipos de documento: ETP, justificativa, orçamento, parecer e emergência."
   ]
 }
