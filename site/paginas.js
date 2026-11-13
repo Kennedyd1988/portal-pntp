@@ -771,6 +771,8 @@
       ['Contratos', 'contratos', 'tipo,numero,ano,processo,objeto,contratado_nome,valor_inicial,valor_atual,data_assinatura,vigencia_inicio,vigencia_fim_atual,rescindido_em,unidade_nome,link_externo', '&order=data_assinatura.desc'],
       ['Fiscais de contratos', 'contratos_fiscais', 'nome,funcao,ato,inicio,fim', '&order=nome'],
       ['Licitações', 'licitacoes', 'modalidade,numero,ano,processo,objeto,srp,criterio,amparo_legal,unidade_nome,valor_estimado,valor_homologado,data_publicacao,data_abertura,andamento,vencedores,link_externo', '&order=data_publicacao.desc'],
+      ['Plano de contratações anual (PCA)', 'pca', 'ano,tipo,data_aprovacao,ato_aprovacao,valor_total,qtd_itens,descricao,arquivo_url,link_externo', '&order=ano.desc'],
+      ['Licitantes e contratados sancionados', 'sancoes', 'sancionado_nome,tipo,fundamento,motivo,processo,referencia,data_aplicacao,inicio,fim,valor_multa,ato,arquivo_url,link_externo', '&order=data_aplicacao.desc'],
       ['Planejamento e prestação de contas', 'documentos_contas', 'tipo,exercicio,exercicio_fim,periodicidade,periodo,parte,resultado,numero_ato,data_publicacao,descricao,arquivo_url,link_externo', '&order=exercicio.desc'],
       ['Carta de Serviços', 'servicos', 'nome,categoria,descricao,publico_alvo,requisitos,etapas,prazo_maximo,forma_prestacao,link_digital,local_atendimento,horario,custo', '&order=nome'],
       ['Estrutura organizacional (unidades)', 'unidades', 'nome,sigla,endereco,telefone,email,horario_atendimento,competencias,norma_criacao,norma_url', '&order=nome'],
@@ -861,7 +863,7 @@
     const { data: pags } = await sb.from('paginas').select('titulo, slug').eq('orgao_id', org()).order('titulo').limit(300);
     const fixos = [['Notícias', '#/noticias'], ['Publicações oficiais', '#/publicacoes'], ['Diário Oficial', '#/diario-oficial'],
       ['Estrutura organizacional', '#/estrutura'], ['Gestores', '#/gestores'], ['Carta de Serviços', '#/servicos'], ['Perguntas frequentes', '#/faq'],
-      ['Transparência', '#/transparencia'], ['Planejamento e prestação de contas', '#/planejamento'], ['Licitações', '#/licitacoes'], ['Contratos', '#/contratos'], ['Fiscais de contratos', '#/contratos/fiscais'], ['Ouvidoria', '#/ouvidoria'], ['e-SIC', '#/esic'],
+      ['Transparência', '#/transparencia'], ['Planejamento e prestação de contas', '#/planejamento'], ['Licitações', '#/licitacoes'], ['Plano de contratações anual (PCA)', '#/licitacoes/pca'], ['Sancionados', '#/licitacoes/sancionados'], ['Contratos', '#/contratos'], ['Fiscais de contratos', '#/contratos/fiscais'], ['Ouvidoria', '#/ouvidoria'], ['e-SIC', '#/esic'],
       ['Proteção de dados (LGPD)', '#/lgpd'], ['Dados abertos', '#/dados-abertos'], ['Acessibilidade', '#/acessibilidade'], ['Contato', '#/contato']];
     pagina(main, el('h1', null, 'Mapa do site'),
       el('div', { class: 'grade g2' },
@@ -1081,7 +1083,6 @@
     const tipo = S.orgao.tipo;
     const exec = tipo === 'prefeitura', cam = tipo === 'camara', cons = tipo === 'consorcio';
     const ext = c.transparencia_url || null;        // sistema externo (receitas, despesas, folha…)
-    const lic = c.licitacoes_url || ext;
     // L(texto, critério, destino): destino '#/…' é página do portal; null = sistema externo.
     const L = (t, cod, h) => ({ t, cod, h: h === undefined ? ext : h });
     const plan = [];
@@ -1102,7 +1103,7 @@
       ['Pessoal', 'pessoas', [L('Servidores e lotação', '6.1'), L('Remuneração nominal', '6.2'), L('Tabela de cargos e salários', '6.3'), L('Estagiários', '6.4'), L('Terceirizados', '6.5'), L('Concursos e seleções', '6.6–6.7')]],
       ['Diárias', 'viagem', [L('Diárias concedidas', '7.1'), L('Tabela de valores das diárias', '7.2')]],
       ['Licitações', 'licit', [L('Relação das licitações', '8.1', '#/licitacoes/todos'), L('Editais e documentos das fases', '8.2–8.3', '#/licitacoes/licitacoes'), L('Dispensas e inexigibilidades', '8.4', '#/licitacoes/diretas'),
-        L('Adesões a atas (SRP)', '8.5', '#/licitacoes/adesoes'), L('Plano de contratações anual', '8.6', lic), L('Licitantes sancionados', '8.7', 'https://portaldatransparencia.gov.br/sancoes/ceis')]],
+        L('Adesões a atas (SRP)', '8.5', '#/licitacoes/adesoes'), L('Plano de contratações anual', '8.6', '#/licitacoes/pca'), L('Licitantes e contratados sancionados', '8.7', '#/licitacoes/sancionados')]],
       ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', '#/contratos'), L('Fiscais de contratos', '9.3', '#/contratos/fiscais'), L('Ordem cronológica de pagamentos', '9.4')]],
       ['Obras', 'obra', [L('Obras e situação atual', '10.1'), L('Quantitativos e preços', '10.2–10.3'), L('Obras paralisadas', '10.4')]],
       ['Planejamento e prestação de contas', 'grafico', plan],
@@ -1191,6 +1192,7 @@
     ['diretas', 'Dispensas e inexigibilidades', ['dispensa', 'inexigibilidade'], 'Não houve dispensas nem inexigibilidades em {ano}'],
     ['adesoes', 'Adesões a atas', ['adesao_ata'], 'Não houve adesões a atas de registro de preços em {ano}']
   ];
+  const ABAS_LIC_EXTRA = [['pca', 'Plano de contratações (PCA)'], ['sancionados', 'Sancionados']];
   const AND_LIC = { prevista: ['Prevista', 'etiqueta-ambar'], aberta: ['Aberta', 'etiqueta-verde'], em_andamento: ['Em andamento', 'etiqueta-ambar'],
     suspensa: ['Suspensa', 'etiqueta-ambar'], homologada: ['Homologada', 'etiqueta-verde'], encerrada: ['Encerrada', 'etiqueta-verde'],
     deserta: ['Deserta', 'etiqueta-vermelha'], fracassada: ['Fracassada', 'etiqueta-vermelha'], revogada: ['Revogada', 'etiqueta-vermelha'], anulada: ['Anulada', 'etiqueta-vermelha'] };
@@ -1231,10 +1233,12 @@
     const c = S.conf;
     let grupo = GRUPOS_LIC.some((g) => g[0] === partes[0]) ? partes[0] : 'todos';
     const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' });
-    const { lista } = faixaAbas(GRUPOS_LIC.map((g) => [g[0], g[1]]), grupo, 'Tipo de processo', false, (id) => { grupo = id; abrirGrupo(new URLSearchParams()); });
+    // PCA (8.6) e sancionados (8.7) ficam na mesma faixa de abas: é onde o avaliador procura.
+    if (ABAS_LIC_EXTRA.some((x) => x[0] === partes[0])) grupo = partes[0];
+    const { lista } = faixaAbas(GRUPOS_LIC.map((g) => [g[0], g[1]]).concat(ABAS_LIC_EXTRA), grupo, 'Tipo de processo', false, (id) => { grupo = id; abrirGrupo(new URLSearchParams()); });
     const ext = c.licitacoes_url;
     pagina(main, el('h1', null, 'Licitações'),
-      el('p', { class: 'sub' }, 'Relação das licitações, dispensas, inexigibilidades e adesões a atas de registro de preços, com edital e documentos de cada fase.'),
+      el('p', { class: 'sub' }, 'Relação das licitações, dispensas, inexigibilidades e adesões a atas de registro de preços, com edital e documentos de cada fase; plano de contratações anual e licitantes e contratados sancionados.'),
       ext ? el('p', { class: 'meta' }, 'Também disponível no sistema de licitações: ', el('a', { href: ext, target: '_blank', rel: 'noopener' }, 'acessar', el('span', { class: 'sr' }, ' (abre em nova aba)')), '.') : null,
       lista, conteudo,
       el('p', { class: 'meta', style: 'margin-top:18px' }, 'Consulte também: ',
@@ -1243,6 +1247,8 @@
     await abrirGrupo(params);
 
     async function abrirGrupo(prm) {
+      if (grupo === 'pca') return abrirPca(conteudo, prm);
+      if (grupo === 'sancionados') return abrirSancoes(conteudo, prm);
       const g = GRUPOS_LIC.find((x) => x[0] === grupo);
       const mods = g[2];
       conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
@@ -1326,6 +1332,143 @@
       }
     }
   };
+
+  // ---------- PCA (PNTP 8.6) ----------
+  // Abas de ano; o ano corrente aparece sempre. Sem PCA no ano, a página diz que ainda não foi
+  // publicado (não é "declaração de inexistência": o PCA é obrigatório e isso não pontua).
+  const TIPO_PCA = { plano: 'Plano de Contratações Anual', atualizacao: 'Atualização / revisão' };
+  const COLUNAS_PCA = [['ano', 'Ano'], ['tipo', 'Documento', (v) => TIPO_PCA[v] || v], ['data_aprovacao', 'Aprovação'], ['ato_aprovacao', 'Ato de aprovação'],
+    ['valor_total', 'Valor total estimado'], ['qtd_itens', 'Itens'], ['descricao', 'Observação'], ['arquivo_url', 'Arquivo'], ['link_externo', 'Link']];
+  async function abrirPca(conteudo, prm) {
+    conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
+    const { data: anosPca, error } = await sb.rpc('pca_anos', { p_orgao: org() });
+    if (error) { conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+    const anoAtual = new Date().getFullYear();
+    const contagem = new Map((anosPca || []).map((x) => [x.ano, x.total]));
+    if (!contagem.has(anoAtual)) contagem.set(anoAtual, 0);
+    const anos = [...contagem.keys()].sort((a, b) => b - a);
+    const pedido = parseInt(prm.get('ano'), 10);
+    let ano = anos.includes(pedido) ? pedido : anos[0];
+    const painelAno = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
+    const faixa = faixaAbas(anos.map((a) => [a, String(a)]), ano, 'Ano', true, (id) => { ano = Number(id); abrirAno(); });
+    conteudo.replaceChildren(el('p', { class: 'meta' }, 'O PCA reúne as contratações que o órgão planeja fazer no ano (Lei 14.133/2021, art. 12, VII).'), faixa.lista, painelAno);
+    faixa.marcar(ano);
+    abrirAno();
+
+    async function abrirAno() {
+      history.replaceState(null, '', '#/licitacoes/pca?ano=' + ano);
+      painelAno.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
+      const buscar = () => sb.from('pca').select('id, ano, tipo, data_aprovacao, ato_aprovacao, valor_total, qtd_itens, descricao, arquivo_url, link_externo')
+        .eq('orgao_id', org()).eq('ano', ano).order('tipo', { ascending: false }).order('data_aprovacao', { ascending: false });
+      const { data, error: e2 } = await buscar().limit(200);
+      if (e2) { painelAno.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+      const docs = data || [];
+      if (!docs.length) { painelAno.replaceChildren(el('p', { class: 'vazio' }, 'O Plano de Contratações Anual de ' + ano + ' ainda não foi publicado neste portal.')); return; }
+      const exportar = S.botoesExportar('pca-' + ano, COLUNAS_PCA, async (de, ate) => { const r = await buscar().range(de, ate); return r.data || []; });
+      painelAno.replaceChildren(
+        el('div', { class: 'barra-lista' }, el('span', { class: 'meta' }, docs.length + (docs.length === 1 ? ' documento' : ' documentos')), exportar),
+        el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados tabela-lic' },
+          el('caption', { class: 'sr' }, 'Plano de Contratações Anual de ' + ano),
+          el('thead', null, el('tr', null, ['Documento', 'Aprovação', 'Valor total estimado', 'Itens', 'Arquivo'].map((t) => el('th', { scope: 'col' }, t)))),
+          el('tbody', null, docs.map((d) => el('tr', null,
+            el('td', { 'data-rotulo': 'Documento' }, el('strong', null, TIPO_PCA[d.tipo] + ' ' + d.ano),
+              d.ato_aprovacao ? el('span', { class: 'meta' }, d.ato_aprovacao) : null, d.descricao ? el('span', { class: 'meta' }, d.descricao) : null),
+            el('td', { 'data-rotulo': 'Aprovação', class: 'num' }, dataBR(d.data_aprovacao)),
+            el('td', { 'data-rotulo': 'Valor total estimado', class: 'num' }, d.valor_total != null ? moedaBR(d.valor_total) : '—'),
+            el('td', { 'data-rotulo': 'Itens', class: 'num' }, d.qtd_itens != null ? String(d.qtd_itens) : '—'),
+            el('td', { 'data-rotulo': 'Arquivo' },
+              d.arquivo_url ? el('a', { href: d.arquivo_url, target: '_blank', rel: 'noopener', class: 'botao botao-claro botao-p' }, 'PDF', el('span', { class: 'sr' }, ' de ' + TIPO_PCA[d.tipo] + ' ' + d.ano + ' (abre em nova aba)')) : null,
+              d.link_externo ? el('a', { href: d.link_externo, target: '_blank', rel: 'noopener', class: 'botao botao-claro botao-p' }, /pncp\.gov\.br/.test(d.link_externo) ? 'Ver no PNCP' : 'Link',
+                el('span', { class: 'sr' }, ' (abre em nova aba)')) : null)))))));
+    }
+  }
+
+  // ---------- sancionados (PNTP 8.7) ----------
+  // Relação do PRÓPRIO órgão (o CEIS/CNEP é complemento). Sem nenhuma sanção publicada, a
+  // página declara expressamente que não há sancionados (exigência da Cartilha 2026).
+  const TIPO_SANCAO = { advertencia: 'Advertência', multa: 'Multa', impedimento: 'Impedimento de licitar e contratar',
+    inidoneidade: 'Declaração de inidoneidade', suspensao: 'Suspensão temporária', outra: 'Outra sanção' };
+  const SANCAO_PRAZO = ['impedimento', 'inidoneidade', 'suspensao'];
+  const sancaoVigente = (s) => SANCAO_PRAZO.includes(s.tipo) && (!s.fim || s.fim >= hojeISO()) && (!s.inicio || s.inicio <= hojeISO());
+  const CAMPOS_SANCAO = 'id, sancionado_nome, sancionado_doc, tipo, fundamento, motivo, processo, referencia, ano, data_aplicacao, inicio, fim, valor_multa, ato, arquivo_url, link_externo';
+  const COLUNAS_SANCAO = [['sancionado_nome', 'Sancionado'], ['sancionado_doc', 'CNPJ/CPF', (v) => docCtr(v)], ['tipo', 'Sanção', (v) => TIPO_SANCAO[v] || v],
+    ['fundamento', 'Fundamento'], ['motivo', 'Motivo'], ['processo', 'Processo'], ['referencia', 'Licitação ou contrato'], ['data_aplicacao', 'Aplicação'],
+    ['inicio', 'Início'], ['fim', 'Fim'], ['valor_multa', 'Valor da multa'], ['ato', 'Ato'], ['arquivo_url', 'Arquivo'], ['link_externo', 'Link']];
+  async function abrirSancoes(conteudo) {
+    history.replaceState(null, '', '#/licitacoes/sancionados');
+    conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
+    const { count, error } = await sb.from('sancoes').select('id', { count: 'exact', head: true }).eq('orgao_id', org());
+    if (error) { conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+    const intro = el('p', { class: 'meta' }, 'Licitantes e contratados que receberam sanção administrativa deste órgão (Lei 14.133/2021, art. 156). Consulte também o cadastro nacional de ',
+      el('a', { href: 'https://portaldatransparencia.gov.br/sancoes/ceis', target: '_blank', rel: 'noopener' }, 'empresas punidas (CEIS/CNEP)', el('span', { class: 'sr' }, ' (abre em nova aba)')), '.');
+    if (!count) {
+      conteudo.replaceChildren(intro, el('p', { class: 'vazio' }, 'Não há licitantes ou contratados sancionados administrativamente por este órgão até esta data.'));
+      return;
+    }
+    const f = { busca: '', tipo: '', vigencia: '' };
+    const montar = (sel, op) => {
+      let q = sb.from('sancoes').select(sel || CAMPOS_SANCAO, op).eq('orgao_id', org());
+      if (f.busca) q = q.ilike('busca', termo(f.busca));
+      if (f.tipo) q = q.eq('tipo', f.tipo);
+      if (f.vigencia === 'vigente') q = q.in('tipo', SANCAO_PRAZO).or('fim.is.null,fim.gte.' + hojeISO());
+      if (f.vigencia === 'encerrada') q = q.or('fim.lt.' + hojeISO() + ',tipo.in.(advertencia,multa,outra)');
+      if (f.ano) q = q.eq('ano', Number(f.ano));
+      return q;
+    };
+    const corpoTab = el('tbody');
+    const tabela = el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados tabela-lic' },
+      el('caption', { class: 'sr' }, 'Licitantes e contratados sancionados'),
+      el('thead', null, el('tr', null, ['Sancionado', 'Sanção', 'Aplicação', 'Prazo', 'Processo / ato'].map((t) => el('th', { scope: 'col' }, t)))), corpoTab));
+    const vazio = el('div'), mais = el('div', { class: 'mais' }), totalTxt = el('span', { class: 'meta', role: 'status' });
+    let itens = [], versao = 0;
+    const linha = (s) => el('tr', null,
+      el('td', { 'data-rotulo': 'Sancionado' }, el('strong', null, s.sancionado_nome), s.sancionado_doc ? el('span', { class: 'meta' }, docCtr(s.sancionado_doc)) : null,
+        s.referencia ? el('span', { class: 'meta' }, s.referencia) : null),
+      el('td', { 'data-rotulo': 'Sanção' }, TIPO_SANCAO[s.tipo] || s.tipo, s.tipo === 'multa' && s.valor_multa != null ? el('span', { class: 'meta' }, moedaBR(s.valor_multa)) : null,
+        s.fundamento ? el('span', { class: 'meta' }, s.fundamento) : null, s.motivo ? el('span', { class: 'meta' }, s.motivo) : null),
+      el('td', { 'data-rotulo': 'Aplicação', class: 'num' }, dataBR(s.data_aplicacao)),
+      el('td', { 'data-rotulo': 'Prazo' }, SANCAO_PRAZO.includes(s.tipo)
+        ? [el('span', { class: 'etiqueta ' + (sancaoVigente(s) ? 'etiqueta-vermelha' : 'etiqueta-verde') }, sancaoVigente(s) ? 'Em vigor' : 'Encerrada'),
+          el('span', { class: 'meta' }, (s.inicio ? dataBR(s.inicio) : '') + (s.fim ? ' a ' + dataBR(s.fim) : ''))]
+        : '—'),
+      el('td', { 'data-rotulo': 'Processo / ato' }, s.processo ? el('span', null, 'Processo ' + s.processo) : null, s.ato ? el('span', { class: 'meta' }, s.ato) : null,
+        s.arquivo_url || s.link_externo ? el('a', { href: s.arquivo_url || s.link_externo, target: '_blank', rel: 'noopener', class: 'botao botao-claro botao-p' },
+          s.arquivo_url ? 'PDF do ato' : 'Ver ato', el('span', { class: 'sr' }, ' de ' + s.sancionado_nome + ' (abre em nova aba)')) : null));
+    async function carregar(reiniciar) {
+      const minha = reiniciar ? ++versao : versao;
+      const [linhas, cont] = await Promise.all([
+        paginar(montar, 'data_aplicacao', reiniciar ? null : itens[itens.length - 1], 50),
+        reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
+      if (minha !== versao) return;
+      if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' sanção' : ' sanções');
+      itens = reiniciar ? linhas : itens.concat(linhas);
+      tabela.hidden = !itens.length;
+      vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhuma sanção com esses filtros.'));
+      if (reiniciar) corpoTab.replaceChildren(...linhas.map(linha)); else corpoTab.append(...linhas.map(linha));
+      const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
+      btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
+      mais.replaceChildren(linhas.length === 50 ? btn : '');
+    }
+    const { data: anosS } = await sb.rpc('sancoes_anos', { p_orgao: org() });
+    const fBusca = el('input', { type: 'search', placeholder: 'Nome, CNPJ, processo ou licitação' });
+    const fTipo = el('select', null, el('option', { value: '' }, 'Todas'), Object.entries(TIPO_SANCAO).map(([k, v]) => el('option', { value: k }, v)));
+    const fVig = el('select', null, el('option', { value: '' }, 'Todas'), el('option', { value: 'vigente' }, 'Em vigor'), el('option', { value: 'encerrada' }, 'Encerradas ou sem prazo'));
+    const fAno = el('select', null, el('option', { value: '' }, 'Todos'), (anosS || []).map((x) => el('option', { value: x.ano }, String(x.ano))));
+    let espera;
+    const aplicar = () => { Object.assign(f, { busca: fBusca.value.trim(), tipo: fTipo.value, vigencia: fVig.value, ano: fAno.value }); carregar(true); };
+    [fTipo, fVig, fAno].forEach((x) => x.addEventListener('change', aplicar));
+    fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
+    const exportar = S.botoesExportar('sancionados', COLUNAS_SANCAO, async (de, ate) => {
+      const { data } = await montar().order('data_aplicacao', { ascending: false }).order('id').range(de, ate);
+      return data || [];
+    });
+    conteudo.replaceChildren(intro,
+      el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
+        el('label', null, 'Pesquisar', fBusca), el('label', null, 'Sanção', fTipo), el('label', null, 'Vigência', fVig), el('label', null, 'Ano da aplicação', fAno)),
+      el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
+    tabela.hidden = true;
+    carregar(true).catch(() => vazio.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
+  }
 
   function linhaLic(l) {
     const and = AND_LIC[l.andamento] || [l.andamento, 'etiqueta-ambar'];

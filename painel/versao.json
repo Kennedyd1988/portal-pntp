@@ -1,9 +1,9 @@
 {
-  "versao": "0.9.1",
+  "versao": "0.9.2",
   "data": "2026-11-13",
   "notas": [
-    "Janelas de cadastro divididas em abas (estilo guia de navegador), com Salvar/Publicar sempre no rodapé.",
-    "Contrato: dados, valores, inteiro teor, aditivos e fiscais numa só janela. Licitação: processo, valores e documentos numa só janela.",
-    "Campo com erro marca a aba em vermelho e abre essa aba sozinho."
+    "Novo módulo Plano de Contratações Anual (PNTP 8.6): plano do ano e atualizações, com PDF ou link do PNCP.",
+    "Novo módulo Sanções a licitantes e contratados (PNTP 8.7), com declaração automática no site quando não há sancionados.",
+    "Site: abas PCA e Sancionados na página Licitações."
   ]
 }

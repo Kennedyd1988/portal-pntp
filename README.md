@@ -85,6 +85,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/13_pncp_automatico.sql` | importação automática do PNCP: função `definir_pncp_automatico` (liga/desliga pelo painel), chave no cofre (`vault`) e agendamento diário `pg_cron` 03:15 chamando a função `pncp-sincronizar` |
 | `supabase/14_licitacoes_tipos_documento.sql` | novos tipos de documento das licitações (ETP, justificativa, orçamento, parecer, emergência), conforme Cartilha PNTP 2026 8.3/8.4 |
 | `supabase/15_lote8_contratos.sql` | Fase 2 · Lote 8: módulo `contratos`, tabelas `contratos`, `contratos_aditivos`, `contratos_fiscais`, recálculo de valor/vigência pelos aditivos, função `contratos_anos` |
+| `supabase/16_pca_sancoes.sql` | Lote 8.1: módulos `pca` e `sancoes` (permissões copiadas de licitações), tabela `pca` (plano do ano + atualizações, PDF ou link do PNCP, um plano por ano), tabela `sancoes` (sancionado, CNPJ/CPF, sanção do art. 156, prazo, multa, processo, ato), funções `pca_anos` e `sancoes_anos` |
 | `supabase/teste_contratos_ficticios.sql` | opcional: contratos fictícios ligados às licitações de teste, com fiscais e aditivos |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
@@ -169,6 +170,7 @@ painel/
   modulo-paginas.js     → "Páginas e perguntas frequentes"
   modulo-servicos.js    → "Carta de Serviços" (serviços + textos gerais da Carta)
   modulo-lgpd.js        → "LGPD e Governo Digital" (encarregado, política, norma 14.129, dados abertos)
+  modulo-pca-sancoes.js → "Plano de Contratações Anual (PCA)" e "Sanções a licitantes e contratados"
   modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
@@ -254,13 +256,34 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   pode levar alguns minutos (o PNCP é lento). A primeira vez de cada CNPJ conferir no PNCP se
   os processos batem. Se o PNCP mudar a resposta, os campos que mudarem de nome ficam em branco
   até a função/painel serem ajustados.
-- Contratos, atas de registro de preços, PCA (8.6) e obras ainda apontam para o sistema externo
-  (próximos lotes).
+- Obras (10.1 a 10.4) ainda apontam para o sistema externo (próximo lote).
 
 - Excluir um órgão ou o login de uma pessoa apaga os vínculos em cascata, mesmo que
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.9.2 — 13/11/2026 — PCA e sancionados (PNTP 8.6 e 8.7)**
+- Dois módulos novos no painel, com as permissões de quem já cuida de licitações:
+  - **Plano de Contratações Anual (PCA)**: o plano de cada ano e as atualizações/revisões, com
+    PDF ou link (ex.: o PCA no PNCP), ato e data de aprovação, valor total e quantidade de itens.
+    Um só "plano" por ano (o resto entra como atualização). Sem o PCA do ano corrente, o módulo
+    avisa em vermelho: o plano é obrigatório e declarar que não existe não pontua no 8.6.
+  - **Sanções a licitantes e contratados**: sancionado (CNPJ/CPF), sanção do art. 156 da Lei
+    14.133 (ou suspensão da 8.666, para a série histórica), fundamento sugerido pelo tipo,
+    motivo, processo, licitação/contrato, data, prazo (início/fim), valor da multa e ato (PDF ou
+    link). "Em vigor" × "encerrada" é calculado pela data, sem tarefa agendada.
+- Site: duas abas novas na página Licitações, na mesma faixa dos processos:
+  `#/licitacoes/pca` (abas de ano, tabela, CSV/JSON; sem PCA no ano diz que ainda não foi
+  publicado) e `#/licitacoes/sancionados` (tabela, filtros por texto, sanção, vigência e ano,
+  CSV/JSON; CPF mascarado; sem sanções publicadas, declara expressamente que não há
+  sancionados). A capa da Transparência, o mapa do site, o menu e os dados abertos passaram
+  a apontar para essas páginas (antes, 8.6 ia ao sistema externo e 8.7 ao CEIS).
+- Banco: script 16 (rodar depois do 15).
+- Varredura PNTP (Cartilha/Matriz 2026): 8.6 atende quando o PCA do ano está publicado (PDF ou
+  link do PNCP); 8.7 atende com a relação própria ou com a declaração de que não há
+  sancionados (o link do CEIS fica como complemento). Com isso, a dimensão Licitações (8.1 a
+  8.7) fica toda no portal.
 
 **0.9.1 — 13/11/2026 — Janelas do painel em abas**
 - Toda janela de cadastro com mais de um assunto passou a ser dividida em abas no
