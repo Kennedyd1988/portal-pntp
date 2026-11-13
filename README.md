@@ -268,6 +268,10 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
 - O módulo mostra no topo quando foi a última execução e o resultado (ou o erro).
 - O botão "Importar" continua para trazer períodos antigos (série histórica).
 - Instalação: seção "Importação automática" no README (script 13 + função + segredo).
+- Correção (13/11/2026): o script 13 passou a liberar as tabelas para o papel `service_role`.
+  Como o projeto não expõe tabelas novas automaticamente, a função falhava com "permission
+  denied for table orgaos". Ao criar tabelas novas que uma função de servidor precise gravar,
+  lembrar de dar `grant` também ao `service_role`.
 
 **0.8.0 — 12/11/2026 — Fase 2 · Lote 7: licitações (PNTP 8.1 a 8.5)**
 - Novo módulo "Licitações e contratos" no painel (a parte de contratos vem no Lote 8). Cada

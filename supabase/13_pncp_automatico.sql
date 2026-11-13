@@ -48,6 +48,20 @@ grant execute on function public.definir_pncp_automatico(uuid, boolean, boolean,
 
 
 -- ---------------------------------------------------------------------
+-- 1b. ACESSO DA FUNÇÃO DE SINCRONIZAÇÃO ÀS TABELAS
+--     O projeto foi criado com "Automatically expose new tables" desmarcado,
+--     então nem a chave secreta (papel service_role) recebe acesso sozinha às
+--     tabelas novas. Sem estas liberações a função falha com
+--     "permission denied for table orgaos" (erro visto na instalação de 13/11/2026).
+--     O service_role ignora as regras de RLS, mas só existe no servidor.
+-- ---------------------------------------------------------------------
+grant usage on schema public to service_role;
+grant select, update on public.orgaos to service_role;
+grant select, insert, update, delete on public.licitacoes, public.licitacoes_documentos to service_role;
+grant insert on public.historico to service_role;
+
+
+-- ---------------------------------------------------------------------
 -- 2. CHAVE DA SINCRONIZAÇÃO (no cofre do banco, criada uma única vez)
 --    Só quem tem a chave consegue disparar a função de sincronização.
 -- ---------------------------------------------------------------------
