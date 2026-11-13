@@ -860,7 +860,7 @@
   function erroGravacao(e) {
     const t = (e && e.message) || '';
     if (e && e.amigavel) return t;
-    if (/Seu perfil não pode publicar|dois níveis|mesmo órgão|dentro dele mesmo|tem subitens/.test(t)) return t;
+    if (/Seu perfil não pode publicar|Este processo está publicado|não pertence a um processo|dois níveis|mesmo órgão|dentro dele mesmo|tem subitens/.test(t)) return t;
     if (/row-level security/i.test(t)) return 'Seu perfil não tem permissão para gravar aqui (ou o registro está fora do seu alcance).';
     if (/foreign key/i.test(t)) return 'Este registro está sendo usado em outro lugar e não pode ser removido.';
     return traduzirErro(e);

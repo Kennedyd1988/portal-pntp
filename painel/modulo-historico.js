@@ -19,6 +19,7 @@
     paginas: 'Páginas', faq: 'Perguntas frequentes', menu_itens: 'Menu do site',
     servicos: 'Carta de Serviços', carta_servicos: 'Textos da Carta de Serviços', lgpd: 'LGPD e Governo Digital',
     documentos_contas: 'Planejamento e contas',
+    licitacoes: 'Licitações',
     perfis: 'Perfis',
     perfil_permissoes: 'Permissões de perfil'
   };
@@ -149,6 +150,7 @@
       case 'faq': return x.pergunta || '—';
       case 'carta_servicos': return 'Textos gerais da Carta';
       case 'lgpd': return 'Encarregado, política e Governo Digital';
+      case 'licitacoes': return (x.modalidade || '').replace(/_/g, ' ') + (x.numero ? ' nº ' + x.numero : '') + ' · ' + (x.objeto || '').slice(0, 80);
       case 'documentos_contas': return (x.tipo || '').toUpperCase().replace('_', ' ') + ' ' + (x.exercicio || '') + (x.periodo ? ' · período ' + x.periodo : '') + (x.parte ? ' · ' + x.parte : '');
       case 'menu_itens': return 'Item "' + (x.rotulo || '') + '"';
       case 'avisos': return x.texto || '—';
