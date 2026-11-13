@@ -12,7 +12,7 @@
   // Telas do site público (construído no Lote 5). Rotas fixas, iguais para todo órgão.
   const ROTAS = [
     ['/', 'Página inicial'], ['/noticias', 'Notícias'], ['/publicacoes', 'Publicações oficiais (leis, decretos…)'],
-    ['/diario-oficial', 'Diário Oficial'], ['/transparencia', 'Transparência'], ['/planejamento', 'Planejamento e prestação de contas'], ['/licitacoes', 'Licitações'], ['/licitacoes/pca', 'Plano de contratações anual (PCA)'], ['/licitacoes/sancionados', 'Licitantes e contratados sancionados'], ['/contratos', 'Contratos'], ['/contratos/fiscais', 'Fiscais de contratos'], ['/obras', 'Obras'], ['/obras/paralisadas', 'Obras paralisadas'],
+    ['/diario-oficial', 'Diário Oficial'], ['/transparencia', 'Transparência'], ['/planejamento', 'Planejamento e prestação de contas'], ['/licitacoes', 'Licitações'], ['/licitacoes/pca', 'Plano de contratações anual (PCA)'], ['/licitacoes/sancionados', 'Licitantes e contratados sancionados'], ['/contratos', 'Contratos'], ['/contratos/fiscais', 'Fiscais de contratos'], ['/obras', 'Obras'], ['/obras/paralisadas', 'Obras paralisadas'], ['/convenios', 'Convênios e transferências'], ['/emendas', 'Emendas parlamentares'],
     ['/estrutura', 'Estrutura organizacional'], ['/gestores', 'Gestores'], ['/servicos', 'Carta de Serviços'],
     ['/faq', 'Perguntas frequentes'], ['/ouvidoria', 'Ouvidoria'], ['/esic', 'e-SIC (acesso à informação)'],
     ['/lgpd', 'Proteção de dados (LGPD)'], ['/acessibilidade', 'Acessibilidade'], ['/contato', 'Contato'], ['/mapa-do-site', 'Mapa do site']

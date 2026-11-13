@@ -1,9 +1,8 @@
 {
-  "versao": "0.10.0",
+  "versao": "0.11.0",
   "data": "2026-11-13",
   "notas": [
-    "Novo módulo Obras (PNTP 10.1 a 10.4): andamento, planilha contratada e executada, medições e paralisações.",
-    "Planilha da obra pode ser colada direto do Excel.",
-    "Site: páginas de obras, obras paralisadas e detalhe de cada obra."
+    "Novos módulos Convênios e transferências (PNTP 5.1 a 5.3) e Emendas parlamentares (17.1 a 17.3).",
+    "Site: páginas de convênios (recebidos, realizados, acordos) e de emendas (federais, estaduais/municipais e execução)."
   ]
 }

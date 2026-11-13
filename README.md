@@ -89,6 +89,8 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/17_licitacoes_ordem.sql` | coluna `chave_ordem` (modalidade + número, do maior para o menor) e índice: lista de licitações em ordem numérica sequencial por modalidade (PNTP 8.1) |
 | `supabase/teste_contratos_ficticios.sql` | opcional: contratos fictícios ligados às licitações de teste, com fiscais e aditivos |
 | `supabase/18_lote9_obras.sql` | Fase 2 · Lote 9: tabelas `obras`, `obras_itens` (planilha contratada × executada), `obras_medicoes`, `obras_paralisacoes`; situação "paralisada" mantida pelo banco; visão `obras_resumo`; função `obras_anos` |
+| `supabase/19_lote10_convenios_emendas.sql` | Fase 2 · Lote 10: módulo `convenios` renomeado para "Convênios e transferências" e módulo novo `emendas` (permissões copiadas); tabelas `convenios` (recebidas, realizadas e acordos sem repasse, inteiro teor obrigatório para publicar) e `emendas` (origem, tipo, forma de repasse, autoria, função de governo, valores previsto/realizado/empenhado/liquidado/pago, ligação opcional ao convênio); funções `convenios_anos` e `emendas_anos` |
+| `supabase/teste_convenios_emendas_ficticios.sql` | opcional: 6 instrumentos (recebidos, realizados e acordo) e 8 emendas fictícias de todas as origens |
 | `supabase/teste_obras_ficticias.sql` | opcional: 4 obras fictícias (em andamento, paralisada, concluídas) com planilha, medições e paralisações |
 | `supabase/teste_pca_sancoes_ficticios.sql` | opcional: PCA de 2024 a 2026 (com revisões) e 6 sanções fictícias de todos os tipos, vigentes e encerradas |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
@@ -176,6 +178,7 @@ painel/
   modulo-lgpd.js        → "LGPD e Governo Digital" (encarregado, política, norma 14.129, dados abertos)
   modulo-pca-sancoes.js → "Plano de Contratações Anual (PCA)" e "Sanções a licitantes e contratados"
   modulo-obras.js       → "Obras" (dados, andamento, planilha, medições, paralisações)
+  modulo-convenios.js   → "Convênios e transferências" (5.1 a 5.3) e "Emendas parlamentares" (17.1 a 17.3)
   modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
@@ -267,6 +270,49 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.11.0 — 13/11/2026 — Fase 2 · Lote 10: convênios, transferências e emendas (PNTP 5.1 a 5.3 e 17.1 a 17.3)**
+- Módulo "Convênios e transferências" no painel (já existia no menu como "em construção") com três
+  abas, porque a Cartilha pede as transferências realizadas separadas das recebidas:
+  **Recebidas** (5.1), **Realizadas** (5.2) e **Acordos sem repasse de recursos** (5.3). Cada
+  instrumento: tipo de instrumento (convênio, contrato de repasse, termo de fomento/colaboração,
+  acordo de cooperação, TED, termo de compromisso, transferência especial, fundo a fundo…),
+  número/ano, processo, objeto, concedente/beneficiário/partes com CNPJ/CPF e esfera, programa,
+  unidade executora, assinatura, vigência, valor total previsto, contrapartida, valor
+  recebido/concedido (com a data da posição), andamento, obrigações ajustadas, inteiro teor (PDF
+  ou link) e link de acompanhamento (ex.: Transferegov).
+- Regras no banco: publicar exige o inteiro teor; acordo sem repasse não aceita valores; fim da
+  vigência não pode ser antes do início; número repetido no mesmo tipo/instrumento/ano é
+  bloqueado. No painel, publicar também exige vigência e valor previsto (e as obrigações, no 5.3).
+- Módulo novo "Emendas parlamentares" (permissões copiadas de Convênios): exercício, origem
+  (federal, estadual, municipal própria), tipo (individual, bancada, comissão, relator), forma de
+  repasse (transferência especial "PIX", finalidade definida, fundo a fundo, convênio, execução
+  direta), número, autoria, objeto, função de governo (Portaria 42/1999), beneficiário, valor
+  previsto e realizado, e a execução (empenhado, liquidado, pago e data da posição). Emenda
+  impedida exige o motivo. Pode ligar ao convênio (não vale para transferência especial).
+  Quadro com os totais do exercício no topo da lista.
+- Regras no banco: liquidado ≤ empenhado, pago ≤ liquidado; número único por origem e exercício;
+  convênio ligado precisa ser do órgão e ter repasse; convênio com emenda não pode ser excluído.
+- Site `#/convenios` (abas Recebidas, Realizadas, Acordos; abas de ano com "Todos"; filtros por
+  texto, vigência, andamento e esfera; CSV/JSON) e página de cada instrumento (`#/convenio/<id>`)
+  com inteiro teor, acompanhamento e emendas ligadas. Site `#/emendas` (abas Todas, Federais
+  17.1, Estaduais e municipais 17.2, Execução 17.3 com totais previsto/realizado/empenhado/
+  liquidado/pago; filtros por origem, forma, função e andamento; CSV/JSON) e `#/emenda/<id>`.
+  Sem registros, cada aba declara que não há (com a data).
+- Capa da Transparência, mapa do site, menu do painel e dados abertos passaram a apontar para
+  essas páginas. CPF de pessoa física mascarado no site.
+- Banco: script 19 (rodar depois do 18). Testado no PostgreSQL local (duas execuções; admin,
+  cadastrador sem publicar, usuário limitado a uma unidade e visitante) e no navegador (site e
+  painel) com PostgREST local.
+- Varredura PNTP (Cartilha/Matriz 2026):
+  - 5.1 atende com número/ano, valor total previsto, valor recebido, objeto, vigência, órgão
+    repassador e inteiro teor; 5.2 com beneficiário, valor previsto e concedido, separado das
+    recebidas; 5.3 com partes, objeto, vigência, obrigações e inteiro teor. Filtros e CSV/JSON.
+  - 17.1 e 17.2 atendem com origem, forma de repasse, tipo, número, autoria, valor previsto e
+    realizado, objeto e função de governo; no município, inclusive as emendas próprias.
+  - 17.3 atende com empenhado, liquidado e pago de todas as emendas (recebidas e próprias).
+  - Atualidade: valores repassados e execução das emendas trazem a data da posição; o órgão
+    precisa atualizá-los ao menos uma vez por mês.
 
 **0.10.0 — 13/11/2026 — Fase 2 · Lote 9: obras (PNTP 10.1 a 10.4)**
 - Módulo "Obras" no painel (já existia no menu como "em construção"; as permissões são as que

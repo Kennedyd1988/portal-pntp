@@ -775,6 +775,8 @@
       ['Licitantes e contratados sancionados', 'sancoes', 'sancionado_nome,tipo,fundamento,motivo,processo,referencia,data_aplicacao,inicio,fim,valor_multa,ato,arquivo_url,link_externo', '&order=data_aplicacao.desc'],
       ['Obras', 'obras', 'titulo,local,situacao_obra,percentual,etapa_atual,data_inicio,previsao_conclusao,data_conclusao,contratada_nome,valor_contratado,fonte_recurso,unidade_nome,link_externo', '&order=atualizado_em.desc'],
       ['Obras: planilha contratada e executada', 'obras_itens', 'obra_id,codigo,descricao,unidade,quantidade,preco_unitario,total_contratado,quantidade_executada,preco_praticado,total_executado', '&order=obra_id.asc'],
+      ['Convênios e transferências (recebidas, realizadas e acordos)', 'convenios', 'tipo,instrumento,numero,ano,objeto,parte_nome,esfera,valor_previsto,valor_contrapartida,valor_repassado,data_assinatura,vigencia_inicio,vigencia_fim,andamento,obrigacoes,arquivo_url,link_externo', '&order=ano.desc'],
+      ['Emendas parlamentares', 'emendas', 'exercicio,origem,tipo,forma_repasse,numero,autor,objeto,funcao,beneficiario,valor_previsto,valor_realizado,valor_empenhado,valor_liquidado,valor_pago,execucao_em,andamento', '&order=exercicio.desc'],
       ['Obras: paralisações', 'obras_paralisacoes', 'obra_id,inicio,reinicio,motivo,responsavel,previsao_reinicio,ato', '&order=inicio.desc'],
       ['Planejamento e prestação de contas', 'documentos_contas', 'tipo,exercicio,exercicio_fim,periodicidade,periodo,parte,resultado,numero_ato,data_publicacao,descricao,arquivo_url,link_externo', '&order=exercicio.desc'],
       ['Carta de Serviços', 'servicos', 'nome,categoria,descricao,publico_alvo,requisitos,etapas,prazo_maximo,forma_prestacao,link_digital,local_atendimento,horario,custo', '&order=nome'],
@@ -866,7 +868,7 @@
     const { data: pags } = await sb.from('paginas').select('titulo, slug').eq('orgao_id', org()).order('titulo').limit(300);
     const fixos = [['Notícias', '#/noticias'], ['Publicações oficiais', '#/publicacoes'], ['Diário Oficial', '#/diario-oficial'],
       ['Estrutura organizacional', '#/estrutura'], ['Gestores', '#/gestores'], ['Carta de Serviços', '#/servicos'], ['Perguntas frequentes', '#/faq'],
-      ['Transparência', '#/transparencia'], ['Planejamento e prestação de contas', '#/planejamento'], ['Licitações', '#/licitacoes'], ['Plano de contratações anual (PCA)', '#/licitacoes/pca'], ['Sancionados', '#/licitacoes/sancionados'], ['Contratos', '#/contratos'], ['Fiscais de contratos', '#/contratos/fiscais'], ['Obras', '#/obras'], ['Obras paralisadas', '#/obras/paralisadas'], ['Ouvidoria', '#/ouvidoria'], ['e-SIC', '#/esic'],
+      ['Transparência', '#/transparencia'], ['Planejamento e prestação de contas', '#/planejamento'], ['Licitações', '#/licitacoes'], ['Plano de contratações anual (PCA)', '#/licitacoes/pca'], ['Sancionados', '#/licitacoes/sancionados'], ['Contratos', '#/contratos'], ['Fiscais de contratos', '#/contratos/fiscais'], ['Obras', '#/obras'], ['Obras paralisadas', '#/obras/paralisadas'], ['Convênios e transferências', '#/convenios'], ['Emendas parlamentares', '#/emendas'], ['Ouvidoria', '#/ouvidoria'], ['e-SIC', '#/esic'],
       ['Proteção de dados (LGPD)', '#/lgpd'], ['Dados abertos', '#/dados-abertos'], ['Acessibilidade', '#/acessibilidade'], ['Contato', '#/contato']];
     pagina(main, el('h1', null, 'Mapa do site'),
       el('div', { class: 'grade g2' },
@@ -1102,7 +1104,7 @@
         L('Endereços, telefones e horários', '2.4–2.5', '#/estrutura'), L('Atos normativos', '2.6', '#/publicacoes'), L('Perguntas frequentes', '2.7', '#/faq')]],
       ['Receitas', 'receita', receita],
       ['Despesas', 'despesa', [L('Empenhos, liquidações e pagamentos', '4.1 / 4.3'), L('Despesas por classificação', '4.2'), L('Ordem cronológica de pagamentos', '9.4')]],
-      ['Convênios e transferências', 'convenio', [L('Transferências recebidas', '5.1'), L('Transferências realizadas', '5.2'), L('Acordos sem repasse de recursos', '5.3')]],
+      ['Convênios e transferências', 'convenio', [L('Transferências recebidas', '5.1', '#/convenios/recebidas'), L('Transferências realizadas', '5.2', '#/convenios/realizadas'), L('Acordos sem repasse de recursos', '5.3', '#/convenios/acordos')]],
       ['Pessoal', 'pessoas', [L('Servidores e lotação', '6.1'), L('Remuneração nominal', '6.2'), L('Tabela de cargos e salários', '6.3'), L('Estagiários', '6.4'), L('Terceirizados', '6.5'), L('Concursos e seleções', '6.6–6.7')]],
       ['Diárias', 'viagem', [L('Diárias concedidas', '7.1'), L('Tabela de valores das diárias', '7.2')]],
       ['Licitações', 'licit', [L('Relação das licitações', '8.1', '#/licitacoes/todos'), L('Editais e documentos das fases', '8.2–8.3', '#/licitacoes/licitacoes'), L('Dispensas e inexigibilidades', '8.4', '#/licitacoes/diretas'),
@@ -1118,7 +1120,7 @@
     ];
     if (exec) {
       g.push(['Renúncias de receita', 'receita', [L('Desonerações e fundamento legal', '16.1'), L('Renúncia prevista e realizada', '16.2'), L('Beneficiários', '16.3'), L('Incentivo à cultura e ao esporte', '16.4')]],
-        ['Emendas parlamentares', 'legis', [L('Emendas federais', '17.1'), L('Emendas estaduais e municipais', '17.2'), L('Execução das emendas', '17.3')]],
+        ['Emendas parlamentares', 'legis', [L('Emendas federais', '17.1', '#/emendas/federais'), L('Emendas estaduais e municipais', '17.2', '#/emendas/estaduais'), L('Execução das emendas', '17.3', '#/emendas/execucao')]],
         ['Saúde', 'saude', [L('Plano, programação e relatório', '18.1'), L('Serviços, horários e profissionais', '18.2'), L('Lista de espera da regulação', '18.3'), L('Medicamentos do SUS', '18.4'), L('Estoque das farmácias', '18.5'), L('Conselho de Saúde', '18.6')]],
         ['Educação e assistência social', 'edu', [L('Plano de educação e resultados', '19.1'), L('Lista de espera em creches', '19.2'), L('Conselho do Fundeb', '19.3'), L('Conselho de Assistência Social', '19.4')]]);
     }
@@ -1803,6 +1805,296 @@
       grupos.map(([t, itens, todos]) => el('section', { style: 'margin-bottom:24px' },
         el('div', { class: 'secao-titulo' }, el('h2', null, t), todos && itens.length === 8 ? el('a', { href: todos }, 'Ver todos →') : null),
         el('ul', null, itens.map(([rot, href]) => el('li', { style: 'margin:6px 0' }, el('a', { href, target: href.startsWith('http') ? '_blank' : null, rel: href.startsWith('http') ? 'noopener' : null }, rot)))))));
+  };
+
+  // ---------- Convênios e transferências (PNTP 5.1 a 5.3) e emendas parlamentares (17.1 a 17.3) ----------
+  // Lista anual reutilizável: faixa de anos ("Todos" primeiro), filtros, total, tabela e CSV/JSON.
+  // cfg: { base, rotuloAno, anos: async () => [{ano,total}], montar(sel, op, ano, f), filtros: [[chave, rotulo, elemento]],
+  //        cabecalho, linha(r), colunas, nome, vazioFiltro, ordem }
+  function listaAnual(conteudo, prm, cfg) {
+    return cfg.anos().then((anosLst) => {
+      if (!anosLst) { conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+      if (!anosLst.length) { history.replaceState(null, '', cfg.base); conteudo.replaceChildren(el('p', { class: 'vazio' }, cfg.vazio)); return; }
+      const contagem = new Map(anosLst.map((x) => [x.ano, Number(x.total)]));
+      const anos = ['todos'].concat([...contagem.keys()].sort((a, b) => b - a));
+      const pedido = Number(prm.get('ano'));
+      let ano = anos.includes(pedido) ? pedido : 'todos';
+      const painelAno = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
+      const totalGeral = [...contagem.values()].reduce((s, n) => s + n, 0);
+      const faixa = faixaAbas(anos.map((a) => [a, a === 'todos' ? 'Todos (' + totalGeral + ')' : a + ' (' + contagem.get(a) + ')']), ano, cfg.rotuloAno, true,
+        (id) => { ano = id === 'todos' ? 'todos' : Number(id); abrirAno(); });
+      conteudo.replaceChildren(faixa.lista, painelAno);
+      faixa.marcar(ano);
+      abrirAno();
+
+      function abrirAno() {
+        history.replaceState(null, '', cfg.base + (ano === 'todos' ? '' : '?ano=' + ano));
+        const f = {};
+        const montar = (sel, op) => cfg.montar(sel, op, ano, f);
+        const corpoTab = el('tbody');
+        const tabela = el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados tabela-lic' },
+          el('caption', { class: 'sr' }, cfg.titulo + (ano === 'todos' ? '' : ' — ' + ano)),
+          el('thead', null, el('tr', null, cfg.cabecalho.map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Detalhes')))), corpoTab));
+        const vazio = el('div'), mais = el('div', { class: 'mais' }), totalTxt = el('span', { class: 'meta', role: 'status' });
+        let itens = [], versao = 0;
+        async function carregar(reiniciar) {
+          const minha = reiniciar ? ++versao : versao;
+          const [linhas, cont] = await Promise.all([
+            paginar(montar, 'atualizado_em', reiniciar ? null : itens[itens.length - 1], 50),
+            reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
+          if (minha !== versao) return;
+          if (cont) totalTxt.textContent = (cont.count || 0) + ' ' + ((cont.count || 0) === 1 ? cfg.unidade[0] : cfg.unidade[1]);
+          itens = reiniciar ? linhas : itens.concat(linhas);
+          tabela.hidden = !itens.length;
+          vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhum registro com esses filtros.'));
+          if (reiniciar) corpoTab.replaceChildren(...linhas.map(cfg.linha)); else corpoTab.append(...linhas.map(cfg.linha));
+          const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
+          btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
+          mais.replaceChildren(linhas.length === 50 ? btn : '');
+        }
+        const campos = cfg.filtros();
+        let espera;
+        const aplicar = () => { for (const [k, , e] of campos) f[k] = e.value.trim(); carregar(true); };
+        for (const [, , e] of campos) {
+          if (e.tagName === 'SELECT') e.addEventListener('change', aplicar);
+          else e.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
+        }
+        const exportar = S.botoesExportar(cfg.nome + (ano === 'todos' ? '' : '-' + ano), cfg.colunas, async (de, ate) => {
+          const { data } = await montar().order('atualizado_em', { ascending: false }).order('id', { ascending: false }).range(de, ate);
+          return data || [];
+        });
+        painelAno.replaceChildren(
+          cfg.resumo ? cfg.resumo(ano, anosLst) : '',
+          el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } }, campos.map(([, rot, e]) => el('label', null, rot, e))),
+          el('div', { class: 'barra-lista' }, totalTxt, exportar), tabela, vazio, mais);
+        tabela.hidden = true;
+        carregar(true).catch(() => vazio.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
+      }
+    });
+  }
+  // Chaves como '01'…'99' saem fora de ordem em Object.entries (as que parecem inteiros vêm antes): ordena.
+  const selecao = (obj, todos) => el('select', null, el('option', { value: '' }, todos || 'Todos'), Object.entries(obj).sort((x, y) => /^\d+$/.test(x[0] + y[0]) ? x[0].localeCompare(y[0]) : 0).map(([k, v]) => el('option', { value: k }, Array.isArray(v) ? v[0] : v)));
+  const periodoBR = (a, b) => a || b ? (dataBR(a) || '…') + ' a ' + (dataBR(b) || '…') : '—';
+
+  const TIPOS_CONV = {
+    recebida: ['Transferências recebidas', '5.1', 'Concedente', 'Recebido', 'Não há transferências recebidas por convênio ou instrumento congênere por este órgão até esta data.'],
+    realizada: ['Transferências realizadas', '5.2', 'Beneficiário', 'Concedido', 'Não há transferências realizadas por convênio ou instrumento congênere por este órgão até esta data.'],
+    sem_repasse: ['Acordos sem repasse de recursos', '5.3', 'Partes', null, 'Não há acordos firmados sem transferência de recursos por este órgão até esta data.']
+  };
+  const INST_CONV = {
+    convenio: 'Convênio', contrato_repasse: 'Contrato de repasse', termo_fomento: 'Termo de fomento', termo_colaboracao: 'Termo de colaboração',
+    acordo_cooperacao: 'Acordo de cooperação', termo_execucao_descentralizada: 'Termo de execução descentralizada', termo_compromisso: 'Termo de compromisso',
+    transferencia_especial: 'Transferência especial', fundo_a_fundo: 'Transferência fundo a fundo', protocolo_intencoes: 'Protocolo de intenções', outro: 'Instrumento'
+  };
+  const ESF_CONV = { federal: 'Federal', estadual: 'Estadual', municipal: 'Municipal', privada: 'Entidade privada / OSC', internacional: 'Internacional' };
+  const AND_CONV = { em_execucao: ['Em execução', 'etiqueta-ambar'], concluido: ['Concluído', 'etiqueta-verde'], prestacao_contas: ['Em prestação de contas', 'etiqueta-ambar'],
+    contas_aprovadas: ['Contas aprovadas', 'etiqueta-verde'], contas_rejeitadas: ['Contas rejeitadas', 'etiqueta-vermelha'], rescindido: ['Rescindido', 'etiqueta-vermelha'], cancelado: ['Cancelado', 'etiqueta-vermelha'] };
+  const nomeConv = (c) => (INST_CONV[c.instrumento] || 'Instrumento') + (c.numero ? ' nº ' + c.numero : ' s/nº');
+  const CAMPOS_CONV = 'id, tipo, instrumento, numero, ano, processo, objeto, parte_nome, parte_doc, esfera, unidade_nome, programa, valor_previsto, valor_contrapartida, valor_repassado, repasse_atualizado_em, data_assinatura, vigencia_inicio, vigencia_fim, andamento, obrigacoes, arquivo_url, link_externo, link_acompanhamento, atualizado_em';
+  const colunasConv = (tipo) => [['instrumento', 'Instrumento', (v) => INST_CONV[v] || v], ['numero', 'Número'], ['ano', 'Ano'], ['objeto', 'Objeto'],
+    ['parte_nome', TIPOS_CONV[tipo][2]], ['parte_doc', 'CNPJ/CPF', (v) => docCtr(v)], ['esfera', 'Esfera', (v) => ESF_CONV[v] || ''],
+    ['vigencia_inicio', 'Início da vigência'], ['vigencia_fim', 'Fim da vigência']]
+    .concat(tipo === 'sem_repasse' ? [['obrigacoes', 'Obrigações ajustadas']] : [['valor_previsto', 'Valor total previsto'], ['valor_contrapartida', 'Contrapartida'], ['valor_repassado', 'Valor ' + TIPOS_CONV[tipo][3].toLowerCase()]])
+    .concat([['andamento', 'Andamento', (v) => AND_CONV[v] ? AND_CONV[v][0] : v], ['arquivo_url', 'Inteiro teor', (v, r) => v || r.link_externo || ''], ['processo', 'Processo'], ['unidade_nome', 'Unidade']]);
+
+  R.convenios = async function (main, partes, params) {
+    S.titulo('Convênios e transferências'); S.trilha(['Transparência', '#/transparencia'], ['Convênios e transferências']);
+    const ids = Object.keys(TIPOS_CONV), mapa = { recebidas: 'recebida', realizadas: 'realizada', acordos: 'sem_repasse' };
+    let tipo = mapa[partes[0]] || 'recebida';
+    const rota = (t) => '#/convenios/' + Object.keys(mapa).find((k) => mapa[k] === t);
+    const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' });
+    const { lista } = faixaAbas(ids.map((t) => [t, TIPOS_CONV[t][0]]), tipo, 'Tipo de instrumento', false, (id) => { tipo = id; abrir(new URLSearchParams()); });
+    pagina(main, el('h1', null, 'Convênios e transferências'),
+      el('p', { class: 'sub' }, 'Recursos recebidos e repassados por convênio, contrato de repasse, termo de fomento ou colaboração, e acordos firmados sem repasse de dinheiro, com o inteiro teor de cada instrumento.'),
+      lista, conteudo);
+    await abrir(params);
+
+    function abrir(prm) {
+      conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
+      const T = TIPOS_CONV[tipo], semValor = tipo === 'sem_repasse';
+      return listaAnual(conteudo, prm, {
+        base: rota(tipo), titulo: T[0], rotuloAno: 'Ano', nome: 'convenios-' + tipo, unidade: ['instrumento', 'instrumentos'],
+        vazio: T[4] + ' Atualizado em ' + new Date().toLocaleDateString('pt-BR') + '.',
+        anos: async () => { const { data, error } = await sb.rpc('convenios_anos', { p_orgao: org(), p_tipo: tipo }); return error ? null : data || []; },
+        montar: (sel, op, ano, f) => {
+          let q = sb.from('convenios').select(sel || CAMPOS_CONV, op).eq('orgao_id', org()).eq('tipo', tipo);
+          if (ano !== 'todos') q = q.eq('ano', ano);
+          if (f.busca) q = q.ilike('busca', termo(f.busca));
+          if (f.andamento) q = q.eq('andamento', f.andamento);
+          if (f.esfera) q = q.eq('esfera', f.esfera);
+          if (f.vigencia === 'vigente') q = q.or('vigencia_fim.is.null,vigencia_fim.gte.' + hojeISO());
+          if (f.vigencia === 'encerrada') q = q.lt('vigencia_fim', hojeISO());
+          return q;
+        },
+        filtros: () => [['busca', 'Pesquisar (número, objeto ou ' + T[2].toLowerCase() + ')', el('input', { type: 'search', placeholder: 'Ex.: patrulha mecanizada, 912345' })],
+          ['vigencia', 'Vigência', el('select', null, el('option', { value: '' }, 'Todas'), el('option', { value: 'vigente' }, 'Vigentes'), el('option', { value: 'encerrada' }, 'Encerradas'))],
+          ['andamento', 'Andamento', selecao(AND_CONV)]].concat(semValor ? [] : [['esfera', tipo === 'recebida' ? 'Origem do recurso' : 'Esfera do beneficiário', selecao(ESF_CONV, 'Todas')]]),
+        cabecalho: ['Instrumento e objeto', T[2], 'Vigência'].concat(semValor ? ['Obrigações'] : ['Valor previsto', T[3]], ['Andamento']),
+        colunas: colunasConv(tipo),
+        linha: (c) => {
+          const a = AND_CONV[c.andamento] || [c.andamento, 'etiqueta-ambar'];
+          return el('tr', null,
+            el('td', { 'data-rotulo': 'Instrumento', class: 'lic-obj' }, el('a', { href: '#/convenio/' + c.id }, el('strong', null, nomeConv(c))), el('span', { class: 'meta' }, c.objeto)),
+            el('td', { 'data-rotulo': T[2] }, c.parte_nome, c.esfera ? el('span', { class: 'meta' }, ESF_CONV[c.esfera]) : null),
+            el('td', { 'data-rotulo': 'Vigência', class: 'num' }, periodoBR(c.vigencia_inicio, c.vigencia_fim)),
+            semValor ? el('td', { 'data-rotulo': 'Obrigações', class: 'lic-obj' }, c.obrigacoes ? (c.obrigacoes.length > 140 ? c.obrigacoes.slice(0, 140) + '…' : c.obrigacoes) : '—') : null,
+            semValor ? null : el('td', { 'data-rotulo': 'Valor previsto', class: 'num' }, c.valor_previsto != null ? moedaBR(c.valor_previsto) : '—'),
+            semValor ? null : el('td', { 'data-rotulo': T[3], class: 'num' }, c.valor_repassado != null ? moedaBR(c.valor_repassado) : '—',
+              c.repasse_atualizado_em ? el('span', { class: 'meta' }, 'em ' + dataBR(c.repasse_atualizado_em)) : null),
+            el('td', { 'data-rotulo': 'Andamento' }, el('span', { class: 'etiqueta ' + a[1] }, a[0])),
+            el('td', { 'data-rotulo': '' }, el('a', { href: '#/convenio/' + c.id, class: 'botao botao-claro botao-p' }, 'Detalhes', el('span', { class: 'sr' }, ' de ' + nomeConv(c)))));
+        }
+      });
+    }
+  };
+
+  R.convenio = async function (main, partes) {
+    const id = partes[0];
+    if (!/^[0-9a-f-]{36}$/i.test(id || '')) return R['*'](main);
+    const [{ data: c }, { data: ems }] = await Promise.all([
+      sb.from('convenios').select(CAMPOS_CONV).eq('orgao_id', org()).eq('id', id).maybeSingle(),
+      sb.from('emendas').select('id, numero, origem, autor, valor_previsto').eq('convenio_id', id).limit(50)
+    ]);
+    if (!c) return R['*'](main);
+    const T = TIPOS_CONV[c.tipo];
+    S.titulo(nomeConv(c)); S.trilha(['Transparência', '#/transparencia'], ['Convênios e transferências', '#/convenios'], [nomeConv(c)]);
+    const linha = (rot, val) => val || val === 0 ? el('div', null, el('dt', null, rot), el('dd', null, val)) : null;
+    const a = AND_CONV[c.andamento] || [c.andamento, 'etiqueta-ambar'];
+    const teor = c.arquivo_url || c.link_externo;
+    pagina(main,
+      el('p', { class: 'meta' }, T[0] + ' (PNTP ' + T[1] + ')'),
+      el('h1', null, nomeConv(c)),
+      el('p', null, el('span', { class: 'etiqueta ' + a[1] }, a[0])),
+      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { style: 'white-space:pre-line' }, c.objeto)),
+      el('dl', { class: 'ficha-lic' },
+        linha(T[2], c.parte_nome), linha('CNPJ / CPF', docCtr(c.parte_doc)), linha('Esfera', ESF_CONV[c.esfera]),
+        linha('Processo', c.processo), linha('Programa / ação', c.programa), linha('Unidade executora', c.unidade_nome),
+        linha('Assinatura', c.data_assinatura ? dataBR(c.data_assinatura) : null), linha('Vigência', periodoBR(c.vigencia_inicio, c.vigencia_fim)),
+        c.tipo === 'sem_repasse' ? null : linha('Valor total previsto', c.valor_previsto != null ? moedaBR(c.valor_previsto) : null),
+        c.tipo === 'sem_repasse' ? null : linha('Contrapartida', c.valor_contrapartida != null ? moedaBR(c.valor_contrapartida) : null),
+        c.tipo === 'sem_repasse' ? null : linha('Valor ' + T[3].toLowerCase(), c.valor_repassado != null ? moedaBR(c.valor_repassado) + (c.repasse_atualizado_em ? ' (posição em ' + dataBR(c.repasse_atualizado_em) + ')' : '') : null)),
+      c.obrigacoes ? el('section', { class: 'cartao', style: 'margin-top:16px' }, el('h2', null, c.tipo === 'sem_repasse' ? 'Obrigações ajustadas' : 'Obrigações e metas'), el('p', { style: 'white-space:pre-line' }, c.obrigacoes)) : null,
+      el('p', { style: 'margin-top:16px;display:flex;gap:8px;flex-wrap:wrap' },
+        teor ? el('a', { class: 'botao', href: teor, target: '_blank', rel: 'noopener' }, 'Inteiro teor do instrumento', el('span', { class: 'sr' }, ' (abre em nova aba)')) : el('span', { class: 'meta' }, 'Inteiro teor não anexado.'),
+        c.link_acompanhamento ? el('a', { class: 'botao botao-claro', href: c.link_acompanhamento, target: '_blank', rel: 'noopener' }, 'Acompanhar a execução', el('span', { class: 'sr' }, ' (abre em nova aba)')) : null),
+      (ems || []).length ? el('section', { style: 'margin-top:24px' }, el('h2', null, 'Emendas parlamentares ligadas'),
+        el('ul', null, ems.map((e) => el('li', null, el('a', { href: '#/emenda/' + e.id }, 'Emenda nº ' + e.numero + ' (' + (ORI_EMENDA[e.origem] || e.origem) + ') — ' + e.autor + ' · ' + moedaBR(e.valor_previsto)))))) : null);
+  };
+
+  const ORI_EMENDA = { federal: 'Federal', estadual: 'Estadual', municipal: 'Municipal' };
+  const TIPO_EMENDA = { individual: 'Individual', bancada: 'De bancada', comissao: 'De comissão', relator: 'De relator', outra: 'Outra' };
+  const FORMA_EMENDA = { transferencia_especial: 'Transferência especial', finalidade_definida: 'Transferência com finalidade definida', fundo_a_fundo: 'Fundo a fundo',
+    convenio: 'Convênio / contrato de repasse', execucao_propria: 'Execução direta', outra: 'Outra' };
+  const AND_EMENDA = { prevista: ['Prevista', 'etiqueta-ambar'], em_execucao: ['Em execução', 'etiqueta-ambar'], concluida: ['Concluída', 'etiqueta-verde'], impedida: ['Impedida', 'etiqueta-vermelha'], cancelada: ['Cancelada', 'etiqueta-vermelha'] };
+  const FUNCOES_GOV = { '01': 'Legislativa', '02': 'Judiciária', '03': 'Essencial à Justiça', '04': 'Administração', '05': 'Defesa Nacional', '06': 'Segurança Pública',
+    '07': 'Relações Exteriores', '08': 'Assistência Social', '09': 'Previdência Social', '10': 'Saúde', '11': 'Trabalho', '12': 'Educação', '13': 'Cultura',
+    '14': 'Direitos da Cidadania', '15': 'Urbanismo', '16': 'Habitação', '17': 'Saneamento', '18': 'Gestão Ambiental', '19': 'Ciência e Tecnologia',
+    '20': 'Agricultura', '21': 'Organização Agrária', '22': 'Indústria', '23': 'Comércio e Serviços', '24': 'Comunicações', '25': 'Energia', '26': 'Transporte',
+    '27': 'Desporto e Lazer', '28': 'Encargos Especiais', '99': 'Reserva de Contingência' };
+  const funcaoBR = (k) => k ? k + ' – ' + (FUNCOES_GOV[k] || '') : '';
+  const CAMPOS_EMENDA = 'id, exercicio, origem, tipo, forma_repasse, numero, autor, objeto, funcao, beneficiario, unidade_nome, valor_previsto, valor_realizado, valor_empenhado, valor_liquidado, valor_pago, execucao_em, andamento, impedimento, convenio_id, observacao, arquivo_url, link_externo, atualizado_em';
+  const COLUNAS_EMENDA = [['exercicio', 'Exercício'], ['origem', 'Origem', (v) => ORI_EMENDA[v] || v], ['tipo', 'Tipo de emenda', (v) => TIPO_EMENDA[v] || v],
+    ['forma_repasse', 'Forma de repasse', (v) => FORMA_EMENDA[v] || v], ['numero', 'Número da emenda'], ['autor', 'Autoria'], ['objeto', 'Objeto'],
+    ['funcao', 'Função de governo', (v) => funcaoBR(v)], ['beneficiario', 'Beneficiário'], ['valor_previsto', 'Valor previsto'], ['valor_realizado', 'Valor realizado'],
+    ['valor_empenhado', 'Empenhado'], ['valor_liquidado', 'Liquidado'], ['valor_pago', 'Pago'], ['execucao_em', 'Posição da execução'],
+    ['andamento', 'Andamento', (v) => AND_EMENDA[v] ? AND_EMENDA[v][0] : v], ['impedimento', 'Impedimento'], ['unidade_nome', 'Unidade']];
+  const ABAS_EMENDA = [['todas', 'Todas as emendas', null], ['federais', 'Federais (17.1)', ['federal']], ['estaduais', 'Estaduais e municipais (17.2)', ['estadual', 'municipal']], ['execucao', 'Execução (17.3)', null]];
+
+  R.emendas = async function (main, partes, params) {
+    S.titulo('Emendas parlamentares'); S.trilha(['Transparência', '#/transparencia'], ['Emendas parlamentares']);
+    let aba = ABAS_EMENDA.some((x) => x[0] === partes[0]) ? partes[0] : 'todas';
+    const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' });
+    const { lista } = faixaAbas(ABAS_EMENDA.map((x) => [x[0], x[1]]), aba, 'Emendas', false, (id) => { aba = id; abrir(new URLSearchParams()); });
+    pagina(main, el('h1', null, 'Emendas parlamentares'),
+      el('p', { class: 'sub' }, 'Emendas federais, estaduais e municipais (inclusive as aprovadas no orçamento do próprio município) destinadas a este órgão, com autoria, valores e a execução de cada uma.'),
+      lista, conteudo);
+    await abrir(params);
+
+    function abrir(prm) {
+      conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
+      const def = ABAS_EMENDA.find((x) => x[0] === aba), exec = aba === 'execucao';
+      return listaAnual(conteudo, prm, {
+        base: '#/emendas' + (aba === 'todas' ? '' : '/' + aba), titulo: def[1], rotuloAno: 'Exercício', nome: 'emendas' + (aba === 'todas' ? '' : '-' + aba), unidade: ['emenda', 'emendas'],
+        vazio: 'Não há emendas parlamentares ' + (aba === 'federais' ? 'federais ' : aba === 'estaduais' ? 'estaduais ou municipais ' : '') + 'destinadas a este órgão até esta data. Atualizado em ' + new Date().toLocaleDateString('pt-BR') + '.',
+        anos: async () => {
+          let q = sb.from('emendas').select('exercicio').eq('orgao_id', org()).limit(5000);
+          if (def[2]) q = q.in('origem', def[2]);
+          const { data, error } = await q;
+          if (error) return null;
+          const m = new Map(); for (const r of data || []) m.set(r.exercicio, (m.get(r.exercicio) || 0) + 1);
+          return [...m].map(([ano, total]) => ({ ano, total }));
+        },
+        montar: (sel, op, ano, f) => {
+          let q = sb.from('emendas').select(sel || CAMPOS_EMENDA, op).eq('orgao_id', org());
+          if (def[2]) q = q.in('origem', def[2]);
+          if (ano !== 'todos') q = q.eq('exercicio', ano);
+          if (f.busca) q = q.ilike('busca', termo(f.busca));
+          for (const k of ['origem', 'forma_repasse', 'funcao', 'andamento']) if (f[k]) q = q.eq(k, f[k]);
+          return q;
+        },
+        resumo: exec ? (ano) => {
+          const caixa = el('div', { class: 'grade', style: 'margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))' });
+          let q = sb.from('emendas').select('valor_previsto, valor_realizado, valor_empenhado, valor_liquidado, valor_pago').eq('orgao_id', org()).limit(5000);
+          if (ano !== 'todos') q = q.eq('exercicio', ano);
+          q.then(({ data }) => {
+            const s = (k) => (data || []).reduce((t, r) => t + Number(r[k] || 0), 0);
+            caixa.replaceChildren(...[['Previsto', 'valor_previsto'], ['Realizado', 'valor_realizado'], ['Empenhado', 'valor_empenhado'], ['Liquidado', 'valor_liquidado'], ['Pago', 'valor_pago']]
+              .map(([r, k]) => el('div', { class: 'cartao' }, el('span', { class: 'meta' }, r + (ano === 'todos' ? '' : ' em ' + ano)), el('strong', { style: 'display:block;font-size:1.15em' }, moedaBR(s(k))))));
+          });
+          return caixa;
+        } : null,
+        filtros: () => [['busca', 'Pesquisar (número, autor, objeto)', el('input', { type: 'search', placeholder: 'Ex.: ambulância, nome do parlamentar' })]]
+          .concat(aba === 'estaduais' ? [['origem', 'Origem', el('select', null, el('option', { value: '' }, 'Estaduais e municipais'), el('option', { value: 'estadual' }, 'Estaduais'), el('option', { value: 'municipal' }, 'Municipais (próprias)'))]]
+            : aba === 'federais' ? [] : [['origem', 'Origem', selecao(ORI_EMENDA, 'Todas')]],
+          [['forma_repasse', 'Forma de repasse', selecao(FORMA_EMENDA)], ['funcao', 'Função de governo', selecao(Object.fromEntries(Object.keys(FUNCOES_GOV).map((k) => [k, funcaoBR(k)])), 'Todas')],
+            ['andamento', 'Andamento', selecao(AND_EMENDA)]]),
+        cabecalho: exec ? ['Emenda', 'Objeto', 'Previsto', 'Empenhado', 'Liquidado', 'Pago'] : ['Emenda', 'Autoria', 'Objeto e função', 'Valor previsto', 'Valor realizado', 'Andamento'],
+        colunas: COLUNAS_EMENDA,
+        linha: (e) => {
+          const a = AND_EMENDA[e.andamento] || [e.andamento, 'etiqueta-ambar'];
+          const cab = el('td', { 'data-rotulo': 'Emenda' }, el('a', { href: '#/emenda/' + e.id }, el('strong', null, 'Nº ' + e.numero)),
+            el('span', { class: 'meta' }, (ORI_EMENDA[e.origem] || e.origem) + ' · ' + (TIPO_EMENDA[e.tipo] || '') + ' · ' + e.exercicio), el('span', { class: 'meta' }, FORMA_EMENDA[e.forma_repasse] || ''));
+          const v = (rot, x) => el('td', { 'data-rotulo': rot, class: 'num' }, x != null ? moedaBR(x) : '—');
+          const det = el('td', { 'data-rotulo': '' }, el('a', { href: '#/emenda/' + e.id, class: 'botao botao-claro botao-p' }, 'Detalhes', el('span', { class: 'sr' }, ' da emenda ' + e.numero)));
+          return exec
+            ? el('tr', null, cab, el('td', { 'data-rotulo': 'Objeto', class: 'lic-obj' }, e.objeto, e.execucao_em ? el('span', { class: 'meta' }, 'Posição em ' + dataBR(e.execucao_em)) : null),
+              v('Previsto', e.valor_previsto), v('Empenhado', e.valor_empenhado), v('Liquidado', e.valor_liquidado), v('Pago', e.valor_pago), det)
+            : el('tr', null, cab, el('td', { 'data-rotulo': 'Autoria' }, e.autor),
+              el('td', { 'data-rotulo': 'Objeto', class: 'lic-obj' }, e.objeto, el('span', { class: 'meta' }, funcaoBR(e.funcao))),
+              v('Valor previsto', e.valor_previsto), v('Valor realizado', e.valor_realizado),
+              el('td', { 'data-rotulo': 'Andamento' }, el('span', { class: 'etiqueta ' + a[1] }, a[0])), det);
+        }
+      });
+    }
+  };
+
+  R.emenda = async function (main, partes) {
+    const id = partes[0];
+    if (!/^[0-9a-f-]{36}$/i.test(id || '')) return R['*'](main);
+    const { data: e } = await sb.from('emendas').select(CAMPOS_EMENDA).eq('orgao_id', org()).eq('id', id).maybeSingle();
+    if (!e) return R['*'](main);
+    let cv = null;
+    if (e.convenio_id) { const r = await sb.from('convenios').select('id, instrumento, numero, parte_nome').eq('id', e.convenio_id).maybeSingle(); cv = r.data; }
+    const titulo = 'Emenda nº ' + e.numero;
+    S.titulo(titulo); S.trilha(['Transparência', '#/transparencia'], ['Emendas parlamentares', '#/emendas'], [titulo]);
+    const linha = (rot, val) => val || val === 0 ? el('div', null, el('dt', null, rot), el('dd', null, val)) : null;
+    const a = AND_EMENDA[e.andamento] || [e.andamento, 'etiqueta-ambar'];
+    const m = (x) => x != null ? moedaBR(x) : null;
+    pagina(main,
+      el('p', { class: 'meta' }, 'Emenda parlamentar ' + (ORI_EMENDA[e.origem] || '').toLowerCase() + ' · exercício ' + e.exercicio),
+      el('h1', null, titulo),
+      el('p', null, el('span', { class: 'etiqueta ' + a[1] }, a[0])),
+      e.andamento === 'impedida' && e.impedimento ? el('div', { class: 'cartao aviso-obra' }, el('h2', null, 'Impedimento'), el('p', null, e.impedimento)) : null,
+      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { style: 'white-space:pre-line' }, e.objeto)),
+      el('dl', { class: 'ficha-lic' },
+        linha('Origem', ORI_EMENDA[e.origem]), linha('Tipo de emenda', TIPO_EMENDA[e.tipo]), linha('Forma de repasse', FORMA_EMENDA[e.forma_repasse]),
+        linha('Autoria', e.autor), linha('Função de governo', funcaoBR(e.funcao)), linha('Beneficiário', e.beneficiario), linha('Unidade executora', e.unidade_nome),
+        linha('Valor previsto', m(e.valor_previsto)), linha('Valor realizado', m(e.valor_realizado)),
+        linha('Empenhado', m(e.valor_empenhado)), linha('Liquidado', m(e.valor_liquidado)), linha('Pago', m(e.valor_pago)),
+        linha('Posição da execução', e.execucao_em ? dataBR(e.execucao_em) : null),
+        linha('Convênio', cv ? el('a', { href: '#/convenio/' + cv.id }, nomeConv(cv) + ' — ' + cv.parte_nome) : null)),
+      e.observacao ? el('p', { style: 'margin-top:16px;white-space:pre-line' }, e.observacao) : null,
+      e.arquivo_url || e.link_externo ? el('p', { style: 'margin-top:16px' }, el('a', { class: 'botao botao-claro', href: e.arquivo_url || e.link_externo, target: '_blank', rel: 'noopener' }, 'Mais informações sobre a emenda', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null);
   };
 
   // ---------- Obras (PNTP 10.1 a 10.4) ----------
