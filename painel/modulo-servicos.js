@@ -100,23 +100,27 @@
     const secao = (titulo, ...filhos) => el('div', { class: 'secao-form' }, el('h3', null, titulo), ...filhos);
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       travado ? el('p', { class: 'msg msg-info' }, 'Este serviço está publicado. Só quem tem permissão de publicar pode alterá-lo.') : null,
-      campo('sv-nome', 'Nome do serviço', f.nome, 'Como o cidadão procura. Ex.: Emissão de 2ª via do IPTU', true),
-      el('div', { class: 'grade-campos' }, categoria.campo, campo('sv-unidade', 'Unidade responsável', f.unidade)),
-      campo('sv-descricao', 'O que é o serviço', f.descricao),
-      campo('sv-publico', 'Quem pode pedir', f.publico),
-      secao('Como pedir',
-        el('div', { class: 'campo' }, el('label', { for: 'sv-requisitos' }, 'Requisitos e documentos necessários'), f.requisitos.elemento),
-        el('div', { class: 'campo' }, el('label', { for: 'sv-etapas' }, 'Principais etapas'), f.etapas.elemento),
-        el('div', { class: 'grade-campos' }, campo('sv-prazo', 'Prazo máximo para atender', f.prazo), campo('sv-custo', 'Custo', f.custo))),
-      secao('Onde e quando',
-        campo('sv-forma', 'Forma de prestação', f.forma), blocoLink,
-        el('div', { class: 'grade-campos' },
-          campo('sv-local', 'Local de atendimento', f.local, 'Em branco: o endereço da sede.'),
-          campo('sv-horario', 'Horário', f.horario, 'Em branco: o horário geral do órgão.')),
-        el('div', { class: 'grade-campos' }, campo('sv-prioridades', 'Atendimento prioritário', f.prioridades), campo('sv-espera', 'Tempo de espera previsto', f.espera))),
-      secao('Reclamações e sugestões',
-        campo('sv-manifestacao', 'Onde se manifestar sobre este serviço', f.manifestacao,
-          'Em branco: vale o texto padrão da aba "Textos da Carta" (Ouvidoria).'))
+      // v0.9.1: as antigas seções viraram abas da janela (Carta de Serviços tem muitos campos).
+      P.abas([
+        ['servico', 'O serviço', [
+          campo('sv-nome', 'Nome do serviço', f.nome, 'Como o cidadão procura. Ex.: Emissão de 2ª via do IPTU', true),
+          el('div', { class: 'grade-campos' }, categoria.campo, campo('sv-unidade', 'Unidade responsável', f.unidade)),
+          campo('sv-descricao', 'O que é o serviço', f.descricao),
+          campo('sv-publico', 'Quem pode pedir', f.publico)]],
+        ['como', 'Como pedir', [
+          el('div', { class: 'campo' }, el('label', { for: 'sv-requisitos' }, 'Requisitos e documentos necessários'), f.requisitos.elemento),
+          el('div', { class: 'campo' }, el('label', { for: 'sv-etapas' }, 'Principais etapas'), f.etapas.elemento),
+          el('div', { class: 'grade-campos' }, campo('sv-prazo', 'Prazo máximo para atender', f.prazo), campo('sv-custo', 'Custo', f.custo))]],
+        ['onde', 'Onde e quando', [
+          campo('sv-forma', 'Forma de prestação', f.forma), blocoLink,
+          el('div', { class: 'grade-campos' },
+            campo('sv-local', 'Local de atendimento', f.local, 'Em branco: o endereço da sede.'),
+            campo('sv-horario', 'Horário', f.horario, 'Em branco: o horário geral do órgão.')),
+          el('div', { class: 'grade-campos' }, campo('sv-prioridades', 'Atendimento prioritário', f.prioridades), campo('sv-espera', 'Tempo de espera previsto', f.espera))]],
+        ['manifestacao', 'Reclamações e sugestões', [
+          campo('sv-manifestacao', 'Onde se manifestar sobre este serviço', f.manifestacao,
+            'Em branco: vale o texto padrão da aba "Textos da Carta" (Ouvidoria).')]]
+      ])
     );
     if (travado) for (const i of corpo.querySelectorAll('input, textarea, select, .editor-barra button')) i.disabled = true;
 

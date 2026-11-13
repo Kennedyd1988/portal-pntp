@@ -121,23 +121,24 @@
 
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       travada ? el('p', { class: 'msg msg-info' }, 'Esta notícia está publicada. Só quem tem permissão de publicar pode alterá-la.') : null,
-      campo('nt-titulo', 'Título', f.titulo, null, true),
-      el('div', { class: 'campo' }, el('label', { for: 'nt-resumo' }, 'Resumo'), Object.assign(f.resumo, { id: 'nt-resumo' }), contador),
-      el('div', { class: 'campo' }, el('label', { for: 'nt-conteudo' }, 'Texto da notícia'), editor.elemento),
-      capa.elemento,
-      campo('nt-legenda', 'Descrição da foto', f.legenda, 'Obrigatória quando há foto: é lida por quem usa leitor de tela (acessibilidade).'),
-      el('div', { class: 'grade-campos' },
-        categoria.campo,
-        campo('nt-unidade', 'Unidade responsável', f.unidade)
-      ),
-      el('div', { class: 'campo' },
-        el('span', { class: 'rotulo', id: 'nt-rel-rotulo' }, 'Outras secretarias envolvidas'),
-        caixaRel,
-        el('span', { class: 'ajuda' }, 'Opcional. Ex.: campanha da Saúde com a Educação. A notícia aparece também na página dessas secretarias; quem edita continua sendo só a unidade responsável.')),
-      el('div', { class: 'grade-campos' },
-        campo('nt-data', 'Data de publicação', f.data, 'Data futura = a notícia entra no ar sozinha nesse dia e hora.'),
-        el('label', { class: 'checkbox', style: 'align-self:center' }, f.destaque, ' Destacar na página inicial')
-      )
+      P.abas([
+        ['texto', 'Texto', [
+          campo('nt-titulo', 'Título', f.titulo, null, true),
+          el('div', { class: 'campo' }, el('label', { for: 'nt-resumo' }, 'Resumo'), Object.assign(f.resumo, { id: 'nt-resumo' }), contador),
+          el('div', { class: 'campo' }, el('label', { for: 'nt-conteudo' }, 'Texto da notícia'), editor.elemento)]],
+        ['foto', 'Foto de capa', [
+          capa.elemento,
+          campo('nt-legenda', 'Descrição da foto', f.legenda, 'Obrigatória quando há foto: é lida por quem usa leitor de tela (acessibilidade).')]],
+        ['publicacao', 'Secretarias e publicação', [
+          el('div', { class: 'grade-campos' }, categoria.campo, campo('nt-unidade', 'Unidade responsável', f.unidade)),
+          el('div', { class: 'campo' },
+            el('span', { class: 'rotulo', id: 'nt-rel-rotulo' }, 'Outras secretarias envolvidas'),
+            caixaRel,
+            el('span', { class: 'ajuda' }, 'Opcional. Ex.: campanha da Saúde com a Educação. A notícia aparece também na página dessas secretarias; quem edita continua sendo só a unidade responsável.')),
+          el('div', { class: 'grade-campos' },
+            campo('nt-data', 'Data de publicação', f.data, 'Data futura = a notícia entra no ar sozinha nesse dia e hora.'),
+            el('label', { class: 'checkbox', style: 'align-self:center' }, f.destaque, ' Destacar na página inicial'))]]
+      ])
     );
     if (travada) for (const i of corpo.querySelectorAll('input, textarea, select, .editor-barra button')) i.disabled = true;
 
@@ -366,15 +367,17 @@
     };
     const destino = destinoBanner(b, f.link);
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
-      img.elemento,
-      campo('bn-titulo', 'Texto alternativo (o que a imagem mostra ou anuncia)', f.titulo, null, true),
-      destino.campo, destino.blocoNoticia, destino.blocoLink,
-      el('div', { class: 'grade-campos' },
-        campo('bn-inicio', 'Mostrar a partir de', f.inicio, 'Em branco = já'),
-        campo('bn-fim', 'Mostrar até', f.fim, 'Em branco = sem data para sair')),
-      el('div', { class: 'grade-campos' },
-        campo('bn-ordem', 'Ordem', f.ordem, '1 = primeiro'),
-        el('label', { class: 'checkbox', style: 'align-self:center' }, f.ativo, ' Ativo')));
+      P.abas([
+        ['imagem', 'Imagem', [img.elemento, campo('bn-titulo', 'Texto alternativo (o que a imagem mostra ou anuncia)', f.titulo, null, true)]],
+        ['destino', 'Ao clicar', [destino.campo, destino.blocoNoticia, destino.blocoLink]],
+        ['periodo', 'Período e ordem', [
+          el('div', { class: 'grade-campos' },
+            campo('bn-inicio', 'Mostrar a partir de', f.inicio, 'Em branco = já'),
+            campo('bn-fim', 'Mostrar até', f.fim, 'Em branco = sem data para sair')),
+          el('div', { class: 'grade-campos' },
+            campo('bn-ordem', 'Ordem', f.ordem, '1 = primeiro'),
+            el('label', { class: 'checkbox', style: 'align-self:center' }, f.ativo, ' Ativo'))]]
+      ]));
     const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
     const dlg = P.abrirDialogo(b.id ? 'Editar banner' : 'Novo banner', corpo, [
       el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn]);
@@ -465,12 +468,17 @@
     };
     f.texto.value = a.texto || '';
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
-      campo('av-titulo', 'Título (opcional)', f.titulo, 'Aparece em negrito antes do texto. Até 60 caracteres.'),
-      campo('av-texto', 'Texto do aviso', f.texto, 'Até 300 caracteres. Aparece numa faixa no topo de todas as páginas.', true),
-      campo('av-nivel', 'Nível', f.nivel, 'Muda só a cor e o ícone; o formato da faixa é o mesmo.'),
-      el('div', { class: 'grade-campos' }, campo('av-link', 'Link do botão (opcional)', f.link), campo('av-rotulo', 'Texto do botão', f.rotulo, 'Ex.: Emitir guia. Em branco: "Saiba mais".')),
-      el('div', { class: 'grade-campos' }, campo('av-inicio', 'Início', f.inicio), campo('av-fim', 'Fim', f.fim, 'Em branco = até ser desativado')),
-      el('label', { class: 'checkbox' }, f.ativo, ' Ativo'));
+      P.abas([
+        ['mensagem', 'Mensagem', [
+          campo('av-titulo', 'Título (opcional)', f.titulo, 'Aparece em negrito antes do texto. Até 60 caracteres.'),
+          campo('av-texto', 'Texto do aviso', f.texto, 'Até 300 caracteres. Aparece numa faixa no topo de todas as páginas.', true),
+          campo('av-nivel', 'Nível', f.nivel, 'Muda só a cor e o ícone; o formato da faixa é o mesmo.')]],
+        ['botao', 'Botão de ação', [
+          el('div', { class: 'grade-campos' }, campo('av-link', 'Link do botão (opcional)', f.link), campo('av-rotulo', 'Texto do botão', f.rotulo, 'Ex.: Emitir guia. Em branco: "Saiba mais".'))]],
+        ['periodo', 'Período', [
+          el('div', { class: 'grade-campos' }, campo('av-inicio', 'Início', f.inicio), campo('av-fim', 'Fim', f.fim, 'Em branco = até ser desativado')),
+          el('label', { class: 'checkbox' }, f.ativo, ' Ativo')]]
+      ]));
     const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
     const dlg = P.abrirDialogo(a.id ? 'Editar aviso' : 'Novo aviso', corpo, [
       el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn]);

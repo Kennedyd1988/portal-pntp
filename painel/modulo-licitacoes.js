@@ -103,7 +103,8 @@
   // ---------------------------------------------------------------------
   // Formulário do processo
   // ---------------------------------------------------------------------
-  function form(l) {
+  // v0.9.1: processo e documentos numa só janela, em abas (Documentos só depois do 1º salvamento).
+  function form(l, abaInicial) {
     l = l || {};
     const editando = !!l.id;
     const publicado = l.situacao === 'publicado';
@@ -150,11 +151,20 @@
       el('div', { class: 'grade-campos' }, campo('lc-proc', 'Processo administrativo', f.processo), campo('lc-un', 'Unidade requisitante', f.unidade)),
       el('div', { class: 'grade-campos' }, campo('lc-crit', 'Critério de julgamento', f.criterio), campo('lc-amp', 'Fundamento legal', f.amparo)),
       el('label', { class: 'checkbox' }, f.srp, ' Registro de preços (SRP)'),
-      el('div', { class: 'grade-campos' }, campo('lc-pub', 'Data de publicação', f.publicacao, null, true), campo('lc-abe', 'Abertura / sessão pública', f.abertura),
-        campo('lc-and', 'Andamento', f.andamento)),
-      el('div', { class: 'grade-campos' }, campo('lc-est', 'Valor estimado (R$)', f.estimado), campo('lc-hom', 'Valor homologado / contratado (R$)', f.homologado)),
-      campo('lc-ven', 'Vencedores / resultado', f.vencedores, 'Resumo do resultado. Os documentos completos vão em "Documentos".'),
       bLink);
+    // Os campos acima vão para a 1ª aba; montamos as abas depois de criar tudo.
+    const dadosProc = [...corpo.childNodes].filter((n) => !(n.classList && n.classList.contains('msg')));
+    dadosProc.forEach((n) => n.remove());
+    corpo.append(P.abas([
+      ['processo', 'Dados do processo', dadosProc],
+      ['valores', 'Valores e datas', [
+        el('div', { class: 'grade-campos' }, campo('lc-pub', 'Data de publicação', f.publicacao, null, true), campo('lc-abe', 'Abertura / sessão pública', f.abertura),
+          campo('lc-and', 'Andamento', f.andamento)),
+        el('div', { class: 'grade-campos' }, campo('lc-est', 'Valor estimado (R$)', f.estimado), campo('lc-hom', 'Valor homologado / contratado (R$)', f.homologado)),
+        campo('lc-ven', 'Vencedores / resultado', f.vencedores, 'Resumo do resultado. Os documentos completos vão na aba "Documentos".')]],
+      editando ? ['documentos', 'Documentos', () => documentos(l)]
+        : ['documentos', 'Documentos', null, 'Salve o processo primeiro: a aba de documentos abre logo em seguida.']
+    ], abaInicial));
     ajustar();
     if (travado) for (const i of corpo.querySelectorAll('input, select, textarea')) i.disabled = true;
 
@@ -189,8 +199,8 @@
         dlg.close();
         toast(situacao === 'publicado' ? 'Publicado.' : 'Rascunho salvo.');
         ano = a; await recarregar();
-        // Processo novo do portal: já abre a lista de documentos para anexar o edital.
-        if (!editando && origem === 'portal') documentos(Object.assign({ id }, dados));
+        // Processo novo: reabre a mesma janela já na aba Documentos, para anexar o edital.
+        if (!editando) form(Object.assign({}, l, dados, { id }), 'documentos');
       } catch (e) { mostrarErro(e); }
       finally { ocupado(btn); }
     }
@@ -199,18 +209,16 @@
   }
 
   // ---------------------------------------------------------------------
-  // Documentos do processo (lista + envio de vários PDFs de uma vez)
+  // Documentos do processo (lista + envio de vários PDFs de uma vez).
+  // Desde a v0.9.1 é o conteúdo da aba "Documentos" da janela do processo.
   // ---------------------------------------------------------------------
-  async function documentos(l) {
+  function documentos(l) {
     const travado = l.situacao === 'publicado' && !perm.publicar;
     const pode = podeGravar() && !travado;
     const lista = el('div', null, el('p', { class: 'vazio' }, 'Carregando…'));
-    const corpo = el('div', { class: 'form-dialogo' },
-      el('p', { class: 'sub' }, rotuloProcesso(l) + (l.numero ? (String(l.numero).includes('/') ? '' : '/' + l.ano) : ' de ' + l.ano) + ' — ' + l.objeto.slice(0, 140) + (l.objeto.length > 140 ? '…' : '')),
+    const corpo = el('div', null,
       travado ? el('p', { class: 'msg msg-info' }, 'Processo publicado: só quem tem permissão de publicar altera os documentos.') : null,
       lista);
-    const dlg = P.abrirDialogo('Documentos do processo', corpo, [el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Fechar')]);
-    dlg.classList.add('dialogo-largo');
 
     async function atualizar() {
       const { data, error } = await sb.from('licitacoes_documentos').select('*').eq('licitacao_id', l.id).order('data').order('ordem').order('criado_em').limit(500);
@@ -296,6 +304,7 @@
         el('div', { style: 'margin-top:10px' }, btn));
     }
     atualizar();
+    return corpo;
   }
 
   // ---------------------------------------------------------------------
@@ -556,7 +565,7 @@
             el('td', null, l.origem === 'pncp' ? 'PNCP' : l.origem === 'link' ? el('a', { href: l.link_externo, target: '_blank', rel: 'noopener' }, 'Link') : 'Portal'),
             el('td', null, el('span', { class: 'etiqueta etiqueta-' + (l.situacao === 'publicado' ? 'publicado' : 'rascunho') }, l.situacao === 'publicado' ? 'No ar' : 'Rascunho')),
             el('td', { class: 'acoes' },
-              el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => documentos(l) }, 'Documentos'),
+              el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(l, 'documentos') }, 'Documentos'),
               podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(l) }, l.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
               perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(l) }, 'Excluir') : null)))))),
         el('div', { class: 'rodape-lista' }, el('span', { class: 'ajuda' }, 'Mostrando ' + itens.length + ' de ' + total), fim ? '' : btnMais));

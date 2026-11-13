@@ -229,13 +229,17 @@
     const parteEdicao = editando && !usaLink ? campo('ct-parte', 'Parte', el('input', { type: 'text', maxlength: 120, value: d.parte || '' })) : null;
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       travado ? el('p', { class: 'msg msg-info' }, 'Este documento está publicado. Só quem tem permissão de publicar pode alterá-lo.') : null,
-      campo('ct-tipo', 'Documento', f.tipo, null, true),
-      el('div', { class: 'grade-campos' }, el('div', { class: 'campo' }, rotEx, f.exercicio, el('span', { class: 'erro-campo', id: 'ct-ex-erro' })), bExFim, bBim),
-      bRgf, bRes,
-      el('div', { class: 'grade-campos' }, campo('ct-data', 'Data de publicação', f.data, null, true), campo('ct-desc', 'Observação', f.descricao)),
-      el('fieldset', { class: 'opcoes' }, el('legend', null, 'Documento'),
-        el('label', { class: 'checkbox' }, rPdf, ' Enviar PDF'), el('label', { class: 'checkbox' }, rLink, ' Link externo'),
-        parteEdicao, bPdf, bLink));
+      P.abas([
+        ['periodo', 'Tipo e período', [
+          campo('ct-tipo', 'Documento', f.tipo, null, true),
+          el('div', { class: 'grade-campos' }, el('div', { class: 'campo' }, rotEx, f.exercicio, el('span', { class: 'erro-campo', id: 'ct-ex-erro' })), bExFim, bBim),
+          bRgf, bRes,
+          el('div', { class: 'grade-campos' }, campo('ct-data', 'Data de publicação', f.data, null, true), campo('ct-desc', 'Observação', f.descricao))]],
+        ['arquivos', 'Arquivos', [
+          el('fieldset', { class: 'opcoes' }, el('legend', null, 'Documento'),
+            el('label', { class: 'checkbox' }, rPdf, ' Enviar PDF'), el('label', { class: 'checkbox' }, rLink, ' Link externo'),
+            parteEdicao, bPdf, bLink)]]
+      ]));
     ajustar(); alternarDoc();
     if (travado) for (const i of corpo.querySelectorAll('input, select')) i.disabled = true;
 

@@ -93,21 +93,23 @@
 
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       travada ? el('p', { class: 'msg msg-info' }, 'Esta publicação está no ar. Só quem tem permissão de publicar pode alterá-la.') : null,
-      el('div', { class: 'grade-campos grade-3' },
-        campo('pb-tipo', 'Tipo', f.tipo, null, true),
-        campo('pb-numero', 'Número', f.numero),
-        campo('pb-data', 'Data de publicação', f.data, null, true)),
-      campo('pb-ementa', 'Ementa', f.ementa, 'Resumo oficial do ato ("Dispõe sobre…"). É por ela que o cidadão pesquisa.', true),
-      el('fieldset', { class: 'opcoes' },
-        el('legend', null, 'Documento'),
-        el('label', { class: 'checkbox' }, rPdf, ' Enviar o PDF'),
-        el('label', { class: 'checkbox' }, rLink, ' Apontar para um link externo (Diário Oficial, outro sistema)'),
-        blocoPdf, blocoLink),
-      el('div', { class: 'grade-campos grade-3' },
-        campo('pb-ano', 'Ano', f.ano, null, true),
-        campo('pb-vigencia', 'Situação do ato', f.vigencia),
-        campo('pb-unidade', 'Unidade', f.unidade)),
-      campo('pb-obs', 'Observação', f.observacao)
+      P.abas([
+        ['ato', 'Identificação do ato', [el('div', { class: 'grade-campos grade-3' },
+          campo('pb-tipo', 'Tipo', f.tipo, null, true),
+          campo('pb-numero', 'Número', f.numero),
+          campo('pb-data', 'Data de publicação', f.data, null, true)),
+          campo('pb-ementa', 'Ementa', f.ementa, 'Resumo oficial do ato ("Dispõe sobre…"). É por ela que o cidadão pesquisa.', true),
+          campo('pb-ano', 'Ano', f.ano, null, true)]],
+        ['documento', 'Documento', [el('fieldset', { class: 'opcoes' },
+          el('legend', null, 'Como o documento chega ao cidadão'),
+          el('label', { class: 'checkbox' }, rPdf, ' Enviar o PDF'),
+          el('label', { class: 'checkbox' }, rLink, ' Apontar para um link externo (Diário Oficial, outro sistema)'),
+          blocoPdf, blocoLink)]],
+        ['situacao', 'Situação e unidade', [el('div', { class: 'grade-campos' },
+          campo('pb-vigencia', 'Situação do ato', f.vigencia),
+          campo('pb-unidade', 'Unidade', f.unidade)),
+          campo('pb-obs', 'Observação', f.observacao)]]
+      ])
     );
     if (travada) for (const i of corpo.querySelectorAll('input, textarea, select')) i.disabled = true;
 

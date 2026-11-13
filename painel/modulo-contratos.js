@@ -98,7 +98,8 @@
   // ---------------------------------------------------------------------
   // Formulário do contrato
   // ---------------------------------------------------------------------
-  async function form(c) {
+  // v0.9.1: contrato, inteiro teor, aditivos e fiscais numa só janela, em abas.
+  async function form(c, abaInicial) {
     c = c || {};
     const editando = !!c.id;
     const publicado = c.situacao === 'publicado';
@@ -134,19 +135,30 @@
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       travado ? el('p', { class: 'msg msg-info' }, 'Este contrato está publicado. Só quem tem permissão de publicar pode alterá-lo.') : null,
       doPncp ? el('p', { class: 'msg msg-info' }, 'Importado do PNCP: uma nova importação atualiza número, objeto, contratado, valores, vigência e os aditivos do PNCP. Fiscais e o que você acrescentar aqui são mantidos.') : null,
-      doPncp ? null : el('fieldset', { class: 'opcoes' }, el('legend', null, 'Onde fica o inteiro teor'),
-        el('label', { class: 'checkbox' }, rPortal, ' Neste portal (enviar o PDF aqui)'), el('label', { class: 'checkbox' }, rLink, ' Em outro sistema (só link)')),
-      el('div', { class: 'grade-campos' }, campo('ct-tipo', 'Instrumento', f.tipo), campo('ct-num', 'Número', f.numero), campo('ct-ano', 'Ano', f.ano, null, true)),
-      campo('ct-obj', 'Objeto', f.objeto, null, true),
-      el('div', { class: 'grade-campos' }, campo('ct-ctd', 'Contratado (nome ou razão social)', f.contratado, null, true), campo('ct-doc', 'CNPJ ou CPF', f.doc, 'No site, CPF aparece mascarado (LGPD).')),
-      el('div', { class: 'grade-campos' }, campo('ct-proc', 'Processo administrativo', f.processo), campo('ct-un', 'Unidade contratante', f.unidade)),
-      el('div', { class: 'grade-campos' }, campo('ct-val', 'Valor inicial (R$)', f.valor, 'Aditivos de valor são somados automaticamente.'), campo('ct-ass', 'Data de assinatura', f.assinatura, null, true)),
-      el('div', { class: 'grade-campos' }, campo('ct-ini', 'Vigência: início', f.inicio, null, true), campo('ct-fim', 'Vigência: fim (original)', f.fimVig, 'Prorrogações vão em "Aditivos".', true),
-        campo('ct-resc', 'Rescindido em', f.rescisao, 'Só se houve rescisão antecipada.')),
-      el('div', { class: 'campo' }, el('label', { for: 'ct-lic' }, 'Licitação de origem'), lic.bloco),
-      doPncp ? null : campo('ct-pdf', c.arquivo_url ? 'Trocar o PDF do contrato' : 'PDF do contrato (inteiro teor)', f.pdf, 'Até ' + LIMITE_MB + ' MB. Prefira PDF com texto pesquisável.'),
-      c.arquivo_url ? el('a', { href: c.arquivo_url, target: '_blank', rel: 'noopener', class: 'ajuda' }, 'Ver PDF atual') : null,
-      campo('ct-link', doPncp ? 'Página no PNCP' : 'Link do contrato', f.link, doPncp ? null : 'Obrigatório se o inteiro teor estiver em outro sistema.'));
+      null);
+    const det = editando ? detalhes(c) : null;
+    const salveAntes = 'Salve o contrato primeiro: a aba abre logo em seguida.';
+    corpo.append(P.abas([
+      ['gerais', 'Dados gerais', [
+        el('div', { class: 'grade-campos' }, campo('ct-tipo', 'Instrumento', f.tipo), campo('ct-num', 'Número', f.numero), campo('ct-ano', 'Ano', f.ano, null, true)),
+        campo('ct-obj', 'Objeto', f.objeto, null, true),
+        el('div', { class: 'grade-campos' }, campo('ct-ctd', 'Contratado (nome ou razão social)', f.contratado, null, true), campo('ct-doc', 'CNPJ ou CPF', f.doc, 'No site, CPF aparece mascarado (LGPD).')),
+        el('div', { class: 'grade-campos' }, campo('ct-proc', 'Processo administrativo', f.processo), campo('ct-un', 'Unidade contratante', f.unidade)),
+        el('div', { class: 'campo' }, el('label', { for: 'ct-lic' }, 'Licitação de origem'), lic.bloco)]],
+      ['valores', 'Valores e vigência', [
+        el('div', { class: 'grade-campos' }, campo('ct-val', 'Valor inicial (R$)', f.valor, 'Aditivos de valor são somados automaticamente.'), campo('ct-ass', 'Data de assinatura', f.assinatura, null, true)),
+        el('div', { class: 'grade-campos' }, campo('ct-ini', 'Vigência: início', f.inicio, null, true), campo('ct-fim', 'Vigência: fim (original)', f.fimVig, 'Prorrogações vão na aba "Aditivos".', true),
+          campo('ct-resc', 'Rescindido em', f.rescisao, 'Só se houve rescisão antecipada.')),
+        editando && (c.valor_atual != null || c.vigencia_fim_atual) ? el('p', { class: 'ajuda' }, 'Com os aditivos: valor atual ' + moeda(c.valor_atual) + (c.vigencia_fim_atual ? ' · vigente até ' + P.dataBR(c.vigencia_fim_atual) : '') + '.') : null]],
+      ['teor', 'Inteiro teor', [
+        doPncp ? null : el('fieldset', { class: 'opcoes' }, el('legend', null, 'Onde fica o inteiro teor'),
+          el('label', { class: 'checkbox' }, rPortal, ' Neste portal (enviar o PDF aqui)'), el('label', { class: 'checkbox' }, rLink, ' Em outro sistema (só link)')),
+        doPncp ? null : campo('ct-pdf', c.arquivo_url ? 'Trocar o PDF do contrato' : 'PDF do contrato (inteiro teor)', f.pdf, 'Até ' + LIMITE_MB + ' MB. Prefira PDF com texto pesquisável.'),
+        c.arquivo_url ? el('a', { href: c.arquivo_url, target: '_blank', rel: 'noopener', class: 'ajuda' }, 'Ver PDF atual') : null,
+        campo('ct-link', doPncp ? 'Página no PNCP' : 'Link do contrato', f.link, doPncp ? null : 'Obrigatório se o inteiro teor estiver em outro sistema.')]],
+      det ? ['aditivos', 'Aditivos', det.aditivos] : ['aditivos', 'Aditivos', null, salveAntes],
+      det ? ['fiscais', 'Fiscais e gestor', det.fiscais] : ['fiscais', 'Fiscais e gestor', null, salveAntes]
+    ], abaInicial));
     if (travado) for (const i of corpo.querySelectorAll('input, select, textarea, button.link')) i.disabled = true;
 
     const acoes = [el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, travado ? 'Fechar' : 'Cancelar')];
@@ -155,6 +167,8 @@
     if (!travado) { if (!publicado || perm.publicar) acoes.push(btnR); if (perm.publicar) acoes.push(btnP); }
     const dlg = P.abrirDialogo(editando ? 'Editar contrato' : 'Novo contrato', corpo, acoes);
     dlg.classList.add('dialogo-largo');
+    // Aditivo muda valor/vigência atuais: ao fechar, a lista é atualizada.
+    dlg.addEventListener('close', () => { if (det && det.mudou()) recarregarLista(); });
 
     async function salvar(situacao, btn) {
       const a = parseInt(f.ano.value, 10);
@@ -191,8 +205,8 @@
         dlg.close();
         toast(situacao === 'publicado' ? 'Publicado.' : 'Rascunho salvo.');
         ano = a; await recarregar();
-        // Contrato novo: já abre aditivos e fiscais (o PNTP 9.3 exige a lista de fiscais).
-        if (!editando) detalhes(Object.assign({ id }, dados), 'fiscais');
+        // Contrato novo: reabre a mesma janela na aba Fiscais (o PNTP 9.3 exige a lista de fiscais).
+        if (!editando) form(Object.assign({}, c, dados, { id }), 'fiscais');
       } catch (e) { mostrarErro(e); }
       finally { ocupado(btn); }
     }
@@ -201,23 +215,14 @@
   }
 
   // ---------------------------------------------------------------------
-  // Aditivos e fiscais (diálogo com abas no estilo de guia)
+  // Aditivos e fiscais: conteúdo das abas da janela do contrato (v0.9.1).
+  // Cada aba é montada na 1ª vez que abre e se redesenha após incluir/excluir.
   // ---------------------------------------------------------------------
-  function detalhes(c, abaInicial) {
+  function detalhes(c) {
     const travado = c.situacao === 'publicado' && !perm.publicar;
     const pode = podeGravar() && !travado;
-    let aba = abaInicial || 'aditivos';
-    const area = el('div');
-    const botao = (id, rot) => el('button', { type: 'button', role: 'tab', class: 'aba', 'aria-selected': aba === id ? 'true' : 'false',
-      onclick: (e) => { aba = id; for (const b of e.target.parentNode.children) b.setAttribute('aria-selected', b === e.target ? 'true' : 'false'); desenhar(); } }, rot);
-    const corpo = el('div', { class: 'form-dialogo' },
-      el('p', { class: 'sub' }, rotulo(c) + (c.numero ? (String(c.numero).includes('/') ? '' : '/' + c.ano) : ' de ' + c.ano) + ' — ' + c.contratado_nome),
-      travado ? el('p', { class: 'msg msg-info' }, 'Contrato publicado: só quem tem permissão de publicar altera aditivos e fiscais.') : null,
-      el('div', { class: 'abas', role: 'tablist' }, botao('aditivos', 'Aditivos'), botao('fiscais', 'Fiscais e gestor')),
-      el('div', { class: 'painel-guia' }, area));
-    const dlg = P.abrirDialogo('Aditivos e fiscais', corpo, [el('button', { type: 'button', class: 'btn btn-claro', onclick: async () => { dlg.close(); await recarregarLista(); } }, 'Fechar')]);
-    dlg.classList.add('dialogo-largo');
-    const desenhar = () => (aba === 'aditivos' ? aditivos() : fiscais()).catch(mostrarErro);
+    const areaA = el('div'), areaF = el('div');
+    let mudou = false;
 
     async function aditivos() {
       const { data, error } = await sb.from('contratos_aditivos').select('*').eq('contrato_id', c.id).order('data_assinatura').limit(200);
@@ -246,10 +251,10 @@
             tipo: f.tipo.value, data_assinatura: f.data.value, valor: f.valor.value === '' ? null : Number(f.valor.value), nova_vigencia_fim: f.vig.value || null,
             descricao: f.desc.value.trim() || null, arquivo_url: url, link_externo: link || null });
           if (e) { if (url) P.apagarArquivo(url); throw e; }
-          toast('Aditivo registrado. Valor e vigência do contrato foram recalculados.'); aditivos();
+          mudou = true; toast('Aditivo registrado. Valor e vigência do contrato foram recalculados.'); aditivos().catch(mostrarErro);
         } catch (e) { mostrarErro(e); ocupado(btn); }
       });
-      area.replaceChildren(
+      areaA.replaceChildren(
         lista.length ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
           el('thead', null, el('tr', null, ['Termo', 'Data', 'Valor', 'Nova vigência', 'Arquivo'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
           el('tbody', null, lista.map((a) => el('tr', null,
@@ -262,7 +267,7 @@
               if (e) return mostrarErro(e);
               if (!d || !d.length) return toast('Seu perfil não pode excluir este aditivo.', true);
               if (a.arquivo_url) P.apagarArquivo(a.arquivo_url);
-              toast('Aditivo excluído.'); aditivos();
+              mudou = true; toast('Aditivo excluído.'); aditivos().catch(mostrarErro);
             } }, 'Excluir') : null))))))
           : el('p', { class: 'vazio' }, 'Nenhum aditivo.'),
         pode ? el('fieldset', { class: 'opcoes' }, el('legend', null, 'Novo aditivo, apostilamento ou rescisão'),
@@ -291,10 +296,10 @@
           const { error: e } = await sb.from('contratos_fiscais').insert({ contrato_id: c.id, orgao_id: P.estado.orgao.id, nome: f.nome.value.trim(), funcao: f.funcao.value,
             ato: f.ato.value.trim() || null, inicio: f.inicio.value || null, fim: f.fim.value || null });
           if (e) throw e;
-          toast('Registrado.'); fiscais();
+          toast('Registrado.'); fiscais().catch(mostrarErro);
         } catch (e) { mostrarErro(e); ocupado(btn); }
       });
-      area.replaceChildren(
+      areaF.replaceChildren(
         lista.length ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
           el('thead', null, el('tr', null, ['Nome', 'Função', 'Designação', 'Período'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
           el('tbody', null, lista.map((x) => el('tr', null, el('td', null, el('strong', null, x.nome)), el('td', null, FUNCOES[x.funcao]), el('td', null, x.ato || ''),
@@ -304,7 +309,7 @@
               const { data: d, error: e } = await sb.from('contratos_fiscais').delete().eq('id', x.id).select('id');
               if (e) return mostrarErro(e);
               if (!d || !d.length) return toast('Seu perfil não pode remover.', true);
-              toast('Removido.'); fiscais();
+              toast('Removido.'); fiscais().catch(mostrarErro);
             } }, 'Remover') : null))))))
           : el('p', { class: 'vazio' }, 'Nenhum fiscal informado. O PNTP (9.3) exige a relação dos fiscais de cada contrato, vigente e encerrado.'),
         pode ? el('fieldset', { class: 'opcoes' }, el('legend', null, 'Adicionar fiscal ou gestor'),
@@ -312,7 +317,12 @@
           el('div', { class: 'grade-campos' }, campo('fi-ini', 'Desde', f.inicio, 'Em branco: desde o início do contrato.'), campo('fi-fim', 'Até', f.fim, 'Preencha quando for substituído.')),
           el('div', { style: 'margin-top:10px' }, btn)) : null);
     }
-    desenhar();
+    const aviso = travado ? el('p', { class: 'msg msg-info' }, 'Contrato publicado: só quem tem permissão de publicar altera aditivos e fiscais.') : null;
+    return {
+      aditivos: () => { areaA.replaceChildren(el('p', { class: 'vazio' }, 'Carregando…')); aditivos().catch(mostrarErro); return [aviso && aviso.cloneNode(true), areaA]; },
+      fiscais: () => { areaF.replaceChildren(el('p', { class: 'vazio' }, 'Carregando…')); fiscais().catch(mostrarErro); return [aviso && aviso.cloneNode(true), areaF]; },
+      mudou: () => mudou
+    };
   }
 
   // ---------------------------------------------------------------------
@@ -501,7 +511,7 @@
               el('td', null, c.origem === 'pncp' ? 'PNCP' : c.origem === 'link' ? el('a', { href: c.link_externo, target: '_blank', rel: 'noopener' }, 'Link') : 'Portal'),
               el('td', null, el('span', { class: 'etiqueta etiqueta-' + (c.situacao === 'publicado' ? 'publicado' : 'rascunho') }, c.situacao === 'publicado' ? 'No ar' : 'Rascunho')),
               el('td', { class: 'acoes' },
-                el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => detalhes(c) }, 'Aditivos e fiscais'),
+                el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(c, 'aditivos') }, 'Aditivos e fiscais'),
                 podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(c) }, c.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
                 perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(c) }, 'Excluir') : null));
           })))),

@@ -119,24 +119,26 @@
     const linkNorma = el('span', { class: 'ajuda' }, normaUrl ? el('a', { href: normaUrl, target: '_blank', rel: 'noopener' }, 'Ver PDF atual') : 'Nenhum PDF enviado.');
 
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
-      campo('un-nome', 'Nome da unidade', f.nome, null, true),
-      el('div', { class: 'grade-campos' },
-        campo('un-sigla', 'Sigla', f.sigla),
-        campo('un-pai', 'Fica dentro de', f.pai, 'Para montar o organograma')
-      ),
-      campo('un-endereco', 'Endereço', f.endereco),
-      el('div', { class: 'grade-campos' },
-        campo('un-telefone', 'Telefone', f.telefone),
-        campo('un-email', 'E-mail', f.email)
-      ),
-      campo('un-horario', 'Horário de atendimento', f.horario, 'Ex.: Segunda a sexta, das 8h às 12h e das 13h às 17h'),
-      campo('un-competencias', 'Competências e atribuições', f.competencias, 'O que a unidade faz (PNTP 2.2)'),
-      el('div', { class: 'grade-campos' },
-        campo('un-norma', 'Norma de criação', f.norma, 'Lei ou decreto que cria a unidade (PNTP 2.1)'),
-        campo('un-normapdf', 'PDF da norma', f.normaPdf)
-      ),
-      linkNorma,
-      el('label', { class: 'checkbox' }, f.ativo, ' Unidade ativa (aparece no site)')
+      P.abas([
+        ['unidade', 'Unidade', [
+          campo('un-nome', 'Nome da unidade', f.nome, null, true),
+          el('div', { class: 'grade-campos' },
+            campo('un-sigla', 'Sigla', f.sigla),
+            campo('un-pai', 'Fica dentro de', f.pai, 'Para montar o organograma')),
+          el('label', { class: 'checkbox' }, f.ativo, ' Unidade ativa (aparece no site)')]],
+        ['contato', 'Endereço e contato', [
+          campo('un-endereco', 'Endereço', f.endereco),
+          el('div', { class: 'grade-campos' },
+            campo('un-telefone', 'Telefone', f.telefone),
+            campo('un-email', 'E-mail', f.email)),
+          campo('un-horario', 'Horário de atendimento', f.horario, 'Ex.: Segunda a sexta, das 8h às 12h e das 13h às 17h')]],
+        ['competencias', 'Competências e norma', [
+          campo('un-competencias', 'Competências e atribuições', f.competencias, 'O que a unidade faz (PNTP 2.2)'),
+          el('div', { class: 'grade-campos' },
+            campo('un-norma', 'Norma de criação', f.norma, 'Lei ou decreto que cria a unidade (PNTP 2.1)'),
+            campo('un-normapdf', 'PDF da norma', f.normaPdf)),
+          linkNorma]]
+      ])
     );
 
     const btnSalvar = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
@@ -283,21 +285,24 @@
           campo('ge-cargo', 'Cargo', f.cargo, null, true)
         )
       ),
-      campo('ge-unidade', 'Unidade', f.unidade),
-      el('div', { class: 'grade-campos' },
-        campo('ge-email', 'E-mail institucional', f.email),
-        campo('ge-telefone', 'Telefone', f.telefone)
-      ),
-      el('div', { class: 'grade-campos' },
-        campo('ge-foto', 'Foto', f.foto, 'Reduzida automaticamente'),
-        campo('ge-curriculo', 'Currículo (PDF)', f.curriculo, curriculoUrl ? null : 'Nenhum currículo enviado')
-      ),
-      curriculoUrl ? el('a', { href: curriculoUrl, target: '_blank', rel: 'noopener', class: 'ajuda' }, 'Ver currículo atual') : null,
-      el('div', { class: 'grade-campos' },
-        el('label', { class: 'checkbox' }, f.capa, ' Mostrar no bloco "Gestão" da página inicial'),
-        campo('ge-ordem', 'Ordem no bloco', f.ordem, '1 = primeiro')
-      ),
-      el('label', { class: 'checkbox' }, f.ativo, ' Gestor ativo (aparece no site)')
+      // A foto e o nome ficam acima das abas: identificam o gestor em qualquer aba aberta.
+      P.abas([
+        ['contato', 'Unidade e contato', [
+          campo('ge-unidade', 'Unidade', f.unidade),
+          el('div', { class: 'grade-campos' },
+            campo('ge-email', 'E-mail institucional', f.email),
+            campo('ge-telefone', 'Telefone', f.telefone))]],
+        ['arquivos', 'Foto e currículo', [
+          el('div', { class: 'grade-campos' },
+            campo('ge-foto', 'Foto', f.foto, 'Reduzida automaticamente'),
+            campo('ge-curriculo', 'Currículo (PDF)', f.curriculo, curriculoUrl ? null : 'Nenhum currículo enviado')),
+          curriculoUrl ? el('a', { href: curriculoUrl, target: '_blank', rel: 'noopener', class: 'ajuda' }, 'Ver currículo atual') : null]],
+        ['site', 'No site', [
+          el('div', { class: 'grade-campos' },
+            el('label', { class: 'checkbox' }, f.capa, ' Mostrar no bloco "Gestão" da página inicial'),
+            campo('ge-ordem', 'Ordem no bloco', f.ordem, '1 = primeiro')),
+          el('label', { class: 'checkbox' }, f.ativo, ' Gestor ativo (aparece no site)')]]
+      ])
     );
 
     const btnSalvar = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');

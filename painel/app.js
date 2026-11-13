@@ -99,8 +99,69 @@
     i.classList.toggle('invalido', !!texto);
     i.setAttribute('aria-invalid', texto ? 'true' : 'false');
     if (span) span.textContent = texto || '';
+    // Campo dentro de uma aba da janela: abre a aba e marca em vermelho as que têm erro
+    // (senão o aviso ficaria escondido numa aba fechada).
+    const painel = i.closest('[data-aba-painel]');
+    if (painel && painel._marcar) { if (texto) painel._abrir(); painel._marcar(); }
     if (texto) i.focus();
     return !texto;
+  }
+
+  // ---------------------------------------------------------------------
+  // Janela dividida em abas (padrão do projeto: guia de navegador).
+  //   abas: [[id, rótulo, conteúdo]] — conteúdo é lista de elementos ou
+  //   função (montada na 1ª vez que a aba abre; útil para listas que vêm do banco).
+  //   Uma aba pode vir como [id, rótulo, null, 'motivo'] = desativada, com o motivo.
+  // Todas as abas ficam no formulário ao mesmo tempo (só escondidas), então os
+  // campos de todas são lidos e validados juntos ao salvar.
+  // ---------------------------------------------------------------------
+  function abas(lista, inicial) {
+    const botoes = [], paineis = [];
+    let atual = null;
+    const ir = (id, focar) => {
+      const k = lista.findIndex((x) => x[0] === id);
+      if (k < 0 || lista[k][3]) return;
+      atual = id;
+      lista.forEach((x, n) => {
+        const sel = n === k;
+        botoes[n].setAttribute('aria-selected', sel ? 'true' : 'false');
+        botoes[n].tabIndex = sel ? 0 : -1;
+        paineis[n].hidden = !sel;
+        if (sel && typeof x[2] === 'function' && !paineis[n]._montado) { paineis[n]._montado = true; paineis[n].replaceChildren(...[].concat(x[2]()).filter(Boolean)); }
+      });
+      if (focar) botoes[k].focus();
+    };
+    lista.forEach(([id, rotulo, conteudo, motivo], n) => {
+      const b = el('button', { type: 'button', role: 'tab', class: 'aba', id: 'aba-j-' + id, 'aria-controls': 'painel-j-' + id,
+        disabled: !!motivo, title: motivo || null, onclick: () => ir(id) }, rotulo);
+      const p = el('div', { role: 'tabpanel', id: 'painel-j-' + id, 'aria-labelledby': 'aba-j-' + id, 'data-aba-painel': id, hidden: true },
+        motivo ? el('p', { class: 'vazio' }, motivo) : typeof conteudo === 'function' ? null : [].concat(conteudo || []).filter(Boolean));
+      p._abrir = () => ir(id);
+      p._marcar = () => b.classList.toggle('aba-erro', !!p.querySelector('.invalido'));
+      botoes.push(b); paineis.push(p);
+    });
+    const barra = el('div', { class: 'abas abas-janela', role: 'tablist' }, botoes);
+    barra.addEventListener('keydown', (e) => {
+      const ativos = lista.filter((x) => !x[3]).map((x) => x[0]);
+      const i = ativos.indexOf(atual);
+      const n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : null;
+      if (n === null) return;
+      e.preventDefault(); ir(ativos[(n + ativos.length) % ativos.length], true);
+    });
+    const caixa = el('div', { class: 'janela-abas' }, barra, el('div', { class: 'painel-guia' }, paineis));
+    caixa.ir = ir;
+    // Libera uma aba que estava desativada (ex.: "Documentos" depois do 1º salvamento).
+    caixa.liberar = (id, conteudo, abrir) => {
+      const k = lista.findIndex((x) => x[0] === id); if (k < 0) return;
+      lista[k][2] = conteudo; lista[k][3] = null;
+      botoes[k].disabled = false; botoes[k].removeAttribute('title');
+      paineis[k]._montado = false; paineis[k].replaceChildren();
+      if (typeof conteudo !== 'function') paineis[k].replaceChildren(...[].concat(conteudo || []).filter(Boolean));
+      if (abrir) ir(id);
+    };
+    caixa.recarregar = (id) => { const k = lista.findIndex((x) => x[0] === id); if (k >= 0) { paineis[k]._montado = false; if (atual === id) ir(id); } };
+    ir(inicial && lista.some((x) => x[0] === inicial && !x[3]) ? inicial : lista.find((x) => !x[3])[0]);
+    return caixa;
   }
 
   function ocupado(btn, texto) {
@@ -891,7 +952,7 @@
     sb, estado, el, $, toast, msg, ocupado, erroCampo, traduzirErro, emailValido,
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
-    campo, campoOutra, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
+    campo, campoOutra, abas, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
     paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf
   };
 })();

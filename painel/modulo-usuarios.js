@@ -397,11 +397,13 @@
 
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       editar && !base.orgao_id ? el('p', { class: 'msg msg-info' }, 'Perfil padrão do sistema: não pode ser alterado. Para ajustar, use "Criar cópia" e mude a cópia.') : null,
-      el('div', { class: 'grade-campos' },
-        campo('pf-nome', 'Nome do perfil', nome, null, true),
-        campo('pf-descricao', 'Descrição', descricao, 'Uma frase dizendo para quem é o perfil.')
-      ),
-      matriz.tabela
+      // A matriz de permissões é longa: em aba própria, o nome do perfil não some de vista ao rolar.
+      P.abas([
+        ['perfil', 'Nome e descrição', [el('div', { class: 'grade-campos' },
+          campo('pf-nome', 'Nome do perfil', nome, null, true),
+          campo('pf-descricao', 'Descrição', descricao, 'Uma frase dizendo para quem é o perfil.'))]],
+        ['permissoes', 'Permissões por módulo', [matriz.tabela]]
+      ], somenteLeitura ? 'permissoes' : 'perfil')
     );
     const titulo = somenteLeitura ? 'Permissões · ' + base.nome : editar ? 'Editar perfil' : 'Novo perfil';
     const acoes = [el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, somenteLeitura ? 'Fechar' : 'Cancelar')];

@@ -30,6 +30,8 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 - Todo módulo aceita três formas de alimentar: digitação manual, importação de
   arquivo (layout a definir) e link externo verificado diariamente.
 - O órgão nunca pode ficar sem administrador ativo (bloqueado no banco).
+- Janelas do painel com mais de um assunto são divididas em abas (`P.abas`), no
+  estilo guia de navegador; nada de abas em forma de botão ou pílula.
 - A marca `suporte_softplus` e o e-mail de um usuário só mudam pelo SQL Editor.
 - Ninguém altera o próprio acesso (perfil, alcance, desativar).
 - Só administrador do órgão cria perfis, mexe em permissões e dá o perfil de
@@ -259,6 +261,32 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.9.1 — 13/11/2026 — Janelas do painel em abas**
+- Toda janela de cadastro com mais de um assunto passou a ser dividida em abas no
+  mesmo estilo de guia de navegador das telas. Os botões Salvar/Publicar ficam fixos
+  no rodapé e gravam os campos de todas as abas de uma vez (as abas só escondem os
+  campos; não são formulários separados).
+- Quando um campo obrigatório falta ou está errado, a aba dele fica vermelha
+  (sublinhado ondulado) e abre sozinha, com o cursor no campo. Isso é feito dentro de
+  `erroCampo`, então qualquer validação nova já ganha esse comportamento.
+- Contrato: uma só janela com Dados gerais | Valores e vigência | Inteiro teor |
+  Aditivos | Fiscais e gestor. O botão "Aditivos e fiscais" da lista abre essa
+  mesma janela na aba Aditivos. Num contrato novo, Aditivos e Fiscais ficam
+  desativadas (com o motivo) até o primeiro salvamento; depois a janela reabre
+  sozinha na aba Fiscais, porque o PNTP 9.3 cobra a relação de fiscais.
+- Licitação: uma só janela com Dados do processo | Valores e datas | Documentos. O
+  botão "Documentos" da lista abre a janela na aba Documentos; processo novo reabre
+  nela depois de salvo.
+- Também divididas: notícia, banner, aviso, página, pergunta frequente, publicação
+  oficial, serviço (Carta de Serviços), unidade, gestor, documento de planejamento e
+  contas e perfil de acesso (nome | permissões).
+- Ficaram sem abas, de propósito, as janelas curtas (item de menu, convidar pessoa,
+  alterar acesso, minha conta, confirmações e avisos): dividir só obrigaria a clicar
+  mais.
+- Novo auxiliar `P.abas(lista, inicial)` em app.js: aba com conteúdo em função é
+  montada na primeira vez que abre (aditivos, fiscais e documentos só consultam o
+  banco quando a aba é aberta); aba com motivo fica desativada.
 
 **0.9.0 — 13/11/2026 — Fase 2 · Lote 8: contratos (PNTP 9.1 a 9.3)**
 - Módulo novo "Contratos" no painel (o antigo "Licitações e contratos" passou a se chamar

@@ -56,12 +56,13 @@
 
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       travada ? el('p', { class: 'msg msg-info' }, 'Esta página está publicada. Só quem tem permissão de publicar pode alterá-la.') : null,
-      el('div', { class: 'grade-campos' },
-        campo('pg-titulo', 'Título', titulo, null, true),
-        campo('pg-slug', 'Endereço no site', slug, noMenu
+      P.abas([
+        ['conteudo', 'Conteúdo', [campo('pg-titulo', 'Título', titulo, null, true),
+          el('div', { class: 'campo' }, el('label', { for: 'pg-conteudo' }, 'Conteúdo'), editor.elemento)]],
+        ['endereco', 'Endereço no site', [campo('pg-slug', 'Endereço no site', slug, noMenu
           ? 'Esta página está no menu do site: o endereço fica travado para o link não quebrar.'
-          : 'Só letras minúsculas, números e hífen. Ex.: historia', true)),
-      el('div', { class: 'campo' }, el('label', { for: 'pg-conteudo' }, 'Conteúdo'), editor.elemento));
+          : 'Só letras minúsculas, números e hífen. Ex.: historia. É preenchido sozinho a partir do título.', true)]]
+      ]));
     if (travada) for (const i of corpo.querySelectorAll('input, textarea, .editor-barra button')) i.disabled = true;
 
     const acoes = [el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, travada ? 'Fechar' : 'Cancelar')];
@@ -138,14 +139,13 @@
     const ordem = el('input', { type: 'number', min: 0, max: 999, value: q.ordem == null ? 10 : q.ordem });
     const ativo = el('input', { type: 'checkbox', checked: q.id ? q.ativo : true });
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
-      campo('fq-pergunta', 'Pergunta', pergunta, null, true),
-      el('div', { class: 'campo' }, el('label', { for: 'fq-resposta' }, 'Resposta', el('span', { class: 'obrigatorio', 'aria-hidden': 'true' }, ' *')), editor.elemento,
-        el('span', { class: 'erro-campo', id: 'fq-resposta-erro' })),
-      el('div', { class: 'grade-campos grade-3' },
-        categoria.campo,
-        campo('fq-ordem', 'Ordem', ordem),
-        el('label', { class: 'checkbox', style: 'align-self:center' }, ativo, ' Aparece no site')),
-    );
+      P.abas([
+        ['pergunta', 'Pergunta e resposta', [campo('fq-pergunta', 'Pergunta', pergunta, null, true),
+          el('div', { class: 'campo' }, el('label', { for: 'fq-resposta' }, 'Resposta', el('span', { class: 'obrigatorio', 'aria-hidden': 'true' }, ' *')), editor.elemento,
+            el('span', { class: 'erro-campo', id: 'fq-resposta-erro' }))]],
+        ['organizacao', 'Assunto e ordem', [el('div', { class: 'grade-campos grade-3' },
+          categoria.campo, campo('fq-ordem', 'Ordem', ordem), el('label', { class: 'checkbox', style: 'align-self:center' }, ativo, ' Aparece no site'))]]
+      ]));
     const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
     const dlg = P.abrirDialogo(q.id ? 'Editar pergunta' : 'Nova pergunta', corpo, [
       el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn]);

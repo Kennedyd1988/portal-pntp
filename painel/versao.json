@@ -1,8 +1,9 @@
 {
-  "versao": "0.9.0",
+  "versao": "0.9.1",
   "data": "2026-11-13",
   "notas": [
-    "Novo módulo Contratos: aditivos, fiscais, inteiro teor e importação do PNCP.",
-    "Site: página de contratos e relação de fiscais de contratos (PNTP 9.1 a 9.3)."
+    "Janelas de cadastro divididas em abas (estilo guia de navegador), com Salvar/Publicar sempre no rodapé.",
+    "Contrato: dados, valores, inteiro teor, aditivos e fiscais numa só janela. Licitação: processo, valores e documentos numa só janela.",
+    "Campo com erro marca a aba em vermelho e abre essa aba sozinho."
   ]
 }
