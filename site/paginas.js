@@ -768,6 +768,7 @@
     const api = (tabela, sel, extra) => cfg.supabaseUrl + '/rest/v1/' + tabela + '?select=' + sel + '&orgao_id=eq.' + org() + (extra || '') + '&apikey=' + cfg.supabaseChave;
     const conjuntos = [
       ['Publicações oficiais (atos normativos)', 'publicacoes', 'tipo,numero,ano,data_publicacao,ementa,vigencia,observacao,arquivo_url,link_externo', '&order=data_publicacao.desc'],
+      ['Licitações', 'licitacoes', 'modalidade,numero,ano,processo,objeto,srp,criterio,amparo_legal,unidade_nome,valor_estimado,valor_homologado,data_publicacao,data_abertura,andamento,vencedores,link_externo', '&order=data_publicacao.desc'],
       ['Planejamento e prestação de contas', 'documentos_contas', 'tipo,exercicio,exercicio_fim,periodicidade,periodo,parte,resultado,numero_ato,data_publicacao,descricao,arquivo_url,link_externo', '&order=exercicio.desc'],
       ['Carta de Serviços', 'servicos', 'nome,categoria,descricao,publico_alvo,requisitos,etapas,prazo_maximo,forma_prestacao,link_digital,local_atendimento,horario,custo', '&order=nome'],
       ['Estrutura organizacional (unidades)', 'unidades', 'nome,sigla,endereco,telefone,email,horario_atendimento,competencias,norma_criacao,norma_url', '&order=nome'],
@@ -1098,7 +1099,8 @@
       ['Convênios e transferências', 'convenio', [L('Transferências recebidas', '5.1'), L('Transferências realizadas', '5.2'), L('Acordos sem repasse de recursos', '5.3')]],
       ['Pessoal', 'pessoas', [L('Servidores e lotação', '6.1'), L('Remuneração nominal', '6.2'), L('Tabela de cargos e salários', '6.3'), L('Estagiários', '6.4'), L('Terceirizados', '6.5'), L('Concursos e seleções', '6.6–6.7')]],
       ['Diárias', 'viagem', [L('Diárias concedidas', '7.1'), L('Tabela de valores das diárias', '7.2')]],
-      ['Licitações', 'licit', [L('Licitações e editais', '8.1–8.3', lic), L('Dispensas e inexigibilidades', '8.4', lic), L('Atas de adesão (SRP)', '8.5', lic), L('Plano de contratações anual', '8.6', lic), L('Licitantes sancionados', '8.7', lic)]],
+      ['Licitações', 'licit', [L('Licitações e editais', '8.1–8.3', '#/licitacoes/licitacoes'), L('Dispensas e inexigibilidades', '8.4', '#/licitacoes/diretas'),
+        L('Adesões a atas (SRP)', '8.5', '#/licitacoes/adesoes'), L('Plano de contratações anual', '8.6', lic), L('Licitantes sancionados', '8.7', 'https://portaldatransparencia.gov.br/sancoes/ceis')]],
       ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', lic), L('Fiscais de contratos', '9.3', lic)]],
       ['Obras', 'obra', [L('Obras e situação atual', '10.1'), L('Quantitativos e preços', '10.2–10.3'), L('Obras paralisadas', '10.4')]],
       ['Planejamento e prestação de contas', 'grafico', plan],
@@ -1147,7 +1149,7 @@
         el('form', { class: 'transp-busca', role: 'search', onsubmit: (e) => { e.preventDefault(); const q = campoBusca.value.trim(); if (q) location.hash = '#/busca?q=' + encodeURIComponent(q); } },
           el('label', { for: 'busca-transp', class: 'sr' }, 'Pesquisar no Portal da Transparência'), campoBusca, el('button', { type: 'submit' }, 'Pesquisar')),
         el('div', { class: 'transp-atalhos' }, el('span', null, 'Mais acessados:'),
-          [['Despesas', ext()], ['Servidores', ext()], ['Licitações', c.licitacoes_url || ext()], ['Planejamento e contas', '#/planejamento'], ['Leis e decretos', '#/publicacoes']]
+          [['Despesas', ext()], ['Servidores', ext()], ['Licitações', '#/licitacoes'], ['Planejamento e contas', '#/planejamento'], ['Leis e decretos', '#/publicacoes']]
             .filter((x) => x[1]).map(([t, h]) => el('a', { href: h, target: externo(h) ? '_blank' : null, rel: externo(h) ? 'noopener' : null }, t))))),
       el('div', { class: 'transp-fundo' }, el('div', { class: 'limite pagina transp-corpo' },
         el('div', { class: 'transp-status' },
@@ -1166,7 +1168,190 @@
           ' ', el('a', { href: RADAR, target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))))));
     function ext() { return c.transparencia_url || null; }
   };
-  R.licitacoes = externo('licitacoes', 'Licitações e contratos', 'Editais, avisos, resultados, atas e contratos.', 'licitacoes_url');
+  // ===================================================================
+  // LICITAÇÕES (8.1 a 8.5)
+  // Abas no estilo de guia: grupo (licitações / contratações diretas /
+  // adesões) → exercício. Cada ano é buscado só quando a aba é aberta,
+  // em lotes de 50 com "Carregar mais".
+  // ===================================================================
+  const MOD_LIC = {
+    pregao_eletronico: 'Pregão eletrônico', pregao_presencial: 'Pregão presencial', concorrencia_eletronica: 'Concorrência eletrônica',
+    concorrencia_presencial: 'Concorrência presencial', concurso: 'Concurso', leilao_eletronico: 'Leilão eletrônico', leilao_presencial: 'Leilão presencial',
+    dialogo_competitivo: 'Diálogo competitivo', credenciamento: 'Credenciamento', pre_qualificacao: 'Pré-qualificação',
+    manifestacao_interesse: 'Manifestação de interesse', chamada_publica: 'Chamada pública', tomada_precos: 'Tomada de preços', convite: 'Convite',
+    dispensa: 'Dispensa de licitação', inexigibilidade: 'Inexigibilidade', adesao_ata: 'Adesão a ata de registro de preços', outra: 'Outra'
+  };
+  const GRUPOS_LIC = [
+    ['licitacoes', 'Licitações', Object.keys(MOD_LIC).filter((m) => !['dispensa', 'inexigibilidade', 'adesao_ata'].includes(m))],
+    ['diretas', 'Dispensas e inexigibilidades', ['dispensa', 'inexigibilidade']],
+    ['adesoes', 'Adesões a atas', ['adesao_ata']]
+  ];
+  const AND_LIC = { prevista: ['Prevista', 'etiqueta-ambar'], aberta: ['Aberta', 'etiqueta-verde'], em_andamento: ['Em andamento', 'etiqueta-ambar'],
+    suspensa: ['Suspensa', 'etiqueta-ambar'], homologada: ['Homologada', 'etiqueta-verde'], encerrada: ['Encerrada', 'etiqueta-verde'],
+    deserta: ['Deserta', 'etiqueta-vermelha'], fracassada: ['Fracassada', 'etiqueta-vermelha'], revogada: ['Revogada', 'etiqueta-vermelha'], anulada: ['Anulada', 'etiqueta-vermelha'] };
+  const DOC_LIC = { aviso: 'Aviso de licitação', edital: 'Edital', anexo: 'Anexo', termo_referencia: 'Termo de referência', esclarecimento: 'Esclarecimento',
+    impugnacao: 'Impugnação', retificacao: 'Retificação', ata: 'Ata da sessão', resultado: 'Resultado', recurso: 'Recurso', adjudicacao: 'Adjudicação',
+    homologacao: 'Homologação', ratificacao: 'Ratificação', contrato: 'Contrato / ata de RP', outro: 'Documento' };
+  const moedaBR = (v) => v === null || v === undefined ? '' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const nomeLic = (l) => (MOD_LIC[l.modalidade] || l.modalidade) + (l.numero ? ' nº ' + l.numero : '');
+  const CAMPOS_LIC = 'id, modalidade, numero, ano, processo, objeto, srp, criterio, amparo_legal, unidade_nome, valor_estimado, valor_homologado, data_publicacao, data_abertura, andamento, vencedores, link_externo, origem, atualizado_em';
+  const COLUNAS_LIC = [['modalidade', 'Modalidade', (v) => MOD_LIC[v] || v], ['numero', 'Número'], ['ano', 'Ano'], ['processo', 'Processo'], ['objeto', 'Objeto'],
+    ['andamento', 'Andamento', (v) => AND_LIC[v] ? AND_LIC[v][0] : v], ['data_publicacao', 'Publicação'], ['data_abertura', 'Abertura'],
+    ['valor_estimado', 'Valor estimado'], ['valor_homologado', 'Valor homologado'], ['vencedores', 'Vencedores'], ['unidade_nome', 'Unidade'],
+    ['srp', 'Registro de preços', (v) => v ? 'Sim' : 'Não'], ['amparo_legal', 'Fundamento legal'], ['link_externo', 'Link']];
+
+  // Faixa de abas reutilizável (guia de navegador): troca no lugar e atualiza o endereço.
+  function faixaAbas(itens, atual, rotulo, interna, aoEscolher) {
+    const abas = itens.map(([id, texto]) => el('a', { class: 'aba-guia' + (interna ? ' aba-guia-p' : ''), href: '#', role: 'tab', 'data-id': id,
+      'aria-selected': String(id) === String(atual) ? 'true' : 'false', tabindex: String(id) === String(atual) ? '0' : '-1' }, texto));
+    const lista = el('div', { class: 'abas-guia' + (interna ? ' abas-guia-interna' : ''), role: 'tablist', 'aria-label': rotulo }, abas);
+    function marcar(id, focar) {
+      for (const a of abas) { const s = a.dataset.id === String(id); a.setAttribute('aria-selected', s ? 'true' : 'false'); a.tabIndex = s ? 0 : -1; if (s && focar) a.focus(); }
+      const at = abas.find((a) => a.dataset.id === String(id));
+      if (at && (at.offsetLeft < lista.scrollLeft || at.offsetLeft + at.offsetWidth > lista.scrollLeft + lista.clientWidth)) lista.scrollLeft = at.offsetLeft - 8;
+    }
+    lista.addEventListener('click', (e) => { const a = e.target.closest('a.aba-guia'); if (!a) return; e.preventDefault(); marcar(a.dataset.id); aoEscolher(a.dataset.id); });
+    lista.addEventListener('keydown', (e) => {
+      const i = abas.findIndex((a) => a.getAttribute('aria-selected') === 'true');
+      const n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? abas.length - 1 : null;
+      if (n === null) return;
+      e.preventDefault(); const a = abas[(n + abas.length) % abas.length]; marcar(a.dataset.id, true); aoEscolher(a.dataset.id);
+    });
+    return { lista, marcar };
+  }
+
+  R.licitacoes = async function (main, partes, params) {
+    S.titulo('Licitações'); S.trilha(['Transparência', '#/transparencia'], ['Licitações']);
+    const c = S.conf;
+    let grupo = GRUPOS_LIC.some((g) => g[0] === partes[0]) ? partes[0] : 'licitacoes';
+    const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' });
+    const { lista } = faixaAbas(GRUPOS_LIC.map((g) => [g[0], g[1]]), grupo, 'Tipo de processo', false, (id) => { grupo = id; abrirGrupo(new URLSearchParams()); });
+    const ext = c.licitacoes_url;
+    pagina(main, el('h1', null, 'Licitações'),
+      el('p', { class: 'sub' }, 'Licitações de todas as modalidades, dispensas, inexigibilidades e adesões a atas de registro de preços, com edital e documentos de cada fase.'),
+      ext ? el('p', { class: 'meta' }, 'Também disponível no sistema de licitações: ', el('a', { href: ext, target: '_blank', rel: 'noopener' }, 'acessar', el('span', { class: 'sr' }, ' (abre em nova aba)')), '.') : null,
+      lista, conteudo,
+      el('p', { class: 'meta', style: 'margin-top:18px' }, 'Consulte também: ',
+        el('a', { href: 'https://pncp.gov.br/app/editais?q=&pagina=1', target: '_blank', rel: 'noopener' }, 'Portal Nacional de Contratações Públicas (PNCP)'), ' · ',
+        el('a', { href: 'https://portaldatransparencia.gov.br/sancoes/ceis', target: '_blank', rel: 'noopener' }, 'empresas punidas (CEIS/CNEP)')));
+    await abrirGrupo(params);
+
+    async function abrirGrupo(prm) {
+      const mods = GRUPOS_LIC.find((g) => g[0] === grupo)[2];
+      conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
+      const { data: anosLic, error } = await sb.rpc('licitacoes_anos', { p_orgao: org(), p_modalidades: mods });
+      if (error) { conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+      const anos = (anosLic || []).map((x) => x.ano);
+      if (!anos.length) {
+        history.replaceState(null, '', '#/licitacoes/' + grupo);
+        conteudo.replaceChildren(el('p', { class: 'vazio' }, 'Nenhum processo publicado neste grupo.' + (ext ? ' Consulte o sistema de licitações pelo link acima.' : '')));
+        return;
+      }
+      const pedido = parseInt(prm.get('ano'), 10);
+      let ano = anos.includes(pedido) ? pedido : anos[0];
+      const painelAno = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
+      const faixa = faixaAbas((anosLic || []).map((x) => [x.ano, x.ano + ' (' + x.total + ')']), ano, 'Ano', true, (id) => { ano = Number(id); abrirAno(); });
+      conteudo.replaceChildren(faixa.lista, painelAno);
+      faixa.marcar(ano);
+      abrirAno();
+
+      function abrirAno() {
+        history.replaceState(null, '', '#/licitacoes/' + grupo + '?ano=' + ano);
+        const f = { busca: '', modalidade: '', andamento: '' };
+        const montar = (sel, op) => {
+          let q = sb.from('licitacoes').select(sel || CAMPOS_LIC, op).eq('orgao_id', org()).in('modalidade', mods).eq('ano', ano);
+          if (f.busca) q = q.ilike('busca', termo(f.busca));
+          if (f.modalidade) q = q.eq('modalidade', f.modalidade);
+          if (f.andamento) q = q.eq('andamento', f.andamento);
+          return q;
+        };
+        const listaEl = el('div', { class: 'lista-lic' });
+        const mais = el('div', { class: 'mais' });
+        const totalTxt = el('span', { class: 'meta', role: 'status' });
+        let itens = [], versao = 0;
+        async function carregar(reiniciar) {
+          const minha = reiniciar ? ++versao : versao;
+          const [linhas, cont] = await Promise.all([
+            paginar(montar, 'data_publicacao', reiniciar ? null : itens[itens.length - 1], 50),
+            reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
+          if (minha !== versao) return;
+          if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' processo' : ' processos');
+          itens = reiniciar ? linhas : itens.concat(linhas);
+          if (!itens.length) listaEl.replaceChildren(el('p', { class: 'vazio' }, 'Nenhum processo com esses filtros.'));
+          else if (reiniciar) listaEl.replaceChildren(...linhas.map(cartaoLic)); else listaEl.append(...linhas.map(cartaoLic));
+          const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
+          btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
+          mais.replaceChildren(linhas.length === 50 ? btn : '');
+        }
+        const fBusca = el('input', { type: 'search', placeholder: 'Ex.: merenda, combustível, 012/2026' });
+        const fMod = el('select', null, el('option', { value: '' }, 'Todas'), mods.map((m) => el('option', { value: m }, MOD_LIC[m])));
+        const fAnd = el('select', null, el('option', { value: '' }, 'Todos'), Object.entries(AND_LIC).map(([k, v]) => el('option', { value: k }, v[0])));
+        let espera;
+        const aplicar = () => { Object.assign(f, { busca: fBusca.value.trim(), modalidade: fMod.value, andamento: fAnd.value }); listaEl.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…')); carregar(true); };
+        [fMod, fAnd].forEach((x) => x.addEventListener('change', aplicar));
+        fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
+        const exportar = S.botoesExportar('licitacoes-' + grupo + '-' + ano, COLUNAS_LIC, async (de, ate) => {
+          const { data } = await montar().order('data_publicacao', { ascending: false }).order('id').range(de, ate);
+          return data || [];
+        });
+        painelAno.replaceChildren(
+          el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
+            el('label', null, 'Pesquisar', fBusca), mods.length > 1 ? el('label', null, 'Modalidade', fMod) : null, el('label', null, 'Andamento', fAnd)),
+          el('div', { class: 'barra-lista' }, totalTxt, exportar), listaEl, mais);
+        listaEl.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
+        carregar(true).catch(() => listaEl.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
+      }
+    }
+  };
+
+  function cartaoLic(l) {
+    const and = AND_LIC[l.andamento] || [l.andamento, 'etiqueta-ambar'];
+    const valor = l.valor_homologado ?? l.valor_estimado;
+    return el('a', { class: 'cartao cartao-lic', href: '#/licitacao/' + l.id },
+      el('div', { class: 'lic-topo' }, el('strong', null, nomeLic(l)), el('span', { class: 'etiqueta ' + and[1] }, and[0]), l.srp ? el('span', { class: 'etiqueta' }, 'Registro de preços') : null),
+      el('p', { class: 'lic-objeto' }, l.objeto.length > 260 ? l.objeto.slice(0, 260) + '…' : l.objeto),
+      el('div', { class: 'meta lic-dados' },
+        el('span', null, 'Publicação: ' + dataBR(l.data_publicacao)),
+        l.data_abertura ? el('span', null, 'Abertura: ' + new Date(l.data_abertura).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })) : null,
+        valor !== null && valor !== undefined ? el('span', null, (l.valor_homologado !== null && l.valor_homologado !== undefined ? 'Homologado: ' : 'Estimado: ') + moedaBR(valor)) : null,
+        l.unidade_nome ? el('span', null, l.unidade_nome) : null));
+  }
+
+  R.licitacao = async function (main, partes) {
+    const id = partes[0];
+    if (!/^[0-9a-f-]{36}$/i.test(id || '')) return R['*'](main);
+    const [{ data: l }, { data: docs }] = await Promise.all([
+      sb.from('licitacoes').select(CAMPOS_LIC).eq('orgao_id', org()).eq('id', id).maybeSingle(),
+      sb.from('licitacoes_documentos').select('tipo, titulo, data, arquivo_url, link_externo, ordem').eq('licitacao_id', id).order('data').order('ordem').limit(500)
+    ]);
+    if (!l) return R['*'](main);
+    const grupo = (GRUPOS_LIC.find((g) => g[2].includes(l.modalidade)) || GRUPOS_LIC[0]);
+    S.titulo(nomeLic(l)); S.trilha(['Transparência', '#/transparencia'], ['Licitações', '#/licitacoes/' + grupo[0] + '?ano=' + l.ano], [nomeLic(l)]);
+    const and = AND_LIC[l.andamento] || [l.andamento, 'etiqueta-ambar'];
+    const linha = (rot, val) => val || val === 0 ? el('div', null, el('dt', null, rot), el('dd', null, val)) : null;
+    const lista = docs || [];
+    pagina(main,
+      el('p', { class: 'meta' }, grupo[1]),
+      el('h1', null, nomeLic(l)),
+      el('p', null, el('span', { class: 'etiqueta ' + and[1] }, and[0]), l.srp ? el('span', { class: 'etiqueta', style: 'margin-left:6px' }, 'Registro de preços') : null),
+      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { style: 'white-space:pre-line' }, l.objeto)),
+      el('dl', { class: 'ficha-lic' },
+        linha('Modalidade', MOD_LIC[l.modalidade] || l.modalidade), linha('Número', l.numero), linha('Processo administrativo', l.processo),
+        linha('Data de publicação', dataBR(l.data_publicacao)),
+        linha('Abertura / sessão pública', l.data_abertura ? new Date(l.data_abertura).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : null),
+        linha('Critério de julgamento', l.criterio), linha('Fundamento legal', l.amparo_legal), linha('Unidade requisitante', l.unidade_nome),
+        linha('Valor estimado', l.valor_estimado !== null ? moedaBR(l.valor_estimado) : null), linha('Valor homologado / contratado', l.valor_homologado !== null ? moedaBR(l.valor_homologado) : null),
+        linha('Resultado', l.vencedores)),
+      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Documentos'),
+        lista.length ? el('ul', { class: 'partes-contas cartao' }, lista.map((d) => el('li', null,
+          el('a', { href: d.arquivo_url || d.link_externo, target: '_blank', rel: 'noopener' }, d.titulo, el('span', { class: 'sr' }, ' (abre em nova aba)')),
+          el('span', { class: 'meta' }, (DOC_LIC[d.tipo] || 'Documento') + ' · ' + dataBR(d.data) + (d.arquivo_url ? ' · PDF' : '')))))
+          : el('p', { class: 'vazio' }, l.link_externo ? 'Os documentos deste processo estão no link abaixo.' : 'Nenhum documento publicado ainda.')),
+      l.link_externo ? el('p', { style: 'margin-top:16px' }, el('a', { class: 'botao botao-claro', href: l.link_externo, target: '_blank', rel: 'noopener' },
+        l.origem === 'pncp' ? 'Ver no PNCP' : 'Ver o processo no sistema de origem', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
+      el('p', { class: 'meta', style: 'margin-top:18px' }, 'Última atualização: ' + dataBR(l.atualizado_em)));
+  };
+
   R.ouvidoria = externo('ouvidoria', 'Ouvidoria', 'Elogios, sugestões, reclamações, solicitações e denúncias sobre os serviços.', 'ouvidoria_url');
   R.esic = externo('esic', 'e-SIC', 'Serviço de Informação ao Cidadão: pedidos de acesso à informação (Lei 12.527/2011).', 'esic_url');
 
@@ -1180,19 +1365,21 @@
     if (q.length < 2) { pagina(main, el('h1', null, 'Busca'), el('p', null, 'Digite pelo menos 2 letras no campo de pesquisa.')); return; }
     // Dentro de or() o curinga é * (o % confunde a sintaxe do filtro).
     const n = termo(q), cru = '*' + q.replace(/[%_*(),.]/g, ' ').trim() + '*';
-    const [nt, pb, sv, pg, fq, un, ct] = await Promise.all([
+    const [nt, pb, sv, pg, fq, un, ct, lc] = await Promise.all([
       sb.from('noticias').select('id, titulo, publicado_em').eq('orgao_id', org()).ilike('busca', n).order('publicado_em', { ascending: false }).limit(8),
       sb.from('publicacoes').select('id, tipo, numero, ano, ementa, arquivo_url, link_externo').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8),
       sb.from('servicos').select('id, nome').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
       sb.from('paginas').select('titulo, slug').eq('orgao_id', org()).or('titulo.ilike.' + cru + ',conteudo.ilike.' + cru).limit(8),
       sb.from('faq').select('pergunta').eq('orgao_id', org()).or('pergunta.ilike.' + cru + ',resposta.ilike.' + cru).limit(8),
       sb.from('unidades').select('id, nome').eq('orgao_id', org()).or('nome.ilike.' + cru + ',competencias.ilike.' + cru).limit(8),
-      sb.from('documentos_contas').select('tipo, exercicio, exercicio_fim, periodo, periodicidade, parte').eq('orgao_id', org()).ilike('busca', n).order('exercicio', { ascending: false }).limit(8)
+      sb.from('documentos_contas').select('tipo, exercicio, exercicio_fim, periodo, periodicidade, parte').eq('orgao_id', org()).ilike('busca', n).order('exercicio', { ascending: false }).limit(8),
+      sb.from('licitacoes').select('id, modalidade, numero, objeto').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8)
     ]);
     const grupos = [
       ['Serviços', (sv.data || []).map((s) => [s.nome, '#/servico/' + s.id]), '#/servicos?q=' + encodeURIComponent(q)],
       ['Notícias', (nt.data || []).map((x) => [x.titulo + ' (' + dataBR(x.publicado_em) + ')', '#/noticia/' + x.id]), '#/noticias?q=' + encodeURIComponent(q)],
       ['Publicações oficiais', (pb.data || []).map((x) => [ato(x) + ' — ' + x.ementa, x.arquivo_url || x.link_externo || '#/publicacoes?q=' + encodeURIComponent(q)]), '#/publicacoes?q=' + encodeURIComponent(q)],
+      ['Licitações', (lc.data || []).map((x) => [nomeLic(x) + ' · ' + (x.objeto.length > 90 ? x.objeto.slice(0, 90) + '…' : x.objeto), '#/licitacao/' + x.id]), '#/licitacoes'],
       ['Planejamento e contas', (ct.data || []).map((x) => [curtoContas(x.tipo) + ' · ' + periodoContas(x) + (x.periodo ? ' de ' + x.exercicio : '') + ' · ' + x.parte, '#/planejamento/' + x.tipo + '?ano=' + x.exercicio]), '#/planejamento'],
       ['Unidades', (un.data || []).map((x) => [x.nome, '#/unidade/' + x.id]), null],
       ['Páginas', (pg.data || []).map((x) => [x.titulo, '#/pagina/' + x.slug]), null],

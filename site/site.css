@@ -164,7 +164,7 @@ a.cartao:hover { border-color: #9fb3c8; box-shadow: var(--sombra); color: var(--
 
 /* ---------- listas com filtros ---------- */
 .filtros { display: grid; grid-template-columns: 2fr repeat(4, 1fr); gap: 10px; margin-bottom: 18px; align-items: end; }
-.filtros label { display: flex; flex-direction: column; font-size: .8rem; font-weight: 600; color: var(--texto-suave); gap: 4px; }
+.filtros label { display: flex; flex-direction: column; font-size: .8rem; font-weight: 600; color: var(--texto-suave); gap: 4px; min-width: 0; }
 .filtros input, .filtros select { height: 44px; border: 1px solid var(--linha); border-radius: 8px; padding: 0 12px; font: inherit; font-size: .95rem; background: #fff; color: var(--texto); min-width: 0; }
 .barra-lista { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .tabela-caixa { overflow-x: auto; border: 1px solid var(--linha); border-radius: var(--raio); position: relative; }
@@ -458,3 +458,17 @@ html.contraste .aba-guia-p[aria-selected="true"]::after { background: #000; }
 @media (max-width: 600px) { .faixa-selos .limite { justify-content: center; } .selos { justify-content: center; } .selo-marca { width: 52px; height: 52px; } }
 html.contraste .selo-marca { background: #000 !important; border-color: #fff !important; }
 html.contraste .selo-balao { background: #000; border: 1px solid #fff; }
+
+/* ---------- Licitações (v0.8.0) ---------- */
+.lista-lic { display: grid; gap: 10px; }
+a.cartao-lic { display: block; background: #fff; color: var(--texto); text-decoration: none; padding: 16px 18px; }
+a.cartao-lic:hover { border-color: var(--cor); }
+.lic-topo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lic-topo strong { color: var(--cor); font-size: 1.02rem; }
+.lic-objeto { margin: 8px 0; line-height: 1.5; }
+.lic-dados { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.ficha-lic { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px 24px; margin: 20px 0 0; }
+.ficha-lic dt { font-size: .82rem; color: var(--texto-suave); }
+.ficha-lic dd { margin: 2px 0 0; font-weight: 600; white-space: pre-line; }
+@media (max-width: 600px) { .painel-guia-interno { padding: 12px 10px; } .painel-guia .painel-guia-interno { margin: 0 -4px; } }
+ul.partes-contas.cartao { padding: 4px 18px; }
