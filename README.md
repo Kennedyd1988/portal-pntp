@@ -88,6 +88,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/16_pca_sancoes.sql` | Lote 8.1: módulos `pca` e `sancoes` (permissões copiadas de licitações), tabela `pca` (plano do ano + atualizações, PDF ou link do PNCP, um plano por ano), tabela `sancoes` (sancionado, CNPJ/CPF, sanção do art. 156, prazo, multa, processo, ato), funções `pca_anos` e `sancoes_anos` |
 | `supabase/17_licitacoes_ordem.sql` | coluna `chave_ordem` (modalidade + número, do maior para o menor) e índice: lista de licitações em ordem numérica sequencial por modalidade (PNTP 8.1) |
 | `supabase/teste_contratos_ficticios.sql` | opcional: contratos fictícios ligados às licitações de teste, com fiscais e aditivos |
+| `supabase/teste_pca_sancoes_ficticios.sql` | opcional: PCA de 2024 a 2026 (com revisões) e 6 sanções fictícias de todos os tipos, vigentes e encerradas |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
 
