@@ -66,6 +66,14 @@ construída para atender a matriz do PNTP 2026 (Atricon).
   esse pedido) e nos demais casos mostra o passo a passo do aparelho.
 - Página que está no menu não pode ser excluída nem mudar de endereço (link quebrado).
 - Item de menu com subitens não pode ser excluído nem virar subitem (menu de dois níveis).
+- Saúde, educação e renúncias: cada parte (lista de espera, estoque, creches, beneficiários…) escolhe no
+  painel como aparece no site: dados cadastrados, link para o sistema próprio da Secretaria ou declaração
+  de que não há dados (com a data). Seção com link ou "não há" não gera aviso de prazo.
+- Listas de espera (regulação e creches) nunca levam nome: paciente e criança são identificados pelo
+  protocolo (LGPD/ECA). CPF de beneficiário de renúncia ou de incentivo sai mascarado no site
+  (***.456.789-**): o visitante não tem permissão de ler a coluna com o CPF inteiro.
+- Listas grandes (espera, estoque, creches, beneficiários) entram por importação (colar da planilha ou
+  CSV), trocando a lista anterior; o histórico guarda uma linha por importação, não uma por registro.
 
 ## Scripts do banco (rodar em ordem no SQL Editor)
 
@@ -92,6 +100,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/19_lote10_convenios_emendas.sql` | Fase 2 · Lote 10: módulo `convenios` renomeado para "Convênios e transferências" e módulo novo `emendas` (permissões copiadas); tabelas `convenios` (recebidas, realizadas e acordos sem repasse, inteiro teor obrigatório para publicar) e `emendas` (origem, tipo, forma de repasse, autoria, função de governo, valores previsto/realizado/empenhado/liquidado/pago, ligação opcional ao convênio); funções `convenios_anos` e `emendas_anos` |
 | `supabase/teste_convenios_emendas_ficticios.sql` | opcional: 6 instrumentos (recebidos, realizados e acordo) e 8 emendas fictícias de todas as origens |
 | `supabase/20_publicacoes_concursos_pendencias.sql` | tipos próprios de publicação (`publicacoes_tipos`, código `x_…`, aba de cada um); módulo `concursos` (permissões copiadas de "pessoal") com `concursos` e `concursos_documentos` (publicar exige o edital; edital de seleção publicada não pode ser excluído) e `concursos_anos`; função `pendencias_atualizacao` (avisos de dados desatualizados do painel) |
+| `supabase/21_saude_educacao_renuncias.sql` | módulos `saude`, `educacao` e `renuncias` (o antigo `setoriais` sai, permissões copiadas); `secoes_setoriais` (link externo, texto e "não há" por seção); `documentos_setoriais` (18.1, 19.1); `saude_estabelecimentos` + `saude_profissionais` (18.2), `saude_lista_espera` (18.3), `saude_medicamentos` + `saude_estoques` (18.4/18.5); `conselhos` + `conselhos_membros` + `conselhos_documentos` (18.6, 19.3, 19.4); `creches_espera` (19.2); `renuncias` + `renuncias_valores` + `renuncias_beneficiarios` + `incentivos_projetos` (16.1 a 16.4); visões de posição nas filas; `anos_setoriais`; `importar_lista`; avisos novos em `pendencias_atualizacao` |
 | `supabase/teste_obras_ficticias.sql` | opcional: 4 obras fictícias (em andamento, paralisada, concluídas) com planilha, medições e paralisações |
 | `supabase/teste_pca_sancoes_ficticios.sql` | opcional: PCA de 2024 a 2026 (com revisões) e 6 sanções fictícias de todos os tipos, vigentes e encerradas |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
@@ -181,11 +190,15 @@ painel/
   modulo-obras.js       → "Obras" (dados, andamento, planilha, medições, paralisações)
   modulo-concursos.js   → "Concursos e processos seletivos" (6.6 e 6.7: seleção + edital e atos)
   modulo-convenios.js   → "Convênios e transferências" (5.1 a 5.3) e "Emendas parlamentares" (17.1 a 17.3)
+  modulo-setoriais-comum.js → peças comuns de Saúde, Educação e Renúncias (seção no site, janela de cadastro, importação, conselhos)
+  modulo-saude.js       → "Saúde" (18.1 a 18.6)
+  modulo-educacao.js    → "Educação, assistência social e conselhos" (19.1 a 19.4)
+  modulo-renuncias.js   → "Renúncias de receita" (16.1 a 16.4)
   modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
   manifest.json         → instalação como aplicativo (PWA)
-site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas, destinos.js = destinos das páginas, usado também pelo painel)
+site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas, setoriais.js = saúde, educação, renúncias e conselhos, destinos.js = destinos das páginas, usado também pelo painel)
 supabase/               → scripts SQL, rodar em ordem
 supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 supabase/functions/pncp/index.ts → ponte de consulta ao PNCP (importação de licitações)
@@ -239,7 +252,9 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   Diário Oficial, estrutura organizacional (árvore + norma), unidade (+ notícias e serviços),
   gestores, Carta de Serviços (+ detalhe), perguntas frequentes, páginas livres, LGPD, dados
   abertos (download e endereço de API por conjunto), contato, acessibilidade, mapa do site,
-  busca geral e páginas de sistemas externos (transparência, licitações, ouvidoria, e-SIC).
+  busca geral e páginas de sistemas externos (transparência, licitações, ouvidoria, e-SIC); saúde
+  (`#/saude/<aba>`), educação e assistência social (`#/educacao/<aba>`), renúncias de receita
+  (`#/renuncias/<aba>`) e conselhos (`#/conselhos`, `#/conselho/<id>`).
 - Acessibilidade: atalhos Alt+1 a 4, alto contraste e tamanho do texto lembrados no navegador,
   VLibras, foco levado ao conteúdo a cada página, carrossel com pausa e sem rodar quando o
   sistema pede menos movimento, textos alternativos obrigatórios nas imagens.
@@ -267,11 +282,63 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   os processos batem. Se o PNCP mudar a resposta, os campos que mudarem de nome ficam em branco
   até a função/painel serem ajustados.
 - Obras: a planilha de cada obra é lida inteira (até 2.000 itens) e filtrada no navegador.
+- Importação de listas: até 2.000 linhas a troca é de uma vez só (tudo ou nada); acima disso vai em
+  blocos e, se um bloco falhar, os anteriores ficam gravados (basta importar de novo).
+- Medicamentos, estoque e creches são lidos inteiros no site (até 5.000/10.000 linhas) e filtrados no
+  navegador; a lista de espera da regulação e os beneficiários são paginados no banco.
+- Beneficiários de renúncia: o site pesquisa por nome, CNPJ, setor e produto, não por CPF (proteção).
 
 - Excluir um órgão ou o login de uma pessoa apaga os vínculos em cascata, mesmo que
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.15.0 — 13/11/2026 — Saúde, Educação e assistência social, Renúncias de receita e Conselhos**
+- Módulo **Saúde** (PNTP 18.1 a 18.6), em abas: Planos e relatórios (Plano Municipal de Saúde, PAS,
+  RAG, RDQA, com série histórica); Serviços e profissionais (estabelecimento com endereço, horário,
+  CNES, especialidades e serviços; publicar exige local e horário; aba Profissionais com especialidade,
+  registro e dias/horário); Lista de espera da regulação (protocolo sem nome, procedimento, prioridade,
+  situação; posição calculada por procedimento; importação colando do relatório do SISREG ou CSV);
+  Medicamentos (componente, inclusive alto custo, onde e como obter; "Colar vários"); Estoque das
+  farmácias (importação por nome + apresentação, cadastra o medicamento que faltar, soma linhas
+  repetidas do mesmo local); Conselho de Saúde.
+- Módulo **Educação, assistência social e conselhos** (19.1 a 19.4): Plano Municipal de Educação e
+  relatório de resultados; lista de espera das creches (protocolo e iniciais, creche, turma, pontuação,
+  critério; posição por creche e turma) com o texto obrigatório dos critérios de prioridade; conselhos
+  (Fundeb, Assistência Social, Educação, Alimentação Escolar, Criança e Adolescente, outros) com dados e
+  funcionamento, composição (titular/suplente, segmento, entidade, mandato, ato) e atas, pautas e
+  resoluções; planos e relatórios da assistência social.
+- Módulo **Renúncias de receita** (16.1 a 16.4): desonerações (tributo, espécie, fundamento legal com
+  link, requisitos, como pedir, vigência) com a aba Previsto × realizado por exercício (fonte da
+  previsão e medidas de compensação do art. 14 da LRF); visão de todos os valores do exercício com
+  totais; beneficiários por exercício (importação, CNPJ/CPF conferidos); projetos de incentivo à cultura
+  e ao esporte.
+- Toda parte tem "Como esta parte aparece no site": dados do portal, link para o sistema próprio ou
+  declaração "não há" (com a data da informação no site).
+- Site: páginas `#/saude`, `#/educacao`, `#/renuncias` (uma aba por critério, com filtros e CSV/JSON)
+  e `#/conselhos` / `#/conselho/<id>`. Capa da Transparência, destinos das páginas, menu padrão,
+  busca geral, mapa do site e dados abertos (14 conjuntos novos) apontam para elas.
+- Avisos de prazo novos (só órgão do tipo Prefeitura): PAS do ano, Plano de Saúde vigente, RAG do ano
+  anterior depois de 31/03, nenhum estabelecimento publicado, lista de espera e estoque com mais de 30
+  dias, conselho de Saúde/Fundeb/Assistência ausente, com mandato vencido ou sem ata em 90 dias, PME
+  vigente, lista e critérios das creches, nenhuma desoneração, realizado do ano anterior em branco,
+  nenhum projeto de incentivo.
+- Histórico: nomes legíveis das áreas e campos novos; importação aparece como "Importação em lote".
+- Banco: script 21 (rodar depois do 20). Testado no PostgreSQL local (duas execuções em banco novo;
+  admin, cadastrador sem publicar e visitante) e no navegador com PostgREST local (painel e site).
+- Varredura PNTP (Cartilha/Matriz 2026) desta etapa:
+  - 16.1 atende: cada desoneração com espécie e fundamento legal individualizado; sem benefícios,
+    declaração. 16.2 atende: previsto e realizado por espécie de benefício e exercício (série
+    histórica, filtro por ano, CSV/JSON). 16.3 (recomendada) atende: beneficiários com nome, CNPJ,
+    setor, produto e valor. 16.4 (recomendada) atende, ou declara que não há projetos.
+  - 18.1 atende com os três instrumentos e os anteriores; 18.2 com local, horário, especialidades e
+    profissionais; 18.3 com a fila atualizada (data no alto) ou o link do sistema da regulação; 18.4 com
+    a relação e como obter, destacando o alto custo; 18.5 com o estoque por farmácia e a data da
+    posição; 18.6 com composição e funcionamento do Conselho.
+  - 19.1 atende com o PME e o relatório de resultados; 19.2 com a lista e os critérios de prioridade
+    (o painel avisa enquanto faltarem); 19.3 e 19.4 com os conselhos do Fundeb e da Assistência.
+  - Da capa da Transparência, ficam em sistema externo só receitas (3), despesas (4), ordem
+    cronológica (9.4), pessoal (6.1 a 6.5) e diárias (7).
 
 **0.14.0 — 13/11/2026 — publicações com tipos próprios, concursos e seleções, avisos de prazo**
 - Publicações: a tela do painel ganhou abas pelos principais tipos (Todas, Leis, Decretos,

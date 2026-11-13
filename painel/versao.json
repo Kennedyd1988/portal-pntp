@@ -1,9 +1,9 @@
 {
-  "versao": "0.14.0",
+  "versao": "0.15.0",
   "data": "2026-11-13",
   "notas": [
-    "Publicações em abas, com tipos personalizados.",
-    "Novo módulo Concursos e processos seletivos (PNTP 6.6 e 6.7).",
-    "Avisos de dados desatualizados em cada módulo e na tela inicial."
+    "Novo módulo Saúde (PNTP 18.1 a 18.6): planos, serviços e profissionais, lista de espera, medicamentos, estoque e Conselho.",
+    "Novo módulo Educação, assistência social e conselhos (19.1 a 19.4): plano, creches, Fundeb e Assistência Social.",
+    "Novo módulo Renúncias de receita (16.1 a 16.4): desonerações, previsto × realizado, beneficiários e incentivos."
   ]
 }

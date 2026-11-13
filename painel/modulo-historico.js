@@ -22,7 +22,12 @@
     licitacoes: 'Licitações',
     contratos: 'Contratos',
     perfis: 'Perfis',
-    perfil_permissoes: 'Permissões de perfil'
+    perfil_permissoes: 'Permissões de perfil',
+    secoes_setoriais: 'Seções de saúde, educação e renúncias', documentos_setoriais: 'Planos e relatórios (saúde, educação, assistência)',
+    saude_estabelecimentos: 'Saúde: estabelecimentos', saude_profissionais: 'Saúde: profissionais', saude_lista_espera: 'Saúde: lista de espera',
+    saude_medicamentos: 'Saúde: medicamentos', saude_estoques: 'Saúde: estoque', conselhos: 'Conselhos', conselhos_membros: 'Conselhos: membros',
+    conselhos_documentos: 'Conselhos: atas e documentos', creches_espera: 'Creches: lista de espera', renuncias: 'Renúncias de receita',
+    renuncias_valores: 'Renúncias: previsto e realizado', renuncias_beneficiarios: 'Renúncias: beneficiários', incentivos_projetos: 'Incentivos à cultura e ao esporte'
   };
   const ACOES = { inserir: 'Inclusão', editar: 'Edição', excluir: 'Exclusão' };
 
@@ -53,10 +58,19 @@
     'configuracoes.brasao_url': 'Brasão', 'configuracoes.endereco': 'Endereço', 'configuracoes.cep': 'CEP',
     'configuracoes.telefone': 'Telefone', 'configuracoes.email': 'E-mail', 'configuracoes.horario': 'Horário',
     'configuracoes.instagram': 'Instagram', 'configuracoes.facebook': 'Facebook', 'configuracoes.youtube': 'YouTube',
-    'configuracoes.whatsapp': 'WhatsApp'
+    'configuracoes.whatsapp': 'WhatsApp',
+    importacao: 'Importação em lote', linhas: 'Linhas importadas', substituiu_lista: 'Substituiu a lista anterior', exercicio: 'Exercício',
+    protocolo: 'Protocolo', procedimento: 'Procedimento', especialidade: 'Especialidade', data_solicitacao: 'Solicitado em', prioridade: 'Prioridade',
+    situacao_espera: 'Situação na fila', data_agendamento: 'Data agendada', quantidade: 'Quantidade', posicao_em: 'Posição do estoque em', local: 'Local',
+    componente: 'Componente', onde_obter: 'Onde obter', como_obter: 'Como obter', creche: 'Creche', turma: 'Turma', data_inscricao: 'Inscrição',
+    criterio: 'Critério de prioridade', pontuacao: 'Pontuação', fundamento_legal: 'Fundamento legal', especie: 'Espécie', tributo: 'Tributo',
+    valor_previsto: 'Valor previsto', valor_realizado: 'Valor realizado', compensacao: 'Medidas de compensação', valor: 'Valor', documento: 'CPF/CNPJ',
+    funcao: 'Função', condicao: 'Titular/suplente', segmento: 'Segmento', entidade: 'Entidade', mandato_inicio: 'Início do mandato', mandato_fim: 'Fim do mandato',
+    sem_ocorrencia: 'Declara que não há dados', secao: 'Seção', projeto: 'Projeto', proponente: 'Proponente',
+    valor_aprovado: 'Valor aprovado', valor_liberado: 'Valor liberado'
   };
   // Campos técnicos que não interessam ao usuário.
-  const IGNORAR = new Set(['id', 'orgao_id', 'criado_em', 'atualizado_em', 'busca', 'data_ordem', 'autor_id']);
+  const IGNORAR = new Set(['id', 'orgao_id', 'criado_em', 'atualizado_em', 'busca', 'data_ordem', 'autor_id', 'documento_publico']);
 
   let conteiner = null;
   let itens = [];

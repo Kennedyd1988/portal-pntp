@@ -13,6 +13,7 @@
   const ROTAS = [
     ['/', 'Página inicial'], ['/noticias', 'Notícias'], ['/publicacoes', 'Publicações oficiais (leis, decretos…)'],
     ['/diario-oficial', 'Diário Oficial'], ['/transparencia', 'Transparência'], ['/planejamento', 'Planejamento e prestação de contas'], ['/licitacoes', 'Licitações'], ['/licitacoes/pca', 'Plano de contratações anual (PCA)'], ['/licitacoes/sancionados', 'Licitantes e contratados sancionados'], ['/contratos', 'Contratos'], ['/contratos/fiscais', 'Fiscais de contratos'], ['/obras', 'Obras'], ['/obras/paralisadas', 'Obras paralisadas'], ['/convenios', 'Convênios e transferências'], ['/emendas', 'Emendas parlamentares'], ['/concursos', 'Concursos e processos seletivos'],
+    ['/renuncias', 'Renúncias de receita'], ['/saude', 'Saúde'], ['/educacao', 'Educação e assistência social'], ['/conselhos', 'Conselhos municipais'],
     ['/estrutura', 'Estrutura organizacional'], ['/gestores', 'Gestores'], ['/servicos', 'Carta de Serviços'], ['/servicos-online', 'Serviços on-line'],
     ['/faq', 'Perguntas frequentes'], ['/ouvidoria', 'Ouvidoria'], ['/esic', 'e-SIC (acesso à informação)'],
     ['/lgpd', 'Proteção de dados (LGPD)'], ['/acessibilidade', 'Acessibilidade'], ['/contato', 'Contato'], ['/mapa-do-site', 'Mapa do site']
@@ -24,7 +25,8 @@
     ['Início', '/'],
     ['Institucional', '/estrutura', [['Estrutura organizacional', '/estrutura'], ['Gestores', '/gestores'], ['Perguntas frequentes', '/faq']]],
     ['Transparência', '/transparencia', [['Portal da Transparência', '/transparencia'], ['Planejamento e contas', '/planejamento'], ['Licitações', '/licitacoes'],
-      ['Contratos', '/contratos'], ['Obras', '/obras'], ['Convênios e transferências', '/convenios'], ['Emendas parlamentares', '/emendas']]],
+      ['Contratos', '/contratos'], ['Obras', '/obras'], ['Convênios e transferências', '/convenios'], ['Emendas parlamentares', '/emendas'],
+      ['Renúncias de receita', '/renuncias'], ['Saúde', '/saude'], ['Educação e assistência social', '/educacao'], ['Conselhos municipais', '/conselhos']]],
     ['Publicações', '/publicacoes', [['Leis, decretos e portarias', '/publicacoes'], ['Diário Oficial', '/diario-oficial']]],
     ['Notícias', '/noticias'],
     ['Serviços', '/servicos', [['Carta de Serviços ao Usuário', '/servicos'], ['Serviços on-line', '/servicos-online']]],

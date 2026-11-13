@@ -841,6 +841,20 @@
       ['Obras: planilha contratada e executada', 'obras_itens', 'obra_id,codigo,descricao,unidade,quantidade,preco_unitario,total_contratado,quantidade_executada,preco_praticado,total_executado', '&order=obra_id.asc'],
       ['Convênios e transferências (recebidas, realizadas e acordos)', 'convenios', 'tipo,instrumento,numero,ano,objeto,parte_nome,esfera,valor_previsto,valor_contrapartida,valor_repassado,data_assinatura,vigencia_inicio,vigencia_fim,andamento,obrigacoes,arquivo_url,link_externo', '&order=ano.desc'],
       ['Concursos e processos seletivos', 'concursos', 'tipo,numero,ano,titulo,vagas,inscricoes_inicio,inscricoes_fim,data_prova,validade_ate,andamento,organizadora,link_externo', '&order=ano.desc'],
+      ['Renúncias de receita (desonerações)', 'renuncias', 'especie,tributo,titulo,descricao,fundamento_legal,norma_url,requisitos,procedimento,setor,vigencia_inicio,vigencia_fim', '&order=titulo.asc'],
+      ['Renúncias: previsto e realizado', 'renuncias_valores', 'renuncia_id,exercicio,valor_previsto,valor_realizado,fonte_previsao,compensacao', '&order=exercicio.desc'],
+      ['Renúncias: beneficiários', 'renuncias_beneficiarios', 'renuncia_id,exercicio,nome,documento_publico,setor,produto,valor', '&order=exercicio.desc'],
+      ['Incentivos à cultura e ao esporte', 'incentivos_projetos', 'exercicio,area,projeto,proponente,documento_publico,valor_aprovado,valor_liberado,lei_incentivo,andamento,arquivo_url,link_externo', '&order=exercicio.desc'],
+      ['Saúde: planos e relatórios; educação: plano e resultados', 'documentos_setoriais', 'area,tipo,titulo,exercicio,exercicio_fim,periodo,data_publicacao,descricao,arquivo_url,link_externo', '&order=exercicio.desc'],
+      ['Saúde: estabelecimentos', 'saude_estabelecimentos', 'nome,tipo,cnes,endereco,bairro,telefone,email,horario,especialidades,servicos', '&order=nome.asc'],
+      ['Saúde: profissionais', 'saude_profissionais', 'estabelecimento_id,nome,especialidade,registro,horario', '&order=nome.asc'],
+      ['Saúde: lista de espera da regulação', 'saude_lista_espera', 'protocolo,tipo,procedimento,especialidade,unidade_solicitante,data_solicitacao,prioridade,situacao_espera,data_agendamento,local_atendimento', '&order=data_solicitacao.asc'],
+      ['Saúde: medicamentos do SUS', 'saude_medicamentos', 'nome,apresentacao,componente,onde_obter,como_obter', '&order=nome.asc'],
+      ['Saúde: estoque das farmácias', 'saude_estoques', 'medicamento_id,local,quantidade,unidade,posicao_em', '&order=posicao_em.desc'],
+      ['Educação: lista de espera das creches', 'creches_espera', 'protocolo,crianca,turma,creche,data_inscricao,criterio,pontuacao,situacao_espera', '&order=data_inscricao.asc'],
+      ['Conselhos municipais', 'conselhos', 'tipo,nome,sigla,norma_criacao,norma_url,competencias,periodicidade,local_reunioes,telefone,email,mandato_inicio,mandato_fim,regimento_url', '&order=nome.asc'],
+      ['Conselhos: composição', 'conselhos_membros', 'conselho_id,nome,funcao,condicao,segmento,entidade,mandato_inicio,mandato_fim,ato', '&order=nome.asc'],
+      ['Conselhos: atas e documentos', 'conselhos_documentos', 'conselho_id,tipo,titulo,data,arquivo_url,link_externo', '&order=data.desc'],
       ['Emendas parlamentares', 'emendas', 'exercicio,origem,tipo,forma_repasse,numero,autor,objeto,funcao,beneficiario,valor_previsto,valor_realizado,valor_empenhado,valor_liquidado,valor_pago,execucao_em,andamento', '&order=exercicio.desc'],
       ['Obras: paralisações', 'obras_paralisacoes', 'obra_id,inicio,reinicio,motivo,responsavel,previsao_reinicio,ato', '&order=inicio.desc'],
       ['Planejamento e prestação de contas', 'documentos_contas', 'tipo,exercicio,exercicio_fim,periodicidade,periodo,parte,resultado,numero_ato,data_publicacao,descricao,arquivo_url,link_externo', '&order=exercicio.desc'],
@@ -933,7 +947,7 @@
       ['Gestores', null, '#/gestores', 'prefeito secretario autoridades'], ['Perguntas frequentes', null, '#/faq', 'duvidas faq'],
       ['Portal da Transparência', null, '#/transparencia', 'transparencia'],
       ['Obras paralisadas', null, '#/obras/paralisadas', ''], ['Proteção de dados (LGPD)', null, '#/lgpd', 'privacidade encarregado'],
-      ['Dados abertos', null, '#/dados-abertos', 'api csv json'], ['Acessibilidade', null, '#/acessibilidade', 'libras contraste'], ['Contato', null, '#/contato', 'telefone email endereco']];
+      ['Dados abertos', null, '#/dados-abertos', 'api csv json'], ['Conselhos municipais', null, '#/conselhos', 'conselho fundeb saude assistencia social atas'], ['Acessibilidade', null, '#/acessibilidade', 'libras contraste'], ['Contato', null, '#/contato', 'telefone email endereco']];
     const cat = window.DESTINOS_PNTP.filter((d) => S.destino(d[0])).map((d) => [d[1], d[0], null, '']);
     return cat.concat(fixas).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
   }
@@ -1198,10 +1212,13 @@
       ['Privacidade e dados abertos', 'lock', [L('Encarregado de dados (LGPD)', '15.1', '#/lgpd'), L('Política de privacidade', '15.2', '#/lgpd'), L('Dados abertos e API', '15.4', '#/dados-abertos'), L('Regulamentação do Governo Digital', '15.5', '#/lgpd')]]
     ];
     if (exec) {
-      g.push(['Renúncias de receita', 'receita', [L('Desonerações e fundamento legal', '16.1', undefined, 'renuncias'), L('Renúncia prevista e realizada', '16.2', undefined, 'renuncias'), L('Beneficiários', '16.3', undefined, 'renuncias'), L('Incentivo à cultura e ao esporte', '16.4', undefined, 'renuncias')]],
+      g.push(['Renúncias de receita', 'receita', [L('Desonerações e fundamento legal', '16.1', '#/renuncias/desoneracoes'), L('Renúncia prevista e realizada', '16.2', '#/renuncias/valores'),
+        L('Beneficiários', '16.3', '#/renuncias/beneficiarios'), L('Incentivo à cultura e ao esporte', '16.4', '#/renuncias/incentivos')]],
         ['Emendas parlamentares', 'legis', [L('Emendas federais', '17.1', '#/emendas/federais'), L('Emendas estaduais e municipais', '17.2', '#/emendas/estaduais'), L('Execução das emendas', '17.3', '#/emendas/execucao')]],
-        ['Saúde', 'saude', [L('Plano, programação e relatório', '18.1', undefined, 'saude'), L('Serviços, horários e profissionais', '18.2', undefined, 'saude'), L('Lista de espera da regulação', '18.3', undefined, 'saude'), L('Medicamentos do SUS', '18.4', undefined, 'saude'), L('Estoque das farmácias', '18.5', undefined, 'saude'), L('Conselho de Saúde', '18.6', undefined, 'saude')]],
-        ['Educação e assistência social', 'edu', [L('Plano de educação e resultados', '19.1', undefined, 'educacao'), L('Lista de espera em creches', '19.2', undefined, 'educacao'), L('Conselho do Fundeb', '19.3', undefined, 'educacao'), L('Conselho de Assistência Social', '19.4', undefined, 'educacao')]]);
+        ['Saúde', 'saude', [L('Plano, programação e relatório', '18.1', '#/saude/planos'), L('Serviços, horários e profissionais', '18.2', '#/saude/servicos'), L('Lista de espera da regulação', '18.3', '#/saude/lista-de-espera'),
+          L('Medicamentos do SUS', '18.4', '#/saude/medicamentos'), L('Estoque das farmácias', '18.5', '#/saude/estoque'), L('Conselho de Saúde', '18.6', '#/saude/conselho')]],
+        ['Educação e assistência social', 'edu', [L('Plano de educação e resultados', '19.1', '#/educacao/plano'), L('Lista de espera em creches', '19.2', '#/educacao/creches'),
+          L('Conselho do Fundeb', '19.3', '#/educacao/fundeb'), L('Conselho de Assistência Social', '19.4', '#/educacao/assistencia-social'), L('Todos os conselhos municipais', '', '#/conselhos')]]);
     }
     if (cam) {
       g.push(['Atividade legislativa', 'legis', [L('Vereadores e biografias', '20.1'), L('Leis e atos produzidos', '20.2', '#/publicacoes'), L('Projetos e tramitação', '20.3'), L('Pauta do plenário e comissões', '20.4–20.5'),
@@ -1857,7 +1874,7 @@
     if (q.length < 2) { pagina(main, el('h1', null, 'Busca'), el('p', null, 'Digite pelo menos 2 letras no campo de pesquisa.')); return; }
     // Dentro de or() o curinga é * (o % confunde a sintaxe do filtro).
     const n = termo(q), cru = '*' + q.replace(/[%_*(),.]/g, ' ').trim() + '*';
-    const [nt, pb, sv, pg, fq, un, ct, lc, co, cv, em, ob, cs] = await Promise.all([
+    const [nt, pb, sv, pg, fq, un, ct, lc, co, cv, em, ob, cs, rn, ds, es, md, cn] = await Promise.all([
       sb.from('noticias').select('id, titulo, publicado_em').eq('orgao_id', org()).ilike('busca', n).order('publicado_em', { ascending: false }).limit(8),
       sb.from('publicacoes').select('id, tipo, numero, ano, ementa, arquivo_url, link_externo').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8),
       sb.from('servicos').select('id, nome').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
@@ -1870,7 +1887,12 @@
       sb.from('convenios').select('id, tipo, instrumento, numero, objeto, parte_nome').eq('orgao_id', org()).ilike('busca', n).order('ano', { ascending: false }).limit(8),
       sb.from('emendas').select('id, numero, autor, objeto').eq('orgao_id', org()).ilike('busca', n).order('exercicio', { ascending: false }).limit(8),
       sb.from('obras').select('id, titulo').eq('orgao_id', org()).ilike('busca', n).order('atualizado_em', { ascending: false }).limit(8),
-      sb.from('concursos').select('id, tipo, numero, titulo').eq('orgao_id', org()).ilike('busca', n).order('ano', { ascending: false }).limit(8)
+      sb.from('concursos').select('id, tipo, numero, titulo').eq('orgao_id', org()).ilike('busca', n).order('ano', { ascending: false }).limit(8),
+      sb.from('renuncias').select('titulo').eq('orgao_id', org()).ilike('busca', n).order('titulo').limit(8),
+      sb.from('documentos_setoriais').select('area, titulo, arquivo_url, link_externo').eq('orgao_id', org()).ilike('busca', n).order('exercicio', { ascending: false }).limit(8),
+      sb.from('saude_estabelecimentos').select('nome').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
+      sb.from('saude_medicamentos').select('nome, apresentacao').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
+      sb.from('conselhos').select('id, nome').eq('orgao_id', org()).or('nome.ilike.' + cru + ',sigla.ilike.' + cru).limit(8)
     ]);
     // Nomes das seções do site: quem digita "contratos" ou "licitação" chega à página, mesmo que
     // a palavra não apareça dentro dos registros. Compara sem acento e sem plural simples.
@@ -1892,6 +1914,11 @@
       ['Emendas parlamentares', (em.data || []).map((x) => ['Emenda nº ' + x.numero + ' · ' + x.autor + ' · ' + (x.objeto.length > 70 ? x.objeto.slice(0, 70) + '…' : x.objeto), '#/emenda/' + x.id]), '#/emendas'],
       ['Obras', (ob.data || []).map((x) => [x.titulo, '#/obra/' + x.id]), '#/obras'],
       ['Concursos e seleções', (cs.data || []).map((x) => [nomeSel(x) + ' · ' + x.titulo, '#/concurso/' + x.id]), '#/concursos'],
+      ['Renúncias de receita', (rn.data || []).map((x) => [x.titulo, '#/renuncias/desoneracoes']), '#/renuncias'],
+      ['Saúde e educação: planos e relatórios', (ds.data || []).map((x) => [x.titulo, x.arquivo_url || x.link_externo || (x.area === 'saude' ? '#/saude/planos' : '#/educacao/plano')]), null],
+      ['Unidades de saúde', (es.data || []).map((x) => [x.nome, '#/saude/servicos']), '#/saude/servicos'],
+      ['Medicamentos do SUS', (md.data || []).map((x) => [x.nome + (x.apresentacao ? ' ' + x.apresentacao : ''), '#/saude/medicamentos']), '#/saude/medicamentos'],
+      ['Conselhos municipais', (cn.data || []).map((x) => [x.nome, '#/conselho/' + x.id]), '#/conselhos'],
       ['Unidades', (un.data || []).map((x) => [x.nome, '#/unidade/' + x.id]), null],
       ['Páginas', (pg.data || []).map((x) => [x.titulo, '#/pagina/' + x.slug]), null],
       ['Perguntas frequentes', (fq.data || []).map((x) => [x.pergunta, '#/faq']), null]
@@ -2529,6 +2556,9 @@
           : el('p', { class: 'vazio' }, 'Esta obra não teve paralisações.')),
       el('p', { class: 'meta', style: 'margin-top:18px' }, 'Última atualização: ' + dataBR(o.atualizado_em)));
   };
+
+  // Peças usadas também por setoriais.js (saúde, educação, renúncias, conselhos).
+  S.util = { faixaAbas, listaAnual, selecao, moedaBR, termo, pagina, periodoBR };
 
   R['*'] = async function (main) {
     S.titulo('Página não encontrada'); S.trilha(['Página não encontrada']);
