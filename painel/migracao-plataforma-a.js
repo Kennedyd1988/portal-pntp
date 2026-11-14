@@ -47,7 +47,13 @@
     }
     return r;
   }
-  const pega = (c, ...nomes) => { for (const n of nomes) for (const k of Object.keys(c)) if (k.startsWith(sem(n))) return c[k]; return null; };
+  const pega = (c, ...nomes) => {
+    for (const n of nomes) for (const k of Object.keys(c)) if (k.startsWith(sem(n))) return c[k];
+    for (const n of nomes) for (const k of Object.keys(c)) if (k.includes(sem(n))) return c[k];
+    return null;
+  };
+  // Links de download da seção (quando a tabela de documentos não tem o cabeçalho padrão).
+  const baixar = (m, base, re) => [...new Set([...m.querySelectorAll('a[href]')].map((a) => a.getAttribute('href')).filter((h) => re.test(h)).map((h) => new URL(h, base).href))];
   // Tabela "Data | Nome do documento | Download"
   function documentos(m, base) {
     const lista = [];
@@ -140,10 +146,12 @@
         const andamento = /cancel|anulad/.test(st) ? 'anulada' : /revog/.test(st) ? 'revogada' : /suspens/.test(st) ? 'suspensa' : /desert/.test(st) ? 'deserta'
           : /fracass/.test(st) ? 'fracassada' : /homolog/.test(st) ? 'homologada' : /encerr|finaliz|conclu/.test(st) ? 'encerrada'
           : abertura && abertura.slice(0, 10) > hoje ? 'aberta' : 'em_andamento';
-        const docs = documentos(m, url).map((d) => ({ url: d.url, titulo: d.titulo, data: d.data, tipo: tipoDoc(d.titulo, DOC_LIC, 'outro') }));
+        const lista = documentos(m, url);
+        if (!lista.length) baixar(m, url, /\/licitacao\/download\//).forEach((u, i) => lista.push({ url: u, titulo: 'Documento ' + (i + 1), data: null }));
+        const docs = lista.map((d) => ({ url: d.url, titulo: d.titulo, data: d.data, tipo: tipoDoc(d.titulo, DOC_LIC, 'outro') }));
         return {
           ano, data: cad, chave: { modalidade, numero: mn.numero, ano },
-          registro: { origem: 'portal', modalidade, numero: mn.numero, ano, processo: limpar(pega(c, 'n do processo', 'no do processo', 'numero do processo')) || null,
+          registro: { origem: 'portal', modalidade, numero: mn.numero, ano, processo: limpar(pega(c, 'processo')) || null,
             objeto: objeto.length >= 5 ? objeto : 'Licitação ' + mn.modalidade + ' ' + (mn.numero || '') + '/' + ano, srp: /registro de preco/.test(sem(objeto)),
             valor_estimado: valor(pega(c, 'valor estimado')), data_publicacao: cad, data_abertura: abertura, andamento },
           documentos: docs
@@ -166,6 +174,7 @@
         const objeto = limpar(pega(c, 'objeto')).slice(0, 4000);
         const contratado = limpar(pega(c, 'fornecedor', 'contratado', 'empresa')).slice(0, 200);
         const docs = documentos(m, url);
+        if (!docs.length) baixar(m, url, /\/contrato\/download\//).forEach((u) => docs.push({ url: u, titulo: 'Contrato', data: null }));
         return {
           ano, data: ini || cad, chave: { numero: mn.numero, ano, contratado_nome: contratado },
           registro: { origem: 'portal', tipo: /\bata\b/.test(sem(objeto + ' ' + (docs[0] ? docs[0].titulo : ''))) ? 'ata_registro_precos' : 'contrato',
@@ -229,6 +238,7 @@
         if (tipo === 'rreo' && periodo > 6) return { ignorar: 'Período inválido', ano };
         if (tipo === 'rgf' && periodo > (periodicidade === 'semestral' ? 2 : 3)) return { ignorar: 'Período inválido', ano };
         const docs = documentos(m, url);
+        if (!docs.length) baixar(m, url, /\/conta-publica\/download\//).forEach((u, i) => docs.push({ url: u, titulo: i ? 'Anexo ' + i : t, data: null }));
         const dt = data(pega(c, 'data'));
         return {
           ano, data: dt, chave: { tipo, exercicio: ano, periodo },
