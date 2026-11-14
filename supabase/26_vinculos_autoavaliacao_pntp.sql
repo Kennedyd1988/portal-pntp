@@ -246,6 +246,7 @@ declare
   d boolean; a boolean; s boolean; ext boolean; f text[];
   n bigint; n2 bigint; n3 bigint; ult date; anos int[]; falt int[]; x record; ce record; co record; lg record; cs record;
   ult_enc int;   -- último exercício encerrado com prazo de publicação vencido
+  v_leg jsonb;   -- itens da matriz do Legislativo (script 34)
 begin
   if not public.e_membro(p_orgao) then return; end if;
   select * into o from public.orgaos where id = p_orgao;
@@ -839,6 +840,12 @@ begin
       case when ult is not null and not a then 'Lista de espera das creches sem atualização há mais de 30 dias.' end], null));
   end if;
 
+  -- ---------- Matriz do Poder Legislativo (script 34) ----------
+  if o.tipo = 'camara' and to_regprocedure('public.pntp_legislativo_itens(uuid)') is not null then
+    execute 'select public.pntp_legislativo_itens($1)' into v_leg using p_orgao;
+    r := r || coalesce(v_leg, '[]'::jsonb);
+  end if;
+
   -- ---------- Monta a saída ----------
   return query
   select k.codigo, k.ordem, k.dimensao, k.peso_dimensao, k.titulo, k.classificacao,
@@ -869,7 +876,7 @@ begin
                   + case when k.itens like '%F%' and v0.d then 1 else 0 end)::numeric
                  / (3 + case when k.itens like '%A%' then 3 else 0 end + case when k.itens like '%S%' then 2 else 0 end
                       + case when k.itens like '%G%' then 1 else 0 end + case when k.itens like '%F%' then 1 else 0 end), 4) as nota) v
-  where k.matriz = 'comum' or (exec and k.matriz in ('executivo', 'executivo_consorcio'))
+  where k.matriz = 'comum' or (exec and k.matriz in ('executivo', 'executivo_consorcio')) or (o.tipo = 'camara' and k.matriz = 'legislativo')
   order by k.ordem;
 end;
 $$;
