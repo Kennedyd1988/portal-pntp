@@ -4,11 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Portal PNTP · SOFT+</title>
-<!-- O site público entra na Fase 1. Por enquanto, a raiz leva ao painel. -->
-<meta http-equiv="refresh" content="0; url=painel/">
 <link rel="icon" type="image/png" href="icon-192.png">
+<!-- Raiz: no domínio de um órgão (ex.: riachodacruz.rn.gov.br) abre o site dele;
+     nos endereços da plataforma (GitHub Pages, Cloudflare Pages, localhost) abre o painel. -->
+<script>
+  (function () {
+    var h = location.hostname;
+    var plataforma = /(^|\.)github\.io$|(^|\.)pages\.dev$|^localhost$|^127\.0\.0\.1$/.test(h) || /^painel\./.test(h);
+    location.replace((plataforma ? 'painel/' : 'site/') + location.search + location.hash);
+  })();
+</script>
+<noscript><meta http-equiv="refresh" content="0; url=site/"></noscript>
 </head>
 <body>
-<p><a href="painel/">Abrir o painel</a></p>
+<p><a href="site/">Abrir o site</a> · <a href="painel/">Abrir o painel</a></p>
 </body>
 </html>
