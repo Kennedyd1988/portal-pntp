@@ -417,7 +417,10 @@
     },
     async secretaria(x, s) {
       const r = x.registro;
-      const { data: ja } = await sb.from('unidades').select('id, endereco, telefone, email, horario_atendimento, competencias').eq('orgao_id', org()).ilike('nome', r.nome.replace(/[%_\\]/g, '\\$&')).maybeSingle();
+      // Compara nomes sem acento, caixa e pontuação ("EDUCAÇÃO,CULTURA" = "Educação, Cultura")
+      const chaveNome = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const { data: todas } = await sb.from('unidades').select('id, nome, endereco, telefone, email, horario_atendimento, competencias').eq('orgao_id', org());
+      const ja = (todas || []).find((u) => chaveNome(u.nome) === chaveNome(r.nome));
       let id = ja && ja.id, novo = false;
       if (ja) {
         const completar = {};

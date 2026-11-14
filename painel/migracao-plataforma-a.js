@@ -393,11 +393,14 @@
         const compTexto = comp ? [...comp.querySelectorAll('p, li')].map((p) => limpar(p.textContent)).filter(Boolean).join('\n\n').slice(0, 8000) : '';
         const cargo = /^prefeito$/i.test(nome) ? 'Prefeito(a)' : /^vice/i.test(nome) ? 'Vice-prefeito(a)' : /chefe de gabinete/i.test(nome) ? 'Chefe de Gabinete'
           : /secretaria/i.test(nome) ? 'Secretário(a)' : 'Responsável';
-        return { ano: null, chave: { nome },
-          registro: { nome: nome.slice(0, 200), endereco: depois(/^endere[cç]o:?/i).slice(0, 300) || null, horario_atendimento: depois(/^hor[aá]rio[^:]*:?/i).slice(0, 200) || null,
+        // Cargos de gabinete viram a unidade correspondente
+        const unidade = /^prefeito$/i.test(nome) ? 'Gabinete do Prefeito' : /^vice/i.test(nome) ? 'Vice-Prefeitura' : /^chefe de gabinete/i.test(nome) ? 'Chefia de Gabinete'
+          : nome.toLowerCase().replace(/(^|[\s,(-])(\S)/g, (t, a, b) => a + b.toUpperCase()).replace(/\b(De|Da|Do|Das|Dos|E)\b/g, (t) => t.toLowerCase()).replace(/,(?=\S)/g, ', ');
+        return { ano: null, chave: { nome: unidade },
+          registro: { nome: unidade.slice(0, 200), endereco: depois(/^endere[cç]o:?/i).slice(0, 300) || null, horario_atendimento: depois(/^hor[aá]rio[^:]*:?/i).slice(0, 200) || null,
             telefone: limpar(tel).slice(0, 60) || null, email: limpar(mail) || null, competencias: compTexto || null },
           gestor: resp && !/^respons[aá]vel$/i.test(resp) ? { nome: resp.slice(0, 200), cargo } : null,
-          arquivos: img && img.getAttribute('src') ? [{ url: new URL(img.getAttribute('src').replace(/\/\d+_\d+\//, '/'), url).href, campo: 'foto_url' }] : [] };
+          arquivos: img && img.getAttribute('src') ? [{ url: new URL(img.getAttribute('src'), url).href, campo: 'foto_url' }] : [] };
       }
     },
     // ---------------------------------------------------------------
