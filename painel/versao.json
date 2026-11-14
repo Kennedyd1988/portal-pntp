@@ -1,12 +1,12 @@
 {
-  "versao": "0.28.0",
+  "versao": "0.28.1",
   "data": "2026-11-14",
   "notas": [
+    "Correção: o botão \"Tornar Suporte SOFT+\" não aparecia na ficha da pessoa.",
     "Usuários e permissões: quem é Suporte SOFT+ pode tornar outra pessoa Suporte SOFT+ (ou tirar), na ficha dela. Ninguém muda a própria marca e a plataforma nunca fica sem Suporte. Rodar o script 38.",
     "Excluir um registro leva junto as peças internas dele (documentos da licitação, aditivos e fiscais do contrato, planilha e medições da obra, edital e atos da seleção, autores e tramitação da proposição, presenças e votações da sessão, membros da comissão ou do conselho, estoque do medicamento, movimentos do empenho…). Registros de outras telas ligados a ele continuam impedindo a exclusão. Rodar o script 37.",
     "Câmara: na página do vereador, as proposições ficam em abas por tipo (projetos de lei, indicações, requerimentos, moções…), com o andamento de cada uma, e uma aba de relatorias. Mostra todas, não só as 30 mais recentes.",
     "Aparência › Destinos das páginas: nova opção \"Não exibir no site\" em qualquer página (some do menu, da Transparência, do mapa do site e da busca; o endereço responde \"página não encontrada\"). Os dados ficam guardados.",
-    "Site: quando a página tem mais de um endereço externo, cada exercício vira aba, como as declarações de que não há dados (o endereço aparece dentro da aba do ano). Página toda externa com vários endereços: abas \"Atual\", um ano por aba e \"Outros\".",
-    "Site: todas as listas exportam também em XML, XLSX (planilha) e PDF, e têm o botão Imprimir."
+    "Site: quando a página tem mais de um endereço externo, cada exercício vira aba, como as declarações de que não há dados (o endereço aparece dentro da aba do ano). Página toda externa com vários endereços: abas \"Atual\", um ano por aba e \"Outros\"."
   ]
 }

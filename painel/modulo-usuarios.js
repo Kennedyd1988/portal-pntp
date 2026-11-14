@@ -39,8 +39,6 @@
     // Suporte SOFT+ (script 38): só o próprio Suporte vê quem tem a marca.
     const souSuporte = !!(P.estado.usuario && P.estado.usuario.suporte_softplus);
     const sp = souSuporte ? await sb.rpc('suportes_softplus') : { data: [] };
-    d.suportes = new Set((sp.error ? [] : sp.data || []).map((x) => x.usuario_id));
-    d.suporteDisponivel = souSuporte && !sp.error;
     const pp = await sb.from('perfil_permissoes').select('*').in('perfil_id', pf.data.map((p) => p.id));
     if (pp.error) throw pp.error;
     // Agrupa os acessos por pessoa.
@@ -50,7 +48,8 @@
       mapa.get(v.usuario_id).acessos.push(v);
     }
     d = { orgaos: og.data, vinculos: vi.data, pessoas: [...mapa.values()], perfis: pf.data.sort((a, b) => ordemAlfabetica(a.nome, b.nome)),
-      permissoes: pp.data, unidades: un.data, euId: user.id };
+      permissoes: pp.data, unidades: un.data, euId: user.id,
+      suportes: new Set((sp.error ? [] : sp.data || []).map((x) => x.usuario_id)), suporteDisponivel: souSuporte && !sp.error };
     if (!orgPerfis || !d.orgaos.some((o) => o.id === orgPerfis)) {
       orgPerfis = (d.orgaos.find((o) => o.id === P.estado.orgao.id) || d.orgaos[0] || {}).id || null;
     }
