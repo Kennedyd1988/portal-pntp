@@ -5,7 +5,7 @@
 // Plano Estratégico. Cada linha é um arquivo; lei e anexos do mesmo
 // instrumento ficam em linhas com a mesma identificação e "parte"
 // diferente (o cadastro aceita vários PDFs de uma vez).
-// No topo, o quadro do PNTP mostra o que falta por exercício/período,
+// No topo, o aviso padrão do PNTP (autoavaliação, app.js) mostra o que falta por exercício/período,
 // considerando os prazos legais (série histórica de 3 anos).
 // =====================================================================
 (function () {
@@ -37,7 +37,6 @@
   let perm = {};
   let conteiner = null;
   let itens = [], fim = false, total = 0;
-  let resumo = [];          // tudo o que está publicado nos últimos anos (para o quadro do PNTP)
   let rgfPeriodicidade = 'quadrimestral';
   const filtros = { busca: '', tipo: '', exercicio: '', documento: '', situacao: '' };
 
@@ -57,54 +56,8 @@
     return String(d.exercicio);
   }
 
-  // ---------------------------------------------------------------------
-  // Quadro do PNTP: o que deveria existir hoje (pelos prazos legais) e não existe.
-  // ---------------------------------------------------------------------
-  function pendencias(docs, hoje) {
-    const Y = hoje.getFullYear();
-    const pub = docs.filter((d) => d.situacao === 'publicado');
-    const tem = (f) => pub.some(f);
-    // Prazo de 30 dias após o fim do período (RREO e RGF).
-    const venceu = (ano, mesFim) => hoje >= new Date(ano, mesFim, 30);
-    const lista = [];
-
-    const cobre = (t, ano) => tem((d) => d.tipo === t && d.exercicio <= ano && (d.exercicio_fim || d.exercicio) >= ano);
-    lista.push(['11.8', 'PPA vigente', cobre('ppa', Y) ? [] : ['PPA que inclua ' + Y]]);
-    lista.push(['11.9', 'LDO ' + Y, tem((d) => d.tipo === 'ldo' && d.exercicio === Y) ? [] : ['LDO de ' + Y]]);
-    lista.push(['11.10', 'LOA ' + Y, tem((d) => d.tipo === 'loa' && d.exercicio === Y) ? [] : ['LOA de ' + Y]]);
-
-    const faltaRreo = [];
-    for (let a = Y - 3; a <= Y; a++) {
-      const f = [];
-      for (let b = 1; b <= 6; b++) if (venceu(a, 2 * b) && !tem((d) => d.tipo === 'rreo' && d.exercicio === a && d.periodo === b)) f.push(b + 'º');
-      if (f.length) faltaRreo.push(a + ': ' + (f.length === 6 ? 'todos os bimestres' : f.join(', ') + ' bim.'));
-    }
-    lista.push(['11.6', 'RREO (bimestral, 3 anos)', faltaRreo]);
-
-    const sem = rgfPeriodicidade === 'semestral';
-    const nPer = sem ? 2 : 3, meses = sem ? 6 : 4;
-    const faltaRgf = [];
-    for (let a = Y - 3; a <= Y; a++) {
-      const f = [];
-      for (let q = 1; q <= nPer; q++) if (venceu(a, meses * q) && !tem((d) => d.tipo === 'rgf' && d.exercicio === a && d.periodo === q)) f.push(q + 'º');
-      if (f.length) faltaRgf.push(a + ': ' + f.join(', ') + (sem ? ' sem.' : ' quad.'));
-    }
-    lista.push(['11.5', 'RGF (' + (sem ? 'semestral' : 'quadrimestral') + ', 3 anos)', faltaRgf]);
-
-    // Balanço: o último exigível é o do ano anterior a partir de 30 de abril.
-    const X = hoje >= new Date(Y, 3, 30) ? Y - 1 : Y - 2;
-    const anos = (ate) => [ate, ate - 1, ate - 2, ate - 3];
-    lista.push(['11.1', 'Balanço Geral (' + (X - 3) + ' a ' + X + ')', anos(X).filter((a) => !tem((d) => d.tipo === 'balanco' && d.exercicio === a)).map(String)]);
-    lista.push(['11.2', 'Relatório de Gestão (' + (Y - 4) + ' a ' + (Y - 1) + ')', anos(Y - 1).filter((a) => !tem((d) => d.tipo === 'relatorio_gestao' && d.exercicio === a)).map(String)]);
-    lista.push(['11.3', 'Parecer do TCE (' + (Y - 4) + ' a ' + (Y - 1) + ')', anos(Y - 1).filter((a) => !tem((d) => d.tipo === 'parecer_tce' && d.exercicio === a)).map((a) => a + ' (anexe ou marque "pendente")')]);
-    lista.push(['11.4', 'Julgamento pela Câmara (' + (Y - 4) + ' a ' + (Y - 1) + ')', anos(Y - 1).filter((a) => !tem((d) => d.tipo === 'julgamento_camara' && d.exercicio === a)).map((a) => a + ' (anexe ou marque "pendente")')]);
-    lista.push(['11.7', 'Plano Estratégico (recomendado)', cobre('plano_estrategico', Y) ? [] : ['plano que inclua ' + Y]]);
-    return lista;
-  }
-
-  function quadroPntp() {
-    const lista = pendencias(resumo, new Date());
-    const ok = lista.filter((l) => !l[2].length).length;
+  // Periodicidade do RGF (a autoavaliação do PNTP, no alto da tela, cobra os períodos por ela).
+  function periodicidadeRgf() {
     const selRgf = el('select', { 'aria-label': 'Periodicidade do RGF' },
       el('option', { value: 'quadrimestral', selected: rgfPeriodicidade === 'quadrimestral' }, 'quadrimestral'),
       el('option', { value: 'semestral', selected: rgfPeriodicidade === 'semestral' }, 'semestral (até 50 mil hab.)'));
@@ -115,12 +68,7 @@
       P.estado.orgao.configuracoes = cfg; rgfPeriodicidade = selRgf.value;
       toast('Periodicidade do RGF: ' + selRgf.value + '.'); desenhar();
     });
-    return el('details', { class: 'quadro-pntp', open: true },
-      el('summary', null, 'Situação no PNTP: ', el('strong', null, ok + ' de ' + lista.length), ' critérios em dia',
-        el('span', { class: 'ajuda' }, ' · considera só o que está publicado e os prazos legais (RREO e RGF: 30 dias após o período; Balanço: 30 de abril)')),
-      el('div', { class: 'checklist-pntp' }, lista.map(([c, nome, falta]) => el('div', { class: falta.length ? 'pendente' : 'ok' },
-        el('span', null, el('strong', null, c + ' ' + nome), falta.length ? el('span', { class: 'sub-linha' }, 'Falta: ' + falta.join(' · ')) : null)))),
-      el('p', { class: 'ajuda', style: 'margin-top:8px' }, 'O RGF é publicado ', selRgf, '.'));
+    return el('p', { class: 'ajuda' }, 'O RGF deste órgão é publicado ', selRgf, ' (a autoavaliação do PNTP cobra os períodos por esta escolha).');
   }
 
   // ---------------------------------------------------------------------
@@ -145,13 +93,6 @@
     ]);
     itens = reiniciar ? pag.linhas : itens.concat(pag.linhas);
     fim = pag.fim; total = t;
-  }
-  async function carregarResumo() {
-    const Y = new Date().getFullYear();
-    const { data, error } = await sb.from('documentos_contas').select('tipo, exercicio, exercicio_fim, periodo, periodicidade, situacao, resultado')
-      .eq('orgao_id', P.estado.orgao.id).or('exercicio.gte.' + (Y - 6) + ',exercicio_fim.gte.' + Y).limit(2000);
-    if (error) throw error;
-    resumo = data || [];
   }
 
   // ---------------------------------------------------------------------
@@ -362,7 +303,7 @@
               el('td', { class: 'quebra' }, d.parte, d.descricao ? el('span', { class: 'sub-linha' }, d.descricao) : null),
               el('td', { class: 'num' }, P.dataBR(d.data_publicacao)),
               el('td', null, el('span', { class: 'etiqueta etiqueta-' + (d.situacao === 'publicado' ? 'publicado' : 'rascunho') }, d.situacao === 'publicado' ? 'No ar' : 'Rascunho')),
-              el('td', null, doc ? el('a', { href: doc, target: '_blank', rel: 'noopener' }, d.arquivo_url ? 'PDF' : 'Link') : el('span', { class: 'falta-leve' }, d.resultado === 'pendente' ? '—' : 'Sem documento')),
+              el('td', null, doc ? el('a', { href: doc, target: '_blank', rel: 'noopener' }, d.arquivo_url ? 'PDF' : 'Link') : (d.resultado === 'pendente' ? el('span', { class: 'falta-leve' }, '—') : el('span', { class: 'falta' }, 'Sem documento'))),
               el('td', { class: 'acoes' },
                 podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(d) }, d.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
                 perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(d) }, 'Excluir') : null));
@@ -376,7 +317,7 @@
           el('p', { class: 'sub' }, 'PPA, LDO, LOA, RREO, RGF, Balanço Geral, Relatório de Gestão, pareceres e julgamentos das contas (PNTP 11.1 a 11.10).')),
         podeGravar() ? el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form(filtros.tipo ? { tipo: filtros.tipo } : null) }, '+ Novo documento') : null),
       P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Estes documentos são do órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
-      quadroPntp(),
+      periodicidadeRgf(),
       // Abas na mesma ordem das do site (uma por documento), com "Todos" à frente.
       el('div', { class: 'abas', role: 'tablist', 'aria-label': 'Documento' }, [['', 'Todos']].concat(ABAS_SITE).map(([k, rot]) =>
         el('button', { type: 'button', role: 'tab', class: 'aba', 'aria-selected': filtros.tipo === k ? 'true' : 'false', title: k ? TIPOS[k][0] : null,
@@ -390,7 +331,7 @@
   }
 
   async function recarregar() {
-    try { await Promise.all([carregar(true), carregarResumo()]); desenhar(); } catch (e) { mostrarErro(e); }
+    try { await carregar(true); desenhar(); } catch (e) { mostrarErro(e); }
   }
 
   P.telas.contas = async function (c, mod, p) {
@@ -400,7 +341,7 @@
       const o = await sb.from('orgaos').select('configuracoes').eq('id', P.estado.orgao.id).maybeSingle();
       P.estado.orgao.configuracoes = (o.data && o.data.configuracoes) || {};
       rgfPeriodicidade = P.estado.orgao.configuracoes.rgf_periodicidade === 'semestral' ? 'semestral' : 'quadrimestral';
-      await Promise.all([carregar(true), carregarResumo()]);
+      await carregar(true);
       desenhar();
     } catch (e) { c.querySelector('.sub').textContent = P.erroGravacao(e); }
   };

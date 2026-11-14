@@ -402,7 +402,7 @@
             el('td', { class: 'num' }, moeda(m.valor_medido)),
             el('td', { class: 'num' }, moeda(m.valor_pago), m.data_pagamento ? el('span', { class: 'sub-linha' }, 'em ' + P.dataBR(m.data_pagamento)) : null),
             el('td', { class: 'num' }, m.percentual_acumulado == null ? '' : numBR(m.percentual_acumulado, 2) + '%'),
-            el('td', null, m.arquivo_url || m.link_externo ? el('a', { href: m.arquivo_url || m.link_externo, target: '_blank', rel: 'noopener' }, m.arquivo_url ? 'PDF' : 'Link') : el('span', { class: 'falta-leve' }, 'Sem arquivo')),
+            el('td', null, m.arquivo_url || m.link_externo ? el('a', { href: m.arquivo_url || m.link_externo, target: '_blank', rel: 'noopener' }, m.arquivo_url ? 'PDF' : 'Link') : el('span', { class: 'falta' }, 'Sem arquivo')),
             el('td', { class: 'acoes' }, pode ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirLinha('obras_medicoes', m.id, 'Excluir a ' + m.numero + 'ª medição?', () => { if (m.arquivo_url) P.apagarArquivo(m.arquivo_url); medicoes().catch(mostrarErro); }) }, 'Excluir') : null)))),
           el('tfoot', null, el('tr', null, el('th', { scope: 'row', colspan: 2 }, 'Totais'), el('td', { class: 'num' }, el('strong', null, moeda(soma('valor_medido')))),
             el('td', { class: 'num' }, el('strong', null, moeda(soma('valor_pago')))), el('td', { colspan: 3 })))))
@@ -495,16 +495,11 @@
   }
 
   async function excluir(o) {
-    const [m, p] = await Promise.all([
-      sb.from('obras_medicoes').select('arquivo_url').eq('obra_id', o.id).not('arquivo_url', 'is', null).limit(500),
-      sb.from('obras_paralisacoes').select('arquivo_url').eq('obra_id', o.id).not('arquivo_url', 'is', null).limit(200)]);
-    const arqs = (m.data || []).concat(p.data || []);
-    if (!await P.confirmar('Excluir obra', 'Excluir "' + o.titulo + '" com a planilha, as medições e as paralisações' + (arqs.length ? ' (e ' + arqs.length + ' arquivo(s))' : '')
-      + '? O PNTP pede manter o histórico; para obra que não vai acontecer, prefira a situação "Cancelada".', 'Excluir', true)) return;
+    if (!await P.confirmar('Excluir obra', 'Excluir "' + o.titulo + '"? Antes, exclua a planilha, as medições e as paralisações dela. '
+      + 'O PNTP pede manter o histórico; para obra que não vai acontecer, prefira a situação "Cancelada".', 'Excluir', true)) return;
     const { data, error } = await sb.from('obras').delete().eq('id', o.id).select('id');
     if (error) return mostrarErro(error);
     if (!data || !data.length) return toast('Seu perfil não pode excluir esta obra.', true);
-    for (const a of arqs) P.apagarArquivo(a.arquivo_url);
     toast('Obra excluída.'); await recarregar();
   }
 

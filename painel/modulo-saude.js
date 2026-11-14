@@ -55,7 +55,7 @@
       caixa.replaceChildren(
         pode() ? el('p', null, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => abrir() }, '+ Incluir estabelecimento')) : '',
         S.tabela([['Estabelecimento', (e) => [el('strong', null, e.nome), el('span', { class: 'sub-linha' }, TIPOS_ESTAB[e.tipo] + (e.bairro ? ' · ' + e.bairro : ''))], 'quebra'],
-          ['Horário', (e) => e.horario || el('span', { class: 'etiqueta etiqueta-pendente' }, 'falta')],
+          ['Horário', (e) => e.horario || el('span', { class: 'falta' }, 'Falta')],
           ['Profissionais', (e) => String(((e.saude_profissionais || [])[0] || {}).count || 0), 'num'], ['Situação', (e) => S.etiquetaSituacao(e.situacao)]], lista,
           (e) => [S.botao('Profissionais', () => abrir(e, 'prof')), S.botao(pode() ? 'Editar' : 'Ver', () => abrir(e)),
             pode() && perm.excluir ? S.botao('Excluir', () => S.excluir('saude_estabelecimentos', e, e.nome, listar), true) : null],

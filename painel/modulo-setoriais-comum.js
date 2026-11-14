@@ -508,7 +508,7 @@
         return txt ? el('li', null, TIPOS_CONSELHO[t] + ' (' + crit + '): ' + txt + '.') : null;
       }).filter(Boolean);
       caixa.replaceChildren(
-        faltas.length ? el('div', { class: 'msg msg-info' }, el('strong', null, 'Para atender o PNTP: '), el('ul', { style: 'margin:4px 0 0 18px' }, faltas)) : '',
+        faltas.length ? el('div', { class: 'msg msg-falta' }, el('strong', null, 'Para atender o PNTP: '), el('ul', { style: 'margin:4px 0 0 18px' }, faltas)) : '',
         pode ? el('p', null, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => abrir({ tipo: o.tipos.find((t) => !lista.some((x) => x.tipo === t)) || 'outro' }) }, '+ Incluir conselho')) : '',
         tabela([['Conselho', (c) => [el('strong', null, c.nome), el('span', { class: 'sub-linha' }, TIPOS_CONSELHO[c.tipo])], 'quebra'],
           ['Mandato', (c) => c.mandato_inicio || c.mandato_fim ? (P.dataBR(c.mandato_inicio) || '…') + ' a ' + (P.dataBR(c.mandato_fim) || '…') : '—', 'num'],

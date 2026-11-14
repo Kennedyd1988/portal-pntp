@@ -155,6 +155,8 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/23_declaracoes_inexistencia.sql` | declarações de que não há dados em todo item do PNTP com lista (`modulo_da_parte`: receitas, despesas, ordem cronológica, pessoal, diárias, concursos, convênios, emendas, licitações, PCA, sanções, contratos, fiscais, obras, planejamento por documento, renúncias, saúde, educação): `declaracoes_inexistencia` (situação atual, mês, bimestre, trimestre, quadrimestre, semestre, ano ou datas; o banco calcula início e fim), `secoes_setoriais.sem_ocorrencia` espelhada da declaração atual, migração das antigas, `partes_sem_dados` (avisos de prazo) |
 | `supabase/24_esic_ouvidoria.sql` | Fase 3 · Atendimento: módulos `esic` e `ouvidoria` (o antigo `atendimento` sai, permissões copiadas); `atendimento_canais` (unidade e responsável, endereço, telefone, e-mail, horário, formulário eletrônico, instruções, prazos, autoridades e procedimento do recurso, norma da LAI; o `esic_url`/`ouvidoria_url` de Aparência é copiado para cá), `atendimento_relatorios` + `atendimento_relatorios_itens` (12.7 e relatório da ouvidoria: totais, recursos, prazo médio, perfil dos solicitantes, tipos de manifestação, outras distribuições), `informacoes_classificadas` (12.8/12.9, prazo máximo por grau conferido pelo banco); `atendimento_anos`; avisos `pendencias_atendimento`. Antes, rodar de novo o 21 e o 23 |
 | `supabase/25_esic_ouvidoria_proprio.sql` | Fase 3 · Atendimento, parte 2: sistema próprio do e-SIC e da Ouvidoria. `atendimento_canais` ganha `sistema_proprio`, prazos em dias, anexos, pesquisa e avisos; o endereço do formulário externo (0.17.0) vai para Destinos (`esic_pedidos`, `ouvidoria_manifestacoes`); `feriados`; `atendimentos` (+ `_segredos`, `_solicitantes`, `_tramites`, `_recursos`, `_anexos`, `_acessos`, `_avaliacoes`, `_emails`, `_envios`, `_numeros`); bucket privado `atendimento`; funções do site (`registrar_atendimento`, `consultar_atendimento`, `recorrer_atendimento`, `complementar_atendimento`, `avaliar_atendimento`, `atendimento_satisfacao`), do painel (`atendimento_acao`, `atendimento_identificacao`, `atendimento_resumo`, `atendimento_emails_situacao`, `gerar_relatorios_atendimento`) e da rotina (`rotina_atendimento`, pg_cron 04:20 e e-mails a cada 15 min); `pendencias_atendimento` com a fila e o 15.6; `plataforma_config` (SMTP, endereço do site). Rodar depois do 24 |
+| `supabase/26_vinculos_autoavaliacao_pntp.sql` | Vínculos protegidos: nenhum registro ligado a outro pode ser excluído (as ligações que apagavam junto ou deixavam em branco passam a "no action"; ficam como estavam só as que dependem do órgão, o login da pessoa e peças internas). Autoavaliação automática do PNTP 2026: `pntp_criterios` (96 critérios da prefeitura, classificação, peso da dimensão, itens de verificação, onde corrigir), `avaliacao_pntp(órgão)` (por critério: disponibilidade, atualidade, série histórica, gravação, filtro, nota, situação, externo e o que falta) e `avaliacao_pntp_resumo(órgão)` (índice estimado e nível). Rodar depois do 25; pode repetir |
+| `supabase/teste_apagar_ficticios.sql` | apaga todos os dados fictícios de teste na ordem certa (desde o 26 os ligados não saem junto) e mostra o que sobrou. Para recarregar os testes: rodar este, depois licitações antes de contratos e de obras |
 | `supabase/teste_esic_ouvidoria_ficticios.sql` | opcional: canais do SIC e da Ouvidoria, relatórios de 2023 a 2026 com distribuições, 6 informações classificadas (2 desclassificadas) |
 | `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
 | `supabase/teste_obras_ficticias.sql` | opcional: 4 obras fictícias (em andamento, paralisada, concluídas) com planilha, medições e paralisações |
@@ -347,6 +349,16 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Limitações conhecidas
 
+- Autoavaliação do PNTP (Início do painel e aviso no alto de cada módulo): é estimativa automática com o que está
+  publicado. Confere existência, prazos (atualidade), série histórica (3 anos) e campos obrigatórios; não lê o conteúdo
+  dos PDFs nem a qualidade dos textos, e conta como atendida a parte que leva a sistema externo (marcada "conferir lá").
+  Fórmula: itens com peso 3 (disponibilidade e atualidade), 2 (série histórica) e 1 (gravação e filtro); critério
+  essencial 2, obrigatório 1,5, recomendado 1; dimensões com peso 4 a 1; níveis da tabela do PNTP (Diamante, Ouro e
+  Prata exigem 100% dos essenciais). A nota oficial é a do Tribunal de Contas.
+- Exclusão: registro com outros ligados (documentos, aditivos, fiscais, itens da planilha, medições, membros, valores,
+  empenhos, emendas…) não pode ser excluído; o painel diz o que está ligado. Exclua os ligados antes ou, para manter o
+  histórico, mude a situação.
+
 - Busca do site: notícias, publicações e serviços ignoram acentos (campo `busca`); páginas,
   perguntas e unidades ainda diferenciam acento.
 - Sem domínio próprio, links de compartilhamento usam o endereço do GitHub com `?orgao=`.
@@ -384,6 +396,42 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.19.0 — 14/11/2026 — Autoavaliação automática do PNTP, aviso padrão do que falta e vínculos protegidos**
+- Início do painel: "Autoavaliação automática do PNTP 2026" com o índice estimado, o nível atual (Diamante a
+  Inexistente), os essenciais atendidos, atendidos/parciais/não atendidos, o que falta para o próximo nível, a situação
+  por dimensão e a lista do que falta, do que mais pesa para o que menos pesa, cada item com os 5 itens de verificação
+  (✓ ou !), o que falta em palavras e o botão "Corrigir" que abre o módulo na aba certa. Todos veem o índice e o nível;
+  cada pessoa vê as pendências dos módulos que acessa (Administrador e Controle interno veem todas). "Recalcular" refaz
+  na hora; "Ver os 96 critérios" mostra a matriz inteira.
+- Aviso padrão no alto de cada módulo (um só desenho em todo o painel): "Situação no PNTP" com os critérios do módulo e
+  os lembretes de prazo que não são do PNTP (fila do e-SIC, notícias, aditivos). Some e volta recalculado depois de
+  gravar. Saíram os três quadros diferentes que existiam (Planejamento, LGPD, e-SIC/Ouvidoria); a periodicidade do RGF
+  continua em Planejamento, numa linha.
+- Padronização: amarelo só para o que falta (aviso do PNTP, `.msg-falta` e `.falta` nas tabelas, com "!"); azul para
+  informação (`.msg-info`); "Sem documento", "Sem arquivo" e "Falta" nas tabelas com o mesmo estilo. Links "Corrigir"
+  abrem a aba pelo endereço (`#/m/modulo?aba=…`), em qualquer módulo.
+- Vínculos: nenhum registro ligado a outro pode ser excluído (antes, excluir um contrato apagava aditivos e fiscais,
+  excluir uma obra apagava planilha e medições, excluir uma licitação deixava empenhos sem a origem). O painel explica o
+  que está ligado. Textos de confirmação de exclusão atualizados.
+- Banco: script 26 (rodar depois do 25). Testado no PostgreSQL local (banco novo 01 a 26, 26 repetido, dados fictícios;
+  exclusões recusadas com ligados e aceitas sem; exclusão do órgão inteiro continua funcionando) e no navegador com
+  PostgREST local (Início, os 27 módulos com o aviso, link "Corrigir" abrindo a aba, sem erros de script). Dados de
+  teste: novo `teste_apagar_ficticios.sql`; os scripts de teste apagam os ligados antes de recarregar.
+- Varredura PNTP (Cartilha e Matriz 2026, prefeitura: 72 critérios comuns + 23 do Executivo + 11.6):
+  - O portal tem página e cadastro para os 96 critérios, com filtro em cada coluna e exportação CSV/JSON nas listagens
+    (gravação de relatórios e filtro de pesquisa), série histórica por ano e declarações de que não há dados por período.
+  - Atendidos pelo próprio sistema: 1.2, 1.3, 1.4, 2.9, 13.1 a 13.5 e 15.4.
+  - Dependem de configuração do órgão: 1.1 (domínio oficial apontado: fica para a entrada definitiva), 12.3/12.4, 14.2
+    e 15.6 (ligar o formulário próprio ou informar o sistema externo).
+  - Todos os demais dependem só dos dados do órgão; a autoavaliação mostra, critério a critério, o que falta. Com os
+    dados fictícios do piloto: índice estimado 70,8%, nível Intermediário, 6 de 12 essenciais
+    (para Prata faltam 4,2 pontos e os 6 essenciais: 1.1 domínio e a série histórica de 2023-2024 de receitas e despesas).
+  - Atualidade conferida: dados de até 30 dias (receitas, despesas, ordem cronológica, servidores, folha, diárias,
+    obras, convênios, emendas, listas de espera); 180 dias (estagiários e terceirizados); 15 dias (estoque das farmácias,
+    Lei 14.654/2023); último exercício encerrado (Balanço, Relatório de Gestão, parecer, julgamento, relatório do SIC,
+    renúncias); período vencido há 30 dias (RREO e RGF).
+- Rodar o script 26.
 
 **0.18.0 — 14/11/2026 — Fase 3 · Atendimento, parte 2: e-SIC e Ouvidoria próprios (12.1 a 12.9, 14.1, 14.2, 15.6)**
 - Site: e-SIC com as abas Fazer pedido e Acompanhar pedido; Ouvidoria com Registrar manifestação, Acompanhar e

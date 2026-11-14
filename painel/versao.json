@@ -1,9 +1,10 @@
 {
-  "versao": "0.18.0",
+  "versao": "0.19.0",
   "data": "2026-11-14",
   "notas": [
-    "e-SIC e Ouvidoria próprios no portal: formulários sem cadastro, protocolo e código de acesso, fila com prazos, recursos e encaminhamento entre unidades (12.1 a 12.9, 14.1, 14.2).",
-    "Estatísticas automáticas nos relatórios e pesquisa de satisfação (15.6). Quem usa o Fala.BR continua igual (link em Destinos das páginas).",
-    "Rodar o script 25 e publicar a função atendimento-arquivos."
+    "Autoavaliação automática do PNTP 2026 no Início: índice estimado, nível atual, essenciais e o que falta, com o botão \"Corrigir\" que abre a aba certa.",
+    "Aviso padrão \"Situação no PNTP\" no alto de cada módulo; amarelo só para o que falta.",
+    "Registros ligados a outros não podem mais ser excluídos (o painel diz o que está ligado).",
+    "Rodar o script 26."
   ]
 }

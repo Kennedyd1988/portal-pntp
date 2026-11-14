@@ -10,6 +10,15 @@
 -- com "TESTE", o que permite apagar tudo de uma vez (comando no fim).
 -- =====================================================================
 
+-- Script 26: registros ligados não saem junto. Se já houver contratos, empenhos ou obras de teste
+-- ligados a estes processos, rode antes teste_apagar_ficticios.sql (apaga todos os dados de teste).
+do $$ begin
+  if exists (select 1 from public.contratos c join public.licitacoes l on l.id = c.licitacao_id where l.processo like 'TESTE%')
+     or exists (select 1 from public.despesas d join public.licitacoes l on l.id = d.licitacao_id where l.processo like 'TESTE%') then
+    raise exception 'Há contratos ou empenhos ligados às licitações de teste: rode antes teste_apagar_ficticios.sql.';
+  end if;
+end $$;
+delete from public.licitacoes_documentos where licitacao_id in (select id from public.licitacoes where processo like 'TESTE%');
 delete from public.licitacoes
 where orgao_id = (select id from public.orgaos where cnpj = '08.153.454/0001-04')
   and processo like 'TESTE%';
@@ -70,4 +79,4 @@ where d.usar;
 select modalidade, ano, count(*) from public.licitacoes where processo like 'TESTE%' group by 1, 2 order by 2 desc, 1;
 
 -- Para APAGAR todos os dados de teste depois (tire os dois traços e rode; os documentos vão junto):
--- delete from public.licitacoes where processo like 'TESTE%';
+-- (para apagar tudo, use teste_apagar_ficticios.sql)

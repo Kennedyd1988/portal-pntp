@@ -21,7 +21,7 @@
   const etiquetaSituacao = (s) => el('span', { class: 'etiqueta etiqueta-' + (s === 'publicado' ? 'publicado' : 'rascunho') }, s === 'publicado' ? 'No ar' : 'Rascunho');
   const linkDoc = (r) => r.arquivo_url || r.link_externo
     ? el('a', { href: r.arquivo_url || r.link_externo, target: '_blank', rel: 'noopener' }, r.arquivo_url ? 'PDF' : 'Link')
-    : el('span', { class: 'falta-leve' }, 'Sem documento');
+    : el('span', { class: 'falta' }, 'Sem documento');
 
   // Bloco "documento": PDF enviado aqui ou link externo (o banco exige um dos dois para publicar).
   function blocoDocumento(prefixo, r, rotuloPdf, ajudaLink) {
@@ -167,7 +167,7 @@
       const plano = itens.find((x) => x.tipo === 'plano');
       const declarado = decl && decl.aviso(ano);
       const aviso = !plano && declarado ? declarado : !plano ? el('p', { class: 'msg msg-erro' }, 'Falta o PCA de ' + ano + '. O plano é obrigatório (Lei 14.133/2021, art. 12, VII): declarar que não existe não atende o PNTP 8.6.')
-        : plano.situacao !== 'publicado' ? el('p', { class: 'msg msg-info' }, 'O PCA de ' + ano + ' está como rascunho: ainda não aparece no site.') : null;
+        : plano.situacao !== 'publicado' ? el('p', { class: 'msg msg-falta' }, 'O PCA de ' + ano + ' está como rascunho: ainda não aparece no site.') : null;
       const tabela = itens.length ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
         el('thead', null, el('tr', null, ['Documento', 'Aprovação', 'Valor total', 'Itens', 'Arquivo', 'Situação'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
         el('tbody', null, itens.map((r) => el('tr', null,

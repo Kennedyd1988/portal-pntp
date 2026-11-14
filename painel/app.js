@@ -136,6 +136,11 @@
 
   // lista: [id, rótulo, conteúdo, motivo (desativa a aba), chave(s) de destino (aba vira aviso se tiver link externo)]
   function abas(lista, inicial) {
+    // Sem aba inicial: usa a do endereço (#/m/modulo?aba=…, links "Corrigir" da autoavaliação) uma vez só.
+    if (inicial == null) {
+      const q = new URLSearchParams(location.hash.split('?')[1] || '').get('aba');
+      if (q && lista.some((x) => x[0] === q)) { inicial = q; history.replaceState(null, '', location.pathname + location.search + location.hash.split('?')[0]); }
+    }
     const botoes = [], paineis = [];
     lista.forEach((x) => { const ext = !x[3] && externo(x[4]); if (ext) { x[2] = () => avisoExterno(ext); x._externo = true; } });
     let atual = null;
@@ -193,8 +198,29 @@
   }
 
   // Traduz as mensagens da Supabase para algo que o usuário entenda.
+  // Nomes, para o usuário, das tabelas que podem impedir uma exclusão (vínculos no banco, script 26).
+  const NOMES_VINCULO = {
+    licitacoes_documentos: 'documentos da licitação', contratos: 'contratos', contratos_aditivos: 'aditivos do contrato',
+    contratos_fiscais: 'fiscais do contrato', despesas: 'empenhos (despesas)', despesas_movimentos: 'liquidações e pagamentos do empenho',
+    ordem_cronologica: 'pagamentos na ordem cronológica', pessoal_terceirizados: 'terceirizados', obras: 'obras',
+    obras_itens: 'itens da planilha da obra', obras_medicoes: 'medições da obra', obras_paralisacoes: 'paralisações da obra',
+    emendas: 'emendas parlamentares', concursos_documentos: 'edital e atos da seleção', conselhos_documentos: 'documentos do conselho',
+    conselhos_membros: 'membros do conselho', renuncias_valores: 'valores previstos e realizados da renúncia',
+    renuncias_beneficiarios: 'beneficiários da renúncia', saude_profissionais: 'profissionais do estabelecimento',
+    saude_estoques: 'estoques do medicamento', banners: 'banners', gestores: 'gestores', noticias: 'notícias',
+    publicacoes: 'publicações', servicos: 'serviços da Carta', unidades: 'unidades subordinadas', usuarios_orgaos: 'usuários',
+    atendimento_canais: 'canais do e-SIC/Ouvidoria', atendimentos: 'pedidos e manifestações', atendimentos_tramites: 'andamentos de pedidos',
+    lgpd: 'LGPD e Governo Digital (norma)', menu_itens: 'subitens do menu', orgaos: 'órgãos vinculados'
+  };
   function traduzirErro(e) {
     const t = (e && (e.message || e.error_description || String(e))) || '';
+    const dep = /violates foreign key constraint/i.test(t) && /^update or delete on table/i.test(t) && (t + ' ' + ((e && e.details) || '')).match(/(?:on table|from table) "([a-z_]+)"\.?\s*$|still referenced from table "([a-z_]+)"/i);
+    if (dep) {
+      const tab = dep[2] || dep[1];
+      return 'Não é possível excluir: há ' + (NOMES_VINCULO[tab] || 'outros registros') + ' ligados a este registro. '
+        + 'Exclua ou desvincule esses itens antes (para manter o histórico, prefira mudar a situação em vez de excluir).';
+    }
+    if (/violates foreign key constraint/i.test(t)) return 'Não foi possível gravar: o registro escolhido para vincular não existe mais. Atualize a tela e escolha de novo.';
     if (/invalid login credentials/i.test(t)) return 'E-mail ou senha incorretos.';
     if (/email not confirmed/i.test(t)) return 'Este e-mail ainda não foi confirmado.';
     if (/rate limit|too many/i.test(t)) return 'Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.';
@@ -609,6 +635,7 @@
       if (a.dataset.rota === rota) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     }
     const conteudo = $('conteudo');
+    if (conteudo._vigia) { conteudo._vigia.disconnect(); conteudo._vigia = null; }
     if (rota === 'inicio') telaInicio(conteudo);
     else telaModulo(conteudo, rota);
     conteudo.focus({ preventScroll: true });
@@ -622,25 +649,147 @@
     const nome = (estado.usuario.nome || '').split(' ')[0];
     c.replaceChildren(
       el('h1', null, nome ? 'Olá, ' + nome : 'Início'),
-      el('p', { class: 'sub' }, 'Painel de gestão · ' + o.nome),
-      el('div', { class: 'grade' },
-        el('section', { class: 'cartao' },
-          el('h2', null, 'Órgão'),
-          el('dl', { class: 'dados' },
-            el('dt', null, 'Nome'), el('dd', null, o.nome),
-            el('dt', null, 'Tipo'), el('dd', null, TIPO_ORGAO[o.tipo] || o.tipo),
-            el('dt', null, 'Situação'), el('dd', null, o.ativo ? 'Ativo' : 'Inativo'),
-            el('dt', null, 'Seu perfil'), el('dd', null, o.perfil)
-          )
-        ),
-        quadroPendencias()
-      )
+      el('p', { class: 'sub' }, 'Painel de gestão · ' + o.nome + ' · ' + (TIPO_ORGAO[o.tipo] || o.tipo) + ' · seu perfil: ' + o.perfil),
+      painelAvaliacao(),
+      quadroLembretes()
     );
   }
 
-  // ---------- avisos de dados desatualizados ----------
-  // pendencias_atualizacao (script 20) diz, por módulo, o que passou do prazo. Aparece no alto de
-  // cada módulo e reunido na tela inicial. Consulta guardada por 2 minutos (troca de tela rápida).
+  // ---------- Autoavaliação automática do PNTP (script 26) ----------
+  // avaliacao_pntp: um registro por critério da matriz (96 na prefeitura), com os itens de
+  // verificação atendidos, o que falta e onde corrigir. avaliacao_pntp_resumo: índice e nível.
+  // Guardada por 2 minutos (troca de tela rápida); gravar algo e voltar ao Início recalcula.
+  const NIVEIS_PNTP = {
+    diamante: ['Diamante', 'nivel-diamante'], ouro: ['Ouro', 'nivel-ouro'], prata: ['Prata', 'nivel-prata'],
+    elevado: ['Elevado', 'nivel-elevado'], intermediario: ['Intermediário', 'nivel-intermediario'], basico: ['Básico', 'nivel-basico'],
+    inicial: ['Inicial', 'nivel-inicial'], inexistente: ['Inexistente', 'nivel-inicial']
+  };
+  const CLASSIF_PNTP = { essencial: 'Essencial', obrigatoria: 'Obrigatória', recomendada: 'Recomendada' };
+  const ITENS_PNTP = [['D', 'disponibilidade', 'Disponibilidade'], ['A', 'atualidade', 'Atualidade'], ['S', 'serie_historica', 'Série histórica'],
+    ['G', 'gravacao', 'Gravação de relatórios'], ['F', 'filtro', 'Filtro de pesquisa']];
+  let aval = { quando: 0, linhas: null, resumo: null };
+  async function avaliacao(forcar) {
+    if (!forcar && aval.linhas && Date.now() - aval.quando < 120000 && aval.orgao === estado.orgao.id) return aval;
+    const [l, r] = await Promise.all([sb.rpc('avaliacao_pntp', { p_orgao: estado.orgao.id }), sb.rpc('avaliacao_pntp_resumo', { p_orgao: estado.orgao.id })]);
+    if (l.error || r.error) throw (l.error || r.error);
+    aval = { quando: Date.now(), orgao: estado.orgao.id, linhas: l.data || [], resumo: (r.data || [])[0] || null };
+    return aval;
+  }
+  const pct = (v) => (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+  const podeVerCriterio = (x) => !x.modulo || (estado.permissoes[x.modulo] && estado.permissoes[x.modulo].ver);
+  // Peso que falta no índice: o que mais sobe a nota vem primeiro (essenciais sempre antes).
+  const impacto = (x) => (x.classificacao === 'essencial' ? 1000 : 0) + Number(x.peso_dimensao) * Number(x.peso_criterio) * (1 - Number(x.nota));
+
+  // Uma linha de critério (mesmo desenho no Início e no alto de cada módulo).
+  function linhaCriterio(x, comModulo) {
+    const mod = x.modulo && estado.modulos.find((m) => m.codigo === x.modulo);
+    const icone = x.situacao === 'atende' ? '✓' : x.situacao === 'parcial' ? '!' : '✕';
+    const itens = ITENS_PNTP.filter(([letra]) => x.itens.includes(letra)).map(([, campo, rotulo]) =>
+      el('span', { class: 'item-pntp ' + (x[campo] ? 'item-ok' : 'item-falta') }, el('span', { 'aria-hidden': 'true' }, x[campo] ? '✓ ' : '! '), rotulo,
+        el('span', { class: 'sr' }, x[campo] ? ' (atendido)' : ' (falta)')));
+    const corrigir = x.rota && x.situacao !== 'atende' && podeVerCriterio(x)
+      ? el('a', { class: 'btn btn-claro btn-p', href: x.rota }, 'Corrigir', el('span', { class: 'sr' }, ' o critério ' + x.codigo)) : null;
+    return el('li', { class: 'crit-pntp crit-' + x.situacao },
+      el('span', { class: 'crit-icone', 'aria-hidden': 'true' }, icone),
+      el('div', { class: 'crit-corpo' },
+        el('div', { class: 'crit-titulo' }, el('strong', null, x.codigo), ' ', x.titulo,
+          el('span', { class: 'etiqueta etiqueta-classif-' + x.classificacao }, CLASSIF_PNTP[x.classificacao]),
+          x.externo ? el('span', { class: 'etiqueta' }, 'sistema externo: conferir lá') : null,
+          comModulo && mod ? el('span', { class: 'crit-modulo' }, mod.nome) : null),
+        el('div', { class: 'itens-pntp' }, itens),
+        x.falta && x.falta.length ? el('ul', { class: 'crit-falta' }, x.falta.map((t) => el('li', null, t))) : null),
+      corrigir);
+  }
+
+  function painelAvaliacao() {
+    const sec = el('section', { class: 'cartao painel-pntp', 'aria-labelledby': 'tit-aval' },
+      el('h2', { id: 'tit-aval' }, 'Autoavaliação automática do PNTP 2026'), el('p', { class: 'ajuda' }, 'Calculando…'));
+    avaliacao(true).then(({ linhas, resumo }) => {
+      if (!resumo) throw new Error('sem resumo');
+      const nv = NIVEIS_PNTP[resumo.nivel] || [resumo.nivel, ''];
+      const quando = new Date(resumo.calculado_em || Date.now());
+      const visiveis = linhas.filter(podeVerCriterio);
+      const pend = visiveis.filter((x) => x.situacao !== 'atende').sort((a, b) => impacto(b) - impacto(a));
+      const externos = visiveis.filter((x) => x.externo);
+      // Próximo nível: o que falta para subir.
+      const ind = Number(resumo.indice) || 0;
+      const faltaEss = resumo.essenciais - resumo.essenciais_atendidos;
+      const meta = ind >= 95 ? null : ind >= 85 ? ['Diamante', 95] : ind >= 75 ? ['Ouro', 85] : ['Prata', 75];
+      const proximo = resumo.nivel === 'diamante' ? 'Nível máximo alcançado na autoavaliação.'
+        : (meta ? 'Para chegar a ' + meta[0] + ': índice de ' + meta[1] + '%' + (ind < meta[1] ? ' (faltam ' + pct(meta[1] - ind) + ')' : '') : '')
+          + (faltaEss > 0 ? (meta ? ' e ' : 'Para ter selo: ') + 'atender todos os critérios essenciais (falta' + (faltaEss > 1 ? 'm ' : ' ') + faltaEss + ').' : '.');
+      // Por dimensão.
+      const dims = [];
+      linhas.forEach((x) => {
+        let d = dims.find((y) => y.nome === x.dimensao);
+        if (!d) dims.push(d = { nome: x.dimensao, peso: 0, pontos: 0, total: 0, ok: 0 });
+        const p = Number(x.peso_dimensao) * Number(x.peso_criterio);
+        d.peso += p; d.pontos += p * Number(x.nota); d.total++; if (x.situacao === 'atende') d.ok++;
+      });
+      const barra = (v) => el('span', { class: 'barra-pntp', role: 'img', 'aria-label': pct(v) }, el('span', { style: 'width:' + Math.max(0, Math.min(100, v)) + '%' }));
+      const todos = el('details', { class: 'todos-pntp' }, el('summary', null, 'Ver os ' + linhas.length + ' critérios da matriz'),
+        el('ul', { class: 'lista-crit' }, linhas.filter(podeVerCriterio).map((x) => linhaCriterio(x, true))),
+        linhas.length > visiveis.length ? el('p', { class: 'ajuda' }, (linhas.length - visiveis.length) + ' critério(s) de módulos que o seu perfil não acessa ficam ocultos; contam no índice.') : null);
+      sec.replaceChildren(...[
+        el('div', { class: 'cab-pntp' },
+          el('div', null, el('h2', { id: 'tit-aval' }, 'Autoavaliação automática do PNTP 2026'),
+            el('p', { class: 'ajuda' }, 'Situação atual, calculada em ' + quando.toLocaleDateString('pt-BR') + ' às ' + quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+              + ' com o que está publicado no portal. É uma estimativa: o que depende de leitura (qualidade dos textos, conteúdo dos arquivos, sistemas externos) cabe à conferência do próprio órgão, e a nota oficial é a do Tribunal de Contas.')),
+          el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => sec.replaceWith(painelAvaliacao()) }, 'Recalcular')),
+        el('div', { class: 'resumo-pntp' },
+          el('div', { class: 'indice-pntp' }, el('span', { class: 'rotulo' }, 'Índice estimado'), el('strong', null, pct(resumo.indice)), barra(ind)),
+          el('div', { class: 'nivel-pntp ' + nv[1] }, el('span', { class: 'rotulo' }, 'Nível atual'), el('strong', null, nv[0])),
+          el('div', null, el('span', { class: 'rotulo' }, 'Essenciais atendidos'), el('strong', { class: faltaEss ? 'txt-falta' : 'txt-ok' }, resumo.essenciais_atendidos + ' de ' + resumo.essenciais)),
+          el('div', null, el('span', { class: 'rotulo' }, 'Critérios'), el('strong', null, resumo.atendidos + ' ✓ · ' + resumo.parciais + ' ! · ' + resumo.nao_atendidos + ' ✕'),
+            el('span', { class: 'sub-linha' }, 'atendidos · parciais · não atendidos'))),
+        el('p', { class: 'proximo-pntp' }, proximo),
+        el('details', { class: 'dims-pntp' }, el('summary', null, 'Situação por dimensão'),
+          el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela tabela-compacta' },
+            el('thead', null, el('tr', null, el('th', null, 'Dimensão'), el('th', null, 'Critérios atendidos'), el('th', null, 'Pontuação'))),
+            el('tbody', null, dims.map((d) => el('tr', null, el('td', null, d.nome), el('td', { class: 'num' }, d.ok + ' de ' + d.total),
+              el('td', null, barra(100 * d.pontos / d.peso), ' ', pct(100 * d.pontos / d.peso)))))))),
+        el('h3', { class: 'tit-pend' }, pend.length ? 'O que falta (' + pend.length + '), começando pelo que mais pesa' : 'Nada pendente nos módulos que você acessa'),
+        pend.length ? el('div', { class: 'aviso-pntp' }, el('ul', { class: 'lista-crit' }, pend.slice(0, 12).map((x) => linhaCriterio(x, true))),
+          pend.length > 12 ? el('details', { class: 'todos-pntp' }, el('summary', null, 'Mostrar as outras ' + (pend.length - 12) + ' pendências'),
+            el('ul', { class: 'lista-crit' }, pend.slice(12).map((x) => linhaCriterio(x, true)))) : null)
+          : el('p', { class: 'msg msg-ok' }, '✓ Todos os critérios dos seus módulos estão atendidos na autoavaliação.'),
+        externos.length ? el('p', { class: 'ajuda' }, 'Atendidos por sistema externo (conferir lá): ' + externos.map((x) => x.codigo).join(', ') + '.') : null,
+        todos].filter(Boolean));
+    }).catch((e) => {
+      sec.replaceChildren(el('h2', { id: 'tit-aval' }, 'Autoavaliação automática do PNTP 2026'),
+        el('p', { class: 'msg msg-erro' }, /avaliacao_pntp|Could not find|does not exist/i.test((e && e.message) || '') ? 'Falta rodar o script 26 no banco.' : traduzirErro(e)));
+    });
+    return sec;
+  }
+
+  // Aviso padrão no alto de cada módulo: critérios do PNTP do módulo + lembretes de prazo.
+  // (Antes, cada módulo tinha o seu quadro; agora todos usam este.)
+  // Depois de gravar numa tela que não se redesenha: tira o aviso e o vigia põe de novo, recalculado.
+  function atualizarAvisos() { document.querySelectorAll('#conteudo .aviso-modulo').forEach((x) => x.remove()); }
+  async function avisosDoModulo(c, codigo) {
+    let crit = [];
+    try { crit = (await avaliacao(true)).linhas.filter((x) => x.modulo === codigo); } catch (_) { /* sem o script 26 */ }
+    const lemb = (await pendencias()).filter((x) => x.modulo === codigo && !COBERTO_PELA_AVALIACAO.test(x.mensagem));
+    if ((!crit.length && !lemb.length) || !c.isConnected) return;
+    const pend = crit.filter((x) => x.situacao !== 'atende').sort((a, b) => impacto(b) - impacto(a));
+    const ok = crit.length - pend.length;
+    const titulo = pend.length ? 'Situação no PNTP: ' + pend.length + ' critério(s) com pendência' + (ok ? ' · ' + ok + ' atendido(s)' : '')
+      : crit.length ? 'Situação no PNTP: ' + crit.length + ' critério(s) atendido(s)' : 'Lembretes de prazo';
+    const caixa = el('details', { class: 'aviso-pntp aviso-modulo' + (pend.length || lemb.some((x) => x.nivel === 'alerta') ? '' : ' aviso-pntp-ok'), open: pend.length > 0 || lemb.length > 0 },
+      el('summary', null, el('span', { 'aria-hidden': 'true' }, pend.length || lemb.length ? '⚠ ' : '✓ '), titulo),
+      crit.length ? el('ul', { class: 'lista-crit' }, pend.concat(crit.filter((x) => x.situacao === 'atende')).map((x) => linhaCriterio(x, false))) : null,
+      lemb.length ? el('div', { class: 'lembretes' }, el('strong', null, 'Lembretes de prazo'),
+        el('ul', null, lemb.map((x) => el('li', { class: 'pend-' + x.nivel }, /^[^\s(]+\([a-zõ]+\)/.test(x.mensagem) ? x.quantidade + ' ' : '', x.mensagem)))) : null,
+      el('p', { class: 'ajuda' }, 'Autoavaliação automática com o que está publicado. ', el('a', { href: '#/inicio' }, 'Ver o painel completo no Início')));
+    c.querySelectorAll('.aviso-modulo').forEach((x) => x.remove());
+    const antes = c.querySelector('.cabecalho-modulo') || c.querySelector('h1');
+    if (antes) antes.after(caixa); else c.prepend(caixa);
+  }
+
+  // ---------- lembretes de prazo (pendencias_atualizacao, scripts 20 a 25) ----------
+  // O que já entra na autoavaliação (mensagens com "PNTP" e as regras de prazo que ela confere)
+  // não se repete; ficam os lembretes do dia a dia (fila do e-SIC, notícias, aditivos…).
+  const COBERTO_PELA_AVALIACAO = /PNTP|valor repassado sem conferência|vigência encerrada ainda marcados|sem medição há mais|previsão de conclusão vencida|abertura já passada|inscrições encerradas ainda/;
   let pend = { quando: 0, linhas: [] };
   async function pendencias(forcar) {
     if (!forcar && Date.now() - pend.quando < 120000 && pend.orgao === estado.orgao.id) return pend.linhas;
@@ -648,24 +797,17 @@
     pend = { quando: Date.now(), orgao: estado.orgao.id, linhas: error ? [] : (data || []).filter((x) => estado.permissoes[x.modulo] && estado.permissoes[x.modulo].ver) };
     return pend.linhas;
   }
-  const caixaPendencias = (linhas, comLink) => el('div', { class: 'pendencias', role: 'status' },
-    el('strong', null, linhas.some((x) => x.nivel === 'alerta') ? '⚠ Dados a atualizar' : 'Lembrete'),
-    el('ul', null, linhas.map((x) => {
-      const mod = estado.modulos.find((m) => m.codigo === x.modulo);
-      return el('li', { class: 'pend-' + x.nivel }, comLink && mod ? [el('a', { href: '#/m/' + x.modulo }, mod.nome), ': '] : null, /^[^\s(]+\([a-zõ]+\)/.test(x.mensagem) ? x.quantidade + ' ' : '', x.mensagem);
-    })));
-  async function avisosDoModulo(c, codigo) {
-    const linhas = (await pendencias()).filter((x) => x.modulo === codigo);
-    if (!linhas.length || !c.isConnected) return;
-    const antes = c.querySelector('.cabecalho-modulo') || c.querySelector('h1');
-    const caixa = caixaPendencias(linhas, false);
-    if (antes) antes.after(caixa); else c.prepend(caixa);
-  }
-  function quadroPendencias() {
-    const sec = el('section', { class: 'cartao cartao-largo' }, el('h2', null, 'Situação dos dados (prazos do PNTP)'), el('p', { class: 'ajuda' }, 'Conferindo…'));
+  function quadroLembretes() {
+    const sec = el('section', { class: 'cartao lembretes-inicio', hidden: true });
     pendencias(true).then((linhas) => {
-      sec.replaceChildren(el('h2', null, 'Situação dos dados (prazos do PNTP)'),
-        linhas.length ? caixaPendencias(linhas, true) : el('p', { class: 'msg msg-ok' }, '✓ Nenhuma pendência de atualização encontrada nos módulos que você acessa.'));
+      const l = linhas.filter((x) => !COBERTO_PELA_AVALIACAO.test(x.mensagem));
+      if (!l.length) return;
+      sec.hidden = false;
+      sec.replaceChildren(el('h2', null, 'Lembretes de prazo'),
+        el('div', { class: 'aviso-pntp' }, el('ul', null, l.map((x) => {
+          const mod = estado.modulos.find((m) => m.codigo === x.modulo);
+          return el('li', { class: 'pend-' + x.nivel }, mod ? [el('a', { href: '#/m/' + x.modulo }, mod.nome), ': '] : null, /^[^\s(]+\([a-zõ]+\)/.test(x.mensagem) ? x.quantidade + ' ' : '', x.mensagem);
+        }))));
     });
     return sec;
   }
@@ -694,6 +836,14 @@
         if (ext) { c.replaceChildren(el('h1', null, mod.nome), el('p', { class: 'sub' }, mod.grupo), avisoExterno(ext)); return; }
         // Depois que a tela termina de desenhar, coloca os avisos de prazo do módulo no alto.
         Promise.resolve(telas[codigo](c, mod, p)).then(() => avisosDoModulo(c, codigo)).catch(() => {});
+        // A tela se redesenha depois de gravar (o aviso some junto): o aviso volta, recalculado.
+        if (c._vigia) c._vigia.disconnect();
+        let espera = null;
+        c._vigia = new MutationObserver(() => {
+          if (c.querySelector('.aviso-modulo') || location.hash.split('?')[0] !== '#/m/' + codigo) return;
+          clearTimeout(espera); espera = setTimeout(() => { if (!c.querySelector('.aviso-modulo')) avisosDoModulo(c, codigo).catch(() => {}); }, 500);
+        });
+        c._vigia.observe(c, { childList: true, subtree: true });
       });
       return;
     }
@@ -1235,7 +1385,6 @@
     if (e && e.amigavel) return t;
     if (/Seu perfil não pode publicar|Este processo está publicado|não pertence a um processo|dois níveis|mesmo órgão|dentro dele mesmo|tem subitens/.test(t)) return t;
     if (/row-level security/i.test(t)) return 'Seu perfil não tem permissão para gravar aqui (ou o registro está fora do seu alcance).';
-    if (/foreign key/i.test(t)) return 'Este registro está sendo usado em outro lugar e não pode ser removido.';
     return traduzirErro(e);
   }
   const amigavel = (texto) => Object.assign(new Error(texto), { amigavel: true });
@@ -1266,6 +1415,6 @@
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
     campo, campoOutra, abas, externo, avisoExterno, declaracoes, declaracoesAnuais, declaracoesDoOrgao, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
-    paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf
+    paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf, atualizarAvisos
   };
 })();

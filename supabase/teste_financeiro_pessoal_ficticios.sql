@@ -24,6 +24,9 @@ begin
   delete from public.receitas where orgao_id = o and fonte_descricao like 'TESTE%';
   delete from public.divida_ativa where orgao_id = o and tributo like '%(teste)';
   delete from public.ordem_cronologica where orgao_id = o and documento_fiscal like 'TESTE%';
+  -- Script 26: registros ligados não saem junto; os filhos saem antes.
+  delete from public.despesas_movimentos where despesa_id in (select id from public.despesas where orgao_id = o and processo like 'TESTE%');
+  delete from public.ordem_cronologica where despesa_id in (select id from public.despesas where orgao_id = o and processo like 'TESTE%');
   delete from public.despesas where orgao_id = o and processo like 'TESTE%';
   delete from public.pessoal_remuneracoes where orgao_id = o and matricula like 'T-%';
   delete from public.pessoal_vinculos where orgao_id = o and matricula like 'T-%';

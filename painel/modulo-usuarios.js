@@ -451,7 +451,7 @@
     }
     if (!await P.confirmar('Excluir perfil', 'Excluir o perfil "' + p.nome + '"? A ação fica no histórico.', 'Excluir', true)) return;
     const { data, error } = await sb.from('perfis').delete().eq('id', p.id).select('id');
-    if (error) return toast(/foreign key/i.test(error.message) ? 'O perfil ainda está em uso e não pode ser excluído.' : traduzirErro(error), true);
+    if (error) return toast(traduzirErro(error), true);
     if (!data || !data.length) return toast('Só um administrador do órgão pode excluir perfis.', true);
     toast('Perfil excluído.');
     await recarregar();

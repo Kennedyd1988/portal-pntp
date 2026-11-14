@@ -9,6 +9,10 @@
 -- Identificação dos dados de teste: fonte do recurso começando com "TESTE".
 -- =====================================================================
 
+-- Script 26: registros ligados não saem junto; planilha, medições e paralisações saem antes.
+delete from public.obras_itens where obra_id in (select id from public.obras where fonte_recurso like 'TESTE%');
+delete from public.obras_medicoes where obra_id in (select id from public.obras where fonte_recurso like 'TESTE%');
+delete from public.obras_paralisacoes where obra_id in (select id from public.obras where fonte_recurso like 'TESTE%');
 delete from public.obras
 where orgao_id = (select id from public.orgaos where cnpj = '08.153.454/0001-04') and fonte_recurso like 'TESTE%';
 

@@ -262,7 +262,7 @@
           el('tbody', null, lista.map((a) => el('tr', null,
             el('td', { class: 'quebra' }, el('strong', null, a.numero || TIPOS_ADITIVO[a.tipo]), el('span', { class: 'sub-linha' }, TIPOS_ADITIVO[a.tipo] + (a.descricao ? ' · ' + a.descricao : '') + (a.origem === 'pncp' ? ' · PNCP' : ''))),
             el('td', { class: 'num' }, P.dataBR(a.data_assinatura)), el('td', { class: 'num' }, moeda(a.valor)), el('td', { class: 'num' }, P.dataBR(a.nova_vigencia_fim)),
-            el('td', null, a.arquivo_url || a.link_externo ? el('a', { href: a.arquivo_url || a.link_externo, target: '_blank', rel: 'noopener' }, a.arquivo_url ? 'PDF' : 'Link') : el('span', { class: 'falta-leve' }, 'Sem arquivo')),
+            el('td', null, a.arquivo_url || a.link_externo ? el('a', { href: a.arquivo_url || a.link_externo, target: '_blank', rel: 'noopener' }, a.arquivo_url ? 'PDF' : 'Link') : el('span', { class: 'falta' }, 'Sem arquivo')),
             el('td', { class: 'acoes' }, pode && a.origem !== 'pncp' ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: async () => {
               if (!await P.confirmar('Excluir aditivo', 'Excluir "' + (a.numero || TIPOS_ADITIVO[a.tipo]) + '"? O valor e a vigência do contrato serão recalculados.', 'Excluir', true)) return;
               const { data: d, error: e } = await sb.from('contratos_aditivos').delete().eq('id', a.id).select('id');
@@ -465,7 +465,7 @@
 
   async function excluir(c) {
     const [{ data: ad }] = await Promise.all([sb.from('contratos_aditivos').select('arquivo_url').eq('contrato_id', c.id).not('arquivo_url', 'is', null).limit(200)]);
-    if (!await P.confirmar('Excluir contrato', 'Excluir "' + rotulo(c) + '" com seus aditivos e fiscais? O PNTP exige manter o histórico de contratos encerrados; prefira só corrigir.', 'Excluir', true)) return;
+    if (!await P.confirmar('Excluir contrato', 'Excluir "' + rotulo(c) + '"? Antes, exclua os aditivos e os fiscais dele. O PNTP exige manter o histórico de contratos encerrados; prefira só corrigir.', 'Excluir', true)) return;
     const { data, error } = await sb.from('contratos').delete().eq('id', c.id).select('id');
     if (error) return mostrarErro(error);
     if (!data || !data.length) return toast('Seu perfil não pode excluir este contrato.', true);

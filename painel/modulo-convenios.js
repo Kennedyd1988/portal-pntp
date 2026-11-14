@@ -22,7 +22,7 @@
   const etiquetaSituacao = (s) => el('span', { class: 'etiqueta etiqueta-' + (s === 'publicado' ? 'publicado' : 'rascunho') }, s === 'publicado' ? 'No ar' : 'Rascunho');
   const linkDoc = (r) => r.arquivo_url || r.link_externo
     ? el('a', { href: r.arquivo_url || r.link_externo, target: '_blank', rel: 'noopener' }, r.arquivo_url ? 'PDF' : 'Link')
-    : el('span', { class: 'falta-leve' }, 'Sem documento');
+    : el('span', { class: 'falta' }, 'Sem documento');
   const num = (input) => input.value === '' ? null : Number(input.value);
   const valorOk = (input) => input.value === '' || Number(input.value) >= 0;
   const buscaLike = (t) => '%' + P.normalizar(t).replace(/[%_]/g, '') + '%';
@@ -277,7 +277,7 @@
             el('tbody', null, itens.map((c) => el('tr', null,
               el('td', { class: 'quebra' }, el('strong', null, rotuloConvenio(c)), el('span', { class: 'sub-linha' }, c.objeto.length > 140 ? c.objeto.slice(0, 140) + '…' : c.objeto)),
               el('td', { class: 'quebra' }, c.parte_nome, c.esfera ? el('span', { class: 'sub-linha' }, ESFERAS[c.esfera]) : null),
-              el('td', { class: 'num' }, c.vigencia_inicio || c.vigencia_fim ? (P.dataBR(c.vigencia_inicio) || '…') + ' a ' + (P.dataBR(c.vigencia_fim) || '…') : el('span', { class: 'falta-leve' }, 'Não informada')),
+              el('td', { class: 'num' }, c.vigencia_inicio || c.vigencia_fim ? (P.dataBR(c.vigencia_inicio) || '…') + ' a ' + (P.dataBR(c.vigencia_fim) || '…') : el('span', { class: 'falta' }, 'Não informada')),
               semValor ? null : el('td', { class: 'num' }, moeda(c.valor_previsto)),
               semValor ? null : el('td', { class: 'num' }, moeda(c.valor_repassado)),
               el('td', null, el('span', { class: 'etiqueta etiqueta-' + (COR_ANDAMENTO[c.andamento] || 'rascunho') }, ANDAMENTOS[c.andamento] || c.andamento)),

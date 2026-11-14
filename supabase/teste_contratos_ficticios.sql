@@ -6,6 +6,10 @@
 -- ligam às licitações de teste homologadas). Pode repetir: apaga e insere.
 -- Identificação dos dados de teste: processo começando com "TESTE".
 -- =====================================================================
+-- Script 26: aditivos e fiscais saem antes; obras e empenhos de teste ligados a estes contratos impedem
+-- (nesse caso, rode antes teste_apagar_ficticios.sql).
+delete from public.contratos_aditivos where contrato_id in (select id from public.contratos where processo like 'TESTE%');
+delete from public.contratos_fiscais where contrato_id in (select id from public.contratos where processo like 'TESTE%');
 delete from public.contratos
 where orgao_id = (select id from public.orgaos where cnpj = '08.153.454/0001-04') and processo like 'TESTE%';
 
@@ -49,4 +53,4 @@ select c.numero, c.contratado_nome, c.valor_inicial, c.valor_atual, c.vigencia_f
 from public.contratos c where c.processo like 'TESTE%' order by c.data_assinatura;
 
 -- Para APAGAR (tire os dois traços e rode; aditivos e fiscais vão junto):
--- delete from public.contratos where processo like 'TESTE%';
+-- (para apagar tudo, use teste_apagar_ficticios.sql)

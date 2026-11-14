@@ -94,31 +94,6 @@
   const nomeAto = (n) => ({ decreto: 'Decreto', lei: 'Lei', lei_complementar: 'Lei Complementar', portaria: 'Portaria', resolucao: 'Resolução' }[n.tipo] || n.tipo) +
     (n.numero ? ' nº ' + n.numero : '') + '/' + n.ano;
 
-  // Itens do PNTP que o cadastro do canal cobre: ✓ ou o que falta.
-  function situacaoPNTP(canal) {
-    const c = canais[canal] || {};
-    const u = unidades.find((x) => x.id === c.unidade_id) || {};
-    const tem = (k, kU) => !!(c[k] || (kU && u[kU]));
-    const itens = canal === 'esic' ? [
-      ['12.1', 'Unidade ou setor responsável pelo SIC', !!(c.unidade_id || c.setor)],
-      ['12.2', 'Endereço, telefone, e-mail e horário do SIC', tem('endereco', 'endereco') && tem('telefone', 'telefone') && tem('email', 'email') && tem('horario', 'horario_atendimento')],
-      ['12.3', 'Formulário eletrônico de pedidos (sistema próprio ligado ou link externo em Destinos)', !!(c.sistema_proprio || P.externo('esic_pedidos'))],
-      ['12.4', 'Instruções: pedido simples, sem exigências que dificultem', !!c.instrucoes],
-      ['12.5', 'Norma local que regulamenta a LAI', !!(c.norma_publicacao || c.norma_texto)],
-      ['12.6', 'Prazos, autoridades e procedimento do recurso (aba "Prazos e recursos")', !!(c.prazo_resposta && c.prazo_recurso && c.autoridade_recurso_1 && c.procedimento_recurso)]
-    ] : [
-      ['14.1', 'Atendimento presencial: endereço, telefone e horário', tem('endereco', 'endereco') && tem('telefone', 'telefone') && tem('horario', 'horario_atendimento')],
-      ['14.2', 'Canal eletrônico de manifestações (sistema próprio ligado ou link externo em Destinos)', !!(c.sistema_proprio || P.externo('ouvidoria_manifestacoes'))],
-      ['15.6', 'Pesquisa de satisfação (sistema próprio com a pesquisa ligada ou link externo)', !!((c.sistema_proprio && c.pesquisa_satisfacao) ||
-        ((canais.esic || {}).sistema_proprio && (canais.esic || {}).pesquisa_satisfacao) || P.externo('ouvidoria_satisfacao'))],
-      ['—', 'Instruções e tipos de manifestação', !!c.instrucoes],
-      ['—', 'Prazo de resposta (Lei 13.460/2017, art. 16)', !!c.prazo_resposta]
-    ];
-    return el('section', { class: 'cartao' }, el('h2', null, 'Situação no PNTP'),
-      el('ul', { class: 'lista-pntp' }, itens.map(([cod, rot, ok]) => el('li', { class: ok ? 'ok' : 'falta-pntp' },
-        el('span', { 'aria-hidden': 'true' }, ok ? '✓ ' : '! '), el('strong', null, cod), ' ', rot, ok ? '' : el('span', { class: 'sr' }, ' (falta)')))),
-      el('p', { class: 'ajuda' }, 'O que está com "!" ainda falta para o critério. Em branco, endereço, telefone, e-mail e horário vêm da unidade escolhida.'));
-  }
 
   // ---------- formulário do canal (uma parte dos campos por aba) ----------
   // grupos: [[título, ajuda, [campos]]]; campo = { k, r, t: text|area|url|unidade|norma|texto, ... }
@@ -225,11 +200,9 @@
         ' e a fila fica na aba ' + aba + '. Os relatórios estatísticos são gerados e publicados sozinhos desde essa data. Desligar não apaga nada: só deixa de receber pelo site.');
       return el('p', { class: 'msg msg-info' }, 'Para ligar: informe a unidade ou o setor responsável (no alto)' + (canal === 'esic' ? ' e a autoridade que decide o recurso (aba "Prazos e recursos")' : '') + ', marque a caixa e salve.');
     };
-    const sit = el('div');
-    const redesenhar = () => sit.replaceChildren(situacaoPNTP(canal));
-    redesenhar();
+    // A situação no PNTP (12.1 a 12.6, 14.1, 14.2 e 15.6) fica no aviso padrão do alto da tela.
+    const redesenhar = () => P.atualizarAvisos();
     const esic = canal === 'esic';
-    caixa.append(sit);
     return formCanal(caixa, canal, [
       [esic ? 'Unidade responsável pelo SIC (12.1)' : 'Ouvidoria: unidade e ouvidor', esic ? 'Unidade ou setor que recebe os pedidos de acesso à informação, inclusive os feitos no balcão.' : null, [
         [{ k: 'unidade_id', r: 'Unidade', t: 'unidade', aj: 'Do cadastro de Unidades e gestores.' }, { k: 'setor', r: 'Ou nome do setor', t: 'text', max: 200, ph: esic ? 'Ex.: Serviço de Informação ao Cidadão' : 'Ex.: Ouvidoria-Geral do Município' }],

@@ -518,14 +518,11 @@
   }
 
   async function excluir(l) {
-    const { data: ds } = await sb.from('licitacoes_documentos').select('arquivo_url').eq('licitacao_id', l.id).not('arquivo_url', 'is', null).limit(500);
-    const qtd = (ds || []).length;
-    if (!await P.confirmar('Excluir processo', 'Excluir "' + rotuloProcesso(l) + '"' + (qtd ? ' e os ' + qtd + ' arquivo(s) enviados?' : '?')
-      + ' O PNTP exige manter o histórico das licitações; prefira mudar o andamento (ex.: revogada).', 'Excluir', true)) return;
+    if (!await P.confirmar('Excluir processo', 'Excluir "' + rotuloProcesso(l) + '"? Antes, exclua os documentos dele. '
+      + 'O PNTP exige manter o histórico das licitações; prefira mudar o andamento (ex.: revogada).', 'Excluir', true)) return;
     const { data, error } = await sb.from('licitacoes').delete().eq('id', l.id).select('id');
     if (error) return mostrarErro(error);
     if (!data || !data.length) return toast('Seu perfil não pode excluir este processo.', true);
-    for (const d of ds || []) P.apagarArquivo(d.arquivo_url);
     toast('Processo excluído.'); await recarregar();
   }
 

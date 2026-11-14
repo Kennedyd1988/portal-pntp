@@ -116,18 +116,6 @@
       dados.area.value = modeloDadosAbertos(orgao);
     });
 
-    // Situação dos critérios PNTP desta dimensão (calculada com o que está salvo).
-    function checklist(v) {
-      const item = (classe, texto) => el('div', { class: classe }, el('span', null, texto));
-      return el('div', { class: 'checklist-pntp', 'aria-label': 'Situação no PNTP' },
-        item(v.encarregado_nome && (v.encarregado_email || v.encarregado_telefone) ? 'ok' : 'pendente', '15.1 Encarregado de dados e canal de contato'),
-        item(v.politica_texto || v.politica_url ? 'ok' : 'pendente', '15.2 Política de privacidade (recomendada)'),
-        item(digitais > 0 ? 'ok' : 'pendente', '15.3 Serviços pela internet: ' + (digitais ? digitais + ' na Carta de Serviços' : 'nenhum cadastrado ainda')),
-        item(v.dados_abertos_texto ? 'ok' : 'pendente', '15.4 Regras dos dados abertos (os arquivos vêm no site público)'),
-        item(v.gov_digital_publicacao || v.gov_digital_url ? 'ok' : 'pendente', '15.5 Norma do Governo Digital (recomendada)'),
-        item('futuro', '15.6 Pesquisa de satisfação — Fase 3'));
-    }
-    const caixaChecklist = el('div', null, checklist(l));
 
     const btnSalvar = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
     const form = el('form', { class: 'form-aparencia', novalidate: true },
@@ -144,7 +132,7 @@
           el('p', { class: 'ajuda' }, 'Norma do órgão que regulamenta a Lei 14.129/2021. Se ela estiver em "Publicações oficiais", escolha na lista; senão, informe o nome e o link.'),
           campo('lg-gd-sel', 'Norma cadastrada', f.gdSel),
           el('div', { class: 'grade-campos' }, campo('lg-gd-texto', 'Ou: identificação', f.gdTexto), campo('lg-gd-url', 'Link', f.gdUrl)),
-          listaNormas.length ? null : el('p', { class: 'msg msg-info' }, 'Se o município ainda não regulamentou a Lei 14.129/2021, o critério 15.5 fica pendente. Ele é recomendado, não obrigatório.'))),
+          listaNormas.length ? null : el('p', { class: 'msg msg-falta' }, 'Se o município ainda não regulamentou a Lei 14.129/2021, o critério 15.5 fica pendente. Ele é recomendado, não obrigatório.'))),
       el('section', { class: 'cartao', style: 'margin-top:16px' },
         el('h2', null, 'Política de privacidade e proteção de dados (15.2)'),
         el('div', { class: 'campo' }, el('label', { for: 'lg-politica' }, 'Texto exibido no site ', btnModeloPol), politica.elemento,
@@ -182,7 +170,7 @@
         const { data, error } = await sb.from('lgpd').upsert(reg, { onConflict: 'orgao_id' }).select('orgao_id');
         if (error) throw error;
         if (!data || !data.length) throw P.amigavel('Seu perfil não pode alterar esta tela.');
-        caixaChecklist.replaceChildren(checklist(reg));
+        P.atualizarAvisos();
         toast('LGPD e Governo Digital salvos.');
       } catch (e) { toast(P.erroGravacao(e), true); }
       finally { ocupado(btnSalvar); }
@@ -191,7 +179,6 @@
     c.replaceChildren(
       el('h1', null, 'LGPD e Governo Digital'),
       el('p', { class: 'sub' }, 'Proteção de dados pessoais e serviços digitais (PNTP, dimensão 15).'),
-      caixaChecklist,
       form);
   };
 })();

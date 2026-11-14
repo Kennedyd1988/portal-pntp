@@ -202,7 +202,7 @@
     const { data, error } = await sb.from('unidades').delete().eq('id', u.id).select('id');
     if (error) {
       const t = error.message || '';
-      toast(/aparece como envolvida/.test(t) ? t : /foreign key/i.test(t) ? 'A unidade ainda tem vínculos e não pode ser excluída.' : traduzirErro(error), true);
+      toast(/aparece como envolvida/.test(t) ? t : traduzirErro(error), true);
       return;
     }
     if (!data || !data.length) { toast('Seu perfil não pode excluir esta unidade.', true); return; }

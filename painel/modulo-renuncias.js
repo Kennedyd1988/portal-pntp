@@ -89,7 +89,7 @@
           'aria-selected': x.ano === ano ? 'true' : 'false', onclick: () => { ano = x.ano; listar(); } }, String(x.ano), el('span', { class: 'aba-qtd' }, String(x.total))))),
         el('div', { class: 'painel-guia painel-guia-interno' },
           S.tabela([['Benefício', (v) => [el('strong', null, v.renuncias.titulo), el('span', { class: 'sub-linha' }, ESPECIES[v.renuncias.especie] + ' · ' + TRIBUTOS[v.renuncias.tributo])], 'quebra'],
-            ['Previsto', (v) => S.moeda(v.valor_previsto), 'num'], ['Realizado', (v) => v.valor_realizado === null ? el('span', { class: 'etiqueta etiqueta-pendente' }, 'falta') : S.moeda(v.valor_realizado), 'num']], doAno,
+            ['Previsto', (v) => S.moeda(v.valor_previsto), 'num'], ['Realizado', (v) => v.valor_realizado === null ? el('span', { class: 'falta' }, 'Falta') : S.moeda(v.valor_realizado), 'num']], doAno,
             (v) => [S.botao('Alterar', () => abrirRenuncia(renuncias.find((r) => r.id === v.renuncia_id) || { id: v.renuncia_id }, 'valores', listar))]),
           el('p', { class: 'ajuda' }, 'Total de ' + ano + ': previsto ' + S.moeda(soma('valor_previsto')) + ' · realizado ' + S.moeda(soma('valor_realizado')) + '.')));
     }

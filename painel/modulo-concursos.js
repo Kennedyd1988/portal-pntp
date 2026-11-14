@@ -89,7 +89,7 @@
         P.apagarArquivo(d.arquivo_url); toast('Documento excluído.'); await listar();
       };
       caixa.replaceChildren(
-        docs.some((d) => d.tipo === 'edital') ? null : el('p', { class: 'msg msg-info' }, 'Falta o edital: sem ele a seleção não pode ser publicada (PNTP 6.6).'),
+        docs.some((d) => d.tipo === 'edital') ? null : el('p', { class: 'msg msg-falta' }, 'Falta o edital: sem ele a seleção não pode ser publicada (PNTP 6.6).'),
         docs.length ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
           el('thead', null, el('tr', null, ['Documento', 'Tipo', 'Data', 'Arquivo'].map((h) => el('th', { scope: 'col' }, h)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
           el('tbody', null, docs.map((d) => el('tr', null, el('td', { class: 'quebra' }, d.titulo), el('td', null, DOCS[d.tipo] || d.tipo), el('td', { class: 'num' }, P.dataBR(d.data)),
@@ -173,7 +173,7 @@
   }
 
   async function excluir(c) {
-    if (!await P.confirmar('Excluir seleção', 'Excluir "' + rotulo(c) + '" e todos os documentos? Seleção encerrada continua na relação (PNTP 6.6 e 6.7); exclua só se foi lançada por engano.', 'Excluir', true)) return;
+    if (!await P.confirmar('Excluir seleção', 'Excluir "' + rotulo(c) + '"? Antes, exclua o edital e os atos dela. Seleção encerrada continua na relação (PNTP 6.6 e 6.7); exclua só se foi lançada por engano.', 'Excluir', true)) return;
     const { data: docs } = await sb.from('concursos_documentos').select('arquivo_url').eq('concurso_id', c.id);
     const { data, error } = await sb.from('concursos').delete().eq('id', c.id).select('id');
     if (error) return mostrarErro(error);
