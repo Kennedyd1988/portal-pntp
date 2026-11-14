@@ -443,6 +443,9 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.27.1 — 14/11/2026 — Proposições do vereador em abas**
+- Página do vereador: proposições de autoria em abas por tipo (com andamento) e aba de relatorias, sem o corte de 30.
+
 **0.27.0 — 14/11/2026 — Páginas ocultas, endereços externos em abas, mais formatos e vereador ligado a diárias e emendas**
 - Aparência › Destinos: "Não exibir no site" (`configuracoes.paginas_ocultas`, `ocultaPNTP` em `site/destinos.js`, `S.oculta`).
   A página some do menu, da capa da Transparência, do mapa do site e da busca; a rota responde como inexistente; a parte

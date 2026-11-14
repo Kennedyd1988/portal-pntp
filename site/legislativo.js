@@ -87,7 +87,7 @@
     const meusVotos = (votos || []).filter((x) => x.votacoes && x.votacoes.sessoes).sort((a, b) => String(b.votacoes.sessoes.data).localeCompare(String(a.votacoes.sessoes.data))).slice(0, 20);
     const minhaVerba = (verba || []).filter((x) => x.parlamentar_id === id);
     const a = (ativ || []).find((x) => x.parlamentar_id === id);
-    const lista = (props || []).filter((x) => x.proposicoes).sort((x, y) => String(y.proposicoes.data_apresentacao).localeCompare(String(x.proposicoes.data_apresentacao))).slice(0, 30);
+    const lista = (props || []).filter((x) => x.proposicoes).sort((x, y) => String(y.proposicoes.data_apresentacao).localeCompare(String(x.proposicoes.data_apresentacao)));
     S.titulo(nomeParl(p)); trilha(['Vereadores', '#/parlamentares'], [nomeParl(p)]);
     pagina(main, el('div', { class: 'perfil-vereador' },
       p.foto_url ? el('img', { src: p.foto_url, alt: 'Foto de ' + nomeParl(p), class: 'foto-vereador foto-grande' }) : null,
@@ -115,10 +115,33 @@
         el('ul', { class: 'partes-contas cartao' }, minhasDiarias.slice(0, 30).map((x) => el('li', null,
           el('strong', null, x.destino + ' · ' + dataBR(x.data_inicio) + (x.data_fim !== x.data_inicio ? ' a ' + dataBR(x.data_fim) : '')),
           el('span', { class: 'meta' }, x.motivo + ' · ' + String(x.quantidade).replace('.', ',') + ' diária(s) · ' + U.moedaBR(Number(x.valor_total))))))) : null,
-      el('section', { class: 'mt-2' }, el('h2', null, 'Proposições'), lista.length ? el('ul', { class: 'partes-contas cartao' }, lista.map((x) => el('li', null,
-        el('a', { href: '#/proposicao/' + x.proposicoes.id }, nomeProp(x.proposicoes)), el('span', { class: 'meta' }, (x.papel === 'relator' ? 'Relator · ' : '') + x.proposicoes.ementa))))
-        : el('p', { class: 'vazio' }, 'Nenhuma proposição registrada.')));
+      secaoProposicoes(lista));
   };
+  // Proposições do vereador em abas por tipo (projetos de lei, indicações, requerimentos…) e relatorias.
+  const PLURAL_PROP = { projeto_lei: 'Projetos de lei', projeto_lei_complementar: 'Projetos de lei complementar', projeto_emenda_lei_organica: 'Emendas à Lei Orgânica',
+    projeto_resolucao: 'Projetos de resolução', projeto_decreto_legislativo: 'Projetos de decreto legislativo', requerimento: 'Requerimentos', indicacao: 'Indicações',
+    mocao: 'Moções', veto: 'Vetos', emenda: 'Emendas', outro: 'Outras' };
+  function secaoProposicoes(lista) {
+    const sec = el('section', { class: 'mt-2' }, el('h2', null, 'Proposições'));
+    if (!lista.length) { sec.append(el('p', { class: 'vazio' }, 'Nenhuma proposição registrada.')); return sec; }
+    const autoria = lista.filter((x) => x.papel !== 'relator'), relatorias = lista.filter((x) => x.papel === 'relator');
+    const tipos = Object.keys(PLURAL_PROP).filter((t) => autoria.some((x) => x.proposicoes.tipo === t));
+    const abas = [['todas', 'Todas (' + autoria.length + ')']].concat(tipos.map((t) => [t, PLURAL_PROP[t] + ' (' + autoria.filter((x) => x.proposicoes.tipo === t).length + ')']),
+      relatorias.length ? [['relatorias', 'Relatorias (' + relatorias.length + ')']] : []);
+    const painel = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
+    const mostrar = (id) => {
+      const itens = id === 'relatorias' ? relatorias : id === 'todas' ? autoria : autoria.filter((x) => x.proposicoes.tipo === id);
+      painel.replaceChildren(itens.length ? el('ul', { class: 'partes-contas cartao' }, itens.map((x) => el('li', null,
+        el('a', { href: '#/proposicao/' + x.proposicoes.id }, nomeProp(x.proposicoes)), ' ', AND_PROP[x.proposicoes.andamento] ? etiqueta(AND_PROP[x.proposicoes.andamento]) : null,
+        el('span', { class: 'meta' }, (x.papel === 'coautor' ? 'Coautoria · ' : '') + (x.proposicoes.data_apresentacao ? dataBR(x.proposicoes.data_apresentacao) + ' · ' : '') + x.proposicoes.ementa))))
+        : el('p', { class: 'vazio' }, 'Nenhuma proposição de autoria do vereador.'));
+    };
+    const inicial = autoria.length ? 'todas' : 'relatorias';
+    const faixa = U.faixaAbas(abas, inicial, 'Tipo de proposição', true, mostrar);
+    mostrar(inicial);
+    sec.append(faixa.lista, painel, el('p', { class: 'mt-1' }, S.linkDestino('proposicoes', 'Todas as proposições da Câmara →')));
+    return sec;
+  }
 
   // ---------- 20.11 Atividade de cada vereador ----------
   R['atividade-parlamentar'] = async function (main, partes, params) {
