@@ -554,3 +554,14 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .acesso-orgao:first-of-type { border-top: 0; padding-top: 0; }
 .acesso-orgao .grade-campos { margin-top: 6px; }
 .senha-inicial { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .5px; flex: 1 1 180px; }
+.perfis-extras { margin-top: 8px; border: 1px solid var(--line); border-radius: var(--raio); padding: 6px 10px; background: #fbfdff; }
+.perfis-extras summary { cursor: pointer; font-weight: 600; }
+.perfis-extras summary .ajuda { font-weight: 400; }
+.lista-extras { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 4px 12px; margin-top: 6px; }
+/* Barra de carregamento da entrada (0.22.0) */
+.barra-carregando { width: min(280px, 70vw); height: 6px; border-radius: 99px; background: #dfe7f1; overflow: hidden; margin: 10px 0 2px; position: relative; }
+.barra-carregando > span { display: block; height: 100%; border-radius: 99px; background: var(--brand, #0d4fc4); transition: width .35s ease;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,.45) 50%, rgba(255,255,255,0) 100%);
+  background-size: 120px 100%; background-repeat: no-repeat; animation: brilho-carregando 1.1s linear infinite; }
+@keyframes brilho-carregando { from { background-position: -120px 0; } to { background-position: 280px 0; } }
+@media (prefers-reduced-motion: reduce) { .barra-carregando > span { animation: none; transition: none; } }

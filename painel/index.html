@@ -66,7 +66,10 @@
 <!-- Carregando -->
 <section id="tela-carregando" class="tela tela-centro" aria-live="polite">
   <img src="../icon-192.png" alt="" width="56" height="56">
-  <p>Carregando…</p>
+  <div class="barra-carregando" role="progressbar" aria-label="Carregando o painel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="10">
+    <span id="barra-carregando-valor" style="width:10%"></span>
+  </div>
+  <p id="carregando-texto">Abrindo o painel…</p>
 </section>
 
 <!-- Login (tela dividida: painel azul + formulário) -->

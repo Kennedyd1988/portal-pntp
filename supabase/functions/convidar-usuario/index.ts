@@ -114,6 +114,15 @@ Deno.serve(async (req) => {
         });
         if (eM) throw eM;
         if (motivo) return falha(motivo);
+        // Perfis adicionais (script 29): as mesmas travas do principal.
+        const extras = Array.isArray(v.perfis_extras) ? v.perfis_extras.map(String) : [];
+        if (extras.length) {
+          const { data: m2, error: eX } = await comoQuemPediu.rpc('motivo_bloqueio_extras', {
+            p_orgao: String(v.orgao_id ?? ''), p_principal: String(v.perfil_id ?? ''), p_extras: extras,
+          });
+          if (eX) throw eX;
+          if (m2) return falha(m2);
+        }
       }
 
       // 2) Login: reaproveita se o e-mail já existe; senão cria já confirmado, com a senha inicial.
@@ -141,6 +150,7 @@ Deno.serve(async (req) => {
         if (jaTem) continue;
         const { error: eV } = await comoQuemPediu.from('usuarios_orgaos').insert({
           usuario_id: usuarioId, orgao_id: v.orgao_id, perfil_id: v.perfil_id, unidade_id: v.unidade_id || null,
+          ...(Array.isArray(v.perfis_extras) && v.perfis_extras.length ? { perfis_extras: v.perfis_extras } : {}),
         });
         if (eV) {
           if (criadoAgora) await admin.auth.admin.deleteUser(usuarioId!);

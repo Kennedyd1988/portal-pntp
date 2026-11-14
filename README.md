@@ -174,6 +174,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/26_vinculos_autoavaliacao_pntp.sql` | Vínculos protegidos: nenhum registro ligado a outro pode ser excluído (as ligações que apagavam junto ou deixavam em branco passam a "no action"; ficam como estavam só as que dependem do órgão, o login da pessoa e peças internas). Autoavaliação automática do PNTP 2026: `pntp_criterios` (96 critérios da prefeitura, classificação, peso da dimensão, itens de verificação, onde corrigir), `avaliacao_pntp(órgão)` (por critério: disponibilidade, atualidade, série histórica, gravação, filtro, nota, situação, externo e o que falta) e `avaliacao_pntp_resumo(órgão)` (índice estimado e nível). Rodar depois do 25; pode repetir |
 | `supabase/27_links_externos_orgaos.sql` | Verificação diária dos endereços externos (`links_verificacao`, `verificar_links_externos`/`coletar_links_externos` no pg_cron, `verificar_links_orgao`, `situacao_links_orgao`) e cadastro de órgãos pelo Suporte SOFT+ (módulo `orgaos`, `criar_orgao`, `alterar_orgao`, `criar_menu_padrao`, `orgaos_plataforma`). Rodar o 26 de novo antes (série histórica com outros endereços); pode repetir |
 | `supabase/28_usuarios_unificados.sql` | Página única de usuários: órgãos que cada um gerencia, lista unificada sem expor vínculos de outros órgãos, trava de perfil maior, `gerencia_todos_vinculos` para a função `convidar-usuario`. Rodar depois do 27 (e de novo se rodar o 05); pode repetir |
+| `supabase/29_perfis_multiplos.sql` | Perfis adicionais por acesso (`perfis_extras`, permissões somadas, travas e gatilhos) e perfis do sistema editáveis pelo Suporte SOFT+. Rodar depois do 28 (e de novo se rodar o 01, 02, 05 ou 28); pode repetir |
 | `supabase/teste_apagar_ficticios.sql` | apaga todos os dados fictícios de teste na ordem certa (desde o 26 os ligados não saem junto) e mostra o que sobrou. Para recarregar os testes: rodar este, depois licitações antes de contratos e de obras |
 | `supabase/teste_esic_ouvidoria_ficticios.sql` | opcional: canais do SIC e da Ouvidoria, relatórios de 2023 a 2026 com distribuições, 6 informações classificadas (2 desclassificadas) |
 | `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
@@ -440,6 +441,21 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.22.0 — 14/11/2026 — Vários perfis por pessoa, perfis do sistema e barra de carregamento**
+- Barra de carregamento na entrada do painel (conferindo acesso → órgãos → abrindo o órgão → menu), respeitando
+  "reduzir movimento" do aparelho.
+- Perfis adicionais: em cada órgão a pessoa tem o perfil principal e, se quiser, outros perfis (`perfis_extras`);
+  as permissões somam (`tem_permissao`, `minhas_permissoes`). O de administrador só pode ser o principal (assim a
+  regra do último administrador não muda). Perfis adicionais seguem as mesmas travas do principal
+  (`motivo_bloqueio_extras`); perfil em uso como adicional não pode ser excluído. No painel: "Perfis adicionais" no
+  cadastro, em "Alterar" e em "Dar acesso a outro órgão"; a lista mostra "Principal + Adicional".
+- Perfis padrão do sistema: só o Suporte SOFT+ edita (aviso de que vale para todos os órgãos); o de Administrador
+  do órgão nunca é editável. Administradores dos órgãos continuam com "Criar cópia" para ter versão própria.
+- Banco: script 29. Função `convidar-usuario` atualizada (grava os perfis adicionais no cadastro).
+- Testado no PostgreSQL local (banco novo 01 a 29) e no navegador: soma de permissões, bloqueio do administrador como
+  adicional, trava de perfil maior nos adicionais, edição de perfil do sistema pelo Suporte e só "Ver permissões"
+  para a administradora da Câmara.
 
 **0.21.0 — 14/11/2026 — Usuários em página única e cadastro sem convite**
 - "Usuários e permissões" virou uma página só para todos os órgãos que a pessoa gerencia: uma linha por pessoa,

@@ -70,6 +70,15 @@
   function mostrarTela(id) {
     for (const t of document.querySelectorAll('.tela')) t.hidden = (t.id !== id);
   }
+  // Barra de carregamento da entrada (0.22.0): avança por etapa, com o texto do que está sendo feito.
+  function etapa(pct, texto) {
+    const barra = document.querySelector('.barra-carregando');
+    const v = $('barra-carregando-valor');
+    if (!barra || !v) return;
+    v.style.width = pct + '%';
+    barra.setAttribute('aria-valuenow', String(pct));
+    if (texto) $('carregando-texto').textContent = texto;
+  }
 
   function toast(texto, erro) {
     const t = $('toast');
@@ -472,8 +481,10 @@
   // ---------- contexto: usuário e órgãos ----------
   async function carregarContexto() {
     mostrarTela('tela-carregando');
+    etapa(25, 'Conferindo seu acesso…');
     const { data: { user } } = await sb.auth.getUser();
     if (!user) { mostrarForm('form-login'); return; }
+    etapa(45, 'Buscando seus órgãos…');
     // Cadastrado pelo administrador com senha inicial: troca a senha antes de entrar (0.21.0).
     if (user.user_metadata && user.user_metadata.trocar_senha) { prepararNovaSenha('primeiro'); return; }
 
@@ -545,6 +556,7 @@
 
   async function abrirOrgao(o) {
     mostrarTela('tela-carregando');
+    etapa(70, 'Abrindo ' + (o.sigla || o.nome) + '…');
     const { data, error } = await sb.rpc('minhas_permissoes', { p_orgao: o.id });
     if (error) { toast(traduzirErro(error), true); mostrarListaOrgaos(); return; }
     estado.orgao = o;
@@ -552,6 +564,7 @@
     for (const p of data || []) {
       estado.permissoes[p.modulo] = { ver: p.pode_ver, editar: p.pode_editar, publicar: p.pode_publicar, excluir: p.pode_excluir };
     }
+    etapa(85, 'Montando o menu…');
     // Usuários (0.21.0): página única de todos os órgãos que a pessoa gerencia, aberta com qualquer
     // órgão. O que ela pode fazer em cada órgão a própria tela confere (orgaos_que_gerencio).
     if (!(estado.permissoes.usuarios && estado.permissoes.usuarios.ver)) {
@@ -574,6 +587,7 @@
     // "Ver site": enquanto o domínio do órgão não aponta para o portal, o site
     // abre pelo endereço do GitHub com ?orgao= (o site descobre o órgão por ele).
     $('btn-ver-site').onclick = () => window.open('../site/?orgao=' + o.id, '_blank', 'noopener');
+    etapa(100, 'Pronto.');
     montarPainel();
   }
 

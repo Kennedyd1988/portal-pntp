@@ -1,12 +1,10 @@
 {
-  "versao": "0.21.0",
+  "versao": "0.22.0",
   "data": "2026-11-14",
   "notas": [
-    "Usuários e permissões em página única para todos os órgãos que você gerencia: cada pessoa com os acessos (órgão, perfil e alcance) de cada órgão.",
-    "Cadastro sem convite: a pessoa já sai vinculada, com senha inicial, e entra direto; no primeiro acesso cria a própria senha.",
-    "Dar acesso a outro órgão e definir nova senha pela ficha da pessoa.",
-    "Administrador vê só as pessoas e os acessos dos órgãos que administra; os demais perfis não veem a página.",
-    "Trava: quem não é administrador só dá perfis com permissões iguais ou menores que as suas.",
-    "Rodar o script 28 e atualizar a função convidar-usuario na Supabase."
+    "Barra de carregamento na entrada do painel, com cada etapa (acesso, órgãos, menu).",
+    "Mais de um perfil por pessoa em cada órgão: perfil principal + perfis adicionais, com as permissões somadas.",
+    "Perfis padrão do sistema: o Suporte SOFT+ pode editar (vale para todos os órgãos); administradores dos órgãos continuam com \"Criar cópia\".",
+    "Rodar o script 29 e atualizar a função convidar-usuario na Supabase."
   ]
 }
