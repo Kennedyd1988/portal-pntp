@@ -85,7 +85,7 @@
 
   // ---------- página com abas (endereço #/rota/aba) ----------
   function paginaAbas(main, o, partes, params) {
-    S.titulo(o.titulo); S.trilha(['Transparência', '#/transparencia'], [o.titulo]);
+    S.titulo(o.titulo); S.trilha(...(o.trilha || [['Transparência', '#/transparencia']]), [o.titulo]);
     let aba = o.abas.some((x) => x[0] === partes[0]) ? partes[0] : o.abas[0][0];
     const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' });
     const { lista } = U.faixaAbas(o.abas.map((x) => [x[0], x[1]]), aba, o.titulo, false, (id) => { aba = id; abrir(new URLSearchParams()); });

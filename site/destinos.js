@@ -55,6 +55,10 @@ window.DESTINOS_PNTP = [
   ['educacao_creches', 'Educação: lista de espera das creches', '/educacao/creches', '19.2', 'Educação e assistência social (por parte)'],
   ['educacao_fundeb', 'Educação: Conselho do Fundeb', '/educacao/fundeb', '19.3', 'Educação e assistência social (por parte)'],
   ['educacao_assistencia', 'Assistência social: Conselho e planos', '/educacao/assistencia-social', '19.4', 'Educação e assistência social (por parte)'],
+  ['esic_relatorios', 'e-SIC: relatórios estatísticos', '/esic/relatorios', '12.7', 'e-SIC e Ouvidoria (por parte)'],
+  ['esic_classificadas', 'e-SIC: informações classificadas', '/esic/classificadas', '12.8', 'e-SIC e Ouvidoria (por parte)'],
+  ['esic_desclassificadas', 'e-SIC: informações desclassificadas', '/esic/desclassificadas', '12.9', 'e-SIC e Ouvidoria (por parte)'],
+  ['ouvidoria_relatorios', 'Ouvidoria: relatórios estatísticos', '/ouvidoria/relatorios', '', 'e-SIC e Ouvidoria (por parte)'],
   ['esic', 'e-SIC (acesso à informação)', '/esic', '12.1–12.9', 'Atendimento e publicações'],
   ['ouvidoria', 'Ouvidoria', '/ouvidoria', '14.1–14.2', 'Atendimento e publicações'],
   ['carta_servicos', 'Carta de Serviços ao Usuário', '/servicos', '14.3', 'Atendimento e publicações'],
@@ -162,7 +166,11 @@ window.DECLARACOES_PNTP = {
   educacao_creches: ['Lista de espera das creches (19.2)', 'Não há crianças aguardando vaga em creche da rede municipal.', 'Não houve crianças aguardando vaga em creche da rede municipal {periodo}.'],
   educacao_fundeb: ['Conselho do Fundeb (19.3)', 'Não há Conselho do Fundeb instituído neste município.', 'Não houve Conselho do Fundeb em funcionamento {periodo}.'],
   educacao_assistencia: ['Assistência social (19.4)', 'Não há Conselho de Assistência Social instituído neste município.', 'Não houve Conselho de Assistência Social em funcionamento {periodo}.'],
-  educacao_conselhos: ['Outros conselhos', 'Não há outros conselhos municipais instituídos.', 'Não houve outros conselhos municipais em funcionamento {periodo}.']
+  educacao_conselhos: ['Outros conselhos', 'Não há outros conselhos municipais instituídos.', 'Não houve outros conselhos municipais em funcionamento {periodo}.'],
+  esic_relatorios: ['Relatórios estatísticos do e-SIC (12.7)', 'O órgão não recebeu pedidos de acesso à informação.', 'Não houve pedidos de acesso à informação {periodo}.'],
+  esic_classificadas: ['Informações classificadas (12.8)', 'Não há informações classificadas em grau de sigilo neste órgão.', 'Não houve informações classificadas em grau de sigilo {periodo}.'],
+  esic_desclassificadas: ['Informações desclassificadas (12.9)', 'Não há informações desclassificadas neste órgão.', 'Não houve informações desclassificadas {periodo}.'],
+  ouvidoria_relatorios: ['Relatórios estatísticos da Ouvidoria', 'A Ouvidoria não recebeu manifestações.', 'Não houve manifestações registradas na Ouvidoria {periodo}.']
 };
 // Período "dentro da frase": em março de 2026, no 2º bimestre de 2026, no exercício de 2024, de 01/10 a 20/10/2026.
 window.periodoFrasePNTP = function (d) {

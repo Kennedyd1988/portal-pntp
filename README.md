@@ -132,6 +132,8 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/21_saude_educacao_renuncias.sql` | módulos `saude`, `educacao` e `renuncias` (o antigo `setoriais` sai, permissões copiadas); `secoes_setoriais` (texto e "não há" por seção; o link externo fica em `configuracoes.destinos`); `documentos_setoriais` (18.1, 19.1); `saude_estabelecimentos` + `saude_profissionais` (18.2), `saude_lista_espera` (18.3), `saude_medicamentos` + `saude_estoques` (18.4/18.5); `conselhos` + `conselhos_membros` + `conselhos_documentos` (18.6, 19.3, 19.4); `creches_espera` (19.2); `renuncias` + `renuncias_valores` + `renuncias_beneficiarios` + `incentivos_projetos` (16.1 a 16.4); visões de posição nas filas; `anos_setoriais`; `importar_lista`; avisos novos em `pendencias_atualizacao` |
 | `supabase/22_receitas_despesas_pessoal_diarias.sql` | módulos `financeiro` ("Receitas, despesas e pagamentos"), `pessoal` ("Pessoal e folha de pagamento") e `diarias` (novo, permissões copiadas de pessoal); partes novas em `secoes_setoriais`; `receitas` + `receitas_naturezas` (3.1/3.2), `divida_ativa` (3.3), `despesas` + `despesas_movimentos` (4.1 a 4.3, totais pelo banco), `ordem_cronologica` + visão `ordem_cronologica_posicoes` (9.4), `pessoal_vinculos`, `pessoal_remuneracoes`, `pessoal_cargos`, `pessoal_estagiarios`, `pessoal_terceirizados` (6.1 a 6.5), `diarias` + `diarias_valores` (7.1/7.2); funções `receitas_niveis`, `receitas_mensal`, `despesas_resumo`, `despesas_opcoes`, `anos_financeiros`; avisos `pendencias_financeiras` |
 | `supabase/23_declaracoes_inexistencia.sql` | declarações de que não há dados em todo item do PNTP com lista (`modulo_da_parte`: receitas, despesas, ordem cronológica, pessoal, diárias, concursos, convênios, emendas, licitações, PCA, sanções, contratos, fiscais, obras, planejamento por documento, renúncias, saúde, educação): `declaracoes_inexistencia` (situação atual, mês, bimestre, trimestre, quadrimestre, semestre, ano ou datas; o banco calcula início e fim), `secoes_setoriais.sem_ocorrencia` espelhada da declaração atual, migração das antigas, `partes_sem_dados` (avisos de prazo) |
+| `supabase/24_esic_ouvidoria.sql` | Fase 3 · Atendimento: módulos `esic` e `ouvidoria` (o antigo `atendimento` sai, permissões copiadas); `atendimento_canais` (unidade e responsável, endereço, telefone, e-mail, horário, formulário eletrônico, instruções, prazos, autoridades e procedimento do recurso, norma da LAI; o `esic_url`/`ouvidoria_url` de Aparência é copiado para cá), `atendimento_relatorios` + `atendimento_relatorios_itens` (12.7 e relatório da ouvidoria: totais, recursos, prazo médio, perfil dos solicitantes, tipos de manifestação, outras distribuições), `informacoes_classificadas` (12.8/12.9, prazo máximo por grau conferido pelo banco); `atendimento_anos`; avisos `pendencias_atendimento`. Antes, rodar de novo o 21 e o 23 |
+| `supabase/teste_esic_ouvidoria_ficticios.sql` | opcional: canais do SIC e da Ouvidoria, relatórios de 2023 a 2026 com distribuições, 6 informações classificadas (2 desclassificadas) |
 | `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
 | `supabase/teste_obras_ficticias.sql` | opcional: 4 obras fictícias (em andamento, paralisada, concluídas) com planilha, medições e paralisações |
 | `supabase/teste_pca_sancoes_ficticios.sql` | opcional: PCA de 2024 a 2026 (com revisões) e 6 sanções fictícias de todos os tipos, vigentes e encerradas |
@@ -228,11 +230,12 @@ painel/
   modulo-renuncias.js   → "Renúncias de receita" (16.1 a 16.4)
   modulo-financeiro.js  → "Receitas, despesas e pagamentos" (3.1 a 3.3, 4.1 a 4.3, 9.4)
   modulo-pessoal.js     → "Pessoal e folha de pagamento" (6.1 a 6.5) e "Diárias" (7.1 e 7.2)
+  modulo-atendimento.js → "e-SIC (acesso à informação)" (12.1 a 12.9) e "Ouvidoria" (14.1 e 14.2)
   modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
   manifest.json         → instalação como aplicativo (PWA)
-site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas, setoriais.js = saúde, educação, renúncias e conselhos, financeiro.js = receitas, despesas, ordem cronológica, pessoal e diárias, destinos.js = destinos das páginas, usado também pelo painel)
+site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas, setoriais.js = saúde, educação, renúncias e conselhos, financeiro.js = receitas, despesas, ordem cronológica, pessoal e diárias, atendimento.js = e-SIC e Ouvidoria, destinos.js = destinos das páginas, usado também pelo painel)
 supabase/               → scripts SQL, rodar em ordem
 supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 supabase/functions/pncp/index.ts → ponte de consulta ao PNCP (importação de licitações)
@@ -286,7 +289,8 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
   Diário Oficial, estrutura organizacional (árvore + norma), unidade (+ notícias e serviços),
   gestores, Carta de Serviços (+ detalhe), perguntas frequentes, páginas livres, LGPD, dados
   abertos (download e endereço de API por conjunto), contato, acessibilidade, mapa do site,
-  busca geral e páginas de sistemas externos (transparência, licitações, ouvidoria, e-SIC); saúde
+  busca geral e páginas de sistemas externos (transparência, licitações); e-SIC (`#/esic/<aba>`) e
+  Ouvidoria (`#/ouvidoria/<aba>`); saúde
   (`#/saude/<aba>`), educação e assistência social (`#/educacao/<aba>`), renúncias de receita
   (`#/renuncias/<aba>`) e conselhos (`#/conselhos`, `#/conselho/<id>`); receitas (`#/receitas/<aba>`), despesas
   (`#/despesas/<aba>`, detalhe `#/despesa/<id>`), ordem cronológica (`#/ordem-cronologica`), pessoal
@@ -326,10 +330,37 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
 - Receitas, despesas, pessoal e diárias: sem importação de arquivo até o layout ser definido (próxima etapa).
   Credor e inscrito são procurados pelo CPF/CNPJ inteiro por resumo (SHA-256), sem o site ler o número.
 
+- e-SIC e Ouvidoria: o formulário de pedidos e o de manifestações continuam em sistema externo (e-SIC
+  próprio ou Fala.BR); o portal guarda o endereço e mostra o resto. A pesquisa de satisfação (15.6) ainda não
+  tem cadastro próprio.
+
 - Excluir um órgão ou o login de uma pessoa apaga os vínculos em cascata, mesmo que
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.17.0 — 13/11/2026 — Fase 3 · Atendimento: e-SIC (12.1 a 12.9) e Ouvidoria (14.1 e 14.2)**
+- e-SIC e Ouvidoria deixam de ser só um link: páginas próprias no site, com as mesmas abas no painel.
+  e-SIC: Como pedir (unidade e responsável, endereço, telefone, e-mail, horário, botão do formulário eletrônico,
+  outras formas, instruções, norma local da LAI) · Prazos e recursos (prazos de resposta e de recurso, autoridades
+  de 1ª e 2ª instância, como recorrer) · Relatórios estatísticos · Informações classificadas · Informações
+  desclassificadas. Ouvidoria: Como se manifestar (ouvidor, atendimento presencial, canal eletrônico, tipos de
+  manifestação, prazo de resposta) · Relatórios estatísticos.
+- Textos sugeridos (instruções, prazos da LAI e da Lei 13.460, procedimento do recurso) com "Usar o texto
+  sugerido"; quadro "Situação no PNTP" na aba Como pedir/Como se manifestar mostra o que falta.
+- Relatórios: anual (ou semestre, trimestre, mês) com recebidos, atendidos, parciais, indeferidos, em andamento,
+  recursos, prazo médio, perfil dos solicitantes (pessoa física/jurídica, sexo) ou manifestações por tipo, e outras
+  distribuições (faixa etária, escolaridade, assunto, motivo da negativa…). Para publicar no e-SIC é preciso ao
+  menos um dado genérico dos solicitantes. No site, o ano abre no último relatório anual, com % e CSV/JSON.
+- Informações classificadas: assunto, grau, fundamento (art. 23 da LAI), autoridade, datas, sigilo até (data ou
+  evento) e desclassificação; o banco recusa prazo acima do máximo do grau. Site com abas de ano, filtros de grau,
+  situação e "Últimos 12 meses" (12.9), pesquisa e CSV/JSON.
+- Destinos das páginas: partes novas "e-SIC: relatórios", "classificadas", "desclassificadas" e "Ouvidoria:
+  relatórios"; com link externo, o cadastro da parte fica desativado. Declarações de que não há dados nas 4 partes.
+- Avisos de prazo: falta de unidade, contatos, formulário, norma ou recurso; relatório anual do ano anterior;
+  rol de classificadas/desclassificadas; informação com prazo de sigilo vencido sem desclassificação.
+- Aparência: os endereços do e-SIC e da Ouvidoria saem de "Diário Oficial e sistemas" (vão para os módulos).
+- Rodar de novo os scripts 21 e 23 e depois o 24.
 
 **0.16.4 — 13/11/2026 — declarações em todos os itens e dentro do período**
 - O bloco "Declarar que não há dados" está em todo item com lista: Receitas, Dívida ativa, Despesas, Ordem

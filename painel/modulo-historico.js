@@ -31,7 +31,9 @@
     receitas: 'Receitas', receitas_naturezas: 'Receitas: descrição dos níveis', divida_ativa: 'Dívida ativa', despesas: 'Despesas (empenhos)',
     despesas_movimentos: 'Despesas: liquidações e pagamentos', ordem_cronologica: 'Ordem cronológica de pagamentos', pessoal_vinculos: 'Pessoal: servidores',
     pessoal_remuneracoes: 'Pessoal: remuneração', pessoal_cargos: 'Pessoal: cargos e salários', pessoal_estagiarios: 'Pessoal: estagiários',
-    pessoal_terceirizados: 'Pessoal: terceirizados', diarias: 'Diárias', diarias_valores: 'Diárias: tabela de valores', declaracoes_inexistencia: 'Declarações de que não há dados'
+    pessoal_terceirizados: 'Pessoal: terceirizados', diarias: 'Diárias', diarias_valores: 'Diárias: tabela de valores', declaracoes_inexistencia: 'Declarações de que não há dados',
+    atendimento_canais: 'e-SIC e Ouvidoria: dados do atendimento', atendimento_relatorios: 'e-SIC e Ouvidoria: relatórios estatísticos',
+    atendimento_relatorios_itens: 'e-SIC e Ouvidoria: distribuições dos relatórios', informacoes_classificadas: 'e-SIC: informações classificadas'
   };
   const ACOES = { inserir: 'Inclusão', editar: 'Edição', excluir: 'Exclusão' };
 

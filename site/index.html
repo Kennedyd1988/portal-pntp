@@ -34,6 +34,7 @@
           .then(function () { return carregar('paginas.js' + q); })
           .then(function () { return carregar('setoriais.js' + q); })
           .then(function () { return carregar('financeiro.js' + q); })
+          .then(function () { return carregar('atendimento.js' + q); })
           .then(function () { window.SITE.iniciar(); });
       })
       .catch(function () {

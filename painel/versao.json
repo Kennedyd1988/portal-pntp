@@ -1,9 +1,9 @@
 {
-  "versao": "0.16.4",
+  "versao": "0.17.0",
   "data": "2026-11-13",
   "notas": [
-    "Declaração de que não há dados em todo item do PNTP com lista, por período ou situação atual, com texto sugerido (editável).",
-    "No site, o ano declarado vira aba própria com a declaração; mês filtrado mostra a declaração daquele mês.",
-    "Rodar de novo o script 23."
+    "e-SIC e Ouvidoria com páginas próprias no site e as mesmas abas no painel (PNTP 12.1 a 12.9, 14.1 e 14.2).",
+    "Relatórios estatísticos, informações classificadas e desclassificadas com declarações, filtros e CSV/JSON.",
+    "Rodar de novo os scripts 21 e 23 e depois o 24."
   ]
 }

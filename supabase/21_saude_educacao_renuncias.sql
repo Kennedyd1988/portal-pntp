@@ -958,6 +958,10 @@ begin
   if to_regprocedure('public.pendencias_financeiras(uuid)') is not null then
     return query execute 'select * from public.pendencias_financeiras($1)' using p_orgao;
   end if;
+  -- Gancho do script 24 (e-SIC e Ouvidoria).
+  if to_regprocedure('public.pendencias_atendimento(uuid)') is not null then
+    return query execute 'select * from public.pendencias_atendimento($1)' using p_orgao;
+  end if;
 end;
 $$;
 grant execute on function public.pendencias_atualizacao(uuid) to authenticated;

@@ -37,7 +37,7 @@
   const FASE_MODULO = {
     noticias: 1, institucional: 1, paginas: 1, servicos: 1, publicacoes: 1, lgpd: 1, aparencia: 1, menu: 1, usuarios: 1, historico: 1,
     licitacoes: 2, contratos: 2, contas: 2, financeiro: 2, pessoal: 2, convenios: 2, emendas: 2, concursos: 2, obras: 2, saude: 2, educacao: 2, renuncias: 2, importacoes: 2,
-    atendimento: 3
+    esic: 3, ouvidoria: 3
   };
 
   const TIPO_ORGAO = {
@@ -674,7 +674,8 @@
   // despesas, desativam aba por aba).
   const DESTINO_MODULO = { licitacoes: 'licitacoes', pca: 'pca', sancoes: 'sancionados', contratos: 'contratos', obras: 'obras', convenios: 'convenios',
     emendas: 'emendas', contas: 'planejamento', concursos: 'concursos', servicos: 'carta_servicos', publicacoes: 'publicacoes',
-    saude: 'saude', educacao: 'educacao', renuncias: 'renuncias', pessoal: 'pessoal', diarias: 'diarias' };
+    saude: 'saude', educacao: 'educacao', renuncias: 'renuncias', pessoal: 'pessoal', diarias: 'diarias',
+    esic: 'esic', ouvidoria: 'ouvidoria' };
   function telaModulo(c, codigo) {
     const mod = estado.modulos.find((m) => m.codigo === codigo);
     const p = estado.permissoes[codigo];

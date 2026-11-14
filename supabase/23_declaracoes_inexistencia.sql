@@ -5,7 +5,7 @@
 -- O PNTP pede que, quando não há o que publicar, o órgão declare isso
 -- expressamente, em qualquer item com lista (receitas, despesas, pessoal,
 -- diárias, licitações, contratos, obras, convênios, emendas, PCA, sanções,
--- concursos, planejamento, renúncias, saúde, educação). A declaração pode valer para a situação atual ("o órgão
+-- concursos, planejamento, renúncias, saúde, educação, e-SIC e ouvidoria). A declaração pode valer para a situação atual ("o órgão
 -- não tem estagiários") ou para um período: mês, bimestre, trimestre,
 -- quadrimestre, semestre, ano ou um intervalo de datas ("não houve
 -- concessão de diárias em março/2026").
@@ -50,6 +50,8 @@ returns text language sql immutable set search_path = public as $$
     when p_chave in ('renuncias_desoneracoes', 'renuncias_valores', 'renuncias_beneficiarios', 'renuncias_incentivos') then 'renuncias'
     when p_chave in ('saude_documentos', 'saude_servicos', 'saude_espera', 'saude_medicamentos', 'saude_estoque', 'saude_conselho') then 'saude'
     when p_chave in ('educacao_documentos', 'educacao_creches', 'educacao_fundeb', 'educacao_assistencia', 'educacao_conselhos') then 'educacao'
+    when p_chave in ('esic_relatorios', 'esic_classificadas', 'esic_desclassificadas') then 'esic'
+    when p_chave = 'ouvidoria_relatorios' then 'ouvidoria'
   end;
 $$;
 

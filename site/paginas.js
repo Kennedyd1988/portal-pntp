@@ -902,6 +902,9 @@
       ['Obras: paralisações', 'obras_paralisacoes', 'obra_id,inicio,reinicio,motivo,responsavel,previsao_reinicio,ato', '&order=inicio.desc'],
       ['Planejamento e prestação de contas', 'documentos_contas', 'tipo,exercicio,exercicio_fim,periodicidade,periodo,parte,resultado,numero_ato,data_publicacao,descricao,arquivo_url,link_externo', '&order=exercicio.desc'],
       ['Carta de Serviços', 'servicos', 'nome,categoria,descricao,publico_alvo,requisitos,etapas,prazo_maximo,forma_prestacao,link_digital,local_atendimento,horario,custo', '&order=nome'],
+      ['e-SIC e Ouvidoria: relatórios estatísticos', 'atendimento_relatorios', 'canal,exercicio,abrangencia,numero,recebidos,atendidos,parciais,indeferidos,em_andamento,outros,recursos_1,recursos_2,prazo_medio_dias,pessoas_fisicas,pessoas_juridicas,sexo_feminino,sexo_masculino,sexo_nao_informado,reclamacoes,denuncias,sugestoes,elogios,solicitacoes,simplifique,observacao,arquivo_url,link_externo', '&order=exercicio.desc'],
+      ['e-SIC e Ouvidoria: distribuições dos relatórios', 'atendimento_relatorios_itens', 'relatorio_id,dimensao,item,quantidade', '&order=relatorio_id,dimensao,ordem'],
+      ['e-SIC: informações classificadas e desclassificadas', 'informacoes_classificadas', 'codigo,assunto,grau,fundamento,unidade,autoridade,data_classificacao,prazo_fim,evento_fim,data_desclassificacao,motivo_desclassificacao', '&order=data_classificacao.desc'],
       ['Estrutura organizacional (unidades)', 'unidades', 'nome,sigla,endereco,telefone,email,horario_atendimento,competencias,norma_criacao,norma_url', '&order=nome'],
       ['Gestores', 'gestores', 'nome,cargo,email,telefone,curriculo_url', '&order=ordem'],
       ['Notícias', 'noticias', 'titulo,resumo,categoria,publicado_em', '&order=publicado_em.desc'],
@@ -1008,21 +1011,6 @@
           secoesDoSite().map(([t, chave, h]) => el('li', null, chave ? S.linkDestino(chave, t) : el('a', { href: h }, t))),
           (pags || []).map((p) => el('li', null, el('a', { href: '#/pagina/' + p.slug }, p.titulo)))))));
   };
-
-  // Sistemas que ainda estão fora do portal (transparência, licitações, e-SIC, ouvidoria):
-  // levam ao endereço externo informado no painel; sem ele, explicam e dão o contato.
-  function externo(chave, titulo, descricao, chaveUrl) {
-    return async function (main) {
-      S.titulo(titulo); S.trilha([titulo]);
-      const url = S.conf[chaveUrl];
-      const c = S.conf;
-      pagina(main, el('h1', null, titulo), el('p', { class: 'sub' }, descricao),
-        url ? el('p', null, el('a', { class: 'botao', href: url, target: '_blank', rel: 'noopener' }, 'Acessar ' + titulo, el('span', { class: 'sr' }, ' (abre em nova aba)')))
-          : el('div', { class: 'cartao' }, el('p', null, 'Esta seção está em implantação.'),
-            el('p', null, 'Enquanto isso, fale com o órgão: ', c.telefone || '', c.telefone && c.email ? ' · ' : '', c.email ? el('a', { href: 'mailto:' + c.email }, c.email) : '', c.horario ? ' · ' + c.horario : '')),
-        chave === 'transparencia' ? el('p', { style: 'margin-top:20px' }, el('a', { class: 'botao botao-claro', href: S.radar(), target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null);
-    };
-  }
 
   // ===================================================================
   // PLANEJAMENTO E PRESTAÇÃO DE CONTAS (11.1 a 11.10)
@@ -1253,9 +1241,11 @@
       ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', '#/contratos'), L('Fiscais de contratos', '9.3', '#/contratos/fiscais'), L('Ordem cronológica de pagamentos', '9.4', '#/ordem-cronologica')]],
       ['Obras', 'obra', [L('Obras e situação atual', '10.1', '#/obras'), L('Quantitativos e preços', '10.2–10.3', '#/obras'), L('Obras paralisadas', '10.4', '#/obras/paralisadas')]],
       ['Planejamento e prestação de contas', 'grafico', plan],
-      ['Serviço de Informação ao Cidadão', 'chat', [L('e-SIC: fazer pedido', '12.1–12.4', '#/esic'), L('Regulamentação da LAI', '12.5', '#/publicacoes?q=acesso a informacao'),
-        L('Prazos e autoridades', '12.6', '#/esic'), L('Relatório estatístico anual', '12.7', '#/esic'), L('Informações classificadas', '12.8', '#/esic'), L('Informações desclassificadas', '12.9', '#/esic')]],
-      ['Ouvidoria e serviços', 'ouvido', [L('Ouvidoria: atendimento presencial', '14.1', '#/ouvidoria'), L('Ouvidoria: canal eletrônico', '14.2', '#/ouvidoria'),
+      ['Serviço de Informação ao Cidadão', 'chat', [L('SIC: unidade, endereço e horário', '12.1–12.2', '#/esic/como-pedir'), L('e-SIC: fazer pedido', '12.3–12.4', '#/esic/como-pedir'),
+        L('Regulamentação da LAI', '12.5', '#/esic/como-pedir'), L('Prazos e recursos', '12.6', '#/esic/prazos'), L('Relatório estatístico anual', '12.7', '#/esic/relatorios'),
+        L('Informações classificadas', '12.8', '#/esic/classificadas'), L('Informações desclassificadas', '12.9', '#/esic/desclassificadas')]],
+      ['Ouvidoria e serviços', 'ouvido', [L('Ouvidoria: atendimento presencial', '14.1', '#/ouvidoria/como-manifestar'), L('Ouvidoria: canal eletrônico', '14.2', '#/ouvidoria/como-manifestar'),
+        L('Ouvidoria: relatórios estatísticos', '', '#/ouvidoria/relatorios'),
         L('Carta de Serviços ao Usuário', '14.3', '#/servicos'), L('Serviços on-line', '15.3', '#/servicos-online'), L('Pesquisa de satisfação', '15.6', '#/ouvidoria')]],
       ['Privacidade e dados abertos', 'lock', [L('Encarregado de dados (LGPD)', '15.1', '#/lgpd'), L('Política de privacidade', '15.2', '#/lgpd'), L('Dados abertos e API', '15.4', '#/dados-abertos'), L('Regulamentação do Governo Digital', '15.5', '#/lgpd')]]
     ];
@@ -1934,8 +1924,7 @@
       el('p', { class: 'meta', style: 'margin-top:18px' }, 'Última atualização: ' + dataBR(c.atualizado_em)));
   };
 
-  R.ouvidoria = externo('ouvidoria', 'Ouvidoria', 'Elogios, sugestões, reclamações, solicitações e denúncias sobre os serviços.', 'ouvidoria_url');
-  R.esic = externo('esic', 'e-SIC', 'Serviço de Informação ao Cidadão: pedidos de acesso à informação (Lei 12.527/2011).', 'esic_url');
+  // e-SIC e Ouvidoria: páginas próprias em atendimento.js (Fase 3).
 
   // ===================================================================
   // BUSCA GERAL (1.4)

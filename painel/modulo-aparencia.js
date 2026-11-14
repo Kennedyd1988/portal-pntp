@@ -91,8 +91,6 @@
       diario_url: texto(cfg.diario_oficial_url, { type: 'url', placeholder: 'https://www.diariomunicipal.com.br/femurn/' }),
       transparencia_url: texto(cfg.transparencia_url, { type: 'url', placeholder: 'https://…' }),
       licitacoes_url: texto(cfg.licitacoes_url, { type: 'url', placeholder: 'https://…' }),
-      esic_url: texto(cfg.esic_url, { type: 'url', placeholder: 'https://… (ex.: Fala.BR ou sistema próprio)' }),
-      ouvidoria_url: texto(cfg.ouvidoria_url, { type: 'url', placeholder: 'https://…' }),
       estrutura_norma: texto(cfg.estrutura_norma, { placeholder: 'Ex.: Lei Complementar nº 5/2021' }),
       estrutura_norma_url: texto(cfg.estrutura_norma_url, { type: 'url', placeholder: 'https://…' })
     };
@@ -234,9 +232,7 @@
             campo('ap-diario-url', 'Endereço (link)', f.diario_url)),
           el('section', { class: 'cartao' },
             el('h2', null, 'Sistemas de atendimento'),
-            el('p', { class: 'ajuda' }, 'Endereços usados dentro das páginas e-SIC, Ouvidoria e Licitações do portal (o botão "fazer pedido", "registrar manifestação", "sistema de licitações").'),
-            campo('ap-esic', 'e-SIC (acesso à informação)', f.esic_url),
-            campo('ap-ouvidoria', 'Ouvidoria', f.ouvidoria_url),
+            el('p', { class: 'ajuda' }, 'Endereço usado dentro da página de Licitações (botão "sistema de licitações"). Os formulários do e-SIC e da Ouvidoria ficam nos módulos e-SIC e Ouvidoria, aba "Como pedir" / "Como se manifestar".'),
             campo('ap-licitacoes', 'Sistema de licitações (complementar)', f.licitacoes_url)),
           el('section', { class: 'cartao' },
             el('h2', null, 'Norma da estrutura organizacional'),
@@ -272,7 +268,7 @@
         if (!erroCampo('ap-' + r, urlValida(v(r)) ? '' : 'Informe o endereço completo, começando com https://')) return;
       }
       for (const [id, k] of [['ap-diario-url', 'diario_url'], ['ap-transparencia', 'transparencia_url'], ['ap-licitacoes', 'licitacoes_url'],
-        ['ap-esic', 'esic_url'], ['ap-ouvidoria', 'ouvidoria_url'], ['ap-estrutura-url', 'estrutura_norma_url']]) {
+        ['ap-estrutura-url', 'estrutura_norma_url']]) {
         if (!erroCampo(id, urlValida(v(k)) ? '' : 'Informe o endereço completo, começando com https://')) return;
       }
       if (!erroCampo('ap-radar-url', urlValida(radarLink.value.trim()) ? '' : 'Informe o endereço completo, começando com https://')) return;
@@ -305,8 +301,8 @@
           email: v('email'), horario: v('horario'), instagram: v('instagram'), facebook: v('facebook'),
           youtube: v('youtube'), whatsapp: v('whatsapp'),
           diario_oficial_nome: v('diario_nome'), diario_oficial_url: v('diario_url'),
-          transparencia_url: v('transparencia_url'), licitacoes_url: v('licitacoes_url'), esic_url: v('esic_url'),
-          ouvidoria_url: v('ouvidoria_url'), estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url'),
+          transparencia_url: v('transparencia_url'), licitacoes_url: v('licitacoes_url'),
+          estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url'),
           selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, radar_url: radarLink.value.trim() || null, destinos: destinosGravar
         });
         const { data, error: e2 } = await sb.from('orgaos')

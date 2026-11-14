@@ -456,3 +456,9 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .declaracao-nova [hidden] { display: none !important; }
 .bloco-declaracoes { margin-bottom: 14px; }
 .bloco-declaracoes .msg { margin-bottom: 8px; }
+
+/* e-SIC e Ouvidoria: situação dos itens do PNTP (✓ atende · ! falta) */
+.lista-pntp { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.lista-pntp li { font-size: 14px; }
+.lista-pntp li.ok > span:first-child { color: var(--green); font-weight: 700; }
+.lista-pntp li.falta-pntp { color: var(--amber); font-weight: 600; }

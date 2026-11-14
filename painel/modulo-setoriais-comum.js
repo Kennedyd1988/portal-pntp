@@ -614,5 +614,5 @@
 
   P.setor = { opcoes, moeda, numBR, hoje, lerNumero, lerData, etiquetaSituacao, linkArquivo, mostrarErro, formulario, excluir, tabela, botao, filhos,
     carregarSecoes, secaoAtual, secao, importar, documentos, conselhos, cabecalho, avisoSetorial, faltaScript, TIPOS_CONSELHO,
-    listaAno, anosFinanceiros, MESES, opMeses };
+    listaAno, anosFinanceiros, MESES, opMeses, montarCampo, lerCampo, linhaCampos };
 })();
