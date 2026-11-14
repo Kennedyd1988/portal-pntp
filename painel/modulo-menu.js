@@ -18,7 +18,11 @@
     ['/faq', 'Perguntas frequentes'], ['/ouvidoria', 'Ouvidoria'], ['/esic', 'e-SIC (acesso à informação)'],
     ['/lgpd', 'Proteção de dados (LGPD)'], ['/acessibilidade', 'Acessibilidade'], ['/contato', 'Contato'], ['/mapa-do-site', 'Mapa do site']
   ];
-  const nomeRota = (r) => (ROTAS.find((x) => x[0] === r) || [r, r])[1];
+  // Consórcio público (script 39): páginas que só existem no site do consórcio.
+  const ROTAS_CONSORCIO = [['/entes', 'Entes consorciados'], ['/documentos-consorcio', 'Documentos constitutivos do consórcio'], ['/rateio', 'Contratos de rateio'],
+    ['/programa', 'Contratos de programa'], ['/dirigentes-atas', 'Dirigentes e atas da assembleia'], ['/orcamento-consorcio', 'Orçamento do consórcio']];
+  const rotas = () => P.estado.orgao && P.estado.orgao.tipo === 'consorcio' ? ROTAS.concat(ROTAS_CONSORCIO) : ROTAS;
+  const nomeRota = (r) => (rotas().find((x) => x[0] === r) || [r, r])[1];
 
   // Menu sugerido para começar (o órgão ajusta depois).
   const MENU_PADRAO = [
@@ -74,7 +78,7 @@
       el('option', { value: 'interno', selected: (item.tipo || 'interno') === 'interno' }, 'Tela do site'),
       el('option', { value: 'pagina', selected: item.tipo === 'pagina' }, 'Página institucional'),
       el('option', { value: 'link', selected: item.tipo === 'link' }, 'Link externo'));
-    const rota = el('select', null, ROTAS.map(([r, n]) => el('option', { value: r, selected: item.tipo === 'interno' && item.destino === r }, n)));
+    const rota = el('select', null, rotas().map(([r, n]) => el('option', { value: r, selected: item.tipo === 'interno' && item.destino === r }, n)));
     const pagina = el('select', null, paginas.length ? paginas.map((p) => el('option', { value: p.slug, selected: item.tipo === 'pagina' && item.destino === p.slug },
       p.titulo + (p.situacao === 'publicado' ? '' : ' (rascunho)'))) : el('option', { value: '' }, 'Nenhuma página criada'));
     const url = el('input', { type: 'url', value: item.tipo === 'link' ? item.destino : '', placeholder: 'https://…' });

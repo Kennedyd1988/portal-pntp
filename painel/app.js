@@ -219,6 +219,7 @@
     saude_estoques: 'estoques do medicamento', banners: 'banners', gestores: 'gestores', noticias: 'notícias',
     publicacoes: 'publicações', servicos: 'serviços da Carta', unidades: 'unidades subordinadas', usuarios_orgaos: 'usuários',
     atendimento_canais: 'canais do e-SIC/Ouvidoria', atendimentos: 'pedidos e manifestações', atendimentos_tramites: 'andamentos de pedidos',
+    consorcio_documentos: 'contratos de rateio, de programa ou outros documentos do consórcio',
     lgpd: 'LGPD e Governo Digital (norma)', menu_itens: 'subitens do menu', orgaos: 'órgãos vinculados'
   };
   function traduzirErro(e) {

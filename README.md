@@ -179,6 +179,8 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/36_vereador_diarias_emendas.sql` | Vereador ligado às diárias da Câmara e às emendas municipais da Prefeitura do mesmo município (página do vereador e 20.11). Rodar depois do 34 e do 35; pode repetir |
 | `supabase/37_excluir_com_pecas.sql` | Excluir um registro junto com as peças internas dele (documentos, aditivos, fiscais, medições, autores, presenças…). Rodar depois do 36; pode repetir |
 | `supabase/38_cadastrar_suporte.sql` | Marca de Suporte SOFT+ pelo painel (só quem já é Suporte). Pode repetir |
+| `supabase/39_consorcio.sql` | Consórcio público (matriz dos Consórcios Públicos do PNTP 2026): módulo `consorcio` (só para órgão do tipo consórcio, permissões copiadas de Publicações), `consorcio_entes` (25.7) e `consorcio_documentos` (protocolo de intenções, contrato de consórcio, estatuto e alterações, contratos de rateio por exercício e ente, contratos de programa, atas de eleição e da assembleia geral, orçamento), `consorcio_anos`, `consorcio_rateio_faltando`, declarações `consorcio_rateio`/`_programa`/`_atas`/`_orcamento`, critérios 11.11 e 25.1 a 25.7 (matriz `consorcio`), `pntp_consorcio_itens` e o menu padrão do consórcio em `criar_menu_padrao`. Rodar depois do 38 e, em seguida, o 26 de novo; pode repetir |
+| `supabase/teste_consorcio_ficticio.sql` / `teste_consorcio_limpar.sql` | opcional: cria o órgão "Consórcio Teste SOFT+" (CNPJ fictício 99.000.001/0001-01) com entes, documentos, rateios de 2023 a 2026 (um faltando em 2026, para ver o aviso), programas, atas e orçamentos; o de limpar apaga o órgão de teste inteiro |
 | `supabase/teste_apagar_ficticios.sql` | apaga todos os dados fictícios de teste na ordem certa (desde o 26 os ligados não saem junto) e mostra o que sobrou. Para recarregar os testes: rodar este, depois licitações antes de contratos e de obras |
 | `supabase/teste_esic_ouvidoria_ficticios.sql` | opcional: canais do SIC e da Ouvidoria, relatórios de 2023 a 2026 com distribuições, 6 informações classificadas (2 desclassificadas) |
 | `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
@@ -324,11 +326,12 @@ painel/
   modulo-atendimento.js → "e-SIC (acesso à informação)" (12.1 a 12.9) e "Ouvidoria" (14.1, 14.2 e 15.6)
   modulo-atendimento-fila.js → sistema próprio: fila, ficha do atendimento, registro no balcão, feriados e pesquisa de satisfação
   modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
+  modulo-consorcio.js   → "Consórcio público" (11.11, 25.1 a 25.7: entes, documentos constitutivos, rateio, programa, atas, orçamento)
   modulo-orgaos.js      → "Órgãos da plataforma" (só Suporte SOFT+: cadastro e situação da implantação)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
   manifest.json         → instalação como aplicativo (PWA)
-site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas, setoriais.js = saúde, educação, renúncias e conselhos, financeiro.js = receitas, despesas, ordem cronológica, pessoal e diárias, atendimento.js = e-SIC e Ouvidoria, destinos.js = destinos das páginas, usado também pelo painel)
+site/                   → site público (index.html, site.css, site.js = núcleo, paginas.js = páginas, setoriais.js = saúde, educação, renúncias e conselhos, financeiro.js = receitas, despesas, ordem cronológica, pessoal e diárias, atendimento.js = e-SIC e Ouvidoria, legislativo.js = Câmara, consorcio.js = consórcio público, destinos.js = destinos das páginas, usado também pelo painel)
 supabase/               → scripts SQL, rodar em ordem
 supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 supabase/functions/pncp/index.ts → ponte de consulta ao PNCP (importação de licitações)
@@ -445,6 +448,20 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.29.0 — 14/11/2026 — Consórcio público (painel e site)**
+- Script 39: módulo `consorcio` (`tipos_orgao = ['consorcio']`), tabelas `consorcio_entes` e `consorcio_documentos` (RLS, publicação,
+  histórico e atualização como as do 34; ente com contrato ligado não pode ser excluído; documento publicado exige PDF ou link;
+  um contrato de rateio por ente e exercício). Critérios 11.11 (obrigatório, DASG) e 25.1 a 25.7 (recomendados; 25.3 e 25.6 com
+  atualidade e série histórica), conferidos com a Cartilha PNTP 2026. `pntp_consorcio_itens` confere o rateio ente por ente
+  (ano atual e os 3 anteriores). Menu padrão do consórcio. `criar_menu_padrao` aceita quem está no SQL Editor (scripts de teste).
+- Script 26 (rodar de novo): chama `pntp_consorcio_itens` para consórcio e inclui as matrizes `executivo_consorcio` e `consorcio`.
+- Painel: `modulo-consorcio.js` (abas Entes consorciados, Documentos constitutivos, Contratos de rateio, Contratos de programa,
+  Dirigentes e atas, Orçamento), aviso amarelo do rateio faltando por ente, declarações de que não há dados.
+- Site: `consorcio.js` (#/entes, #/ente/:id com os contratos do ente, #/documentos-consorcio, #/rateio, #/programa,
+  #/dirigentes-atas, #/orcamento-consorcio), abas por exercício, declarações, exportação nos 6 formatos; grupo "Consórcio
+  público" na capa da Transparência, acessos rápidos na página inicial e documentos do consórcio na busca. `destinos.js`:
+  chaves `consorcio_*` (só para consórcio) e os textos das declarações.
 
 **0.28.0 — 14/11/2026 — Cadastrar Suporte SOFT+ pelo painel**
 - Script 38: `suportes_softplus()` e `definir_suporte_softplus(usuário, valor)` (só Suporte chama; não muda a própria;

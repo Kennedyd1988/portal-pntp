@@ -247,6 +247,7 @@ declare
   n bigint; n2 bigint; n3 bigint; ult date; anos int[]; falt int[]; x record; ce record; co record; lg record; cs record;
   ult_enc int;   -- último exercício encerrado com prazo de publicação vencido
   v_leg jsonb;   -- itens da matriz do Legislativo (script 34)
+  v_cons jsonb;  -- itens da matriz dos Consórcios Públicos (script 39)
 begin
   if not public.e_membro(p_orgao) then return; end if;
   select * into o from public.orgaos where id = p_orgao;
@@ -846,6 +847,12 @@ begin
     r := r || coalesce(v_leg, '[]'::jsonb);
   end if;
 
+  -- ---------- Matriz dos Consórcios Públicos (script 39) ----------
+  if o.tipo = 'consorcio' and to_regprocedure('public.pntp_consorcio_itens(uuid)') is not null then
+    execute 'select public.pntp_consorcio_itens($1)' into v_cons using p_orgao;
+    r := r || coalesce(v_cons, '[]'::jsonb);
+  end if;
+
   -- ---------- Monta a saída ----------
   return query
   select k.codigo, k.ordem, k.dimensao, k.peso_dimensao, k.titulo, k.classificacao,
@@ -877,6 +884,7 @@ begin
                  / (3 + case when k.itens like '%A%' then 3 else 0 end + case when k.itens like '%S%' then 2 else 0 end
                       + case when k.itens like '%G%' then 1 else 0 end + case when k.itens like '%F%' then 1 else 0 end), 4) as nota) v
   where k.matriz = 'comum' or (exec and k.matriz in ('executivo', 'executivo_consorcio')) or (o.tipo = 'camara' and k.matriz = 'legislativo')
+     or (o.tipo = 'consorcio' and k.matriz in ('executivo_consorcio', 'consorcio'))
   order by k.ordem;
 end;
 $$;

@@ -1,12 +1,13 @@
 {
-  "versao": "0.28.1",
+  "versao": "0.29.0",
   "data": "2026-11-14",
   "notas": [
+    "Consórcio público: novo módulo no painel (só para órgão do tipo consórcio) com Entes consorciados, Documentos constitutivos (protocolo de intenções, contrato, estatuto e alterações), Contratos de rateio (por exercício e por ente, com aviso do ente que falta), Contratos de programa, Dirigentes e atas da assembleia e Orçamento. Rodar o script 39 e depois o 26 de novo.",
+    "Site do consórcio: páginas de entes consorciados (cada ente com os contratos dele), documentos constitutivos, contratos de rateio, contratos de programa, dirigentes e atas, e orçamento, com abas por exercício, declarações de que não há dados e exportação em CSV, JSON, XML, XLSX, PDF e impressão.",
+    "Autoavaliação PNTP do consórcio: critérios 11.11 e 25.1 a 25.7 (Cartilha 2026), além da matriz comum e do RREO.",
+    "Menu padrão do consórcio ao criar o órgão em Órgãos da plataforma (Suporte SOFT+).",
     "Correção: o botão \"Tornar Suporte SOFT+\" não aparecia na ficha da pessoa.",
     "Usuários e permissões: quem é Suporte SOFT+ pode tornar outra pessoa Suporte SOFT+ (ou tirar), na ficha dela. Ninguém muda a própria marca e a plataforma nunca fica sem Suporte. Rodar o script 38.",
-    "Excluir um registro leva junto as peças internas dele (documentos da licitação, aditivos e fiscais do contrato, planilha e medições da obra, edital e atos da seleção, autores e tramitação da proposição, presenças e votações da sessão, membros da comissão ou do conselho, estoque do medicamento, movimentos do empenho…). Registros de outras telas ligados a ele continuam impedindo a exclusão. Rodar o script 37.",
-    "Câmara: na página do vereador, as proposições ficam em abas por tipo (projetos de lei, indicações, requerimentos, moções…), com o andamento de cada uma, e uma aba de relatorias. Mostra todas, não só as 30 mais recentes.",
-    "Aparência › Destinos das páginas: nova opção \"Não exibir no site\" em qualquer página (some do menu, da Transparência, do mapa do site e da busca; o endereço responde \"página não encontrada\"). Os dados ficam guardados.",
-    "Site: quando a página tem mais de um endereço externo, cada exercício vira aba, como as declarações de que não há dados (o endereço aparece dentro da aba do ano). Página toda externa com vários endereços: abas \"Atual\", um ano por aba e \"Outros\"."
+    "Excluir um registro leva junto as peças internas dele (documentos da licitação, aditivos e fiscais do contrato, planilha e medições da obra, edital e atos da seleção, autores e tramitação da proposição, presenças e votações da sessão, membros da comissão ou do conselho, estoque do medicamento, movimentos do empenho…). Registros de outras telas ligados a ele continuam impedindo a exclusão. Rodar o script 37."
   ]
 }

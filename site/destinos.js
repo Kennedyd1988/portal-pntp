@@ -76,6 +76,13 @@ window.DESTINOS_PNTP = [
   ['votacoes', 'Votações nominais', '/votacoes', '20.7', 'Atividade legislativa (Câmara)'],
   ['verba_indenizatoria', 'Verba indenizatória / cota parlamentar', '/verba-indenizatoria', '20.10', 'Atividade legislativa (Câmara)'],
   ['atividade_parlamentar', 'Atividade de cada vereador', '/atividade-parlamentar', '20.11', 'Atividade legislativa (Câmara)'],
+  // Consórcio público (matriz dos Consórcios Públicos, script 39): aparecem só para consórcios.
+  ['consorcio_entes', 'Entes consorciados', '/entes', '25.7', 'Consórcio público'],
+  ['consorcio_documentos', 'Documentos constitutivos (protocolo de intenções, contrato e estatuto)', '/documentos-consorcio', '25.1–25.2', 'Consórcio público'],
+  ['consorcio_rateio', 'Contratos de rateio', '/rateio', '25.3', 'Consórcio público'],
+  ['consorcio_programa', 'Contratos de programa', '/programa', '25.4', 'Consórcio público'],
+  ['consorcio_atas', 'Dirigentes e atas da assembleia geral', '/dirigentes-atas', '25.5–25.6', 'Consórcio público'],
+  ['consorcio_orcamento', 'Orçamento do consórcio', '/orcamento-consorcio', '11.11', 'Consórcio público'],
   ['esic', 'e-SIC (acesso à informação)', '/esic', '12.1–12.9', 'Atendimento e publicações'],
   ['ouvidoria', 'Ouvidoria', '/ouvidoria', '14.1–14.2', 'Atendimento e publicações'],
   ['carta_servicos', 'Carta de Serviços ao Usuário', '/servicos', '14.3', 'Atendimento e publicações'],
@@ -136,6 +143,10 @@ window.DECLARACOES_PNTP = {
   legislativo_comissoes: ['Pauta das comissões (20.5)', 'As comissões não tiveram reuniões a divulgar.', 'Não houve reunião de comissão {periodo}.'],
   legislativo_votacoes: ['Votações nominais (20.7)', 'Não houve votação nominal: as matérias foram votadas de forma simbólica ou unânime.', 'Não houve votação nominal {periodo}.'],
   legislativo_verba: ['Verba indenizatória (20.10)', 'Não houve pagamento de verba indenizatória ou cota parlamentar.', 'Não houve pagamento de verba indenizatória ou cota parlamentar {periodo}.'],
+  consorcio_rateio: ['Contratos de rateio (25.3)', 'O consórcio não firmou contratos de rateio com os entes consorciados.', 'Não houve contrato de rateio {periodo}.'],
+  consorcio_programa: ['Contratos de programa (25.4)', 'O consórcio não possui contratos de programa firmados com os entes consorciados.', 'Não houve contrato de programa firmado {periodo}.'],
+  consorcio_atas: ['Atas da assembleia geral (25.6)', 'Não houve reunião da assembleia geral a divulgar.', 'Não houve reunião da assembleia geral {periodo}.'],
+  consorcio_orcamento: ['Orçamento do consórcio (11.11)', 'Não há orçamento do consórcio a divulgar.', 'Não há orçamento do consórcio a divulgar {periodo}.'],
   receitas_arrecadacao: ['Receitas: previsão e arrecadação (3.1, 3.2)', 'Não há receitas a divulgar.', 'Não houve arrecadação de receitas {periodo}.'],
   receitas_divida_ativa: ['Dívida ativa (3.3)', 'Não há créditos inscritos em dívida ativa no município.', 'Não havia créditos inscritos em dívida ativa {periodo}.'],
   despesas_empenhos: ['Despesas (4.1 a 4.3)', 'Não há despesas a divulgar.', 'Não houve empenho, liquidação ou pagamento de despesas {periodo}.'],
@@ -213,13 +224,14 @@ window.textoDeclaracaoPNTP = function (chave, d) {
 
 // Resolve o destino de uma chave para o órgão: { href, externo, rotulo } ou null (sem destino).
 // Páginas que só existem para um tipo de órgão (o site e o painel informam o tipo em TIPO_ORGAO_PNTP).
-// Câmara: matriz do Poder Legislativo; Prefeitura: itens só do Executivo (dívida ativa, emendas recebidas,
-// renúncias, saúde e educação).
+// Câmara: matriz do Poder Legislativo; Consórcio: matriz dos Consórcios Públicos (consorcio_*); Prefeitura:
+// itens só do Executivo (dívida ativa, emendas recebidas, renúncias, saúde e educação).
 window.aplicavelPNTP = function (chave) {
   const tipo = window.TIPO_ORGAO_PNTP;
   if (!tipo || !chave) return true;
   const camara = ['parlamentares', 'proposicoes', 'sessoes', 'comissoes', 'votacoes', 'verba_indenizatoria', 'atividade_parlamentar'];
   if (camara.includes(chave)) return tipo === 'camara';
+  if (/^consorcio_/.test(chave)) return tipo === 'consorcio';
   if (/^(receitas_divida_ativa|emendas|renuncias|saude|educacao)/.test(chave)) return tipo === 'prefeitura';
   return true;
 };

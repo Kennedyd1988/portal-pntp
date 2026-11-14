@@ -54,6 +54,10 @@
     if (/_tipo"?$|documentos_setoriais_tipo/.test(t)) return toast('Esse tipo de documento não é desta área.', true);
     if (/_arquivo|_publicar/.test(t)) return toast('Para publicar, preencha os itens obrigatórios (arquivo ou link, local e horário).', true);
     if (/_anos|_mandato|_vigencia|_inscricoes/.test(t)) return toast('Confira as datas: o fim não pode ser antes do início.', true);
+    if (/consorcio_documentos_rateio_uk/.test(t)) return toast('Esse ente já tem contrato de rateio nesse exercício: altere o que já existe (termo aditivo vai como "Outro documento").', true);
+    if (/consorcio_entes_uk/.test(t)) return toast('Esse ente (nome e UF) já está cadastrado.', true);
+    if (/consorcio_entes_saida/.test(t)) return toast('Ente retirado ou excluído precisa da data de saída.', true);
+    if (/O ente indicado não é deste consórcio/.test(t)) return toast(t, true);
     if (/conselhos_tipo_uk/.test(t)) return toast('Já existe um conselho desse tipo. Use o tipo "Outro conselho" para um segundo.', true);
     if (/saude_medicamentos_uk/.test(t)) return toast('Esse medicamento (com essa apresentação) já está cadastrado.', true);
     if (/saude_estoques_uk/.test(t)) return toast('Esse medicamento já tem estoque nesse local: altere a linha existente.', true);

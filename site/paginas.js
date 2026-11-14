@@ -201,6 +201,12 @@
       ['publicacoes', 'Projetos e proposições', 'Ementa, autoria e tramitação', 'proposicoes'],
       ['diario', 'Sessões', 'Pautas, atas, presenças e vídeos', 'sessoes'],
       ['licitacao', 'Votações', 'Voto de cada vereador', 'votacoes']);
+    // Consórcio: entes, rateio, documentos e atas primeiro (PNTP 25.x).
+    if (S.orgao.tipo === 'consorcio') acessos.splice(1, 0,
+      ['servicos', 'Entes consorciados', 'Municípios integrantes', 'consorcio_entes'],
+      ['licitacao', 'Contratos de rateio', 'Por exercício e por ente', 'consorcio_rateio'],
+      ['publicacoes', 'Documentos constitutivos', 'Protocolo, contrato e estatuto', 'consorcio_documentos'],
+      ['diario', 'Assembleia geral', 'Dirigentes e atas', 'consorcio_atas']);
     blocos.push(el('section', { class: 'secao', 'aria-labelledby': 'tit-acessos' }, el('div', { class: 'limite' },
       el('h2', { id: 'tit-acessos' }, 'Serviços e acessos rápidos'),
       el('div', { class: 'grade g4 acessos' }, acessos.map(([ic, t, d, chave, h]) => {
@@ -1276,6 +1282,7 @@
     };
     const plan = [];
     if (exec || cam) plan.push(L('Plano Plurianual (PPA)', '11.8', '#/planejamento/ppa'), L('Lei de Diretrizes Orçamentárias (LDO)', '11.9', '#/planejamento/ldo'), L('Lei Orçamentária Anual (LOA)', '11.10', '#/planejamento/loa'));
+    if (cons) plan.push(L('Orçamento do consórcio (receita estimada e despesa fixada)', '11.11', undefined, 'consorcio_orcamento'));
     if (exec || cons) plan.push(L('RREO', '11.6', '#/planejamento/rreo'));
     plan.push(L('RGF', '11.5', '#/planejamento/rgf'), L('Prestação de contas anual (Balanço)', '11.1', '#/planejamento/balanco'),
       L('Relatório de gestão ou atividades', '11.2', '#/planejamento/relatorio_gestao'), L('Parecer do Tribunal de Contas', '11.3', '#/planejamento/parecer_tce'));
@@ -1321,8 +1328,10 @@
           L('Cota parlamentar / verba indenizatória', '20.10', undefined, 'verba_indenizatoria'), L('Atividades dos vereadores', '20.11', undefined, 'atividade_parlamentar')]]);
     }
     if (cons) {
-      g.push(['Atividades do consórcio', 'banco', [L('Protocolo de intenções', '25.1'), L('Estatuto', '25.2'), L('Contratos de rateio', '25.3'), L('Contrato de programa', '25.4'),
-        L('Ata de eleição dos dirigentes', '25.5'), L('Atas da assembleia geral', '25.6'), L('Municípios consorciados', '25.7')]]);
+      g.push(['Consórcio público', 'banco', [L('Protocolo de intenções', '25.1', undefined, 'consorcio_documentos'), L('Estatuto e alterações', '25.2', undefined, 'consorcio_documentos'),
+        L('Contratos de rateio', '25.3', undefined, 'consorcio_rateio'), L('Contratos de programa', '25.4', undefined, 'consorcio_programa'),
+        L('Ata de eleição dos dirigentes', '25.5', undefined, 'consorcio_atas'), L('Atas da assembleia geral', '25.6', undefined, 'consorcio_atas'),
+        L('Entes consorciados', '25.7', undefined, 'consorcio_entes'), L('Orçamento do consórcio', '11.11', undefined, 'consorcio_orcamento')]]);
     }
     return g;
   }
@@ -2024,6 +2033,7 @@
       const alvo = normalizar(t + ' ' + extra).split(/[^a-z0-9]+/).map(raiz);
       return palavras.length && palavras.every((w) => alvo.some((x) => x.startsWith(w) || w.startsWith(x) && x.length > 3));
     });
+    const docsConsorcio = S.buscarConsorcio ? await S.buscarConsorcio(n).catch(() => []) : [];   // consorcio.js (só em consórcio)
     const grupos = [
       ['Páginas do site', secoes.map(([t, chave, h]) => [t, chave ? (S.destino(chave) || {}).href : h]).filter((x) => x[1]), null],
       ['Serviços', (sv.data || []).map((s) => [s.nome, '#/servico/' + s.id]), '#/servicos?q=' + encodeURIComponent(q)],
@@ -2043,6 +2053,7 @@
       ['Conselhos municipais', (cn.data || []).map((x) => [x.nome, '#/conselho/' + x.id]), '#/conselhos'],
       ['Servidores', (pv.data || []).map((x) => [x.nome + ' · ' + x.cargo + (x.lotacao ? ' · ' + x.lotacao : ''), (S.destino('pessoal_servidores') || {}).href]).filter((x) => x[1]), (S.destino('pessoal_servidores') || {}).href],
       ['Despesas (empenhos)', (dp.data || []).map((x) => ['Empenho ' + x.numero + ' · ' + x.credor_nome + ' · ' + (x.objeto.length > 70 ? x.objeto.slice(0, 70) + '…' : x.objeto), '#/despesa/' + x.id]), (S.destino('despesas') || {}).href],
+      ['Documentos do consórcio', docsConsorcio, null],
       ['Unidades', (un.data || []).map((x) => [x.nome, '#/unidade/' + x.id]), null],
       ['Páginas', (pg.data || []).map((x) => [x.titulo, '#/pagina/' + x.slug]), null],
       ['Perguntas frequentes', (fq.data || []).map((x) => [x.pergunta, '#/faq']), null]
