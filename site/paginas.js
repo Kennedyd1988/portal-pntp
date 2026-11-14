@@ -115,21 +115,66 @@
   // ===================================================================
   // INÍCIO (1.3 transparência na capa, 2.3 gestores, 2.8 redes, 2.9 Radar)
   // ===================================================================
+  // ---------- Galeria de vídeos (script 35) ----------
+  const idYoutube = (u) => { const m = String(u || '').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([\w-]{11})/); return m ? m[1] : null; };
+  const miniaturaVideo = (v) => v.miniatura_url || (idYoutube(v.url) ? 'https://img.youtube.com/vi/' + idYoutube(v.url) + '/hqdefault.jpg' : null);
+  // Reprodutor: YouTube embutido (domínio sem cookies); outros sites, miniatura com link.
+  function reprodutor(v) {
+    const id = idYoutube(v.url);
+    if (id) return el('div', { class: 'video-quadro' }, el('iframe', { src: 'https://www.youtube-nocookie.com/embed/' + id, title: v.titulo, loading: 'lazy',
+      allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture', allowfullscreen: true }));
+    const m = miniaturaVideo(v);
+    return el('a', { class: 'video-quadro video-link', href: v.url, target: '_blank', rel: 'noopener' }, m ? el('img', { src: m, alt: '' }) : null,
+      el('span', { class: 'video-play', 'aria-hidden': 'true' }, '▶'), el('span', { class: 'sr' }, 'Assistir ' + v.titulo + ' (abre em nova aba)'));
+  }
+  function itemVideo(v, aoEscolher) {
+    const m = miniaturaVideo(v);
+    const conteudo = [el('span', { class: 'video-mini' }, m ? el('img', { src: m, alt: '', loading: 'lazy' }) : el('span', { class: 'video-play', 'aria-hidden': 'true' }, '▶')),
+      el('span', { class: 'video-texto' }, el('span', { class: 'meta' }, dataLonga(v.data)), el('strong', null, v.titulo))];
+    return aoEscolher && idYoutube(v.url) ? el('button', { type: 'button', class: 'video-item', onclick: () => aoEscolher(v) }, ...conteudo)
+      : el('a', { class: 'video-item', href: v.url, target: '_blank', rel: 'noopener' }, ...conteudo, el('span', { class: 'sr' }, ' (abre em nova aba)'));
+  }
+  function secaoVideos(videos) {
+    const principal = videos.find((v) => v.destaque) || videos[0];
+    const outros = videos.filter((v) => v !== principal).slice(0, 3);
+    const palco = el('div', { class: 'video-palco' }, reprodutor(principal));
+    const trocar = (v) => { palco.replaceChildren(reprodutor(v)); palco.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
+    return el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-videos' }, el('div', { class: 'limite' },
+      el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-videos' }, 'Galeria multimídia'), el('a', { href: '#/videos', class: 'botao botao-p' }, 'Ver galeria de vídeos')),
+      el('div', { class: 'galeria-videos' }, palco, outros.length ? el('div', { class: 'video-lista' }, outros.map((v) => itemVideo(v, trocar))) : null)));
+  }
+  R.videos = async function (main, partes, params) {
+    S.titulo('Vídeos'); S.trilha(['Vídeos']);
+    const q = (params.get('q') || '').trim();
+    let consulta = sb.from('videos').select('id, titulo, descricao, url, miniatura_url, data').eq('orgao_id', org()).order('data', { ascending: false }).order('criado_em', { ascending: false }).limit(200);
+    if (q) consulta = consulta.ilike('busca', termo(q));
+    const { data } = await consulta;
+    const lista = data || [];
+    const busca = el('input', { type: 'search', value: q, placeholder: 'Pesquisar vídeos' });
+    const palco = el('div', { class: 'video-palco' }, lista.length ? reprodutor(lista[0]) : null);
+    pagina(main, el('h1', null, 'Vídeos'),
+      el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); location.hash = '#/videos' + (busca.value.trim() ? '?q=' + encodeURIComponent(busca.value.trim()) : ''); } },
+        el('label', null, 'Pesquisar', busca)),
+      lista.length ? [palco, el('div', { class: 'grade g3 mt-2' }, lista.map((v) => itemVideo(v, (x) => { palco.replaceChildren(reprodutor(x)); palco.scrollIntoView({ block: 'start', behavior: 'smooth' }); })))]
+        : el('p', { class: 'vazio' }, q ? 'Nenhum vídeo encontrado.' : 'Nenhum vídeo publicado.'));
+  };
+
   R[''] = async function (main) {
     S.titulo('');
     await tiposPub();
     const c = S.conf;
     const agora = new Date().toISOString();
-    const [bn, nt, pb, gs, sv] = await Promise.all([
+    const [bn, nt, pb, gs, sv, vd] = await Promise.all([
       sb.from('banners').select('*').eq('orgao_id', org()).eq('ativo', true).order('ordem').limit(8),
       sb.from('noticias').select('id, titulo, resumo, conteudo, capa_url, capa_legenda, categoria, publicado_em, destaque').eq('orgao_id', org())
         .lte('publicado_em', agora).order('publicado_em', { ascending: false }).limit(7),
       ultimasPublicacoes(),
       sb.from('gestores').select('*').eq('orgao_id', org()).order('destaque_capa', { ascending: false }).order('ordem').order('nome').limit(120),
       sb.from('servicos').select('id, nome, categoria, link_digital').eq('orgao_id', org())
-        .in('forma_prestacao', ['digital', 'presencial_digital']).order('nome').limit(6)
+        .in('forma_prestacao', ['digital', 'presencial_digital']).order('nome').limit(6),
+      sb.from('videos').select('id, titulo, url, miniatura_url, data, destaque').eq('orgao_id', org()).order('data', { ascending: false }).order('criado_em', { ascending: false }).limit(5)
     ]);
-    const banners = bn.data || [], noticias = nt.data || [], pubs = pb, gestores = gs.data || [], digitais = sv.data || [];
+    const banners = bn.data || [], noticias = nt.data || [], pubs = pb, gestores = gs.data || [], digitais = sv.data || [], videos = (vd && vd.data) || [];
     // A notícia grande é a mais recente; se alguma das recentes foi marcada como
     // "Destacar na página inicial", ela ocupa o lugar.
     const destaque = noticias.find((n) => n.destaque) || noticias[0];
@@ -181,6 +226,9 @@
         cartaoHorizontal(destaque, vis, true),
         demais.length ? el('div', { class: 'grade g2 noticias-lista' }, demais.map((n) => cartaoHorizontal(n, vis))) : null)));
     }
+
+    // Galeria multimídia: vídeo em destaque (ou o mais recente) tocando ali mesmo e os 3 seguintes ao lado.
+    if (videos.length) blocos.push(secaoVideos(videos));
 
     if (digitais.length) {
       blocos.push(el('section', { class: 'secao', 'aria-labelledby': 'tit-digitais' }, el('div', { class: 'limite' },
@@ -999,7 +1047,7 @@
       ['Gestores', null, '#/gestores', 'prefeito secretario autoridades'], ['Perguntas frequentes', null, '#/faq', 'duvidas faq'],
       ['Portal da Transparência', null, '#/transparencia', 'transparencia'],
       ['Obras paralisadas', null, '#/obras/paralisadas', ''], ['Proteção de dados (LGPD)', null, '#/lgpd', 'privacidade encarregado'],
-      ['Dados abertos', null, '#/dados-abertos', 'api csv json'], ['Conselhos municipais', null, '#/conselhos', 'conselho fundeb saude assistencia social atas'], ['Acessibilidade', null, '#/acessibilidade', 'libras contraste'], ['Contato', null, '#/contato', 'telefone email endereco']];
+      ['Dados abertos', null, '#/dados-abertos', 'api csv json'], ['Vídeos', null, '#/videos', 'galeria multimidia youtube'], ['Conselhos municipais', null, '#/conselhos', 'conselho fundeb saude assistencia social atas'], ['Acessibilidade', null, '#/acessibilidade', 'libras contraste'], ['Contato', null, '#/contato', 'telefone email endereco']];
     const cat = window.DESTINOS_PNTP.filter((d) => S.destino(d[0])).map((d) => [d[1], d[0], null, '']);
     return cat.concat(fixas).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
   }

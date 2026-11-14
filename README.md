@@ -442,6 +442,11 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.26.0 — 14/11/2026 — Galeria de vídeos (todos os órgãos)**
+- Script 35 (`videos`). Painel: Notícias, banners e avisos › Vídeos (`modulo-videos.js`). Site: `#/videos` e bloco
+  "Galeria multimídia" na página inicial; YouTube toca embutido (youtube-nocookie), outros sites abrem em nova aba.
+- Destino externo único abre direto, sem página intermediária (0.25.1).
+
 **0.25.0 — 14/11/2026 — Câmara Municipal (matriz do Poder Legislativo, PNTP 2026)**
 - Script 34: vereadores (20.1), proposições com autoria, relatoria e tramitação (20.3), sessões do Plenário e
   reuniões de comissão com pauta, ata, presenças, votações nominais e vídeo (20.4–20.7, 20.9), comissões e membros

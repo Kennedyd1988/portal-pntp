@@ -670,3 +670,21 @@ html.contraste .campo-atend input, html.contraste .campo-atend select, html.cont
 .linha-tempo li::before { content: ''; position: absolute; left: -8px; top: 12px; width: 12px; height: 12px; border-radius: 50%; background: var(--cor); }
 .votos { columns: 2; padding-left: 18px; }
 @media (max-width: 600px) { .votos { columns: 1; } }
+
+/* ---------- Galeria de vídeos (página inicial e #/videos) ---------- */
+.galeria-videos { display: grid; gap: 20px; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; }
+@media (max-width: 860px) { .galeria-videos { grid-template-columns: 1fr; } }
+.video-quadro { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--raio); overflow: hidden; background: #000; box-shadow: var(--sombra); }
+.video-quadro iframe, .video-quadro img { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; object-fit: cover; }
+.video-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 64px; height: 44px; border-radius: 12px; background: #e62117; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.video-lista { display: grid; gap: 14px; }
+.video-item { display: grid; grid-template-columns: 160px 1fr; gap: 14px; align-items: center; background: #fff; border: 1px solid var(--linha); border-radius: var(--raio);
+  overflow: hidden; text-align: left; padding: 0; cursor: pointer; font: inherit; color: var(--texto); text-decoration: none; width: 100%; }
+.video-item:hover, .video-item:focus-visible { box-shadow: var(--sombra); }
+.video-mini { position: relative; display: block; aspect-ratio: 16 / 9; background: #000; }
+.video-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.video-texto { padding: 10px 12px 10px 0; display: flex; flex-direction: column; gap: 4px; }
+.video-texto strong { text-transform: uppercase; color: var(--texto); line-height: 1.3; }
+.grade.g3 .video-item { grid-template-columns: 1fr; }
+.grade.g3 .video-texto { padding: 10px 12px; }
