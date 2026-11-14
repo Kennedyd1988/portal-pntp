@@ -305,7 +305,7 @@
     btnO.addEventListener('click', () => salvarOrigem(origem, btnO));
     caixaEspaco = el('div', { class: 'mt-1' });
     const ok = adaptador && cfg.migracao && cfg.migracao.origem;
-    conteiner.replaceChildren(
+    conteiner.replaceChildren(...[
       el('div', { class: 'cabecalho-modulo' }, el('div', null, el('h1', null, 'Migração do site antigo'),
         el('p', { class: 'sub' }, 'Traz para o portal o que já está publicado no site atual do órgão, com os arquivos.'))),
       el('p', { class: 'msg msg-info' }, 'Período: exercício atual e os 2 anteriores (' + (ANO - 2) + ' a ' + ANO + ') no que pontua no PNTP; atual e o anterior no restante. ',
@@ -315,8 +315,8 @@
         el('div', { class: 'linha-botoes mt-1' }, origem, btnO),
         el('p', { class: 'ajuda mt-05' }, ok ? 'Modelo reconhecido: ' + adaptador.nome + '.' : 'Informe o endereço do site antigo e clique em "Salvar e reconhecer".'),
         caixaEspaco),
-      ok ? Object.entries(adaptador.secoes).map(([k, s]) => cartaoSecao(k, s)) : null,
-      el('p', { class: 'ajuda mt-2' }, 'Receitas, despesas, folha, diárias, ordem cronológica, emendas e licitações/contratos dos sistemas de gestão continuam nos sistemas oficiais: ligue-os em Aparência › Destinos das páginas.'));
+      ...(ok ? Object.entries(adaptador.secoes).map(([k, s]) => cartaoSecao(k, s)) : []),
+      el('p', { class: 'ajuda mt-2' }, 'Receitas, despesas, folha, diárias, ordem cronológica, emendas e licitações/contratos dos sistemas de gestão continuam nos sistemas oficiais: ligue-os em Aparência › Destinos das páginas.')].filter(Boolean));
     desenharEspaco();
   }
 
