@@ -21,7 +21,7 @@
   const estado = {};          // por seção: { itens, arquivos, bytes, rodando, parar, log }
 
   const org = () => P.estado.orgao.id;
-  const periodo = (s) => ({ de: ANO - (s.pntp ? 2 : 1), ate: ANO });
+  const periodo = (s) => ({ de: s.semPeriodo ? 0 : ANO - (s.pntp ? 2 : 1), ate: ANO });
   const mb = (b) => b == null ? '?' : (b / 1048576).toFixed(b < 10485760 ? 1 : 0).replace('.', ',') + ' MB';
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -116,10 +116,12 @@
       el('div', { class: 'linha-botoes mt-05' }, btn, fav));
   }
 
-  async function pagina(url, tentativas) {
-    if (ponte.pronto) return viaPonteRepetindo('pagina', { url });
+  // op: { metodo: 'POST', corpo: 'a=1&b=2' } para as seções que leem dados por formulário (ex.: obras)
+  async function pagina(url, tentativas, op) {
+    const extra = op && op.metodo ? { metodo: op.metodo, corpo: op.corpo || '' } : {};
+    if (ponte.pronto) return viaPonteRepetindo('pagina', Object.assign({ url }, extra));
     for (let i = 0; i < (tentativas || 3); i++) {
-      try { return await servidor({ acao: 'pagina', url }); }
+      try { return await servidor(Object.assign({ acao: 'pagina', url }, extra)); }
       catch (e) { if (i === (tentativas || 3) - 1 || /instalada|Cadastre|Só o Suporte|sessão expirou/.test(e.message)) throw e; await espera(1500 * (i + 1)); }
     }
   }
@@ -163,6 +165,19 @@
   async function varrer(chave, s, aoItem) {
     const st = estado[chave];
     const origem = cfg.migracao.origem;
+    // Seções que leem uma lista pronta (JSON, página única, páginas com subpáginas)
+    if (s.listar) {
+      const { de } = periodo(s);
+      const itens = await s.listar({ origem, de, ler: (url, op) => pagina(url, 3, op), parar: () => st.parar,
+        log: (t) => { st.log.unshift(t); atualizarCartao(chave); } });
+      for (const it of itens) {
+        if (st.parar) break;
+        if (!it.x || it.x.vazio || it.x.foraPeriodo) continue;
+        if (!s.semPeriodo && (!it.x.ano || it.x.ano < de) && !it.x.ignorar) continue;
+        await aoItem(it.url, it.x);
+      }
+      return;
+    }
     let maior = 0;
     for (const l of s.listas) {
       try { const p = await pagina(origem + l); maior = Math.max(maior, adaptador.maiorId(p.html, new RegExp(s.reId.source, 'g'))); } catch (e) { /* tenta a próxima */ }
@@ -171,7 +186,7 @@
     if (!maior) throw new Error('Não achei itens desta seção no site antigo.' + (ponte.pronto ? '' : ' Se o site bloqueia o servidor, use "Ler pelo navegador".'));
     const { de } = periodo(s);
     let fora = 0, id = maior + 5;   // alguns ids acima do maior visível (itens recentes ainda não listados)
-    while (id > 0 && fora < PARAR_APOS && !st.parar) {
+    while (id > 0 && fora < (s.pararApos || PARAR_APOS) && !st.parar) {
       const lote = [];
       for (let k = 0; k < PARALELO && id > 0; k++, id--) lote.push(id);
       const res = await Promise.all(lote.map(async (n) => {
@@ -185,7 +200,7 @@
           st.log.unshift('id ' + r.n + ': ' + r.erro); continue;   // erro de leitura não conta como "fora do período"
         }
         if (r.x.vazio) { fora++; continue; }
-        if (!r.x.ano || r.x.ano < de) { fora++; continue; }
+        if (!s.semPeriodo && (!r.x.ano || r.x.ano < de)) { fora++; continue; }
         fora = 0;
         await aoItem(r.url, r.x, r.n);
       }
@@ -200,7 +215,7 @@
     try {
       await varrer(chave, s, async (url, x) => {
         st.itens.push({ url, x });
-        for (const a of (x.arquivos || []).concat(x.documentos || [])) st.arquivos.push(a.url);
+        for (const a of [].concat(x.arquivos || [], x.documentos || [], x.medicoes || [], x.arquivosTexto || [])) st.arquivos.push(a.url);
         st.texto = st.itens.length + ' itens encontrados até agora (' + st.arquivos.length + ' arquivos)…';
       });
       st.texto = 'Medindo o tamanho dos arquivos…'; atualizarCartao(chave);
@@ -213,8 +228,8 @@
         st.texto = 'Medindo arquivos: ' + medidos + ' de ' + unicos.length + '…'; atualizarCartao(chave);
       }
       if (semTamanho && medidos > semTamanho) st.bytes = Math.round(st.bytes * medidos / (medidos - semTamanho));
-      const anos = {}; st.itens.forEach((i) => { anos[i.x.ano] = (anos[i.x.ano] || 0) + 1; });
-      st.texto = st.itens.length + ' itens de ' + Object.keys(anos).sort().map((a) => a + ' (' + anos[a] + ')').join(', ') +
+      const anos = {}; st.itens.forEach((i) => { anos[i.x.ano || 'sem ano'] = (anos[i.x.ano || 'sem ano'] || 0) + 1; });
+      st.texto = st.itens.length + ' itens' + (s.semPeriodo ? '' : ' de ' + Object.keys(anos).sort().map((a) => a + ' (' + anos[a] + ')').join(', ')) +
         ' · ' + unicos.length + ' arquivos · cerca de ' + mb(st.bytes) + (semTamanho ? ' (' + semTamanho + ' sem tamanho informado: estimado)' : '');
       st.analisado = true;
     } catch (e) { st.texto = 'Parou: ' + e.message; }
@@ -345,6 +360,109 @@
     }
   };
 
+  // Tipo próprio de publicação (Publicações › Tipos), criado na primeira importação que precisa dele
+  async function tipoPublicacao(codigo, nome) {
+    const { data } = await sb.from('publicacoes_tipos').select('codigo').eq('orgao_id', org()).eq('codigo', codigo).maybeSingle();
+    if (data) return codigo;
+    const { error } = await sb.from('publicacoes_tipos').insert({ orgao_id: org(), codigo, nome, grupo: 'outros' });
+    if (error && !/duplicate|unique/i.test(error.message || '')) throw error;
+    return codigo;
+  }
+  Object.assign(GRAVAR, {
+    async ata(x, s) {
+      const r = x.registro;
+      if (r.numero && await existente('contratos', { tipo: 'ata_registro_precos', numero: r.numero, ano: r.ano })) return { situacao: 'ja_existia' };
+      const a = x.arquivos[0] ? await copiar(x.arquivos[0].url, s.pasta) : {};
+      const { data, error } = await sb.from('contratos').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r, { arquivo_url: a.url || null })).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'contratos', bytes: a.bytes, aviso: a.erro };
+    },
+    async audiencia(x, s) {
+      const tipo = await tipoPublicacao('x_audiencia_publica', 'Audiência pública');
+      const r = x.registro, ano = x.ano || ANO;
+      let bytes = 0, novos = 0, falhas = 0, primeiro = null;
+      for (const d of x.documentos) {
+        const ementa = (r.assunto + ' — ' + d.titulo).slice(0, 1000);
+        if (await existente('publicacoes', { tipo, ementa, ano })) continue;
+        const a = await copiar(d.url, s.pasta);
+        if (!a.url) { falhas++; continue; }
+        const { data, error } = await sb.from('publicacoes').insert({ orgao_id: org(), origem: 'importacao', tipo, numero: null, ano,
+          data_publicacao: x.data || ano + '-01-01', ementa, arquivo_url: a.url, situacao: 'publicado',
+          observacao: r.descricao && r.descricao !== r.assunto ? r.descricao.slice(0, 1000) : null }).select('id').single();
+        if (error) { falhas++; continue; }
+        primeiro = primeiro || data.id; bytes += a.bytes || 0; novos++;
+      }
+      if (!novos && !falhas) return { situacao: 'ja_existia' };
+      return { situacao: novos ? 'importado' : 'erro', id: primeiro, tabela: 'publicacoes', bytes, aviso: falhas ? falhas + ' documento(s) não copiado(s)' : null };
+    },
+    async obra(x, s) {
+      const r = x.registro;
+      if (await existente('obras', { titulo: r.titulo })) return { situacao: 'ja_existia' };
+      const { data, error } = await sb.from('obras').insert(Object.assign({ orgao_id: org(), situacao: 'publicado', ano: x.ano }, r)).select('id').single();
+      if (error) throw error;
+      let bytes = 0, falhas = 0;
+      const usados = new Set();
+      for (const md of x.medicoes || []) {
+        let n = md.numero; while (usados.has(n)) n++; usados.add(n);
+        const a = await copiar(md.url, s.pasta);
+        if (!a.url) { falhas++; continue; }
+        bytes += a.bytes || 0;
+        const { error: e2 } = await sb.from('obras_medicoes').insert({ obra_id: data.id, orgao_id: org(), numero: n, descricao: md.descricao.slice(0, 500),
+          periodo_fim: md.data, arquivo_url: a.url });
+        if (e2) falhas++;
+      }
+      const sobra = (x.outros || []).map((d) => d.titulo).filter(Boolean);
+      return { situacao: 'importado', id: data.id, tabela: 'obras', bytes,
+        aviso: [falhas ? falhas + ' medição(ões) não copiada(s)' : '', sobra.length ? 'Sem lugar no módulo Obras (ficam no contrato/licitação): ' + sobra.join('; ') : ''].filter(Boolean).join(' · ') || null };
+    },
+    async secretaria(x, s) {
+      const r = x.registro;
+      const { data: ja } = await sb.from('unidades').select('id, endereco, telefone, email, horario_atendimento, competencias').eq('orgao_id', org()).ilike('nome', r.nome.replace(/[%_\\]/g, '\\$&')).maybeSingle();
+      let id = ja && ja.id, novo = false;
+      if (ja) {
+        const completar = {};
+        for (const k of ['endereco', 'telefone', 'email', 'horario_atendimento', 'competencias']) if (!ja[k] && r[k]) completar[k] = r[k];
+        if (Object.keys(completar).length) { const { error } = await sb.from('unidades').update(completar).eq('id', id); if (error) throw error; }
+      } else {
+        const { data, error } = await sb.from('unidades').insert(Object.assign({ orgao_id: org(), ordem: 50 }, r)).select('id').single();
+        if (error) throw error;
+        id = data.id; novo = true;
+      }
+      let bytes = 0, aviso = null;
+      if (x.gestor && !(await existente('gestores', { nome: x.gestor.nome }))) {
+        const a = x.arquivos[0] ? await copiar(x.arquivos[0].url, s.pasta) : {};
+        bytes = a.bytes || 0; aviso = a.erro || null;
+        const { error } = await sb.from('gestores').insert({ orgao_id: org(), unidade_id: id, nome: x.gestor.nome, cargo: x.gestor.cargo, foto_url: a.url || null,
+          telefone: r.telefone, email: r.email, ordem: x.gestor.cargo === 'Prefeito(a)' ? 1 : x.gestor.cargo === 'Vice-prefeito(a)' ? 2 : 10 });
+        if (error) throw error;
+        novo = true;
+      }
+      return { situacao: novo ? 'importado' : 'ja_existia', id, tabela: 'unidades', bytes, aviso };
+    },
+    async faq(x) {
+      const r = x.registro;
+      if (await existente('faq', { pergunta: r.pergunta })) return { situacao: 'ja_existia' };
+      const { data, error } = await sb.from('faq').insert(Object.assign({ orgao_id: org(), ativo: true }, r)).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'faq' };
+    },
+    async pagina(x, s) {
+      const r = Object.assign({}, x.registro);
+      if (await existente('paginas', { slug: r.slug })) return { situacao: 'ja_existia' };
+      let bytes = 0, falhas = 0;
+      for (const a of x.arquivosTexto || []) {
+        const c = await copiar(a.url, s.pasta);
+        if (!c.url) { falhas++; continue; }
+        bytes += c.bytes || 0;
+        r.conteudo = r.conteudo.split('(' + a.url + ')').join('(' + c.url + ')');
+      }
+      const { data, error } = await sb.from('paginas').insert(Object.assign({ orgao_id: org(), situacao: 'rascunho' }, r)).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'paginas', bytes,
+        aviso: 'Entrou como rascunho: revise e publique (ou leve o conteúdo para o módulo certo)' + (falhas ? ' · ' + falhas + ' arquivo(s) não copiado(s), o link ainda aponta para o site antigo' : '') };
+    }
+  });
+
   async function importar(chave) {
     const s = adaptador.secoes[chave];
     const st = estado[chave] = Object.assign(estado[chave] || {}, { rodando: 'importacao', parar: false, log: [], feitos: 0, novos: 0, existentes: 0, erros: 0, bytesCopiados: 0 });
@@ -391,8 +509,8 @@
     const btnP = el('button', { type: 'button', class: 'btn btn-claro', hidden: !rodando, onclick: () => { st.parar = true; btnP.disabled = true; } }, 'Pausar');
     const c = el('section', { class: 'cartao migracao-secao' },
       el('div', { class: 'linha-botoes' }, el('h2', { class: 'm-0' }, s.nome),
-        el('span', { class: 'etiqueta' + (s.pntp ? ' etiqueta-ativo' : '') }, s.pntp ? 'PNTP · 3 anos' : '2 anos'),
-        el('span', { class: 'ajuda' }, 'De ' + de + ' a ' + ate + ' → ' + s.destino)),
+        el('span', { class: 'etiqueta' + (s.pntp ? ' etiqueta-ativo' : '') }, s.semPeriodo ? 'Conteúdo fixo' : s.pntp ? 'PNTP · 3 anos' : '2 anos'),
+        el('span', { class: 'ajuda' }, (s.semPeriodo ? 'Tudo' : 'De ' + de + ' a ' + ate) + ' → ' + s.destino)),
       rs ? el('p', { class: 'msg msg-ok mt-1' }, 'Já migrados: ' + rs.importados + ' novos · ' + rs.ja_existiam + ' já existiam no portal' +
         (rs.erros ? ' · ' + rs.erros + ' com erro (rode de novo para tentar outra vez)' : '') + ' · ' + mb(rs.bytes) + ' de arquivos.') : null,
       st.texto ? el('p', { class: 'msg ' + (rodando ? 'msg-info' : /Parou/.test(st.texto) ? 'msg-erro' : 'msg-info') + ' mt-1', role: 'status' }, rodando ? '⏳ ' : '', st.texto) : null,

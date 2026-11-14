@@ -75,7 +75,10 @@
   async function atender(d) {
     if (d.acao === 'pagina') {
       const u = local(d.url); await liberar(u);
-      const r = await fetch(u.href, { credentials: 'include' });
+      const op = { credentials: 'include' };
+      if (d.metodo === 'POST') Object.assign(op, { method: 'POST', body: String(d.corpo || ''),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest' } });
+      const r = await fetch(u.href, op);
       return { status: r.status, url_final: r.url, html: await r.text() };
     }
     if (d.acao === 'medir') {

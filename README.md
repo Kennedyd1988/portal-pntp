@@ -442,6 +442,13 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.24.0 — 14/11/2026 — Migração: mais seções do site antigo**
+- Atas de registro de preços (→ Contratos, tipo ata), audiências públicas (→ Publicações, tipo próprio "Audiência
+  pública", um registro por documento), obras com medições (portal de obras em JSON), secretarias e responsáveis
+  (→ Estrutura e Gestores, só completa o que falta), perguntas frequentes e páginas avulsas `/pagina/N` com
+  subpáginas e arquivos (→ Páginas, como rascunho para revisar). Diário Oficial fica para o módulo próprio de diário.
+- Seções podem ler listas prontas (`listar`) e pedir dados por formulário (POST), pelo servidor ou pelo coletor.
+
 **0.23.3 — 14/11/2026 — Migração do site antigo (Plataforma A)**
 - Módulo "Migração do site antigo" (Suporte SOFT+ e administrador do órgão): traz leis/decretos, licitações com
   documentos, contratos, concursos, contas públicas e notícias do site atual do órgão, com os arquivos copiados para

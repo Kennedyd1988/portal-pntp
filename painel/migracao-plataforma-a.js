@@ -271,12 +271,225 @@
           arquivos: capa && /^https?:/.test(capa) ? [{ url: capa, campo: 'capa_url' }] : []
         };
       }
+    },
+    // ---------------------------------------------------------------
+    // Atas de registro de preços → Contratos (tipo "Ata de registro de preços")
+    ata: {
+      nome: 'Atas de registro de preços', destino: 'Contratos (atas)', pntp: true, pasta: 'contratos', pararApos: 80,
+      listas: ['/ata-registro-preco'],
+      reId: /\/ata-registro-preco\/page\/\d+\/detalhe\/(\d+)/g,
+      url: (o, id) => o + '/ata-registro-preco/page/1/detalhe/' + id,
+      ler(html, url) {
+        const { m } = doc(html);
+        const c = campos(m);
+        const k = (re) => { for (const [kk, v] of Object.entries(c)) if (re.test(kk)) return limpar(v); return ''; };
+        const objeto = k(/^objeto/).slice(0, 4000);
+        const numero = k(/^n\S*\s*ata$/);
+        if (!objeto && !numero) return { vazio: true };
+        const dt = data(k(/^data/));
+        const anoP = (k(/pregao/).match(/(\d{4})\s*$/) || [])[1];
+        const ano = anoP ? Number(anoP) : dt ? Number(dt.slice(0, 4)) : null;
+        const forn = k(/fornecedor|contratad/);
+        const nd = ((forn.match(/(?:CNPJ|CPF)\s*:?\s*([\d./-]+)/i) || [])[1] || '').replace(/\D/g, '');
+        const nome = limpar(forn.replace(/(?:CNPJ|CPF)\s*:?.*$/i, '')).slice(0, 200);
+        const arq = baixar(m, url, /\/ata-registro-preco\/.*download\//);
+        return {
+          ano, data: dt, chave: { tipo: 'ata_registro_precos', numero: numero || null, ano },
+          registro: { origem: 'portal', tipo: 'ata_registro_precos', numero: numero || null, ano, processo: k(/processo/) || null,
+            objeto: objeto.length >= 5 ? objeto : 'Ata de registro de preços ' + (numero || ''),
+            contratado_nome: nome.length >= 2 ? nome : 'Não informado no site antigo',
+            contratado_doc: nd.length === 11 || nd.length === 14 ? nd : null,
+            data_assinatura: dt || (ano ? ano + '-01-01' : null), vigencia_inicio: dt },
+          arquivos: arq[0] ? [{ url: arq[0], campo: 'arquivo_url' }] : []
+        };
+      }
+    },
+    // ---------------------------------------------------------------
+    // Audiências públicas → Publicações (tipo próprio "Audiência pública"), um registro por documento
+    audiencia: {
+      nome: 'Audiências públicas', destino: 'Publicações (Audiência pública)', pntp: true, pasta: 'publicacoes',
+      listas: ['/audiencia-publica'],
+      reId: /\/audiencia-publica\/detalhe\/(\d+)\//g,
+      url: (o, id) => o + '/audiencia-publica/detalhe/' + id + '/',
+      ler(html, url) {
+        const { m } = doc(html);
+        const c = campos(m);
+        const k = (re) => { for (const [kk, v] of Object.entries(c)) if (re.test(kk)) return limpar(v); return ''; };
+        const assunto = k(/^assunto/) || k(/^descricao/);
+        if (!assunto) return { vazio: true };
+        const dt = data(k(/presencial/)) || data(k(/encerramento/));
+        const docs = [...m.querySelectorAll('a[href*="/audiencia-publica/documento"], a[href*="/audiencia-publica/download"]')]
+          .map((a) => ({ url: new URL(a.getAttribute('href'), url).href, titulo: limpar(a.getAttribute('title') || a.textContent).slice(0, 150) || 'Documento', data: dt }));
+        if (!docs.length) return { ignorar: 'Audiência sem documentos no site antigo', ano: dt ? Number(dt.slice(0, 4)) : null };
+        return { ano: dt ? Number(dt.slice(0, 4)) : null, data: dt, chave: { assunto },
+          registro: { assunto: assunto.slice(0, 300), descricao: k(/^descricao/).slice(0, 1000), status: k(/^status/) }, documentos: docs };
+      }
+    },
+    // ---------------------------------------------------------------
+    // Obras (portal de obras com dados em JSON) → Obras + medições
+    obra: {
+      nome: 'Obras', destino: 'Obras (com medições)', pntp: true, pasta: 'obras',
+      listas: [],
+      async listar(ctx) {
+        const corpo = (o) => Object.entries(o).map(([a, b]) => encodeURIComponent(a) + '=' + encodeURIComponent(b)).join('&');
+        const json = async (caminho, dados) => {
+          const r = await ctx.ler(ctx.origem + caminho, { metodo: 'POST', corpo: corpo(dados || {}) });
+          try { return JSON.parse(r.html).sucess; } catch (_) { return null; }
+        };
+        const rel = await json('/obra/obra/relatorio');
+        if (!rel) throw new Error('Não achei o portal de obras do site antigo.');
+        const itens = [];
+        for (const o of Object.values(rel)) {
+          if (ctx.parar()) break;
+          const ini = data(o.dataInicio), prev = data(o.dataPrevista);
+          const ano = Number((prev || ini || '').slice(0, 4)) || null;
+          const url = ctx.origem + '/obra?id=' + o.id;
+          if (!ano || ano < ctx.de) { itens.push({ url, x: { ano, foraPeriodo: true } }); continue; }
+          const grupos = (await json('/obra/obra/documento', { idBanco: o.id })) || [];
+          const docs = [];
+          for (const g of grupos) for (const d of g.documentos || []) {
+            if (!d.doc) continue;
+            docs.push({ url: ctx.origem + '/admin/globalarq/obra/documento-auxiliar/' + d.doc, titulo: limpar(d.nome).slice(0, 150) || limpar(g.categoria), categoria: limpar(g.categoria), data: data(d.data) });
+          }
+          const sit = { 1: 'em_andamento', 2: 'concluida', 3: 'paralisada' }[o.situacao] || 'em_andamento';
+          const recebimento = docs.find((d) => /receb/i.test(d.titulo + ' ' + d.categoria));
+          const fim = sit === 'concluida' ? ((recebimento && recebimento.data) || prev || ini) : null;
+          const medicoes = docs.filter((d) => /medi[cç][aã]o/i.test(d.titulo + ' ' + d.categoria))
+            .map((d, i) => ({ url: d.url, numero: Number((d.titulo.match(/(\d+)\s*[ªaº°]?\s*medi/i) || [])[1]) || i + 1, descricao: d.titulo, data: d.data }));
+          const outros = docs.filter((d) => !medicoes.some((x) => x.url === d.url));
+          const titulo = limpar(o.titulo);
+          itens.push({ url, x: {
+            ano, data: ini, chave: { titulo },
+            registro: { titulo: (titulo.length >= 5 ? titulo : 'Obra ' + titulo).slice(0, 300),
+              descricao: [limpar(o.categoria) && 'Categoria: ' + limpar(o.categoria), limpar(o.tipo) && 'Tipo: ' + limpar(o.tipo)].filter(Boolean).join(' · ') || null,
+              local: limpar(o.endereco).slice(0, 300) || null, contratada_nome: limpar(o.nomeEmpresa).slice(0, 200) || null,
+              valor_contratado: Number(o.valor) || null, situacao_obra: sit, percentual: sit === 'concluida' ? 100 : Math.min(100, Number(o.percentualExecutado) || 0),
+              data_inicio: ini, previsao_conclusao: prev && ini && prev >= ini ? prev : null, data_conclusao: fim && ini && fim < ini ? ini : fim },
+            medicoes, outros
+          } });
+        }
+        return itens;
+      }
+    },
+    // ---------------------------------------------------------------
+    // Secretarias e departamentos → Estrutura (unidades) + responsável (gestores)
+    secretaria: {
+      nome: 'Secretarias e responsáveis', destino: 'Estrutura organizacional', semPeriodo: true, pasta: 'gestores',
+      listas: ['/prefeitura/departamento'],
+      reId: /\/prefeitura\/detalhe-departamento\/(\d+)\//g,
+      url: (o, id) => o + '/prefeitura/detalhe-departamento/' + id + '/x/',
+      ler(html, url) {
+        const { m } = doc(html);
+        const nome = limpar((m.querySelector('.container-titulo h1, .container-titulo h2') || {}).textContent);
+        if (!nome || /^departamentos?$/i.test(nome)) return { vazio: true };
+        const resp = limpar((m.querySelector('h3') || {}).textContent);
+        const img = m.querySelector('img.img-fluid');
+        const ps = [...m.querySelectorAll('p')].map((p) => limpar(p.textContent));
+        const depois = (re) => { const p = ps.find((t) => re.test(t)); return p ? limpar(p.replace(re, '')).replace(/^:\s*/, '') : ''; };
+        const iTel = ps.findIndex((t) => /^telefone:?$/i.test(t));
+        const tel = depois(/^telefone:?/i) || (iTel >= 0 ? ps[iTel + 1] : '');
+        const mail = (m.querySelector('a[href^="mailto:"]') || {}).textContent;
+        const comp = m.querySelector('.esconde-conteudo');
+        const compTexto = comp ? [...comp.querySelectorAll('p, li')].map((p) => limpar(p.textContent)).filter(Boolean).join('\n\n').slice(0, 8000) : '';
+        const cargo = /^prefeito$/i.test(nome) ? 'Prefeito(a)' : /^vice/i.test(nome) ? 'Vice-prefeito(a)' : /chefe de gabinete/i.test(nome) ? 'Chefe de Gabinete'
+          : /secretaria/i.test(nome) ? 'Secretário(a)' : 'Responsável';
+        return { ano: null, chave: { nome },
+          registro: { nome: nome.slice(0, 200), endereco: depois(/^endere[cç]o:?/i).slice(0, 300) || null, horario_atendimento: depois(/^hor[aá]rio[^:]*:?/i).slice(0, 200) || null,
+            telefone: limpar(tel).slice(0, 60) || null, email: limpar(mail) || null, competencias: compTexto || null },
+          gestor: resp && !/^respons[aá]vel$/i.test(resp) ? { nome: resp.slice(0, 200), cargo } : null,
+          arquivos: img && img.getAttribute('src') ? [{ url: new URL(img.getAttribute('src').replace(/\/\d+_\d+\//, '/'), url).href, campo: 'foto_url' }] : [] };
+      }
+    },
+    // ---------------------------------------------------------------
+    // Perguntas frequentes → FAQ
+    faq: {
+      nome: 'Perguntas frequentes', destino: 'Perguntas frequentes', semPeriodo: true, pasta: 'faq',
+      listas: [],
+      async listar(ctx) {
+        const r = await ctx.ler(ctx.origem + '/prefeitura/perguntas-frequentes');
+        const { m } = doc(r.html);
+        const itens = []; let cat = null, ordem = 10;
+        for (const n of m.querySelectorAll('h3, .mostra-conteudo')) {
+          if (n.tagName === 'H3') { cat = limpar(n.textContent).slice(0, 80); continue; }
+          const pergunta = limpar(n.textContent);
+          let resp = n.nextElementSibling;
+          while (resp && !resp.classList.contains('esconde-conteudo')) resp = resp.nextElementSibling;
+          const resposta = resp ? [...resp.querySelectorAll('p, li')].map((p) => limpar(p.textContent)).filter(Boolean).join('\n\n') || limpar(resp.textContent) : '';
+          if (pergunta.length < 5 || !resposta) continue;
+          itens.push({ url: ctx.origem + '/prefeitura/perguntas-frequentes#' + encodeURIComponent(pergunta.slice(0, 80)),
+            x: { ano: null, chave: { pergunta }, registro: { pergunta: pergunta.slice(0, 300), resposta, categoria: cat, ordem: ordem++ } } });
+        }
+        return itens;
+      }
+    },
+    // ---------------------------------------------------------------
+    // Páginas livres (/pagina/N, com subpáginas) → Páginas institucionais, como RASCUNHO para revisar
+    pagina: {
+      nome: 'Páginas e documentos avulsos', destino: 'Páginas institucionais (rascunho para revisar)', semPeriodo: true, pasta: 'paginas',
+      listas: ['/'],
+      reId: /\/pagina\/(\d+)\//g,
+      async listar(ctx) {
+        const home = await ctx.ler(ctx.origem + '/');
+        let maior = 0; for (const x of home.html.matchAll(/\/pagina\/(\d+)\//g)) maior = Math.max(maior, Number(x[1]));
+        const itens = [];
+        const conteudoDe = (m, base) => {
+          const f = m.querySelector('form') || m;
+          f.querySelectorAll('.busca-pagina-container, nav, .speech, button, input, select').forEach((x) => x.remove());
+          const linhas = [], arquivos = [];
+          for (const n of f.querySelectorAll('p, li, h3, h4, a[href]')) {
+            if (n.tagName === 'A') {
+              const h = n.getAttribute('href') || '';
+              if (!/download|globalarq|uploads|\.(pdf|docx?|xlsx?|odt|ods|zip|jpe?g|png)(\?|$)/i.test(h) || /sub-pagina\/\d+\/$/.test(h)) continue;
+              const u = new URL(h, base).href;
+              if (arquivos.some((a) => a.url === u)) continue;
+              const t = limpar(n.getAttribute('title') || n.textContent) || 'Documento';
+              arquivos.push({ url: u, titulo: t.slice(0, 150) });
+              linhas.push('- [' + t.replace(/[[\]]/g, '') + '](' + u + ')');
+            } else if (!n.closest('a')) {
+              const t = limpar(n.textContent);
+              if (!t || /^(data de cria|última atualiza|acessar página|documentos anexados|informações atualizadas)/i.test(t)) continue;
+              linhas.push(/^H[34]$/.test(n.tagName) ? '### ' + t : t);
+            }
+          }
+          return { linhas: [...new Set(linhas)], arquivos };
+        };
+        for (let id = 1; id <= maior + 3 && !ctx.parar(); id++) {
+          const url = ctx.origem + '/pagina/' + id + '/x';
+          let r; try { r = await ctx.ler(url); } catch (e) { ctx.log('página ' + id + ': ' + e.message); continue; }
+          if (r.status !== 200) continue;
+          const { m } = doc(r.html);
+          const titulo = limpar((m.querySelector('.container-titulo h1, .container-titulo h2') || {}).textContent);
+          if (!titulo || titulo.length < 3) continue;
+          const subs = [...new Set([...m.querySelectorAll('a[href*="/sub-pagina/"]')].map((a) => a.getAttribute('href')).filter((h) => /\/sub-pagina\/\d+\/$/.test(h)))];
+          const base = conteudoDe(m, r.url_final || url);
+          const blocos = [base.linhas.filter((l) => !subs.length || l.startsWith('- [')).join('\n\n')];
+          const arquivos = base.arquivos.slice();
+          for (const h of subs) {
+            if (ctx.parar()) break;
+            const su = new URL(h, url).href;
+            let rs; try { rs = await ctx.ler(su); } catch (e) { ctx.log(su.replace(ctx.origem, '') + ': ' + e.message); continue; }
+            const { m: ms } = doc(rs.html);
+            const st = limpar((ms.querySelector('.container-titulo h1, .container-titulo h2') || {}).textContent) || 'Seção';
+            if (/^\d{4}$/.test(st) && Number(st) < ctx.de) continue;   // subpágina de ano fora do período
+            const c = conteudoDe(ms, rs.url_final || su);
+            const linhas = c.linhas.filter((l) => l !== st);
+            if (!linhas.length) continue;
+            blocos.push('## ' + st + '\n\n' + linhas.join('\n\n'));
+            for (const a of c.arquivos) if (!arquivos.some((x) => x.url === a.url)) arquivos.push(a);
+          }
+          const conteudo = blocos.filter((b) => b.trim()).join('\n\n');
+          if (!conteudo.trim()) { itens.push({ url, x: { ignorar: 'Página vazia no site antigo', ano: null } }); continue; }
+          const slug = sem(titulo).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70).replace(/-+$/, '') || 'pagina-' + id;
+          itens.push({ url, x: { ano: null, chave: { slug }, registro: { titulo: titulo.slice(0, 160), slug, conteudo: conteudo.slice(0, 100000) }, arquivosTexto: arquivos } });
+        }
+        return itens;
+      }
     }
   };
 
   window.MIGRACAO_ADAPTADORES = window.MIGRACAO_ADAPTADORES || {};
   window.MIGRACAO_ADAPTADORES.plataforma_a = {
-    nome: 'Plataforma A (/legislacao, /licitacao, /contrato, /concurso, /conta-publica, /noticia)',
+    nome: 'Plataforma A (/legislacao, /licitacao, /contrato, /concurso, /conta-publica, /noticia, /ata-registro-preco, /obra, /pagina…)',
     reconhece: (html) => /\/legislacao\/|\/licitacao\/|\/conta-publica/.test(html) && /container-conteudo|_v2/.test(html),
     secoes: SECOES,
     maiorId: maiorIdDe,

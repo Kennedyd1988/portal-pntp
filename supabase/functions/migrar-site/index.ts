@@ -123,7 +123,10 @@ Deno.serve(async (req) => {
       const url = String(corpo.url ?? '');
       if (!permitido(url)) return falha('Endereço fora do site de origem.');
       await liberarSecao(new URL(url));
-      const r = await buscar(url);
+      const r = corpo.metodo === 'POST'
+        ? await buscar(url, { method: 'POST', body: String(corpo.corpo ?? ''),
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest' } })
+        : await buscar(url);
       const html = await r.text();
       return json({ ok: true, status: r.status, url_final: r.url, html });
     }
