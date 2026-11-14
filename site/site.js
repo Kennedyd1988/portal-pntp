@@ -427,6 +427,13 @@
     const chaveRota = window.chaveDaRotaPNTP(partes.join('/'));
     const chavePagina = chaveRota && (window.paiPNTP(chaveRota) || chaveRota);
     const ext = chavePagina && (S.conf.destinos || {})[chavePagina];
+    // Um só destino (link externo sem outros endereços): vai direto, sem página intermediária. Com
+    // vários endereços, a página explica cada um. replace: o "voltar" não cai de novo aqui.
+    if (ext && !window.outrosLinksPNTP(S.conf, chavePagina).length) {
+      main.replaceChildren(el('p', { class: 'limite carregando' }, 'Abrindo ', el('a', { href: ext }, ext), '…'));
+      location.replace(ext);
+      return;
+    }
     const pagina = ext ? paginaExterna(ext, chavePagina) : S.rotas[nome] || S.rotas['*'];
     main.replaceChildren(el('p', { class: 'limite carregando' }, 'Carregando…'));
     S.trilha();
