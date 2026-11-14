@@ -495,9 +495,9 @@
   }
 
   async function excluir(o) {
-    if (!await P.confirmar('Excluir obra', 'Excluir "' + o.titulo + '"? Antes, exclua a planilha, as medições e as paralisações dela. '
+    if (!await P.confirmar('Excluir obra', 'Excluir "' + o.titulo + '" com a planilha, as medições e as paralisações dela? '
       + 'O PNTP pede manter o histórico; para obra que não vai acontecer, prefira a situação "Cancelada".', 'Excluir', true)) return;
-    const { data, error } = await sb.from('obras').delete().eq('id', o.id).select('id');
+    const { data, error } = await P.excluirComPecas('obras', o.id);
     if (error) return mostrarErro(error);
     if (!data || !data.length) return toast('Seu perfil não pode excluir esta obra.', true);
     toast('Obra excluída.'); await recarregar();

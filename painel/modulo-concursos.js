@@ -173,12 +173,10 @@
   }
 
   async function excluir(c) {
-    if (!await P.confirmar('Excluir seleção', 'Excluir "' + rotulo(c) + '"? Antes, exclua o edital e os atos dela. Seleção encerrada continua na relação (PNTP 6.6 e 6.7); exclua só se foi lançada por engano.', 'Excluir', true)) return;
-    const { data: docs } = await sb.from('concursos_documentos').select('arquivo_url').eq('concurso_id', c.id);
-    const { data, error } = await sb.from('concursos').delete().eq('id', c.id).select('id');
+    if (!await P.confirmar('Excluir seleção', 'Excluir "' + rotulo(c) + '" com o edital e os atos dela? Seleção encerrada continua na relação (PNTP 6.6 e 6.7); exclua só se foi lançada por engano.', 'Excluir', true)) return;
+    const { data, error } = await P.excluirComPecas('concursos', c.id);
     if (error) return mostrarErro(error);
     if (!data || !data.length) return toast('Seu perfil não pode excluir esta seleção.', true);
-    for (const d of docs || []) P.apagarArquivo(d.arquivo_url);
     toast('Seleção excluída.'); await recarregar();
   }
 

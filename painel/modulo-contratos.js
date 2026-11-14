@@ -464,13 +464,11 @@
   }
 
   async function excluir(c) {
-    const [{ data: ad }] = await Promise.all([sb.from('contratos_aditivos').select('arquivo_url').eq('contrato_id', c.id).not('arquivo_url', 'is', null).limit(200)]);
-    if (!await P.confirmar('Excluir contrato', 'Excluir "' + rotulo(c) + '"? Antes, exclua os aditivos e os fiscais dele. O PNTP exige manter o histórico de contratos encerrados; prefira só corrigir.', 'Excluir', true)) return;
-    const { data, error } = await sb.from('contratos').delete().eq('id', c.id).select('id');
+    if (!await P.confirmar('Excluir contrato', 'Excluir "' + rotulo(c) + '" com os aditivos e os fiscais dele? O PNTP exige manter o histórico de contratos encerrados; prefira só corrigir.', 'Excluir', true)) return;
+    const { data, error } = await P.excluirComPecas('contratos', c.id);
     if (error) return mostrarErro(error);
     if (!data || !data.length) return toast('Seu perfil não pode excluir este contrato.', true);
     if (c.arquivo_url) P.apagarArquivo(c.arquivo_url);
-    for (const a of ad || []) P.apagarArquivo(a.arquivo_url);
     toast('Contrato excluído.'); await recarregar();
   }
 

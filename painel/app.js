@@ -1453,6 +1453,19 @@
     return arquivo;
   }
 
+  // Exclui o registro junto com as peças internas dele (script 37: documentos da licitação, aditivos e fiscais
+  // do contrato, planilha e medições da obra…). Registros de outros módulos ligados a ele continuam impedindo.
+  // Devolve { data, error } como o delete da Supabase. Sem o script 37, exclui só o registro.
+  async function excluirComPecas(tabela, id) {
+    const { data, error } = await sb.rpc('excluir_com_pecas', { p_tabela: tabela, p_id: id });
+    if (error) {
+      if (/excluir_com_pecas|Could not find the function|Tabela não permitida/i.test(error.message || '')) return sb.from(tabela).delete().eq('id', id).select('id');
+      if (/não pode excluir este registro/i.test(error.message || '')) return { data: [], error: null };
+      return { data: null, error };
+    }
+    for (const a of data || []) apagarArquivo(a);
+    return { data: [{ id }], error: null };
+  }
   // Registro das telas de cada módulo (preenchido pelos arquivos modulo-*.js).
   window.PNTP = {
     sb, estado, el, $, toast, msg, ocupado, erroCampo, traduzirErro, emailValido,
@@ -1460,6 +1473,6 @@
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
     campo, campoOutra, abas, externo, avisoExterno, declaracoes, declaracoesAnuais, declaracoesDoOrgao, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
-    paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf, atualizarAvisos
+    paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf, atualizarAvisos, excluirComPecas
   };
 })();

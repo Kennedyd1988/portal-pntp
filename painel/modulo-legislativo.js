@@ -88,9 +88,10 @@
     d.classList.add('dialogo-largo');
     return d;
   }
+  const PECAS_LEG = { proposicoes: 'os autores e a tramitação', sessoes: 'as presenças e as votações', comissoes: 'os membros', votacoes: 'os votos' };
   async function excluirRegistro(tabela, id, nome, arquivos) {
-    if (!await P.confirmar('Excluir', 'Excluir "' + nome + '"? Registros ligados a ele (autoria, votos, presenças…) impedem a exclusão: exclua-os antes.', 'Excluir', true)) return false;
-    const { data, error } = await sb.from(tabela).delete().eq('id', id).select('id');
+    if (!await P.confirmar('Excluir', 'Excluir "' + nome + '"' + (PECAS_LEG[tabela] ? ' com ' + PECAS_LEG[tabela] : '') + '? Registros de outras partes ligados a ele (ex.: vereador com proposições ou votos) impedem a exclusão.', 'Excluir', true)) return false;
+    const { data, error } = PECAS_LEG[tabela] ? await P.excluirComPecas(tabela, id) : await sb.from(tabela).delete().eq('id', id).select('id');
     if (error) { mostrarErro(error); return false; }
     if (!data || !data.length) { toast('Seu perfil não pode excluir este registro.', true); return false; }
     for (const a of arquivos || []) P.apagarArquivo(a);

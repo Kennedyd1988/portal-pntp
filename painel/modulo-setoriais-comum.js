@@ -181,9 +181,11 @@
     return dlg;
   }
 
+  // Registros com peças internas: saem junto (script 37). Beneficiários de renúncia continuam protegidos.
+  const COM_PECAS = ['conselhos', 'renuncias', 'saude_estabelecimentos', 'saude_medicamentos', 'despesas'];
   async function excluir(tabela, r, nome, depois, arquivos) {
     if (!await P.confirmar('Excluir', 'Excluir "' + nome + '"?', 'Excluir', true)) return false;
-    const { data, error } = await sb.from(tabela).delete().eq('id', r.id).select('id');
+    const { data, error } = COM_PECAS.includes(tabela) ? await P.excluirComPecas(tabela, r.id) : await sb.from(tabela).delete().eq('id', r.id).select('id');
     if (error) { mostrarErro(error); return false; }
     if (!data || !data.length) { toast('Seu perfil não pode excluir este registro.', true); return false; }
     for (const a of [].concat(arquivos || r.arquivo_url || [])) P.apagarArquivo(a);

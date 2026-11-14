@@ -176,6 +176,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/28_usuarios_unificados.sql` | Página única de usuários: órgãos que cada um gerencia, lista unificada sem expor vínculos de outros órgãos, trava de perfil maior, `gerencia_todos_vinculos` para a função `convidar-usuario`. Rodar depois do 27 (e de novo se rodar o 05); pode repetir |
 | `supabase/29_perfis_multiplos.sql` | Perfis adicionais por acesso (`perfis_extras`, permissões somadas, travas e gatilhos) e perfis do sistema editáveis pelo Suporte SOFT+. Rodar depois do 28 (e de novo se rodar o 01, 02, 05 ou 28); pode repetir |
 | `supabase/36_vereador_diarias_emendas.sql` | Vereador ligado às diárias da Câmara e às emendas municipais da Prefeitura do mesmo município (página do vereador e 20.11). Rodar depois do 34 e do 35; pode repetir |
+| `supabase/37_excluir_com_pecas.sql` | Excluir um registro junto com as peças internas dele (documentos, aditivos, fiscais, medições, autores, presenças…). Rodar depois do 36; pode repetir |
 | `supabase/teste_apagar_ficticios.sql` | apaga todos os dados fictícios de teste na ordem certa (desde o 26 os ligados não saem junto) e mostra o que sobrou. Para recarregar os testes: rodar este, depois licitações antes de contratos e de obras |
 | `supabase/teste_esic_ouvidoria_ficticios.sql` | opcional: canais do SIC e da Ouvidoria, relatórios de 2023 a 2026 com distribuições, 6 informações classificadas (2 desclassificadas) |
 | `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
@@ -442,6 +443,13 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.27.2 — 14/11/2026 — Excluir com as peças internas**
+- Script 37: `excluir_com_pecas(tabela, id)` (security invoker, tudo ou nada) exclui o registro e as peças internas dele;
+  devolve os arquivos das peças para o painel apagar. Vínculos entre registros de verdade (contrato → licitação, obra →
+  contrato, empenho → contrato, beneficiários de renúncia, vereador com proposições) continuam impedindo. O edital de
+  seleção publicada só sai junto com a seleção (`pntp.excluindo`). Painel: `P.excluirComPecas` (sem o 37, exclui só o
+  registro, como antes).
 
 **0.27.1 — 14/11/2026 — Proposições do vereador em abas**
 - Página do vereador: proposições de autoria em abas por tipo (com andamento) e aba de relatorias, sem o corte de 30.
