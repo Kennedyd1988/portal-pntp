@@ -531,10 +531,11 @@
   // Devolve { recarregar(manterAno), ano() }.
   function listaAno(caixa, cfg) {
     let anos = [], ano = null, itens = [], fim = false, total = 0, versao = 0;
-    const f = {};
+    const f = Object.assign({}, cfg.inicial || {});   // filtros já escolhidos ao abrir
     const termoBusca = (v) => /^[\d.\/-]+$/.test(v) ? v.replace(/\D/g, '') : P.normalizar(v).replace(/[%_]/g, '');
     const consulta = (sel, op) => {
       let q = sb.from(cfg.tabela).select(sel, op).eq('orgao_id', P.estado.orgao.id);
+      if (cfg.base) q = cfg.base(q);
       if (cfg.anos && ano !== null) q = cfg.filtroAno ? cfg.filtroAno(q, ano) : q.eq('exercicio', ano);
       for (const x of cfg.filtros || []) {
         const v = f[x.k];

@@ -80,6 +80,27 @@ construída para atender a matriz do PNTP 2026 (Atricon).
   sem abas de ano mostram "Períodos sem ocorrência". O texto é sugerido por item e período
   (`DECLARACOES_PNTP` em `site/destinos.js`) e pode ser reescrito; depois de editado, a sugestão não o troca.
 - Abas do painel seguem as abas da página do site quando o módulo corresponde a ela (mesmos nomes e ordem).
+- e-SIC e Ouvidoria: o formulário é o do sistema próprio do portal (ligado em "Como pedir" / "Como se manifestar")
+  ou o de um sistema externo (link em Destinos, partes "e-SIC: pedidos" e "Ouvidoria: manifestações"). Com link
+  externo, a fila fica desativada e os relatórios continuam manuais; ligar o sistema próprio exige tirar o link,
+  ter unidade ou setor e, no e-SIC, a autoridade do recurso.
+- Sistema próprio: sem cadastro do cidadão; protocolo `SIC-AAAA-000001`/`OUV-AAAA-000001` + código de acesso de 10
+  caracteres (mostrado uma vez; o banco guarda só o resumo; 5 erros bloqueiam o protocolo por 15 min). e-SIC exige nome
+  e CPF/CNPJ (LAI, art. 10), nunca o motivo; "identidade preservada" é opcional. Ouvidoria: só a denúncia pode ser
+  anônima, e recebe protocolo para acompanhar. Limite de 5 envios por hora da mesma origem.
+- Prazos pelo banco, em dias corridos, no próximo dia útil se cair em fim de semana, feriado nacional (com a Sexta-feira
+  Santa) ou dia cadastrado em "Feriados e dias sem expediente". LAI: 20 + 10 (uma prorrogação, antes do vencimento, com
+  justificativa ao cidadão), recurso em 10 dias e decisão em 5, nas duas instâncias; Lei 13.460: 30 + 30. Prazos
+  diferentes da norma local em "Contagem dos prazos". Na Ouvidoria o pedido de complemento para o prazo.
+- Quem vê o quê: a equipe central (órgão todo + "editar" no módulo) vê a fila inteira, encaminha, prorroga, responde e
+  decide recursos; usuário com alcance numa unidade vê só o que foi encaminhado a ela e devolve com a proposta. Os dados
+  pessoais ficam em `atendimentos_solicitantes`, sem leitura direta: só a equipe central, pela função
+  `atendimento_identificacao`, que grava cada acesso (aba "Acessos"). O histórico dessas tabelas guarda só quais campos
+  mudaram. Nada pessoal no site, na lista, no CSV/JSON nem nas estatísticas.
+- Relatórios estatísticos do sistema próprio: gerados e publicados pelo banco (mês, trimestre, semestre, ano), todo dia
+  e pelo botão "Atualizar agora"; números travados (só observação e PDF mudam). No período da troca, a equipe informa a
+  "parte do sistema anterior", que é somada. Período sem registros mostra "Não houve…" no site.
+- E-mails do atendimento entram numa fila e só saem com o SMTP próprio ligado; o código de acesso nunca vai por e-mail.
 - Bloco "Gestão" da página inicial: todos os gestores, 4 por vez, rolando um cartão por vez e emendando o
   fim no começo; "destaque na capa" só põe o gestor entre os primeiros.
 - Faixa do Radar, rodapé e página da Transparência usam o link definido em Aparência › Selos e Radar
@@ -133,6 +154,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/22_receitas_despesas_pessoal_diarias.sql` | módulos `financeiro` ("Receitas, despesas e pagamentos"), `pessoal` ("Pessoal e folha de pagamento") e `diarias` (novo, permissões copiadas de pessoal); partes novas em `secoes_setoriais`; `receitas` + `receitas_naturezas` (3.1/3.2), `divida_ativa` (3.3), `despesas` + `despesas_movimentos` (4.1 a 4.3, totais pelo banco), `ordem_cronologica` + visão `ordem_cronologica_posicoes` (9.4), `pessoal_vinculos`, `pessoal_remuneracoes`, `pessoal_cargos`, `pessoal_estagiarios`, `pessoal_terceirizados` (6.1 a 6.5), `diarias` + `diarias_valores` (7.1/7.2); funções `receitas_niveis`, `receitas_mensal`, `despesas_resumo`, `despesas_opcoes`, `anos_financeiros`; avisos `pendencias_financeiras` |
 | `supabase/23_declaracoes_inexistencia.sql` | declarações de que não há dados em todo item do PNTP com lista (`modulo_da_parte`: receitas, despesas, ordem cronológica, pessoal, diárias, concursos, convênios, emendas, licitações, PCA, sanções, contratos, fiscais, obras, planejamento por documento, renúncias, saúde, educação): `declaracoes_inexistencia` (situação atual, mês, bimestre, trimestre, quadrimestre, semestre, ano ou datas; o banco calcula início e fim), `secoes_setoriais.sem_ocorrencia` espelhada da declaração atual, migração das antigas, `partes_sem_dados` (avisos de prazo) |
 | `supabase/24_esic_ouvidoria.sql` | Fase 3 · Atendimento: módulos `esic` e `ouvidoria` (o antigo `atendimento` sai, permissões copiadas); `atendimento_canais` (unidade e responsável, endereço, telefone, e-mail, horário, formulário eletrônico, instruções, prazos, autoridades e procedimento do recurso, norma da LAI; o `esic_url`/`ouvidoria_url` de Aparência é copiado para cá), `atendimento_relatorios` + `atendimento_relatorios_itens` (12.7 e relatório da ouvidoria: totais, recursos, prazo médio, perfil dos solicitantes, tipos de manifestação, outras distribuições), `informacoes_classificadas` (12.8/12.9, prazo máximo por grau conferido pelo banco); `atendimento_anos`; avisos `pendencias_atendimento`. Antes, rodar de novo o 21 e o 23 |
+| `supabase/25_esic_ouvidoria_proprio.sql` | Fase 3 · Atendimento, parte 2: sistema próprio do e-SIC e da Ouvidoria. `atendimento_canais` ganha `sistema_proprio`, prazos em dias, anexos, pesquisa e avisos; o endereço do formulário externo (0.17.0) vai para Destinos (`esic_pedidos`, `ouvidoria_manifestacoes`); `feriados`; `atendimentos` (+ `_segredos`, `_solicitantes`, `_tramites`, `_recursos`, `_anexos`, `_acessos`, `_avaliacoes`, `_emails`, `_envios`, `_numeros`); bucket privado `atendimento`; funções do site (`registrar_atendimento`, `consultar_atendimento`, `recorrer_atendimento`, `complementar_atendimento`, `avaliar_atendimento`, `atendimento_satisfacao`), do painel (`atendimento_acao`, `atendimento_identificacao`, `atendimento_resumo`, `atendimento_emails_situacao`, `gerar_relatorios_atendimento`) e da rotina (`rotina_atendimento`, pg_cron 04:20 e e-mails a cada 15 min); `pendencias_atendimento` com a fila e o 15.6; `plataforma_config` (SMTP, endereço do site). Rodar depois do 24 |
 | `supabase/teste_esic_ouvidoria_ficticios.sql` | opcional: canais do SIC e da Ouvidoria, relatórios de 2023 a 2026 com distribuições, 6 informações classificadas (2 desclassificadas) |
 | `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
 | `supabase/teste_obras_ficticias.sql` | opcional: 4 obras fictícias (em andamento, paralisada, concluídas) com planilha, medições e paralisações |
@@ -201,6 +223,25 @@ Instalação (uma vez):
 O mapeamento PNCP → licitações existe em dois lugares (painel `modulo-licitacoes.js` e esta
 função). Mudou um, mude o outro.
 
+## Funções do e-SIC e da Ouvidoria (Supabase Edge Functions)
+
+- `supabase/functions/atendimento-arquivos/index.ts`: anexos do cidadão. O bucket `atendimento` é privado e o
+  cidadão não tem login, então a função confere protocolo + código no banco, aceita só PDF, JPG, PNG ou WEBP de até
+  10 MB (confere o começo do arquivo), grava e registra; também gera o link temporário (2 min) para baixar um anexo
+  público do protocolo. A equipe grava e lê direto pelo Storage, com as regras do script 25.
+- `supabase/functions/atendimento-emails/index.ts`: envia a fila de e-mails (`atendimentos_emails`), até 50 por vez,
+  3 tentativas por mensagem.
+
+Instalação (uma vez):
+1. Edge Functions › Deploy a new function › Via Editor › nome `atendimento-arquivos`, colar `index.ts`, Deploy,
+   **desligar "Verify JWT"**. Sem ela, o formulário funciona, mas os anexos do cidadão não são enviados (o site avisa).
+2. Para os e-mails, só quando houver SMTP próprio (Brevo, Resend…): publicar `atendimento-emails` do mesmo jeito; em
+   Edge Functions › Secrets incluir `ATENDIMENTO_CHAVE` (a chave mostrada no fim do script 25), `SMTP_HOST`,
+   `SMTP_PORT`, `SMTP_USUARIO`, `SMTP_SENHA` e `SMTP_REMETENTE`; depois, no SQL Editor:
+   `update public.plataforma_config set valor = '{"ativo": true}' where chave = 'smtp';`
+   Até isso, o painel mostra "E-mails desativados" na fila e o cidadão acompanha pela consulta do protocolo.
+3. Endereço do site nos e-mails: o domínio do órgão (`orgaos.dominio`) ou `plataforma_config.site_base` + `?orgao=CNPJ`.
+
 ## Estrutura de arquivos
 
 ```
@@ -230,7 +271,8 @@ painel/
   modulo-renuncias.js   → "Renúncias de receita" (16.1 a 16.4)
   modulo-financeiro.js  → "Receitas, despesas e pagamentos" (3.1 a 3.3, 4.1 a 4.3, 9.4)
   modulo-pessoal.js     → "Pessoal e folha de pagamento" (6.1 a 6.5) e "Diárias" (7.1 e 7.2)
-  modulo-atendimento.js → "e-SIC (acesso à informação)" (12.1 a 12.9) e "Ouvidoria" (14.1 e 14.2)
+  modulo-atendimento.js → "e-SIC (acesso à informação)" (12.1 a 12.9) e "Ouvidoria" (14.1, 14.2 e 15.6)
+  modulo-atendimento-fila.js → sistema próprio: fila, ficha do atendimento, registro no balcão, feriados e pesquisa de satisfação
   modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
@@ -240,6 +282,8 @@ supabase/               → scripts SQL, rodar em ordem
 supabase/functions/convidar-usuario/index.ts → função de servidor do convite
 supabase/functions/pncp/index.ts → ponte de consulta ao PNCP (importação de licitações)
 supabase/functions/pncp-sincronizar/index.ts → importação automática diária do PNCP
+supabase/functions/atendimento-arquivos/index.ts → anexos do cidadão no e-SIC e na Ouvidoria (bucket privado)
+supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do atendimento (com SMTP próprio)
 ```
 
 ## Controle de versões
@@ -330,14 +374,51 @@ supabase/functions/pncp-sincronizar/index.ts → importação automática diári
 - Receitas, despesas, pessoal e diárias: sem importação de arquivo até o layout ser definido (próxima etapa).
   Credor e inscrito são procurados pelo CPF/CNPJ inteiro por resumo (SHA-256), sem o site ler o número.
 
-- e-SIC e Ouvidoria: o formulário de pedidos e o de manifestações continuam em sistema externo (e-SIC
-  próprio ou Fala.BR); o portal guarda o endereço e mostra o resto. A pesquisa de satisfação (15.6) ainda não
-  tem cadastro próprio.
+- e-SIC e Ouvidoria (sistema próprio): sem SMTP próprio, nenhum e-mail sai (ficam na fila). Os anexos do cidadão
+  dependem da função `atendimento-arquivos` publicada. Sem captcha: a proteção contra robôs é o campo-isca e o
+  limite de envios por origem. Os pedidos e as respostas não são publicados como dados abertos (só as estatísticas).
+- Teste local sem o Storage da Supabase: o envio e o download de anexos foram testados com um simulador; conferir no
+  projeto real depois de publicar a função.
 
 - Excluir um órgão ou o login de uma pessoa apaga os vínculos em cascata, mesmo que
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.18.0 — 14/11/2026 — Fase 3 · Atendimento, parte 2: e-SIC e Ouvidoria próprios (12.1 a 12.9, 14.1, 14.2, 15.6)**
+- Site: e-SIC com as abas Fazer pedido e Acompanhar pedido; Ouvidoria com Registrar manifestação, Acompanhar e
+  Pesquisa de satisfação. Formulários sem cadastro, comprovante com protocolo e código de acesso (imprimir ou copiar),
+  consulta com situação, prazo, resposta, recursos, anexos e andamento; recurso de 1ª e 2ª instância (inclusive por
+  falta de resposta), resposta a pedido de complemento e avaliação, tudo pelo protocolo + código.
+- Painel: abas Pedidos (e-SIC) e Manifestações (Ouvidoria) com resumo (em análise, a vencer, vencidos, recursos,
+  aguardando), filtros (situação, prazo, tipo, unidade, ano, pesquisa) e CSV/JSON sem dados pessoais; ficha com
+  Atendimento, Responder e encaminhar, Andamento, Recursos, Anexos, Identificação e Acessos; registro no balcão; aba
+  Pesquisa de satisfação (resultados e comentários); cartão "Feriados e dias sem expediente".
+- Escolha por órgão: "Receber pelo formulário do próprio portal" em Como pedir / Como se manifestar; quem usa o
+  Fala.BR continua igual (o endereço foi para Aparência › Destinos das páginas, partes novas "e-SIC: pedidos",
+  "Ouvidoria: manifestações" e "Ouvidoria: pesquisa de satisfação", que desativam a aba correspondente).
+- Relatórios estatísticos automáticos (12.7 e Ouvidoria) com o sistema próprio; relatórios manuais continuam para
+  quem fica no sistema externo e para os períodos anteriores.
+- Avisos de prazo: pedidos/manifestações vencidos ou a vencer, recursos aguardando ou vencidos, 12.3/14.2 aceitam
+  sistema próprio ou link externo, 15.6 (pesquisa de satisfação).
+- Núcleo do painel: `el()` aceita listas aninhadas; `listaAno` aceita filtros iniciais (`inicial`) e consulta base (`base`).
+- Banco: script 25 (rodar depois do 24; pode repetir) e duas funções novas (ver "Funções do e-SIC e da Ouvidoria").
+  Testado no PostgreSQL local (banco novo com os dados fictícios + duas execuções; administrador, atendente do SIC,
+  cadastrador com alcance numa unidade e visitante: visitante sem leitura de nenhuma tabela do atendimento; unidade sem
+  identificação e só com o que foi encaminhado; bloqueio após 5 códigos errados; prorrogação única; motivo obrigatório
+  na negativa; recursos nas duas instâncias; rotina diária com avisos de vencimento; relatório da troca somando a parte
+  manual) e no navegador com PostgREST local (Fala.BR migrado, ligar o sistema, pedido com anexo, denúncia anônima,
+  encaminhar, devolver pela unidade, responder, recorrer, avaliar, relatórios e pesquisa no site e no painel).
+- Varredura PNTP (Cartilha/Matriz 2026):
+  - 12.1, 12.2, 12.5 e 12.6 seguem como na 0.17.0. 12.3 atende com o formulário do portal (ou o link externo). 12.4:
+    pedido simples, sem cadastro, sem documentos, firma, declaração, maioridade ou motivo; só nome e CPF/CNPJ (LAI,
+    art. 10), com a opção de identidade preservada. 12.7 atende com o relatório anual automático (recebidos, atendidos,
+    indeferidos e perfil genérico dos solicitantes), série histórica e CSV/JSON. 12.8 e 12.9 sem mudança.
+  - 14.1 sem mudança; 14.2 atende com o canal do portal (ou link externo), com denúncia anônima e identidade protegida.
+    14.3 (Carta de Serviços) sem mudança.
+  - 15.6 (obrigatório: realiza e divulga pesquisas de satisfação): atende com a pesquisa depois da resposta e os
+    resultados por ano no site (nota média, % resolvido, distribuição e CSV/JSON), ou com o link do sistema externo.
+- Rodar o script 25 e publicar a função `atendimento-arquivos`.
 
 **0.17.0 — 13/11/2026 — Fase 3 · Atendimento: e-SIC (12.1 a 12.9) e Ouvidoria (14.1 e 14.2)**
 - e-SIC e Ouvidoria deixam de ser só um link: páginas próprias no site, com as mesmas abas no painel.

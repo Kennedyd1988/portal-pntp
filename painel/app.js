@@ -57,7 +57,7 @@
       else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
       else e.setAttribute(k, v === true ? '' : v);
     }
-    for (const f of filhos.flat()) {
+    for (const f of filhos.flat(Infinity)) {
       if (f === null || f === undefined || f === false) continue;
       e.append(f instanceof Node ? f : document.createTextNode(String(f)));
     }

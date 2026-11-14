@@ -1241,12 +1241,12 @@
       ['Contratos', 'contrato', [L('Contratos e termos aditivos', '9.1–9.2', '#/contratos'), L('Fiscais de contratos', '9.3', '#/contratos/fiscais'), L('Ordem cronológica de pagamentos', '9.4', '#/ordem-cronologica')]],
       ['Obras', 'obra', [L('Obras e situação atual', '10.1', '#/obras'), L('Quantitativos e preços', '10.2–10.3', '#/obras'), L('Obras paralisadas', '10.4', '#/obras/paralisadas')]],
       ['Planejamento e prestação de contas', 'grafico', plan],
-      ['Serviço de Informação ao Cidadão', 'chat', [L('SIC: unidade, endereço e horário', '12.1–12.2', '#/esic/como-pedir'), L('e-SIC: fazer pedido', '12.3–12.4', '#/esic/como-pedir'),
+      ['Serviço de Informação ao Cidadão', 'chat', [L('SIC: unidade, endereço e horário', '12.1–12.2', '#/esic/como-pedir'), L('e-SIC: fazer pedido', '12.3–12.4', '#/esic/pedir'), L('e-SIC: acompanhar pedido e recorrer', '', '#/esic/acompanhar'),
         L('Regulamentação da LAI', '12.5', '#/esic/como-pedir'), L('Prazos e recursos', '12.6', '#/esic/prazos'), L('Relatório estatístico anual', '12.7', '#/esic/relatorios'),
         L('Informações classificadas', '12.8', '#/esic/classificadas'), L('Informações desclassificadas', '12.9', '#/esic/desclassificadas')]],
-      ['Ouvidoria e serviços', 'ouvido', [L('Ouvidoria: atendimento presencial', '14.1', '#/ouvidoria/como-manifestar'), L('Ouvidoria: canal eletrônico', '14.2', '#/ouvidoria/como-manifestar'),
+      ['Ouvidoria e serviços', 'ouvido', [L('Ouvidoria: atendimento presencial', '14.1', '#/ouvidoria/como-manifestar'), L('Ouvidoria: canal eletrônico', '14.2', '#/ouvidoria/manifestar'), L('Ouvidoria: acompanhar manifestação', '', '#/ouvidoria/acompanhar'),
         L('Ouvidoria: relatórios estatísticos', '', '#/ouvidoria/relatorios'),
-        L('Carta de Serviços ao Usuário', '14.3', '#/servicos'), L('Serviços on-line', '15.3', '#/servicos-online'), L('Pesquisa de satisfação', '15.6', '#/ouvidoria')]],
+        L('Carta de Serviços ao Usuário', '14.3', '#/servicos'), L('Serviços on-line', '15.3', '#/servicos-online'), L('Pesquisa de satisfação', '15.6', '#/ouvidoria/satisfacao')]],
       ['Privacidade e dados abertos', 'lock', [L('Encarregado de dados (LGPD)', '15.1', '#/lgpd'), L('Política de privacidade', '15.2', '#/lgpd'), L('Dados abertos e API', '15.4', '#/dados-abertos'), L('Regulamentação do Governo Digital', '15.5', '#/lgpd')]]
     ];
     if (exec) {

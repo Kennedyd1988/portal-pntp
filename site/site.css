@@ -571,3 +571,47 @@ html.contraste .faixa-radar h2, html.contraste .faixa-radar-textos { color: #ffe
 /* e-SIC e Ouvidoria */
 .grade-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .destaque-acao { border-left: 4px solid var(--cor); }
+
+/* ---------- e-SIC e Ouvidoria: formulários, comprovante e consulta (0.18.0) ---------- */
+.grade-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+form.form-atend:not(.cartao) { max-width: 860px; }
+.form-atend .grade { gap: 0 18px; }
+.grupo-atend { border: 1px solid var(--linha); border-radius: 10px; padding: 14px 18px 4px; margin: 0 0 18px; }
+.grupo-atend legend { font-weight: 800; padding: 0 6px; }
+details.grupo-atend { padding-bottom: 14px; }
+details.grupo-atend summary { cursor: pointer; font-weight: 800; }
+.campo-atend { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.campo-atend label { font-weight: 700; }
+.campo-atend input[type=text], .campo-atend input[type=email], .campo-atend input[type=tel], .campo-atend select, .campo-atend textarea {
+  border: 1px solid var(--linha); border-radius: 8px; padding: 10px 12px; font: inherit; background: #fff; color: var(--texto); width: 100%; box-sizing: border-box; }
+.campo-atend input[type=text], .campo-atend input[type=email], .campo-atend input[type=tel], .campo-atend select { height: 44px; }
+.campo-atend textarea { resize: vertical; min-height: 110px; }
+.campo-atend input[type=file] { font: inherit; margin-top: 6px; display: block; font-weight: 400; }
+.campo-botao { justify-content: flex-end; }
+.ajuda-atend { font-size: .88rem; color: var(--texto-suave, #555); }
+.obrig { color: #b42318; }
+.radios-atend { display: grid; gap: 8px; margin-bottom: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.radio-atend { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--linha); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
+.radio-atend:has(input:checked) { border-color: var(--cor, #0b3f9c); background: var(--cor-clara); }
+.radio-atend input { margin-top: 4px; }
+.check-atend { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 14px; }
+.check-atend input { margin-top: 5px; }
+.notas-atend { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.notas-atend label { display: flex; align-items: center; gap: 6px; border: 1px solid var(--linha); border-radius: 8px; padding: 8px 14px; cursor: pointer; font-weight: 700; }
+.isca-atend { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.msg-erro-atend { background: #fdeaea; border: 1px solid #f2b8b8; color: #8f2626; padding: 10px 14px; border-radius: 8px; font-weight: 700; }
+.msg-aviso-atend { background: #fff4dc; border: 1px solid #f0d49a; color: #5c3d00; padding: 10px 14px; border-radius: 8px; }
+.codigo-atend { font-family: ui-monospace, Consolas, monospace; font-size: 1.25em; letter-spacing: .06em; }
+.acoes-atend { display: flex; gap: 10px; flex-wrap: wrap; }
+.andamento-atend { list-style: none; padding: 0; margin: 0; border-left: 3px solid var(--linha); }
+.andamento-atend li { padding: 4px 0 12px 14px; position: relative; }
+.andamento-atend li::before { content: ''; position: absolute; left: -7.5px; top: 9px; width: 12px; height: 12px; border-radius: 50%; background: var(--cor, #0b3f9c); }
+.recurso-atend { border-top: 1px solid var(--linha); padding-top: 8px; margin-top: 8px; }
+.link-botao { background: none; border: 0; padding: 0; color: var(--cor-escura, #0a3c95); text-decoration: underline; cursor: pointer; font: inherit; }
+.nota-sistema { border-left: 3px solid var(--linha); padding-left: 10px; }
+html.contraste .campo-atend input, html.contraste .campo-atend select, html.contraste .campo-atend textarea, html.contraste .radio-atend, html.contraste .grupo-atend {
+  background: #000 !important; color: #fff !important; border-color: #ffe600 !important; }
+@media print {
+  .comprovante-atend .sem-impressao, .faixa-abas, .abas, .trilha { display: none !important; }
+  .comprovante-atend { border: 2px solid #000; }
+}

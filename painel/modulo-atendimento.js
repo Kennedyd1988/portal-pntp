@@ -1,13 +1,16 @@
 // =====================================================================
 // Módulos "e-SIC (acesso à informação)" (PNTP 12.1 a 12.9) e "Ouvidoria"
-// (14.1 e 14.2). Abas iguais às da página do site:
-//   e-SIC: Como pedir (12.1 a 12.5) · Prazos e recursos (12.6) ·
+// (14.1, 14.2 e 15.6). Abas iguais às da página do site (no site, "Fazer
+// pedido" e "Acompanhar" são duas abas; aqui, a fila "Pedidos"):
+//   e-SIC: Como pedir (12.1 a 12.5) · Pedidos · Prazos e recursos (12.6) ·
 //          Relatórios estatísticos (12.7) · Informações classificadas
 //          (12.8) · Informações desclassificadas (12.9)
-//   Ouvidoria: Como se manifestar (14.1, 14.2) · Relatórios estatísticos
-// O formulário eletrônico (e-SIC próprio, Fala.BR, sistema da ouvidoria)
-// continua fora do portal: aqui fica o endereço dele. Página ou parte com
-// link externo em Aparência › Destinos das páginas desativa o cadastro.
+//   Ouvidoria: Como se manifestar (14.1, 14.2) · Manifestações ·
+//          Relatórios estatísticos · Pesquisa de satisfação (15.6)
+// Formulário: sistema próprio do portal (ligado em "Como pedir" / "Como se
+// manifestar") ou sistema externo (link em Aparência › Destinos das páginas,
+// partes "e-SIC: pedidos" e "Ouvidoria: manifestações", que desativa a fila).
+// A fila, a ficha e o registro no balcão estão em modulo-atendimento-fila.js.
 // =====================================================================
 (function () {
   'use strict';
@@ -84,6 +87,10 @@
     unidades = u.data || [];
     normas = n.data || [];
   }
+  async function carregarOutro(canal) {
+    const { data } = await sb.from('atendimento_canais').select('*').eq('orgao_id', org()).eq('canal', canal).maybeSingle();
+    canais[canal] = data || { canal };
+  }
   const nomeAto = (n) => ({ decreto: 'Decreto', lei: 'Lei', lei_complementar: 'Lei Complementar', portaria: 'Portaria', resolucao: 'Resolução' }[n.tipo] || n.tipo) +
     (n.numero ? ' nº ' + n.numero : '') + '/' + n.ano;
 
@@ -95,13 +102,15 @@
     const itens = canal === 'esic' ? [
       ['12.1', 'Unidade ou setor responsável pelo SIC', !!(c.unidade_id || c.setor)],
       ['12.2', 'Endereço, telefone, e-mail e horário do SIC', tem('endereco', 'endereco') && tem('telefone', 'telefone') && tem('email', 'email') && tem('horario', 'horario_atendimento')],
-      ['12.3', 'Formulário eletrônico de pedidos (e-SIC ou Fala.BR)', !!c.canal_url],
+      ['12.3', 'Formulário eletrônico de pedidos (sistema próprio ligado ou link externo em Destinos)', !!(c.sistema_proprio || P.externo('esic_pedidos'))],
       ['12.4', 'Instruções: pedido simples, sem exigências que dificultem', !!c.instrucoes],
       ['12.5', 'Norma local que regulamenta a LAI', !!(c.norma_publicacao || c.norma_texto)],
       ['12.6', 'Prazos, autoridades e procedimento do recurso (aba "Prazos e recursos")', !!(c.prazo_resposta && c.prazo_recurso && c.autoridade_recurso_1 && c.procedimento_recurso)]
     ] : [
       ['14.1', 'Atendimento presencial: endereço, telefone e horário', tem('endereco', 'endereco') && tem('telefone', 'telefone') && tem('horario', 'horario_atendimento')],
-      ['14.2', 'Canal eletrônico de manifestações', !!c.canal_url],
+      ['14.2', 'Canal eletrônico de manifestações (sistema próprio ligado ou link externo em Destinos)', !!(c.sistema_proprio || P.externo('ouvidoria_manifestacoes'))],
+      ['15.6', 'Pesquisa de satisfação (sistema próprio com a pesquisa ligada ou link externo)', !!((c.sistema_proprio && c.pesquisa_satisfacao) ||
+        ((canais.esic || {}).sistema_proprio && (canais.esic || {}).pesquisa_satisfacao) || P.externo('ouvidoria_satisfacao'))],
       ['—', 'Instruções e tipos de manifestação', !!c.instrucoes],
       ['—', 'Prazo de resposta (Lei 13.460/2017, art. 16)', !!c.prazo_resposta]
     ];
@@ -198,6 +207,24 @@
   // COMO PEDIR (12.1 a 12.5) · COMO SE MANIFESTAR (14.1, 14.2)
   // ===================================================================
   function comoPedir(caixa, canal) {
+    // Situação do formulário: sistema externo (Destinos), sistema próprio ligado ou desligado.
+    let caixaSistema = null, mapaSistema = null;
+    const situacaoSistema = (mapa) => { mapaSistema = mapa; caixaSistema = el('div', null, desenharSistema(mapa)); return caixaSistema; };
+    const desenharSistema = (mapa) => {
+      const c = canais[canal] || {};
+      const ext = P.externo(canal === 'esic' ? 'esic_pedidos' : 'ouvidoria_manifestacoes');
+      const nome = canal === 'esic' ? '"e-SIC: pedidos"' : '"Ouvidoria: manifestações"';
+      const aba = canal === 'esic' ? '"Pedidos"' : '"Manifestações"';
+      const lugar = P.estado.permissoes.aparencia && P.estado.permissoes.aparencia.ver ? el('a', { href: '#/m/aparencia?aba=destinos' }, 'Aparência › Destinos das páginas') : el('strong', null, 'Aparência › Destinos das páginas');
+      if (ext) {
+        if (mapa.sistema_proprio) mapa.sistema_proprio.input.disabled = true;
+        return el('div', { class: 'msg msg-info' }, el('p', null, 'Hoje o formulário é o do sistema externo: ', el('a', { href: ext.url, target: '_blank', rel: 'noopener' }, ext.url), ' (', lugar, ', linha ' + nome + ').'),
+          el('p', null, 'Para passar a usar o sistema próprio: escolha "Página do portal" nessa linha, volte aqui, marque a caixa e salve. Os ' + (canal === 'esic' ? 'pedidos' : 'registros') + ' antigos continuam no sistema externo; os relatórios do período anterior continuam os que foram digitados.'));
+      }
+      if (c.sistema_proprio) return el('p', { class: 'msg msg-ok' }, 'Sistema próprio ligado desde ' + P.dataBR(c.sistema_desde) + '. O site recebe ' + (canal === 'esic' ? 'os pedidos na aba "Fazer pedido"' : 'as manifestações na aba "Registrar manifestação"') +
+        ' e a fila fica na aba ' + aba + '. Os relatórios estatísticos são gerados e publicados sozinhos desde essa data. Desligar não apaga nada: só deixa de receber pelo site.');
+      return el('p', { class: 'msg msg-info' }, 'Para ligar: informe a unidade ou o setor responsável (no alto)' + (canal === 'esic' ? ' e a autoridade que decide o recurso (aba "Prazos e recursos")' : '') + ', marque a caixa e salve.');
+    };
     const sit = el('div');
     const redesenhar = () => sit.replaceChildren(situacaoPNTP(canal));
     redesenhar();
@@ -213,18 +240,26 @@
         [{ k: 'telefone', r: 'Telefone', t: 'text', max: 80 }, { k: 'email', r: 'E-mail', t: 'text', max: 160 }],
         { k: 'horario', r: 'Horário de funcionamento', t: 'text', max: 200, ph: 'Ex.: segunda a sexta, das 7h às 13h' }], copiarDaUnidade],
       [esic ? 'Pedido pela internet (12.3 e 12.4)' : 'Canal eletrônico (14.2)', esic
-        ? 'Endereço do formulário do e-SIC (sistema próprio ou Fala.BR). O link deve levar direto ao formulário do pedido; o formulário não pode exigir documentos, firma, declaração ou maioridade, nem pedir o motivo do pedido.'
-        : 'Endereço do formulário da Ouvidoria (sistema próprio ou Fala.BR). Ele deve receber reclamação, denúncia, sugestão, elogio e solicitação; não se confunde com o e-SIC.', [
-        { k: 'canal_url', r: esic ? 'Endereço do formulário de pedidos' : 'Endereço do formulário de manifestações', t: 'url', ph: 'https://…' },
+        ? 'O formulário pode ser o do próprio portal (sem cadastro do cidadão, com protocolo, código de acesso, prazos, recursos e estatísticas automáticas) ou o de um sistema externo (Fala.BR, e-SIC do estado…), informado em Aparência › Destinos das páginas.'
+        : 'O canal pode ser o do próprio portal (sem cadastro, com denúncia anônima, protocolo, prazos e estatísticas automáticas) ou o de um sistema externo, informado em Aparência › Destinos das páginas.', [
+        { k: 'sistema_proprio', r: esic ? 'Receber os pedidos pelo formulário do próprio portal (sistema próprio)' : 'Receber as manifestações pelo formulário do próprio portal (sistema próprio)', t: 'bool' },
+        [{ k: 'aceita_anexos', r: 'Aceitar anexos do cidadão (até 3 por envio, PDF ou imagem, 10 MB)', t: 'bool' },
+          { k: 'pesquisa_satisfacao', r: 'Pesquisa de satisfação depois da resposta (PNTP 15.6)', t: 'bool' }],
+        [{ k: 'aviso_dias', r: 'Avisar quantos dias antes do vencimento', t: 'int', min: 1, maxv: 30, padrao: 5 },
+          { k: 'emails_equipe', r: 'Outros e-mails da equipe (avisos), separados por vírgula', t: 'text', max: 500, ph: 'Ex.: ouvidor@…, apoio@…' }],
         { k: 'outros_canais', r: 'Outras formas', t: 'area', max: 1000, linhas: 2, ph: esic ? 'Ex.: carta entregue no SIC' : 'Ex.: WhatsApp (84) 9…, urna na recepção' },
         { k: 'instrucoes', r: esic ? 'Como fazer o pedido (aparece no site)' : 'Como se manifestar (aparece no site)', t: 'texto', linhas: 12 }].concat(esic ? [] : [
-        { k: 'prazo_resposta', r: 'Prazo de resposta', t: 'area', max: 500, linhas: 2 }])],
+        { k: 'prazo_resposta', r: 'Prazo de resposta (texto do site)', t: 'area', max: 500, linhas: 2 },
+        [{ k: 'dias_resposta', r: 'Prazo em dias (contagem do sistema)', t: 'int', min: 1, maxv: 90, aj: 'Em branco: 30 dias (Lei 13.460/2017, art. 16).' },
+          { k: 'dias_prorrogacao', r: 'Prorrogação em dias', t: 'int', min: 0, maxv: 90, aj: 'Em branco: mais 30 dias.' }]]), situacaoSistema],
       [esic ? 'Regulamentação da LAI (12.5)' : 'Norma da Ouvidoria (opcional)', esic
         ? 'Norma do órgão que regulamenta a Lei 12.527/2011. Se ela estiver em "Publicações oficiais", escolha na lista; senão, informe o nome e o link.'
         : 'Lei ou decreto que cria a Ouvidoria ou regulamenta a Lei 13.460/2017 no órgão.', [
         { k: 'norma_publicacao', r: 'Publicação cadastrada', t: 'norma' },
         [{ k: 'norma_texto', r: 'Ou identificação da norma', t: 'text', max: 200, ph: 'Ex.: Decreto nº 45/2013' }, { k: 'norma_url', r: 'Link da norma', t: 'url' }]]]
-    ], redesenhar);
+    ], () => { redesenhar(); recarregarAbas(); if (caixaSistema) caixaSistema.replaceChildren(desenharSistema(mapaSistema)); });
+    if (canal === 'ouvidoria') caixa.append(P.atendimento.feriados(perm));
+    return caixa;
   }
 
   // ===================================================================
@@ -239,8 +274,13 @@
       ['Autoridades e procedimento', null, [
         [{ k: 'autoridade_recurso_1', r: 'Autoridade que decide o recurso (1ª instância)', t: 'text', max: 300, ph: 'Ex.: Controlador-Geral do Município' },
           { k: 'autoridade_recurso_2', r: 'Autoridade de 2ª instância', t: 'text', max: 300, ph: 'Ex.: Prefeito Municipal' }],
-        { k: 'procedimento_recurso', r: 'Como recorrer (aparece no site)', t: 'texto', linhas: 8 }]]
-    ]);
+        { k: 'procedimento_recurso', r: 'Como recorrer (aparece no site)', t: 'texto', linhas: 8 }]],
+      ['Contagem dos prazos no sistema próprio', 'Em branco, vale o prazo da LAI. Mude só se a norma local for diferente (e ajuste os textos acima para dizer o mesmo).', [
+        [{ k: 'dias_resposta', r: 'Resposta (dias)', t: 'int', min: 1, maxv: 90, aj: 'LAI: 20.' }, { k: 'dias_prorrogacao', r: 'Prorrogação (dias)', t: 'int', min: 0, maxv: 90, aj: 'LAI: 10.' }],
+        [{ k: 'dias_recurso', r: 'Para recorrer (dias)', t: 'int', min: 1, maxv: 60, aj: 'LAI: 10.' }, { k: 'dias_decisao_recurso', r: 'Decisão do recurso (dias)', t: 'int', min: 1, maxv: 60, aj: 'LAI: 5.' }],
+        [{ k: 'dias_recurso_2', r: 'Para recorrer em 2ª instância (dias)', t: 'int', min: 1, maxv: 60, aj: 'Em branco: o mesmo da 1ª.' },
+          { k: 'dias_decisao_recurso_2', r: 'Decisão em 2ª instância (dias)', t: 'int', min: 1, maxv: 60, aj: 'Em branco: o mesmo da 1ª.' }]]]
+    ]).append(P.atendimento.feriados(perm)) || caixa;
   }
 
   // ===================================================================
@@ -295,7 +335,21 @@
         return null;
       } });
     const parte = canal + '_relatorios';
-    caixa.append(S.secao(parte, perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true) }),
+    const c = canais[canal] || {};
+    const proprio = c.sistema_proprio && !P.externo(canal === 'esic' ? 'esic_pedidos' : 'ouvidoria_manifestacoes');
+    const btnGerar = el('button', { type: 'button', class: 'btn btn-claro' }, 'Atualizar agora');
+    btnGerar.addEventListener('click', async () => {
+      ocupado(btnGerar, 'Atualizando…');
+      const { data, error } = await sb.rpc('gerar_relatorios_atendimento', { p_orgao: org(), p_canal: canal });
+      ocupado(btnGerar);
+      if (error) { S.mostrarErro(error); return; }
+      toast(data ? data + ' relatório(s) atualizado(s).' : 'Os relatórios já estavam em dia.');
+      lst.recarregar(true);
+    });
+    caixa.append(proprio ? el('div', { class: 'msg msg-ok' }, el('p', null, 'Sistema próprio ligado desde ' + P.dataBR(c.sistema_desde) + ': os relatórios de mês, trimestre, semestre e ano são gerados e publicados pelo banco a partir da fila, todo dia de madrugada (o período em curso aparece como parcial). Só a observação e o relatório completo em PDF podem ser editados.'),
+        pode() ? el('p', null, btnGerar) : null,
+        el('p', { class: 'ajuda' }, 'No período em que o sistema começou, abra o relatório e informe em "Parte do sistema anterior" os números de antes da troca: eles são somados aos do portal. Os relatórios dos períodos anteriores continuam manuais.')) : null,
+      S.secao(parte, perm, { aoMudarDeclaracao: () => lst && lst.recarregar(true) }),
       el('p', { class: 'ajuda' }, esic
         ? 'PNTP 12.7: relatório anual com os pedidos recebidos, atendidos e indeferidos e informações genéricas dos solicitantes; o site mostra o último exercício encerrado e os 3 anteriores. Relatórios de semestre, trimestre ou mês são opcionais.'
         : 'Lei 13.460/2017, arts. 14 e 15: relatório anual de gestão da Ouvidoria, com o número de manifestações recebidas, os tipos e as respostas.'));
@@ -303,10 +357,63 @@
       anos: async () => { const { data, error } = await sb.rpc('atendimento_anos', { p_orgao: org(), p_parte: parte }); if (error) throw error; return data || []; },
       filtroAno: (q, ano) => q.eq('canal', canal).eq('exercicio', ano),
       botoes: () => pode() ? [el('button', { type: 'button', class: 'btn btn-primario', onclick: () => abrir() }, '+ Incluir relatório')] : [],
-      colunas: [['Período', (r) => dois(el('strong', null, periodoRel(r)), r.observacao)], ['Recebidos', (r) => n(r.recebidos), 'num'],
+      colunas: [['Período', (r) => dois(el('strong', null, periodoRel(r)), r.origem === 'sistema' ? 'Gerado pelo sistema' + (r.parcial ? ' · parcial (em curso)' : '') + (r.parcela_manual ? ' · com a parte do sistema anterior' : '') : r.observacao)],
+        ['Recebidos', (r) => n(r.recebidos), 'num'],
         [esic ? 'Atendidos' : 'Respondidas', (r) => n(r.atendidos), 'num'], [esic ? 'Indeferidos' : 'Arquivadas', (r) => n(r.indeferidos), 'num'],
         ['Prazo médio', (r) => r.prazo_medio_dias !== null ? S.numBR(r.prazo_medio_dias) + ' dias' : '—', 'num'], ['Situação', (r) => S.etiquetaSituacao(r.situacao)]],
-      acoes: (l) => [S.botao(pode() ? 'Editar' : 'Ver', () => abrir(l)), pode() && perm.excluir ? S.botao('Excluir', () => S.excluir('atendimento_relatorios', l, periodoRel(l), () => lst.recarregar(true)), true) : null] });
+      acoes: (l) => l.origem === 'sistema' ? [S.botao(pode() ? 'Editar' : 'Ver', () => abrirSistema(l))]
+        : [S.botao(pode() ? 'Editar' : 'Ver', () => abrir(l)), pode() && perm.excluir ? S.botao('Excluir', () => S.excluir('atendimento_relatorios', l, periodoRel(l), () => lst.recarregar(true)), true) : null] });
+
+    // Relatório do sistema: números travados; observação, PDF e, no período da troca, a parte do sistema anterior.
+    function abrirSistema(r) {
+      const pre = 'rs' + (++seq) + '-';
+      const antes = r.data_inicio < c.sistema_desde;
+      const pm = r.parcela_manual || {};
+      const campos = (esic ? [['recebidos', 'Recebidos'], ['atendidos', 'Atendidos'], ['parciais', 'Parcialmente atendidos'], ['indeferidos', 'Indeferidos'], ['em_andamento', 'Em andamento'],
+        ['outros', 'Outros'], ['recursos_1', 'Recursos 1ª instância'], ['recursos_2', 'Recursos 2ª instância'], ['pessoas_fisicas', 'Pessoas físicas'], ['pessoas_juridicas', 'Pessoas jurídicas'],
+        ['sexo_feminino', 'Feminino'], ['sexo_masculino', 'Masculino'], ['sexo_nao_informado', 'Sexo não informado']]
+        : [['recebidos', 'Recebidas'], ['atendidos', 'Respondidas'], ['indeferidos', 'Arquivadas'], ['em_andamento', 'Em andamento'], ['outros', 'Outras'],
+          ['reclamacoes', 'Reclamações'], ['denuncias', 'Denúncias'], ['sugestoes', 'Sugestões'], ['elogios', 'Elogios'], ['solicitacoes', 'Solicitações'], ['simplifique', 'Simplificação']]);
+      const entradas = {};
+      const obs = el('textarea', { rows: 3, maxlength: 4000 }); obs.value = r.observacao || '';
+      const link = el('input', { type: 'url', value: r.link_externo || '', placeholder: 'https://… (relatório completo, opcional)' });
+      const pdf = el('input', { type: 'file', accept: 'application/pdf' });
+      const pmPrazo = el('input', { type: 'text', inputmode: 'decimal', value: pm.prazo_medio_dias !== undefined ? String(pm.prazo_medio_dias).replace('.', ',') : '' });
+      const tabelaNum = el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' }, el('thead', null, el('tr', null, el('th', null, 'Item'), el('th', { class: 'num' }, 'Total publicado'),
+        antes ? el('th', { class: 'num' }, 'Parte do sistema anterior') : null)), el('tbody', null, campos.map(([k, rot]) => {
+        const i = antes ? el('input', { type: 'number', min: 0, step: 1, value: pm[k] !== undefined ? pm[k] : '', style: 'width:110px', 'aria-label': rot + ' — sistema anterior' }) : null;
+        entradas[k] = i;
+        return el('tr', null, el('td', null, rot), el('td', { class: 'num' }, n(r[k])), antes ? el('td', { class: 'num' }, i) : null);
+      }))));
+      const corpo = el('form', { class: 'form-dialogo', novalidate: true, onsubmit: (e) => e.preventDefault() },
+        el('p', { class: 'msg msg-info' }, 'Gerado pelo sistema a partir da fila' + (r.parcial ? ' (período em curso, parcial)' : '') + '. Os números não podem ser digitados.'),
+        antes ? el('p', { class: 'ajuda' }, 'Este período começou antes do sistema próprio (' + P.dataBR(c.sistema_desde) + '). Informe na última coluna os números do sistema usado antes: eles são somados aos do portal e o total publicado é refeito ao salvar.') : null,
+        tabelaNum, antes ? campo(pre + 'pm', 'Prazo médio do sistema anterior (dias)', pmPrazo) : null,
+        campo(pre + 'obs', 'Observação (aparece no site)', obs), el('div', { class: 'grade-campos' }, campo(pre + 'pdf', 'Relatório completo em PDF (opcional)', pdf), campo(pre + 'lk', 'ou link', link)));
+      if (!pode()) for (const i of corpo.querySelectorAll('input, textarea')) i.disabled = true;
+      const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
+      const dlg = P.abrirDialogo('Relatório · ' + periodoRel(r), corpo, [el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, pode() ? 'Cancelar' : 'Fechar')].concat(pode() ? [btn] : []));
+      dlg.classList.add('dialogo-largo');
+      btn.addEventListener('click', async () => {
+        const dados = { observacao: obs.value.trim() || null, link_externo: link.value.trim() || null };
+        if (dados.link_externo && !P.urlValida(dados.link_externo)) { P.erroCampo(pre + 'lk', 'Endereço completo, começando com https://'); return; }
+        if (antes) {
+          const parc = {};
+          for (const [k] of campos) { const v = entradas[k].value; if (v !== '') { const x = parseInt(v, 10); if (Number.isNaN(x) || x < 0) { toast('Número inválido em "' + campos.find((y) => y[0] === k)[1] + '".', true); return; } parc[k] = x; } }
+          const pz = S.lerNumero(pmPrazo.value);
+          if (pz !== null && !Number.isNaN(pz)) parc.prazo_medio_dias = pz;
+          dados.parcela_manual = Object.keys(parc).length ? parc : null;
+        }
+        ocupado(btn, 'Salvando…');
+        try {
+          if (pdf.files[0]) { P.validarPdf(pdf.files[0]); dados.arquivo_url = await P.enviarArquivo(canal, pdf.files[0], 'pdf', 'application/pdf'); }
+          const { error } = await sb.from('atendimento_relatorios').update(dados).eq('id', r.id);
+          if (error) throw error;
+          if (antes) { const g = await sb.rpc('gerar_relatorios_atendimento', { p_orgao: org(), p_canal: canal }); if (g.error) throw g.error; }
+          dlg.close(); toast('Salvo.'); lst.recarregar(true);
+        } catch (e) { S.mostrarErro(e); } finally { ocupado(btn); }
+      });
+    }
     return caixa;
   }
 
@@ -376,22 +483,31 @@
   async function iniciar(c, mod, p, canal, abas, sub) {
     perm = p;
     c.replaceChildren(el('h1', null, mod.nome), el('p', { class: 'sub' }, 'Carregando…'));
-    try { await Promise.all([S.carregarSecoes(), carregar(canal)]); }
+    try { await Promise.all([S.carregarSecoes(), carregar(canal)]); if (canal === 'ouvidoria') await carregarOutro('esic'); }
     catch (e) { c.querySelector('.sub').textContent = /atendimento_canais|Could not find|does not exist/i.test((e && e.message) || '') ? 'Falta rodar o script 24 no banco.' : S.faltaScript(e); return; }
-    c.replaceChildren(...[S.cabecalho(mod.nome, sub), S.avisoSetorial(perm), P.abas(abas)].filter(Boolean));
+    abasTela = P.abas(abas, new URLSearchParams(location.hash.split('?')[1] || '').get('aba'));
+    c.replaceChildren(...[S.cabecalho(mod.nome, sub), S.avisoSetorial(perm), abasTela].filter(Boolean));
   }
   const caixa = () => el('div');
 
+  // ctx da fila: canal, permissões e dados já carregados (canal e unidades).
+  const ctxFila = (canal) => ({ canal, perm, canalReg: () => canais[canal], unidades: () => unidades });
+  let abasTela = null;
+  const recarregarAbas = () => { if (abasTela) for (const id of ['esic-pedidos', 'ouv-manifestacoes', 'esic-relatorios', 'ouv-relatorios', 'ouv-satisfacao']) abasTela.recarregar(id); };
+
   P.telas.esic = (c, mod, p) => iniciar(c, mod, p, 'esic', [
     ['esic-como', 'Como pedir', () => comoPedir(caixa(), 'esic')],
+    ['esic-pedidos', 'Pedidos', () => { const x = caixa(); P.atendimento.fila(x, ctxFila('esic')); return x; }, null, 'esic_pedidos'],
     ['esic-prazos', 'Prazos e recursos', () => prazos(caixa())],
     ['esic-relatorios', 'Relatórios estatísticos', () => relatorios(caixa(), 'esic'), null, 'esic_relatorios'],
     ['esic-classificadas', 'Informações classificadas', () => classificadas(caixa(), false), null, 'esic_classificadas'],
     ['esic-desclassificadas', 'Informações desclassificadas', () => classificadas(caixa(), true), null, 'esic_desclassificadas']
-  ], 'Serviço de Informação ao Cidadão: unidade responsável, contatos, formulário eletrônico, norma da LAI, prazos e recursos, relatórios estatísticos e rol das informações classificadas e desclassificadas (PNTP 12.1 a 12.9).');
+  ], 'Serviço de Informação ao Cidadão: unidade responsável, contatos, formulário eletrônico (próprio ou externo), fila dos pedidos, norma da LAI, prazos e recursos, relatórios estatísticos e rol das informações classificadas e desclassificadas (PNTP 12.1 a 12.9).');
 
   P.telas.ouvidoria = (c, mod, p) => iniciar(c, mod, p, 'ouvidoria', [
     ['ouv-como', 'Como se manifestar', () => comoPedir(caixa(), 'ouvidoria')],
-    ['ouv-relatorios', 'Relatórios estatísticos', () => relatorios(caixa(), 'ouvidoria'), null, 'ouvidoria_relatorios']
-  ], 'Atendimento presencial e canal eletrônico da Ouvidoria, com o ouvidor, os tipos de manifestação e o prazo de resposta (PNTP 14.1 e 14.2), e os relatórios estatísticos das manifestações.');
+    ['ouv-manifestacoes', 'Manifestações', () => { const x = caixa(); P.atendimento.fila(x, ctxFila('ouvidoria')); return x; }, null, 'ouvidoria_manifestacoes'],
+    ['ouv-relatorios', 'Relatórios estatísticos', () => relatorios(caixa(), 'ouvidoria'), null, 'ouvidoria_relatorios'],
+    ['ouv-satisfacao', 'Pesquisa de satisfação', () => { const x = caixa(); P.atendimento.satisfacao(x, perm, canais); return x; }, null, 'ouvidoria_satisfacao']
+  ], 'Atendimento presencial e canal eletrônico da Ouvidoria, com o ouvidor, os tipos de manifestação e o prazo de resposta (PNTP 14.1 e 14.2), a fila das manifestações, os relatórios estatísticos e a pesquisa de satisfação (15.6).');
 })();

@@ -1,9 +1,9 @@
 {
-  "versao": "0.17.0",
-  "data": "2026-11-13",
+  "versao": "0.18.0",
+  "data": "2026-11-14",
   "notas": [
-    "e-SIC e Ouvidoria com páginas próprias no site e as mesmas abas no painel (PNTP 12.1 a 12.9, 14.1 e 14.2).",
-    "Relatórios estatísticos, informações classificadas e desclassificadas com declarações, filtros e CSV/JSON.",
-    "Rodar de novo os scripts 21 e 23 e depois o 24."
+    "e-SIC e Ouvidoria próprios no portal: formulários sem cadastro, protocolo e código de acesso, fila com prazos, recursos e encaminhamento entre unidades (12.1 a 12.9, 14.1, 14.2).",
+    "Estatísticas automáticas nos relatórios e pesquisa de satisfação (15.6). Quem usa o Fala.BR continua igual (link em Destinos das páginas).",
+    "Rodar o script 25 e publicar a função atendimento-arquivos."
   ]
 }

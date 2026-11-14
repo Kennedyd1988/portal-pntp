@@ -33,7 +33,10 @@
     pessoal_remuneracoes: 'Pessoal: remuneração', pessoal_cargos: 'Pessoal: cargos e salários', pessoal_estagiarios: 'Pessoal: estagiários',
     pessoal_terceirizados: 'Pessoal: terceirizados', diarias: 'Diárias', diarias_valores: 'Diárias: tabela de valores', declaracoes_inexistencia: 'Declarações de que não há dados',
     atendimento_canais: 'e-SIC e Ouvidoria: dados do atendimento', atendimento_relatorios: 'e-SIC e Ouvidoria: relatórios estatísticos',
-    atendimento_relatorios_itens: 'e-SIC e Ouvidoria: distribuições dos relatórios', informacoes_classificadas: 'e-SIC: informações classificadas'
+    atendimento_relatorios_itens: 'e-SIC e Ouvidoria: distribuições dos relatórios', informacoes_classificadas: 'e-SIC: informações classificadas',
+    atendimentos: 'e-SIC e Ouvidoria: pedidos e manifestações', atendimentos_solicitantes: 'e-SIC e Ouvidoria: identificação (só campos alterados)',
+    atendimentos_tramites: 'e-SIC e Ouvidoria: andamento', atendimentos_recursos: 'e-SIC: recursos', atendimentos_anexos: 'e-SIC e Ouvidoria: anexos',
+    atendimentos_avaliacoes: 'Pesquisa de satisfação', feriados: 'Feriados e dias sem expediente'
   };
   const ACOES = { inserir: 'Inclusão', editar: 'Edição', excluir: 'Exclusão' };
 
