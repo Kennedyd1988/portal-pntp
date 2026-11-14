@@ -817,7 +817,7 @@
     const ok = crit.length - pend.length;
     const titulo = pend.length ? 'Situação no PNTP: ' + pend.length + ' critério(s) com pendência' + (ok ? ' · ' + ok + ' atendido(s)' : '')
       : crit.length ? 'Situação no PNTP: ' + crit.length + ' critério(s) atendido(s)' : 'Lembretes de prazo';
-    const caixa = el('details', { class: 'aviso-pntp aviso-modulo' + (pend.length || lemb.some((x) => x.nivel === 'alerta') ? '' : ' aviso-pntp-ok'), open: pend.length > 0 || lemb.length > 0 },
+    const caixa = el('details', { class: 'aviso-pntp aviso-modulo' + (pend.length || lemb.some((x) => x.nivel === 'alerta') ? '' : ' aviso-pntp-ok'), open: false },  // fechado: o título já diz quantas pendências; quem quiser clica para ver (0.22.1)
       el('summary', null, el('span', { 'aria-hidden': 'true' }, pend.length || lemb.length ? '⚠ ' : '✓ '), titulo),
       crit.length ? el('ul', { class: 'lista-crit' }, pend.concat(crit.filter((x) => x.situacao === 'atende')).map((x) => linhaCriterio(x, false))) : null,
       lemb.length ? el('div', { class: 'lembretes' }, el('strong', null, 'Lembretes de prazo'),
