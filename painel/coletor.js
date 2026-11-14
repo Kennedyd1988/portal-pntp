@@ -17,7 +17,11 @@
   'use strict';
   if (window.__softColetor) { window.__softColetor.anunciar(); return; }
   const script = document.currentScript;
-  const PAINEL = new URL(script ? script.src : 'https://kennedyd1988.github.io').origin;
+  const SRC = script ? script.src : 'https://kennedyd1988.github.io/portal-pntp/painel/coletor.js';
+  const PAINEL = new URL(SRC).origin;
+  // Com quem conversa: a aba do painel que abriu esta (window.opener) ou, se o site
+  // foi aberto direto, o painel embutido aqui mesmo numa moldura (login pedido nela).
+  let parceiro = window.opener || null;
   const semWww = (h) => String(h || '').replace(/^www\./, '').toLowerCase();
   const AQUI = semWww(location.host);
   const liberados = new Set();
@@ -28,6 +32,16 @@
   faixa.style.cssText = 'position:fixed;z-index:2147483647;left:0;right:0;top:0;padding:10px 14px;font:600 14px/1.4 system-ui,sans-serif;' +
     'background:#0b5cad;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.3);text-align:center';
   document.body.appendChild(faixa);
+  if (!parceiro) {
+    const caixa = document.createElement('div');
+    caixa.style.cssText = 'position:fixed;z-index:2147483646;left:0;right:0;bottom:0;top:44px;background:#fff;border-top:3px solid #0b5cad';
+    const moldura = document.createElement('iframe');
+    moldura.src = SRC.replace(/coletor\.js.*$/, '') + 'index.html?embutido=1#/m/migracao';
+    moldura.style.cssText = 'border:0;width:100%;height:100%';
+    caixa.appendChild(moldura);
+    document.body.appendChild(caixa);
+    parceiro = moldura.contentWindow;
+  }
   const mostrar = (t, erro) => { faixa.textContent = t; faixa.style.background = erro ? '#a32020' : '#0b5cad'; };
 
   // Endereço do próprio site (com ou sem www) reescrito para esta aba (evita bloqueio entre www e sem www).
@@ -80,8 +94,9 @@
   }
 
   window.addEventListener('message', async (ev) => {
-    if (ev.origin !== PAINEL || !ev.data || ev.data.softColetor !== 'pedido') return;
-    if (window.opener && ev.source !== window.opener) return;
+    if (ev.origin !== PAINEL || !ev.data || !/^(pedido|ping)$/.test(ev.data.softColetor)) return;
+    if (ev.data.softColetor === 'ping') { if (ev.source === parceiro) anunciar(); return; }
+    if (ev.source !== parceiro) return;
     const d = ev.data;
     let resposta;
     try { resposta = Object.assign({ softColetor: 'resposta', id: d.id, ok: true }, await atender(d)); }
@@ -94,12 +109,9 @@
   });
 
   function anunciar() {
-    if (!window.opener) {
-      mostrar('Coletor SOFT+: abra esta aba pelo botão "Ler pelo navegador" no painel (Migração do site antigo) e clique de novo no favorito.', true);
-      return;
-    }
-    window.opener.postMessage({ softColetor: 'pronto', host: location.host }, PAINEL);
-    mostrar('Coletor SOFT+ conectado ao painel. Não feche esta aba; acompanhe pelo painel.');
+    try { parceiro.postMessage({ softColetor: 'pronto', host: location.host }, PAINEL); } catch (_) { /* moldura ainda carregando */ }
+    mostrar(window.opener ? 'Coletor SOFT+ conectado ao painel. Não feche esta aba; acompanhe pelo painel.'
+      : 'Coletor SOFT+ — painel abaixo (entre com seu login, se pedir). Não feche esta aba.');
   }
   window.__softColetor = { anunciar };
   anunciar();

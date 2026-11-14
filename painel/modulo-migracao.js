@@ -101,6 +101,8 @@
   let caixaPonte = null;
   function desenharPonte() {
     if (!caixaPonte) return;
+    // Painel embutido no site antigo (favorito clicado direto no site): pede ao coletor para se anunciar.
+    if (!ponte.pronto && window.parent !== window) { try { window.parent.postMessage({ softColetor: 'ping' }, '*'); } catch (_) { /* ok */ } }
     const fav = el('a', { class: 'btn btn-claro', title: 'Arraste para a barra de favoritos' }, '⭐ Coletor SOFT+');
     fav.setAttribute('href', FAVORITO);
     fav.addEventListener('click', (e) => { e.preventDefault(); toast('Arraste este botão para a barra de favoritos (não clique aqui).'); });
