@@ -1,5 +1,5 @@
 {
-  "versao": "0.23.0",
+  "versao": "0.23.1",
   "data": "2026-11-14",
   "notas": [
     "Migração do site antigo (Suporte SOFT+): traz leis e decretos, licitações com documentos, contratos, concursos, contas públicas e notícias do site atual do órgão, com os arquivos, no período do PNTP. Mede o espaço antes de importar e não duplica.",
