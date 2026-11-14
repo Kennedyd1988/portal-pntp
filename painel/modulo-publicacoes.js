@@ -15,10 +15,10 @@
   const TIPOS_BASE = {
     lei_organica: 'Lei Orgânica', emenda_lei_organica: 'Emenda à Lei Orgânica', lei_complementar: 'Lei Complementar',
     lei: 'Lei Ordinária', decreto: 'Decreto', portaria: 'Portaria', resolucao: 'Resolução',
-    instrucao_normativa: 'Instrução Normativa', ato: 'Ato', edital: 'Edital', outro: 'Outro'
+    instrucao_normativa: 'Instrução Normativa', decreto_legislativo: 'Decreto Legislativo', ato: 'Ato', edital: 'Edital', outro: 'Outro'
   };
   const GRUPO_BASE = { lei_organica: 'leis', emenda_lei_organica: 'leis', lei_complementar: 'leis', lei: 'leis', decreto: 'decretos', portaria: 'portarias',
-    resolucao: 'normas', instrucao_normativa: 'normas', edital: 'editais', ato: 'outros', outro: 'outros' };
+    resolucao: 'normas', instrucao_normativa: 'normas', decreto_legislativo: 'decretos', edital: 'editais', ato: 'outros', outro: 'outros' };
   const ABAS = [['todas', 'Todas'], ['leis', 'Leis'], ['decretos', 'Decretos'], ['portarias', 'Portarias'], ['normas', 'Resoluções e instruções'], ['editais', 'Editais'], ['outros', 'Outros atos']];
   let TIPOS = Object.assign({}, TIPOS_BASE), GRUPO = Object.assign({}, GRUPO_BASE), personalizados = [];
   let aba = 'todas';

@@ -491,7 +491,7 @@
     const [ficha, orgaos, modulos] = await Promise.all([
       sb.from('usuarios').select('id, nome, email, suporte_softplus').eq('id', user.id).maybeSingle(),
       sb.rpc('meus_orgaos'),
-      sb.from('modulos').select('codigo, nome, grupo, ordem').order('ordem')
+      sb.from('modulos').select('*').order('ordem')
     ]);
     const falha = ficha.error || orgaos.error || modulos.error;
     if (falha) { toast(traduzirErro(falha), true); mostrarForm('form-login'); return; }
@@ -607,6 +607,8 @@
     let bloco = null, grupoAtual = null;
     for (const m of estado.modulos) {
       if (!(estado.permissoes[m.codigo] && estado.permissoes[m.codigo].ver)) continue;
+      // Módulo só de alguns tipos de órgão (script 34): Legislativo na Câmara; Saúde, Educação… na Prefeitura.
+      if (Array.isArray(m.tipos_orgao) && m.tipos_orgao.length && !m.tipos_orgao.includes(estado.orgao.tipo)) continue;
       if (m.grupo !== grupoAtual) {
         grupoAtual = m.grupo;
         bloco = el('div', { class: 'menu-bloco', role: 'group', 'aria-label': m.grupo }, el('span', { class: 'menu-grupo', 'aria-hidden': 'true' }, m.grupo));

@@ -68,6 +68,14 @@ window.DESTINOS_PNTP = [
   ['ouvidoria_manifestacoes', 'Ouvidoria: manifestações (formulário e acompanhamento)', '/ouvidoria/manifestar', '14.2', 'e-SIC e Ouvidoria (por parte)'],
   ['ouvidoria_relatorios', 'Ouvidoria: relatórios estatísticos', '/ouvidoria/relatorios', '', 'e-SIC e Ouvidoria (por parte)'],
   ['ouvidoria_satisfacao', 'Ouvidoria: pesquisa de satisfação', '/ouvidoria/satisfacao', '15.6', 'e-SIC e Ouvidoria (por parte)'],
+  // Câmara Municipal (matriz do Poder Legislativo, script 34): aparecem só para Câmaras.
+  ['parlamentares', 'Vereadores (composição e biografias)', '/parlamentares', '20.1', 'Atividade legislativa (Câmara)'],
+  ['proposicoes', 'Projetos e proposições (tramitação)', '/proposicoes', '20.3', 'Atividade legislativa (Câmara)'],
+  ['sessoes', 'Sessões: pautas, atas e presenças', '/sessoes', '20.4, 20.6, 20.9', 'Atividade legislativa (Câmara)'],
+  ['comissoes', 'Comissões e suas pautas', '/comissoes', '20.5', 'Atividade legislativa (Câmara)'],
+  ['votacoes', 'Votações nominais', '/votacoes', '20.7', 'Atividade legislativa (Câmara)'],
+  ['verba_indenizatoria', 'Verba indenizatória / cota parlamentar', '/verba-indenizatoria', '20.10', 'Atividade legislativa (Câmara)'],
+  ['atividade_parlamentar', 'Atividade de cada vereador', '/atividade-parlamentar', '20.11', 'Atividade legislativa (Câmara)'],
   ['esic', 'e-SIC (acesso à informação)', '/esic', '12.1–12.9', 'Atendimento e publicações'],
   ['ouvidoria', 'Ouvidoria', '/ouvidoria', '14.1–14.2', 'Atendimento e publicações'],
   ['carta_servicos', 'Carta de Serviços ao Usuário', '/servicos', '14.3', 'Atendimento e publicações'],
@@ -125,6 +133,9 @@ window.periodoDeclaracaoPNTP = function (d) {
 // situação atual, modelo da frase de período ({periodo} vira "em março de 2026", "no 2º bimestre de
 // 2026", "no exercício de 2024" ou "de 01/10/2026 a 20/10/2026")]. É só sugestão: o texto é editável.
 window.DECLARACOES_PNTP = {
+  legislativo_comissoes: ['Pauta das comissões (20.5)', 'As comissões não tiveram reuniões a divulgar.', 'Não houve reunião de comissão {periodo}.'],
+  legislativo_votacoes: ['Votações nominais (20.7)', 'Não houve votação nominal: as matérias foram votadas de forma simbólica ou unânime.', 'Não houve votação nominal {periodo}.'],
+  legislativo_verba: ['Verba indenizatória (20.10)', 'Não houve pagamento de verba indenizatória ou cota parlamentar.', 'Não houve pagamento de verba indenizatória ou cota parlamentar {periodo}.'],
   receitas_arrecadacao: ['Receitas: previsão e arrecadação (3.1, 3.2)', 'Não há receitas a divulgar.', 'Não houve arrecadação de receitas {periodo}.'],
   receitas_divida_ativa: ['Dívida ativa (3.3)', 'Não há créditos inscritos em dívida ativa no município.', 'Não havia créditos inscritos em dívida ativa {periodo}.'],
   despesas_empenhos: ['Despesas (4.1 a 4.3)', 'Não há despesas a divulgar.', 'Não houve empenho, liquidação ou pagamento de despesas {periodo}.'],

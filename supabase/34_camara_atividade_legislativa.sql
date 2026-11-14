@@ -232,19 +232,20 @@ comment on column public.orgaos.configuracoes is
 -- Filho pertence ao mesmo órgão do pai (impede misturar órgãos pela API).
 create or replace function public.conferir_orgao_legislativo()
 returns trigger language plpgsql set search_path = public as $$
-declare v uuid;
+declare v uuid; j jsonb := to_jsonb(new);
 begin
+  -- to_jsonb: cada tabela tem uma coluna de pai diferente (o "new" não tem as das outras).
   v := case tg_table_name
-    when 'comissoes_membros'    then (select orgao_id from public.comissoes where id = new.comissao_id)
-    when 'proposicoes_autores'  then (select orgao_id from public.proposicoes where id = new.proposicao_id)
-    when 'proposicoes_tramites' then (select orgao_id from public.proposicoes where id = new.proposicao_id)
-    when 'sessoes_presencas'    then (select orgao_id from public.sessoes where id = new.sessao_id)
-    when 'votacoes'             then (select orgao_id from public.sessoes where id = new.sessao_id)
-    when 'votacoes_votos'       then (select orgao_id from public.votacoes where id = new.votacao_id)
+    when 'comissoes_membros'    then (select orgao_id from public.comissoes where id = (j ->> 'comissao_id')::uuid)
+    when 'proposicoes_autores'  then (select orgao_id from public.proposicoes where id = (j ->> 'proposicao_id')::uuid)
+    when 'proposicoes_tramites' then (select orgao_id from public.proposicoes where id = (j ->> 'proposicao_id')::uuid)
+    when 'sessoes_presencas'    then (select orgao_id from public.sessoes where id = (j ->> 'sessao_id')::uuid)
+    when 'votacoes'             then (select orgao_id from public.sessoes where id = (j ->> 'sessao_id')::uuid)
+    when 'votacoes_votos'       then (select orgao_id from public.votacoes where id = (j ->> 'votacao_id')::uuid)
   end;
   if v is distinct from new.orgao_id then raise exception 'Registro de outro órgão.'; end if;
   if tg_table_name in ('comissoes_membros', 'proposicoes_autores', 'sessoes_presencas', 'votacoes_votos')
-     and not exists (select 1 from public.parlamentares p where p.id = new.parlamentar_id and p.orgao_id = new.orgao_id) then
+     and not exists (select 1 from public.parlamentares p where p.id = (j ->> 'parlamentar_id')::uuid and p.orgao_id = new.orgao_id) then
     raise exception 'Parlamentar de outro órgão.';
   end if;
   return new;
@@ -352,6 +353,27 @@ language sql stable security invoker set search_path = public as $$
   order by p.em_exercicio desc, p.ordem, p.nome;
 $$;
 grant execute on function public.atividade_parlamentar(uuid, integer) to anon, authenticated;
+
+
+-- Configurações públicas da Câmara (transmissão e regulamentação da verba), gravadas por quem edita
+-- a Atividade legislativa (sem precisar de acesso à Aparência). Só estas chaves.
+create or replace function public.salvar_config_legislativo(p_orgao uuid, p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare novo jsonb := '{}'::jsonb; k text;
+begin
+  if not public.tem_permissao(p_orgao, 'legislativo', 'editar') then raise exception 'Seu perfil não pode alterar a Atividade legislativa.'; end if;
+  foreach k in array array['transmissao_url', 'verba_norma_url'] loop
+    if p ? k then
+      if coalesce(p ->> k, '') <> '' and (p ->> k) !~* '^https?://' then raise exception 'Endereço inválido: use o endereço completo, começando com https://'; end if;
+      novo := novo || jsonb_build_object(k, nullif(btrim(p ->> k), ''));
+    end if;
+  end loop;
+  if p ? 'verba_norma' then novo := novo || jsonb_build_object('verba_norma', nullif(left(btrim(p ->> 'verba_norma'), 300), '')); end if;
+  if p ? 'verba_inexistente' then novo := novo || jsonb_build_object('verba_inexistente', coalesce((p ->> 'verba_inexistente')::boolean, false)); end if;
+  update public.orgaos set configuracoes = coalesce(configuracoes, '{}'::jsonb) || novo where id = p_orgao;
+  return novo;
+end $$;
+grant execute on function public.salvar_config_legislativo(uuid, jsonb) to authenticated;
 
 
 -- ---------------------------------------------------------------------

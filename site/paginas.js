@@ -13,7 +13,7 @@
   const TIPOS = {
     lei_organica: 'Lei Orgânica', emenda_lei_organica: 'Emenda à Lei Orgânica', lei_complementar: 'Lei Complementar',
     lei: 'Lei Ordinária', decreto: 'Decreto', portaria: 'Portaria', resolucao: 'Resolução',
-    instrucao_normativa: 'Instrução Normativa', ato: 'Ato', edital: 'Edital', outro: 'Outro'
+    instrucao_normativa: 'Instrução Normativa', decreto_legislativo: 'Decreto Legislativo', ato: 'Ato', edital: 'Edital', outro: 'Outro'
   };
   // Tipos de publicação criados pelo órgão (painel › Publicações › Tipos personalizados).
   let tiposCarregados = null;
@@ -200,7 +200,7 @@
   const ABAS_PUB = [
     ['todas', 'Todas', null],
     ['leis', 'Leis', ['lei', 'lei_complementar', 'lei_organica', 'emenda_lei_organica']],
-    ['decretos', 'Decretos', ['decreto']],
+    ['decretos', 'Decretos', ['decreto', 'decreto_legislativo']],
     ['portarias', 'Portarias', ['portaria']],
     ['editais', 'Editais', ['edital']]
   ];
