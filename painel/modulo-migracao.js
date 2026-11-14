@@ -236,6 +236,17 @@
     st.rodando = null; atualizarCartao(chave); desenharEspaco();
   }
 
+  // Todas as seções, duas por vez (não sobrecarrega o site antigo nem o banco). Não grava nada.
+  async function analisarTodas(btn) {
+    ocupado(btn, 'Analisando…');
+    try {
+      const fila = Object.keys(adaptador.secoes).filter((k) => !(estado[k] && (estado[k].rodando || estado[k].analisado)));
+      const trabalhar = async () => { while (fila.length) await analisar(fila.shift()); };
+      await Promise.all([trabalhar(), trabalhar()]);
+      toast('Análise concluída. Confira cada seção antes de importar.');
+    } finally { ocupado(btn); }
+  }
+
   // ---------------- importação ----------------
   async function jaMigrado(url) {
     const { data } = await sb.from('migracao_itens').select('situacao').eq('orgao_id', org()).eq('origem_url', url).maybeSingle();
@@ -555,6 +566,11 @@
         el('div', { class: 'linha-botoes mt-1' }, origem, btnO),
         el('p', { class: 'ajuda mt-05' }, ok ? 'Modelo reconhecido: ' + adaptador.nome + '.' : 'Informe o endereço do site antigo e clique em "Salvar e reconhecer".'),
         caixaPonte = el('div', { class: 'mt-1' }),
+        ok ? (() => {
+          const b = el('button', { type: 'button', class: 'btn btn-claro mt-1' }, 'Analisar e medir todas as seções');
+          b.addEventListener('click', () => analisarTodas(b));
+          return b;
+        })() : null,
         caixaEspaco),
       ...(ok ? Object.entries(adaptador.secoes).map(([k, s]) => cartaoSecao(k, s)) : []),
       el('p', { class: 'ajuda mt-2' }, 'Receitas, despesas, folha, diárias, ordem cronológica, emendas e licitações/contratos dos sistemas de gestão continuam nos sistemas oficiais: ligue-os em Aparência › Destinos das páginas.')].filter(Boolean));
