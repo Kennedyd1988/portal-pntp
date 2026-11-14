@@ -32,7 +32,8 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 - O órgão nunca pode ficar sem administrador ativo (bloqueado no banco).
 - Janelas do painel com mais de um assunto são divididas em abas (`P.abas`), no
   estilo guia de navegador; nada de abas em forma de botão ou pílula.
-- A marca `suporte_softplus` e o e-mail de um usuário só mudam pelo SQL Editor.
+- O e-mail de um usuário só muda pelo SQL Editor. A marca `suporte_softplus` muda pelo painel só por quem já é
+  Suporte SOFT+ (`definir_suporte_softplus`, script 38): ninguém muda a própria e sempre sobra pelo menos um.
 - Ninguém altera o próprio acesso (perfil, alcance, desativar).
 - Só administrador do órgão cria perfis, mexe em permissões e dá o perfil de
   administrador. Quem só tem "editar usuários" não pode dar mais poder do que tem.
@@ -177,6 +178,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/29_perfis_multiplos.sql` | Perfis adicionais por acesso (`perfis_extras`, permissões somadas, travas e gatilhos) e perfis do sistema editáveis pelo Suporte SOFT+. Rodar depois do 28 (e de novo se rodar o 01, 02, 05 ou 28); pode repetir |
 | `supabase/36_vereador_diarias_emendas.sql` | Vereador ligado às diárias da Câmara e às emendas municipais da Prefeitura do mesmo município (página do vereador e 20.11). Rodar depois do 34 e do 35; pode repetir |
 | `supabase/37_excluir_com_pecas.sql` | Excluir um registro junto com as peças internas dele (documentos, aditivos, fiscais, medições, autores, presenças…). Rodar depois do 36; pode repetir |
+| `supabase/38_cadastrar_suporte.sql` | Marca de Suporte SOFT+ pelo painel (só quem já é Suporte). Pode repetir |
 | `supabase/teste_apagar_ficticios.sql` | apaga todos os dados fictícios de teste na ordem certa (desde o 26 os ligados não saem junto) e mostra o que sobrou. Para recarregar os testes: rodar este, depois licitações antes de contratos e de obras |
 | `supabase/teste_esic_ouvidoria_ficticios.sql` | opcional: canais do SIC e da Ouvidoria, relatórios de 2023 a 2026 com distribuições, 6 informações classificadas (2 desclassificadas) |
 | `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
@@ -443,6 +445,11 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.28.0 — 14/11/2026 — Cadastrar Suporte SOFT+ pelo painel**
+- Script 38: `suportes_softplus()` e `definir_suporte_softplus(usuário, valor)` (só Suporte chama; não muda a própria;
+  nunca zera os Suportes; grava no histórico). Painel: ficha da pessoa em Usuários › "Tornar/Tirar do Suporte SOFT+".
+  A pessoa precisa ter sido cadastrada antes em algum órgão (cadastro normal).
 
 **0.27.2 — 14/11/2026 — Excluir com as peças internas**
 - Script 37: `excluir_com_pecas(tabela, id)` (security invoker, tudo ou nada) exclui o registro e as peças internas dele;

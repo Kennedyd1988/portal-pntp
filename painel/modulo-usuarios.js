@@ -36,6 +36,11 @@
       ids.length ? sb.from('unidades').select('id, nome, orgao_id').in('orgao_id', ids).order('nome').limit(2000) : { data: [] }
     ]);
     for (const r of [pf, un]) if (r.error) throw r.error;
+    // Suporte SOFT+ (script 38): só o próprio Suporte vê quem tem a marca.
+    const souSuporte = !!(P.estado.usuario && P.estado.usuario.suporte_softplus);
+    const sp = souSuporte ? await sb.rpc('suportes_softplus') : { data: [] };
+    d.suportes = new Set((sp.error ? [] : sp.data || []).map((x) => x.usuario_id));
+    d.suporteDisponivel = souSuporte && !sp.error;
     const pp = await sb.from('perfil_permissoes').select('*').in('perfil_id', pf.data.map((p) => p.id));
     if (pp.error) throw pp.error;
     // Agrupa os acessos por pessoa.
@@ -399,6 +404,21 @@
     });
   }
 
+  // Suporte SOFT+ (script 38): só quem já é Suporte marca ou tira a marca de outra pessoa.
+  async function alternarSuporte(p, depois) {
+    const tirar = d.suportes.has(p.usuario_id);
+    const ok = await P.confirmar(tirar ? 'Tirar do Suporte SOFT+' : 'Tornar Suporte SOFT+',
+      tirar ? (p.nome || p.email) + ' deixa de ver os órgãos da plataforma e fica só com os acessos de cada órgão (abaixo).'
+        : (p.nome || p.email) + ' passa a ver e alterar TODOS os órgãos da plataforma, criar órgãos, editar os perfis padrão e marcar outros Suportes. Dê só a quem é da equipe SOFT+.',
+      tirar ? 'Tirar' : 'Tornar Suporte', tirar);
+    if (!ok) return;
+    const { error } = await sb.rpc('definir_suporte_softplus', { p_usuario: p.usuario_id, p_valor: !tirar });
+    if (error) { mostrarErro(/definir_suporte_softplus|Could not find/i.test(error.message || '') ? amigavel('Falta rodar o script 38 no banco.') : error); return; }
+    if (tirar) d.suportes.delete(p.usuario_id); else d.suportes.add(p.usuario_id);
+    toast(tirar ? 'Acesso de Suporte SOFT+ retirado.' : 'Agora é Suporte SOFT+. Vale na próxima vez que a pessoa entrar.');
+    depois();
+  }
+
   // Ficha da pessoa: os acessos que eu posso ver, com as ações de cada um.
   function fichaPessoa(usuarioId) {
     let dlg = null;
@@ -410,6 +430,7 @@
       const gerenciaAlgum = p.acessos.some((v) => podeMexer(v));
       const corpo = el('div', null,
         el('p', null, el('strong', null, p.nome || '(sem nome)'), eu ? el('span', { class: 'ml-1 etiqueta' }, 'você') : null,
+          d.suportes && d.suportes.has(p.usuario_id) ? el('span', { class: 'ml-1 etiqueta etiqueta-editar' }, 'Suporte SOFT+') : null,
           el('span', { class: 'sub-linha' }, p.email + ' · ' + (dataHora(p.ultimo_acesso) ? 'último acesso em ' + dataHora(p.ultimo_acesso) : 'ainda não entrou'))),
         el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
           el('thead', null, el('tr', null, ['Órgão', 'Perfil', 'Alcance', 'Situação'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
@@ -428,6 +449,8 @@
       const acoes = [
         !eu && livres.length ? el('button', { type: 'button', class: 'btn btn-claro', onclick: () => formMaisOrgaos(p, desenharFicha) }, '+ Dar acesso a outro órgão') : null,
         !eu && gerenciaAlgum ? el('button', { type: 'button', class: 'btn btn-claro', onclick: () => formSenha(p) }, 'Definir nova senha') : null,
+        !eu && d.suporteDisponivel ? el('button', { type: 'button', class: 'btn btn-claro' + (d.suportes.has(p.usuario_id) ? ' btn-texto-perigo' : ''), onclick: () => alternarSuporte(p, desenharFicha) },
+          d.suportes.has(p.usuario_id) ? 'Tirar do Suporte SOFT+' : 'Tornar Suporte SOFT+') : null,
         el('button', { type: 'button', class: 'btn btn-primario', onclick: () => dlg.close() }, 'Fechar')].filter(Boolean);
       if (dlg) dlg.close();
       dlg = P.abrirDialogo('Acessos de ' + (p.nome || p.email), corpo, acoes);
