@@ -22,9 +22,9 @@ begin
          'emendas',           mo || '/cidadao/publicacaoemenda'))
     || jsonb_build_object('destinos_links', coalesce(o.configuracoes -> 'destinos_links', '{}'::jsonb) || jsonb_build_object(
          'licitacoes', jsonb_build_array(jsonb_build_object('descricao', 'Licitações, dispensas e inexigibilidades no sistema de gestão da Prefeitura (Município Online)',
-                                                            'de', 2025, 'ate', 2026, 'url', mo || '/cidadao/publicacaocontratacoes')),
+                                                            'de', 2024, 'ate', 2026, 'url', mo || '/cidadao/publicacaocontratacoes')),
          'contratos',  jsonb_build_array(jsonb_build_object('descricao', 'Contratos no sistema de gestão da Prefeitura (Município Online)',
-                                                            'de', 2025, 'ate', 2026, 'url', mo || '/cidadao/publicacaocontrato'))))
+                                                            'de', 2024, 'ate', 2026, 'url', mo || '/cidadao/publicacaocontrato'))))
   where o.id = org;
 end $$;
 select configuracoes -> 'destinos' as destinos, configuracoes -> 'destinos_links' as outros
