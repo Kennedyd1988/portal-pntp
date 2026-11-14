@@ -15,7 +15,7 @@
   const { sb, el, toast, ocupado, traduzirErro } = P;
   const ANO = new Date().getFullYear();
   const PARAR_APOS = 30;      // ids seguidos fora do período (ou vazios) para encerrar a varredura
-  const PARALELO = 3;
+  const PARALELO = 2;
 
   let conteiner = null, cfg = {}, adaptador = null, resumo = {}, espaco = null;
   const estado = {};          // por seção: { itens, arquivos, bytes, rodando, parar, log }
@@ -116,8 +116,41 @@
       el('div', { class: 'linha-botoes mt-05' }, btn, fav));
   }
 
+  // ---------------- ritmo gentil com o site antigo ----------------
+  // Sites de prefeitura costumam ficar em servidores pequenos e bloqueiam quem pede rápido demais
+  // (o bloqueio pode pegar o próprio computador de quem está migrando). Por isso: no máximo 2 leituras
+  // ao mesmo tempo, um intervalo entre elas e, se o site parar de responder, uma pausa automática crescente.
+  const RITMO = { maximo: 2, intervalo: 700, emUso: 0, ultimo: 0, descansoAte: 0, falhasSeguidas: 0, avisado: false };
+  async function comRitmo(fn) {
+    for (;;) {
+      const agora = Date.now();
+      if (agora < RITMO.descansoAte) { await espera(Math.min(5000, RITMO.descansoAte - agora)); continue; }
+      if (RITMO.emUso >= RITMO.maximo || agora - RITMO.ultimo < RITMO.intervalo) { await espera(150); continue; }
+      break;
+    }
+    RITMO.emUso++; RITMO.ultimo = Date.now();
+    try {
+      const r = await fn();
+      RITMO.falhasSeguidas = 0;
+      return r;
+    } catch (e) {
+      if (e.passageiro || /não respondeu|timed out|Failed to fetch/i.test(e.message || '')) {
+        RITMO.falhasSeguidas++;
+        if (RITMO.falhasSeguidas >= 3) {
+          const minutos = Math.min(10, RITMO.falhasSeguidas - 1);
+          RITMO.descansoAte = Date.now() + minutos * 60000;
+          toast('O site antigo parou de responder: pausa automática de ' + minutos + ' min para não ser bloqueado. Depois continua sozinho.', true);
+        }
+      }
+      throw e;
+    } finally { RITMO.emUso--; }
+  }
+
   // op: { metodo: 'POST', corpo: 'a=1&b=2' } para as seções que leem dados por formulário (ex.: obras)
   async function pagina(url, tentativas, op) {
+    return comRitmo(() => paginaSemRitmo(url, tentativas, op));
+  }
+  async function paginaSemRitmo(url, tentativas, op) {
     const extra = op && op.metodo ? { metodo: op.metodo, corpo: op.corpo || '' } : {};
     if (ponte.pronto) return viaPonteRepetindo('pagina', Object.assign({ url }, extra));
     for (let i = 0; i < (tentativas || 3); i++) {
@@ -221,8 +254,8 @@
       st.texto = 'Medindo o tamanho dos arquivos…'; atualizarCartao(chave);
       const unicos = [...new Set(st.arquivos)];
       let medidos = 0, semTamanho = 0;
-      for (let i = 0; i < unicos.length && !st.parar; i += 30) {
-        const r = ponte.pronto ? await viaPonteRepetindo('medir', { urls: unicos.slice(i, i + 30) }) : await servidor({ acao: 'medir', urls: unicos.slice(i, i + 30) });
+      for (let i = 0; i < unicos.length && !st.parar; i += 10) {
+        const r = await comRitmo(() => ponte.pronto ? viaPonteRepetindo('medir', { urls: unicos.slice(i, i + 10) }) : servidor({ acao: 'medir', urls: unicos.slice(i, i + 10) }));
         for (const t of r.tamanhos) { if (t.bytes) st.bytes += t.bytes; else semTamanho++; }
         medidos += r.tamanhos.length;
         st.texto = 'Medindo arquivos: ' + medidos + ' de ' + unicos.length + '…'; atualizarCartao(chave);
@@ -236,13 +269,13 @@
     st.rodando = null; atualizarCartao(chave); desenharEspaco();
   }
 
-  // Todas as seções, duas por vez (não sobrecarrega o site antigo nem o banco). Não grava nada.
+  // Todas as seções, uma por vez (não sobrecarrega o site antigo nem o banco). Não grava nada.
   async function analisarTodas(btn) {
     ocupado(btn, 'Analisando…');
     try {
       const fila = Object.keys(adaptador.secoes).filter((k) => !(estado[k] && (estado[k].rodando || estado[k].analisado)));
       const trabalhar = async () => { while (fila.length) await analisar(fila.shift()); };
-      await Promise.all([trabalhar(), trabalhar()]);
+      await trabalhar();
       toast('Análise concluída. Confira cada seção antes de importar.');
     } finally { ocupado(btn); }
   }
@@ -259,7 +292,7 @@
   async function copiar(url, pasta) {
     try {
       if (ponte.pronto) return await copiarPeloNavegador(url, pasta);
-      const r = await servidor({ acao: 'copiar', url, pasta }); return { url: r.url_publica, bytes: r.bytes || 0 };
+      const r = await comRitmo(() => servidor({ acao: 'copiar', url, pasta })); return { url: r.url_publica, bytes: r.bytes || 0 };
     }
     catch (e) { return { erro: e.message }; }
   }
@@ -279,7 +312,7 @@
     const nome = await sha1(url.replace(/^https?:\/\/(www\.)?/, ''));
     const { data: ja } = await sb.storage.from('arquivos').list(dir, { search: nome });
     if (ja && ja.length) return { url: sb.storage.from('arquivos').getPublicUrl(dir + '/' + ja[0].name).data.publicUrl, bytes: (ja[0].metadata && ja[0].metadata.size) || 0 };
-    const r = await viaPonteRepetindo('arquivo', { url });
+    const r = await comRitmo(() => viaPonteRepetindo('arquivo', { url }));
     const blob = r.blob;
     if (!blob || !blob.size) throw new Error('Arquivo vazio no site antigo.');
     if (blob.size > 50 * 1048576) throw new Error('Arquivo maior que 50 MB: fica só o link.');

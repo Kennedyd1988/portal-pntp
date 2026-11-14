@@ -54,16 +54,16 @@
   async function liberar(u) {
     const m = u.pathname.match(/^\/(licitacao|concurso)\//);
     if (!m || liberados.has(m[1])) return;
-    try { await (await fetch('/' + m[1] + '/continua-' + m[1] + '/', { credentials: 'include' })).text(); } catch (_) { /* segue */ }
+    try { await (await fetch('/' + m[1] + '/continua-' + m[1] + '/', { credentials: 'include', signal: AbortSignal.timeout(45000) })).text(); } catch (_) { /* segue */ }
     liberados.add(m[1]);
   }
   async function tamanho(url) {
     try {
       const u = local(url);
-      let r = await fetch(u.href, { method: 'HEAD', credentials: 'include' });
+      let r = await fetch(u.href, { method: 'HEAD', credentials: 'include', signal: AbortSignal.timeout(45000) });
       let n = Number(r.headers.get('content-length') || 0);
       if (!n) {
-        r = await fetch(u.href, { headers: { Range: 'bytes=0-0' }, credentials: 'include' });
+        r = await fetch(u.href, { headers: { Range: 'bytes=0-0' }, credentials: 'include', signal: AbortSignal.timeout(45000) });
         const cr = r.headers.get('content-range') || '';
         n = Number(cr.split('/')[1] || 0) || Number(r.headers.get('content-length') || 0);
         try { await r.body.cancel(); } catch (_) { /* ok */ }
@@ -75,7 +75,7 @@
   async function atender(d) {
     if (d.acao === 'pagina') {
       const u = local(d.url); await liberar(u);
-      const op = { credentials: 'include' };
+      const op = { credentials: 'include', signal: AbortSignal.timeout(45000) };
       if (d.metodo === 'POST') Object.assign(op, { method: 'POST', body: String(d.corpo || ''),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest' } });
       const r = await fetch(u.href, op);
@@ -86,7 +86,7 @@
     }
     if (d.acao === 'arquivo') {
       const u = local(d.url); await liberar(u);
-      const r = await fetch(u.href, { credentials: 'include' });
+      const r = await fetch(u.href, { credentials: 'include', signal: AbortSignal.timeout(45000) });
       if (!r.ok) throw new Error('O site antigo respondeu ' + r.status + ' para o arquivo.');
       const nome = ((r.headers.get('content-disposition') || '').match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i) || [])[1] || new URL(r.url).pathname;
       const blob = await r.blob();
