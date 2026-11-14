@@ -1,7 +1,8 @@
 {
-  "versao": "0.22.1",
+  "versao": "0.22.2",
   "data": "2026-11-14",
   "notas": [
+    "O site e o painel não mostram mais, por um instante, a página sem formatação ao abrir: aparece \"Carregando…\" até o visual estar pronto.",
     "Aviso \"Situação no PNTP\" das telas sempre fechado: o título mostra quantas pendências há, e o detalhe abre com um clique.",
     "Barra de carregamento na entrada do painel, com cada etapa (acesso, órgãos, menu).",
     "Mais de um perfil por pessoa em cada órgão: perfil principal + perfis adicionais, com as permissões somadas.",

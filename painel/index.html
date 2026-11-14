@@ -17,7 +17,15 @@
 <!-- Esconde a página até o CSS da versão certa carregar (evita "piscar" sem estilo). -->
 <style>body{visibility:hidden;margin:0}</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  /* Até o CSS da versão chegar, não mostra o HTML cru: só "Carregando…" (0.22.2). */
+  html:not(.estilo-ok) body { visibility: hidden; }
+  html:not(.estilo-ok)::before { content: "Carregando…"; position: fixed; inset: 0; display: grid; place-items: center;
+    font: 15px system-ui, sans-serif; color: #5c7692; background: #f4f7fb; }
+</style>
 <script>
+  // Se algo travar, mostra a página mesmo assim depois de 6 s.
+  setTimeout(function () { document.documentElement.classList.add('estilo-ok'); }, 6000);
   // CONTROLE DE VERSÕES
   // versao.json é a ÚNICA fonte da versão. Este carregador lê o arquivo sem cache
   // e carrega estilos.css, config.js e app.js com "?v=<versão>", o que obriga o
@@ -35,6 +43,7 @@
         var css = document.createElement('link');
         css.rel = 'stylesheet';
         css.href = 'estilos.css' + q;
+        css.onload = css.onerror = function () { document.documentElement.classList.add('estilo-ok'); };
         document.head.appendChild(css);
         // Carrega em sequência: app.js depende de config.js.
         // app.js primeiro (núcleo), depois as telas de cada módulo; no fim, inicia o painel.

@@ -10,7 +10,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+  /* Até o CSS da versão chegar, não mostra o HTML cru: só "Carregando…" (0.22.2). */
+  html:not(.estilo-ok) body { visibility: hidden; }
+  html:not(.estilo-ok)::before { content: "Carregando…"; position: fixed; inset: 0; display: grid; place-items: center;
+    font: 15px system-ui, sans-serif; color: #5c7692; background: #f4f7fb; }
+</style>
 <script>
+  // Se algo travar, mostra a página mesmo assim depois de 6 s.
+  setTimeout(function () { document.documentElement.classList.add('estilo-ok'); }, 6000);
   // Mesmo controle de versões do painel: o número em ../painel/versao.json
   // força o navegador a baixar CSS/JS novos quando sai uma versão.
   (function () {
@@ -26,6 +34,7 @@
         var q = '?v=' + v.versao;
         window.VERSAO_SITE = v.versao;
         var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'site.css' + q;
+        css.onload = css.onerror = function () { document.documentElement.classList.add('estilo-ok'); };
         document.head.appendChild(css);
         return carregar('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2')
           .then(function () { return carregar('../painel/config.js' + q); })
