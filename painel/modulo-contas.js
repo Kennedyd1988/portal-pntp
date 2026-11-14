@@ -299,7 +299,7 @@
             const doc = d.arquivo_url || d.link_externo;
             return el('tr', null,
               el('td', null, el('strong', null, nomeCurto(d.tipo)), el('span', { class: 'sub-linha' }, periodoTexto(d)),
-                d.resultado ? el('span', { class: 'etiqueta etiqueta-' + (d.resultado === 'pendente' ? 'agendado' : d.resultado === 'rejeitadas' ? 'desativado' : 'publicado'), style: 'margin-top:4px' }, RESULTADOS[d.resultado]) : null),
+                d.resultado ? el('span', { class: 'mt-05 etiqueta etiqueta-' + (d.resultado === 'pendente' ? 'agendado' : d.resultado === 'rejeitadas' ? 'desativado' : 'publicado') }, RESULTADOS[d.resultado]) : null),
               el('td', { class: 'quebra' }, d.parte, d.descricao ? el('span', { class: 'sub-linha' }, d.descricao) : null),
               el('td', { class: 'num' }, P.dataBR(d.data_publicacao)),
               el('td', null, el('span', { class: 'etiqueta etiqueta-' + (d.situacao === 'publicado' ? 'publicado' : 'rascunho') }, d.situacao === 'publicado' ? 'No ar' : 'Rascunho')),

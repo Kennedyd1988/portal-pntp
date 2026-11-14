@@ -79,6 +79,22 @@ construída para atender a matriz do PNTP 2026 (Atricon).
   aba própria com a declaração no lugar da lista; com um mês filtrado, aparece a declaração daquele mês; partes
   sem abas de ano mostram "Períodos sem ocorrência". O texto é sugerido por item e período
   (`DECLARACOES_PNTP` em `site/destinos.js`) e pode ser reescrito; depois de editado, a sugestão não o troca.
+- Mais de um endereço por página (0.20.0): além do destino principal, cada página aceita "outros endereços"
+  (`configuracoes.destinos_links`), cada um com a explicação (mínimo de 10 letras) e os exercícios que cobre (portal
+  da empresa anterior, sistema antigo, sistema complementar). Com outros endereços, nenhum botão abre direto um deles:
+  vai para a página do portal, que mostra o quadro padrão "Onde consultar" (`S.caixaExterna`) ou, se os dados atuais
+  estão no portal, "Períodos anteriores em outros sistemas" abaixo do título. A parte soma os endereços da página
+  inteira. Na autoavaliação, os exercícios informados contam na série histórica (`pntp_anos_outros_links`).
+- Endereço externo: o portal não lê o conteúdo de sistema de outra empresa (isso fica com o órgão e com o Tribunal);
+  confere todo dia se cada endereço responde (pg_net, 05:10/05:25). Respondeu = 200 a 399 ou 401/403/405/429; 404,
+  410, 5xx, erro de conexão ou 20 s sem resposta contam falha. Com 2 falhas seguidas o Início avisa. A situação de cada
+  endereço aparece em Aparência › Destinos, com o botão "Verificar agora" (uma vez por minuto).
+- Órgãos: todos no mesmo banco (um registro em `orgaos`); não existe banco por cliente. O Suporte SOFT+ cadastra pelo
+  módulo "Órgãos da plataforma" (`criar_orgao`: CNPJ conferido, identidade inicial e menu padrão); depois abre o órgão,
+  convida o administrador e segue as pendências da lista (`orgaos_plataforma`). Desativar o órgão tira site e painel do ar.
+- Padrão visual (0.20.0): painel e site usam as mesmas cores de situação (`--info-*`, `--ok-*`, `--falta-*`,
+  `--erro-*`) e as mesmas mensagens `.msg-info`, `.msg-ok`, `.msg-falta`, `.msg-erro`; espaços pelas classes
+  `.mt-05` a `.mt-4`, `.mb-1` a `.mb-3`, `.pre`, `.bloco`, `.linha-botoes` (nada de `style` solto para espaçamento).
 - Abas do painel seguem as abas da página do site quando o módulo corresponde a ela (mesmos nomes e ordem).
 - e-SIC e Ouvidoria: o formulário é o do sistema próprio do portal (ligado em "Como pedir" / "Como se manifestar")
   ou o de um sistema externo (link em Destinos, partes "e-SIC: pedidos" e "Ouvidoria: manifestações"). Com link
@@ -156,6 +172,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/24_esic_ouvidoria.sql` | Fase 3 · Atendimento: módulos `esic` e `ouvidoria` (o antigo `atendimento` sai, permissões copiadas); `atendimento_canais` (unidade e responsável, endereço, telefone, e-mail, horário, formulário eletrônico, instruções, prazos, autoridades e procedimento do recurso, norma da LAI; o `esic_url`/`ouvidoria_url` de Aparência é copiado para cá), `atendimento_relatorios` + `atendimento_relatorios_itens` (12.7 e relatório da ouvidoria: totais, recursos, prazo médio, perfil dos solicitantes, tipos de manifestação, outras distribuições), `informacoes_classificadas` (12.8/12.9, prazo máximo por grau conferido pelo banco); `atendimento_anos`; avisos `pendencias_atendimento`. Antes, rodar de novo o 21 e o 23 |
 | `supabase/25_esic_ouvidoria_proprio.sql` | Fase 3 · Atendimento, parte 2: sistema próprio do e-SIC e da Ouvidoria. `atendimento_canais` ganha `sistema_proprio`, prazos em dias, anexos, pesquisa e avisos; o endereço do formulário externo (0.17.0) vai para Destinos (`esic_pedidos`, `ouvidoria_manifestacoes`); `feriados`; `atendimentos` (+ `_segredos`, `_solicitantes`, `_tramites`, `_recursos`, `_anexos`, `_acessos`, `_avaliacoes`, `_emails`, `_envios`, `_numeros`); bucket privado `atendimento`; funções do site (`registrar_atendimento`, `consultar_atendimento`, `recorrer_atendimento`, `complementar_atendimento`, `avaliar_atendimento`, `atendimento_satisfacao`), do painel (`atendimento_acao`, `atendimento_identificacao`, `atendimento_resumo`, `atendimento_emails_situacao`, `gerar_relatorios_atendimento`) e da rotina (`rotina_atendimento`, pg_cron 04:20 e e-mails a cada 15 min); `pendencias_atendimento` com a fila e o 15.6; `plataforma_config` (SMTP, endereço do site). Rodar depois do 24 |
 | `supabase/26_vinculos_autoavaliacao_pntp.sql` | Vínculos protegidos: nenhum registro ligado a outro pode ser excluído (as ligações que apagavam junto ou deixavam em branco passam a "no action"; ficam como estavam só as que dependem do órgão, o login da pessoa e peças internas). Autoavaliação automática do PNTP 2026: `pntp_criterios` (96 critérios da prefeitura, classificação, peso da dimensão, itens de verificação, onde corrigir), `avaliacao_pntp(órgão)` (por critério: disponibilidade, atualidade, série histórica, gravação, filtro, nota, situação, externo e o que falta) e `avaliacao_pntp_resumo(órgão)` (índice estimado e nível). Rodar depois do 25; pode repetir |
+| `supabase/27_links_externos_orgaos.sql` | Verificação diária dos endereços externos (`links_verificacao`, `verificar_links_externos`/`coletar_links_externos` no pg_cron, `verificar_links_orgao`, `situacao_links_orgao`) e cadastro de órgãos pelo Suporte SOFT+ (módulo `orgaos`, `criar_orgao`, `alterar_orgao`, `criar_menu_padrao`, `orgaos_plataforma`). Rodar o 26 de novo antes (série histórica com outros endereços); pode repetir |
 | `supabase/teste_apagar_ficticios.sql` | apaga todos os dados fictícios de teste na ordem certa (desde o 26 os ligados não saem junto) e mostra o que sobrou. Para recarregar os testes: rodar este, depois licitações antes de contratos e de obras |
 | `supabase/teste_esic_ouvidoria_ficticios.sql` | opcional: canais do SIC e da Ouvidoria, relatórios de 2023 a 2026 com distribuições, 6 informações classificadas (2 desclassificadas) |
 | `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
@@ -163,6 +180,26 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/teste_pca_sancoes_ficticios.sql` | opcional: PCA de 2024 a 2026 (com revisões) e 6 sanções fictícias de todos os tipos, vigentes e encerradas |
 | `supabase/teste_licitacoes_ficticias.sql` | opcional: 19 processos fictícios (2022 a 2026) com documentos de teste |
 | `supabase/05_lote2_usuarios.sql` | regras de convite e de perfis (`motivo_bloqueio_acesso`, `e_admin_do_orgao`), lista de pessoas com situação do convite (`usuarios_do_orgao`), histórico paginado (`historico_do_orgao`, `autores_historico`), histórico das permissões |
+
+## Implantação do piloto (Riacho da Cruz) — roteiro do lote do piloto
+
+Ordem decidida: piloto no ar primeiro (Supabase, SMTP, funções, dados reais); importações dos sistemas contábil e de
+pessoal e o apontamento de riachodacruz.rn.gov.br ficam para depois. Passos, na ordem:
+
+1. **Banco** (SQL Editor do projeto `softplus-portal`): rodar os scripts que faltarem até o 27 (o 26 de novo antes
+   do 27). Não rodar nenhum `teste_*.sql` no projeto real; se já rodou, rodar `teste_apagar_ficticios.sql`.
+2. **Funções** (Edge Functions › Via Editor, "Verify JWT" desligado em todas): `convidar-usuario`, `pncp`,
+   `pncp-sincronizar` (+ segredo `PNCP_SINC_CHAVE`), `atendimento-arquivos` e, com o SMTP, `atendimento-emails`.
+3. **SMTP próprio** (Brevo, 300 e-mails/dia grátis): Authentication › Emails › SMTP Settings (convites e "Esqueci minha
+   senha") e os segredos `SMTP_*` + `ATENDIMENTO_CHAVE` das funções; depois ligar `plataforma_config.smtp`.
+4. **Login**: Authentication › URL Configuration com o endereço do GitHub Pages; "Email OTP Expiration" = 86400.
+5. **Órgão**: o piloto já existe (script 02). Para os próximos, módulo "Órgãos da plataforma". Convidar o administrador
+   da Prefeitura em Usuários e permissões.
+6. **Dados reais**: Aparência (brasão, contatos, redes, Destinos com os endereços atuais e os de anos anteriores),
+   unidades e gestores, menu, LGPD, Carta de Serviços, e-SIC/Ouvidoria (sistema próprio ou Fala.BR), licitações pelo
+   PNCP (importação automática ligada), e os módulos de transparência. O Início mostra o que falta, critério a critério.
+7. **Conferir**: Início › autoavaliação; Aparência › Destinos › "Verificar os endereços agora"; abrir o site com
+   `?orgao=08153454000104` no celular e no computador. Com o piloto no ar, a versão passa a `1.0.0`.
 
 ## Função de convite (Supabase Edge Function)
 
@@ -276,6 +313,7 @@ painel/
   modulo-atendimento.js → "e-SIC (acesso à informação)" (12.1 a 12.9) e "Ouvidoria" (14.1, 14.2 e 15.6)
   modulo-atendimento-fila.js → sistema próprio: fila, ficha do atendimento, registro no balcão, feriados e pesquisa de satisfação
   modulo-menu.js        → "Menu do site" (rotas do site público listadas em ROTAS)
+  modulo-orgaos.js      → "Órgãos da plataforma" (só Suporte SOFT+: cadastro e situação da implantação)
   versao.json           → ÚNICA fonte da versão (ver abaixo)
   sw.js                 → service worker "rede primeiro"
   manifest.json         → instalação como aplicativo (PWA)
@@ -396,6 +434,28 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.20.0 — 14/11/2026 — Padronização visual, vários endereços por página, verificação de links e cadastro de órgãos**
+- Padrão visual único: painel e site com as mesmas cores de situação e as mesmas mensagens (o site deixou de ter
+  caixas próprias de erro e aviso); 162 espaçamentos soltos (`style`) viraram classes da escala comum; quadro único
+  "Onde consultar" para sistema externo no site (página inteira, parte de página, formulário e acompanhamento do
+  e-SIC/Ouvidoria).
+- Aparência › Destinos das páginas: "+ Outro endereço (outro período ou sistema)" em cada página, com explicação,
+  exercícios (de/até) e endereço, validados (sem repetir o principal). No site, a página mostra todos explicados, do
+  mais recente para o mais antigo; menu, capa da Transparência e busca passam a levar à página do portal quando há
+  mais de um endereço.
+- Verificação diária dos endereços externos (destinos, outros endereços, Portal da Transparência geral, Diário Oficial,
+  sistema de licitações), situação em cada linha de Destinos, botão "Verificar agora" e quadro no Início quando um
+  endereço falha 2 vezes seguidas.
+- Autoavaliação: a série histórica considera os exercícios cobertos por outros endereços.
+- Módulo "Órgãos da plataforma" (Suporte SOFT+): cadastrar órgão ou subsite (tipo, CNPJ, município, domínio), já com o
+  menu padrão; editar e ativar/desativar; lista com o que falta para cada órgão entrar no ar.
+- Banco: rodar de novo o 26 e depois o 27. Testado no PostgreSQL local (banco novo 01 a 27, 27 repetido, respostas
+  simuladas do pg_net: 200 e 404) e no navegador com PostgREST local (Aparência com outros endereços e validação,
+  situação dos links, site com quadro de períodos anteriores e com vários endereços, cadastro de órgão e subsite,
+  varredura de todas as telas do painel e de 41 rotas do site sem erros de script).
+- Varredura PNTP: sem mudança de critério; 1.1 (domínio) continua dependendo do apontamento do domínio. Com os dados
+  fictícios e um "outro endereço" de 2021-2024 nas receitas, 3.1/3.2 passam a atender a série histórica.
 
 **0.19.0 — 14/11/2026 — Autoavaliação automática do PNTP, aviso padrão do que falta e vínculos protegidos**
 - Início do painel: "Autoavaliação automática do PNTP 2026" com o índice estimado, o nível atual (Diamante a

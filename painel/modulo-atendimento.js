@@ -160,7 +160,7 @@
         if (depois) depois();
       } catch (e) { S.mostrarErro(e); } finally { ocupado(btn); }
     });
-    caixa.append(...cartoes, el('div', { class: 'secao-parte-acoes', style: 'margin-top:12px' }, pode() ? btn : null, info));
+    caixa.append(...cartoes, el('div', { class: 'mt-1 secao-parte-acoes' }, pode() ? btn : null, info));
     if (!pode()) for (const i of caixa.querySelectorAll('input, select, textarea, .editor-barra button, .campo label button')) i.disabled = true;
     return caixa;
   }

@@ -304,7 +304,7 @@
     }
     const pode = perm.editar && !alcance();
     return [
-      el('div', { class: 'cabecalho-modulo', style: 'margin-bottom:8px' },
+      el('div', { class: 'mb-1 cabecalho-modulo' },
         el('p', { class: 'ajuda' }, 'Além dos tipos fixos (Lei, Decreto, Portaria, Resolução, Edital…), o órgão pode criar os seus. Cada tipo fica numa aba.'),
         pode ? el('button', { type: 'button', class: 'btn btn-primario', onclick: () => formTipo() }, '+ Novo tipo') : null),
       personalizados.length ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },

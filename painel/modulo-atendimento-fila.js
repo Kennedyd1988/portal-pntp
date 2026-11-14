@@ -194,8 +194,8 @@
         .filter(Boolean).flatMap(([dt, dd]) => [el('dt', null, dt), el('dd', null, dd)]));
     const preservada = a.identificacao === 'preservada' ? el('p', { class: 'msg msg-info' }, 'Identidade preservada: o cidadão pediu que só o SIC saiba quem fez o pedido. Ao encaminhar, não repasse nome nem contatos.') : null;
     const abaAtend = [preservada, dados, a.assunto ? el('p', null, el('strong', null, a.assunto)) : null,
-      el('div', { class: 'cartao', style: 'white-space:pre-line' }, a.texto),
-      a.resposta ? el('section', { class: 'cartao' }, el('h3', null, 'Resposta enviada (' + dataH(a.respondido_em) + ')'), el('p', { style: 'white-space:pre-line' }, a.resposta)) : null];
+      el('div', { class: 'pre cartao' }, a.texto),
+      a.resposta ? el('section', { class: 'cartao' }, el('h3', null, 'Resposta enviada (' + dataH(a.respondido_em) + ')'), el('p', { class: 'pre' }, a.resposta)) : null];
 
     // --- aba Identificação (equipe central) ---
     const abaIdent = () => {
@@ -231,7 +231,7 @@
     const abaRec = recursos.length ? recursos.map((r) => el('section', { class: 'cartao' },
       el('h3', null, r.instancia + 'ª instância', ' ', r.decisao ? etq(DECISOES[r.decisao], 'etiqueta-encerrado') : etq('Aguardando decisão até ' + P.dataBR(r.prazo_decisao), r.prazo_decisao < hoje() ? 'etiqueta-nivel-urgente' : 'etiqueta-nivel-importante')),
       el('p', { class: 'ajuda' }, 'Registrado em ' + dataH(r.registrado_em) + (r.autoridade ? ' · decide: ' + r.autoridade : '')),
-      el('p', { style: 'white-space:pre-line' }, r.texto), r.decisao_texto ? el('p', { style: 'white-space:pre-line' }, el('strong', null, 'Decisão: '), r.decisao_texto) : null))
+      el('p', { class: 'pre' }, r.texto), r.decisao_texto ? el('p', { class: 'pre' }, el('strong', null, 'Decisão: '), r.decisao_texto) : null))
       : [el('p', { class: 'vazio' }, 'Nenhum recurso.')];
 
     // --- aba Anexos ---

@@ -144,7 +144,34 @@
       conteudo, d.externo ? el('span', { class: 'sr' }, ' (abre em nova aba)') : null);
   };
   // Item interno do menu cuja página o órgão mandou para link externo segue o link.
-  const externoDaRota = (rota) => { const k = window.chaveDaRotaPNTP(rota); return k ? window.externoPNTP(S.conf, k) : null; };
+  // Com mais de um endereço cadastrado, o item segue para a página do portal, que explica cada um.
+  const externoDaRota = (rota) => {
+    const k = window.chaveDaRotaPNTP(rota);
+    return k && !window.outrosLinksPNTP(S.conf, k).length ? window.externoPNTP(S.conf, k) : null;
+  };
+  // Quadro padrão dos endereços externos de uma chave (Aparência › Destinos das páginas): o principal
+  // (quando a página está em sistema externo) e os outros, cada um com os exercícios e a explicação.
+  S.caixaExterna = (chave, opcoes) => {
+    const o = opcoes || {};
+    const principal = window.externoPNTP(S.conf, chave);
+    const outros = window.outrosLinksPNTP(S.conf, chave);
+    if (!principal && !outros.length) return null;
+    const abrir = (url, rot, classe) => el('a', { class: classe || null, href: url, target: '_blank', rel: 'noopener' }, rot, el('span', { class: 'sr' }, ' (abre em nova aba)'));
+    return el('section', { class: 'caixa-externa', 'aria-label': 'Onde consultar' },
+      principal ? [
+        el(o.nivel || 'h2', null, outros.length ? 'Onde consultar' : 'Informação publicada em outro sistema'),
+        el('p', null, outros.length ? 'Endereço atual, indicado pelo órgão:' : 'Esta informação é publicada no sistema indicado pelo órgão:'),
+        el('p', null, abrir(principal, 'Acessar' + (o.rotulo ? ' ' + o.rotulo : ''), 'botao'), el('span', { class: 'url-ext' }, principal))
+      ] : [
+        el(o.nivel || 'h2', null, 'Períodos anteriores em outros sistemas'),
+        el('p', null, 'Os dados desta página são publicados neste portal. Os períodos abaixo estão nos endereços indicados pelo órgão:')
+      ],
+      outros.length ? [principal ? el('p', { class: 'mt-2' }, el('strong', null, 'Outros períodos e sistemas:')) : null,
+        el('ul', { class: 'lista-externos' }, outros.map((l) => el('li', null,
+          el('span', { class: 'periodo-ext' }, window.periodoLinkPNTP(l)),
+          el('span', { class: 'descricao-ext' }, l.descricao || '', el('span', { class: 'url-ext' }, l.url)),
+          abrir(l.url, 'Acessar'))))] : null);
+  };
   S.destinoMenu = (i) => i.tipo === 'link' ? i.destino : i.tipo === 'pagina' ? S.link('/pagina/' + i.destino) : externoDaRota(i.destino) || S.link(i.destino);
 
   function montarMenu() {
@@ -377,11 +404,17 @@
     const d = window.DESTINOS_PNTP.find((x) => x[0] === chave);
     return async (main) => {
       S.titulo(d[1]); S.trilha([d[1]]);
-      main.replaceChildren(el('div', { class: 'limite pagina' }, el('h1', null, d[1]),
-        el('p', null, 'Esta informação é publicada no sistema indicado pelo órgão. Clique para acessar:'),
-        el('p', null, el('a', { class: 'botao', href: url, target: '_blank', rel: 'noopener' }, 'Acessar ' + d[1], el('span', { class: 'sr' }, ' (abre em nova aba)'))),
-        el('p', { class: 'meta' }, url)));
+      main.replaceChildren(el('div', { class: 'limite pagina' }, el('h1', null, d[1]), S.caixaExterna(chave, { rotulo: d[1] })));
     };
+  }
+  // Página do portal com outros endereços (anos anteriores em outro sistema): quadro logo abaixo do título.
+  function quadroOutrosPeriodos(main, rota) {
+    const k = window.chaveDaRotaPNTP(rota);
+    if (!k || window.externoPNTP(S.conf, k) || !window.outrosLinksPNTP(S.conf, k).length || main.querySelector('.caixa-externa')) return;
+    const h1 = main.querySelector('h1');
+    if (!h1) return;
+    const depois = h1.nextElementSibling && h1.nextElementSibling.classList.contains('sub') ? h1.nextElementSibling : h1;
+    depois.after(S.caixaExterna(k));
   }
 
   let primeiraRota = true;
@@ -390,11 +423,14 @@
     const { partes, params } = lerRota();
     const nome = partes[0] || '';
     const main = $('conteudo');
-    const ext = externoDaRota(partes.join('/'));
-    const pagina = ext ? paginaExterna(ext, window.chaveDaRotaPNTP(partes.join('/'))) : S.rotas[nome] || S.rotas['*'];
+    // Página inteira em sistema externo: mostra o quadro de endereços (um ou vários).
+    const chaveRota = window.chaveDaRotaPNTP(partes.join('/'));
+    const chavePagina = chaveRota && (window.paiPNTP(chaveRota) || chaveRota);
+    const ext = chavePagina && (S.conf.destinos || {})[chavePagina];
+    const pagina = ext ? paginaExterna(ext, chavePagina) : S.rotas[nome] || S.rotas['*'];
     main.replaceChildren(el('p', { class: 'limite carregando' }, 'Carregando…'));
     S.trilha();
-    try { await pagina(main, partes.slice(1), params); }
+    try { await pagina(main, partes.slice(1), params); if (!ext) quadroOutrosPeriodos(main, partes.join('/')); }
     catch (e) {
       console.error(e);
       main.replaceChildren(el('div', { class: 'limite pagina' }, el('h1', null, 'Não foi possível carregar'), el('p', null, 'Tente novamente em instantes.')));

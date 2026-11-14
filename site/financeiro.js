@@ -26,7 +26,7 @@
   const meta = (t) => t ? el('span', { class: 'meta' }, t) : null;
   const anosRpc = (tabela) => async () => { const { data, error } = await sb.rpc('anos_financeiros', { p_orgao: org(), p_tabela: tabela }); return error ? null : data || []; };
   const cartoes = (pares) => el('div', { class: 'grade', style: 'margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))' },
-    pares.map(([rot, val, sub]) => el('div', { class: 'cartao' }, el('span', { class: 'meta' }, rot), el('strong', { style: 'display:block;font-size:1.15em' }, val), sub ? meta(sub) : null)));
+    pares.map(([rot, val, sub]) => el('div', { class: 'cartao' }, el('span', { class: 'meta' }, rot), el('strong', { class: 'bloco maior' }, val), sub ? meta(sub) : null)));
   // Data da última atualização de uma tabela (1 linha).
   const ultimaAtualizacao = async (tabela) => {
     const { data } = await sb.from(tabela).select('atualizado_em').eq('orgao_id', org()).order('atualizado_em', { ascending: false }).limit(1);
@@ -84,10 +84,10 @@
       const fBusca = busca('Ex.: IPTU, FPM, ICMS, 1.7.1'); fBusca.value = trocou ? '' : prm.get('q') || '';
       const resumo = el('div'), trilhaNivel = el('nav', { class: 'meta', 'aria-label': 'Nível da classificação', style: 'margin:8px 0' }), corpo = el('div'), barra = el('div', { class: 'barra-lista' });
       let linhasAtuais = [];
-      const mensalCx = el('details', { class: 'cartao', style: 'margin-top:20px' }, el('summary', { style: 'cursor:pointer;font-weight:600' }, 'Arrecadação mês a mês em ' + ano),
+      const mensalCx = el('details', { class: 'mt-3 cartao' }, el('summary', { style: 'cursor:pointer;font-weight:600' }, 'Arrecadação mês a mês em ' + ano),
         (mensal || []).length ? tabela('Arrecadação mês a mês', ['Mês', 'Arrecadado no mês', 'Acumulado no ano'], (() => { let acc = 0; return (mensal || []).map((m) => ({ mes: m.mes, v: m.arrecadado, acc: (acc += Number(m.arrecadado)) })); })(),
           (m) => el('tr', null, td('Mês', opMeses[String(m.mes).padStart(2, '0')]), td('Arrecadado no mês', moeda(m.v), 'num'), td('Acumulado no ano', moeda(m.acc), 'num'))) : el('p', { class: 'vazio' }, 'Sem lançamentos.'),
-        el('div', { class: 'barra-lista', style: 'margin-top:8px' }, el('span', { class: 'meta' }, 'Todos os lançamentos (natureza, fonte e mês)'),
+        el('div', { class: 'mt-1 barra-lista' }, el('span', { class: 'meta' }, 'Todos os lançamentos (natureza, fonte e mês)'),
           S.botoesExportar('receitas-lancamentos-' + ano, [['exercicio', 'Exercício'], ['mes', 'Mês'], ['natureza_codigo', 'Natureza'], ['natureza_descricao', 'Descrição'],
             ['fonte_codigo', 'Fonte'], ['fonte_descricao', 'Fonte (nome)'], ['previsto_inicial', 'Previsão inicial do ano'], ['previsto_atualizado', 'Previsão atualizada do ano'], ['arrecadado', 'Arrecadado no mês']],
           async (de, ate) => { const { data } = await sb.from('receitas').select('exercicio, mes, natureza_codigo, natureza_descricao, fonte_codigo, fonte_descricao, previsto_inicial, previsto_atualizado, arrecadado')
@@ -128,7 +128,7 @@
           S.botoesExportar('receitas-' + ano + (prefixo ? '-' + prefixo : ''), [['codigo', 'Código'], ['descricao', 'Descrição'], ['previsto_inicial', 'Previsão inicial'], ['previsto_atualizado', 'Previsão atualizada'],
             ['arrecadado', 'Arrecadado (' + periodo + ')']], async (d) => d ? [] : linhasAtuais));
         corpo.replaceChildren(linhasAtuais.length ? tabela('Receitas por natureza — ' + ano, ['Código', 'Descrição', 'Previsão inicial', 'Previsão atualizada', 'Arrecadado', '% da previsão'], linhasAtuais, (r) => el('tr', null,
-          td('Código', el('span', { style: 'white-space:nowrap' }, r.codigo)),
+          td('Código', el('span', { class: 'nowrap' }, r.codigo)),
           td('Descrição', !q && Number(r.filhos) > 0 ? el('a', { href: '#', onclick: irNivel(r.codigo) }, r.descricao || r.codigo) : r.descricao || '—', 'lic-obj'),
           td('Previsão inicial', moeda(r.previsto_inicial), 'num'), td('Previsão atualizada', moeda(r.previsto_atualizado), 'num'), td('Arrecadado', moeda(r.arrecadado), 'num'),
           td('% da previsão', pct(r.arrecadado, r.previsto_atualizado), 'num')))
@@ -318,21 +318,21 @@
     const proc = d.licitacao_id ? el('a', { href: '#/licitacao/' + d.licitacao_id }, procedimento(d)) : procedimento(d);
     U.pagina(main, el('p', { class: 'meta' }, 'Empenho ' + TIPO_EMP[d.tipo_empenho].toLowerCase() + ' · ' + dataBR(d.data_empenho)), el('h1', null, 'Empenho nº ' + d.numero),
       cartoes([['Empenhado', moeda(d.total_empenhado), d.total_empenhado !== d.valor_empenhado ? 'Valor original: ' + moeda(d.valor_empenhado) : null], ['Liquidado', moeda(d.total_liquidado)], ['Pago', moeda(d.total_pago)]]),
-      el('section', { class: 'cartao' }, el('h2', { style: 'margin-top:0' }, 'Credor e objeto'),
+      el('section', { class: 'cartao' }, el('h2', { class: 'mt-0' }, 'Credor e objeto'),
         el('dl', { class: 'ficha-lic' }, linha('Credor', d.credor_nome), linha('CPF/CNPJ', d.credor_doc_publico), linha('Bem ou serviço', d.objeto),
           linha('Procedimento de origem', proc), linha('Processo', d.processo), linha('Contrato', d.contrato_id ? el('a', { href: '#/contrato/' + d.contrato_id }, 'Ver o contrato') : null))),
-      el('section', { class: 'cartao', style: 'margin-top:16px' }, el('h2', { style: 'margin-top:0' }, 'Classificação orçamentária'),
+      el('section', { class: 'mt-2 cartao' }, el('h2', { class: 'mt-0' }, 'Classificação orçamentária'),
         el('dl', { class: 'ficha-lic' }, linha('Unidade orçamentária', cod(d.unidade_codigo, d.unidade_nome)), linha('Função', cod(d.funcao_codigo, C.funcoes[d.funcao_codigo])),
           linha('Subfunção', cod(d.subfuncao_codigo, d.subfuncao_nome)), linha('Programa', cod(d.programa_codigo, d.programa_nome)), linha('Ação', cod(d.acao_codigo, d.acao_nome)),
           linha('Categoria econômica', cod(d.categoria, C.categorias[d.categoria])), linha('Grupo de natureza', cod(d.grupo ? d.grupo.split('').join('.') : null, C.grupos[d.grupo])),
           linha('Modalidade de aplicação', cod(d.modalidade_aplicacao, C.modalidades[d.modalidade_aplicacao])), linha('Natureza da despesa', cod(d.natureza_codigo, d.natureza_nome)),
           linha('Fonte de recursos', cod(d.fonte_codigo, d.fonte_nome)))),
-      el('section', { style: 'margin-top:24px' }, el('div', { class: 'secao-titulo' }, el('h2', { style: 'margin:0' }, 'Liquidações e pagamentos'),
+      el('section', { class: 'mt-3' }, el('div', { class: 'secao-titulo' }, el('h2', { class: 'm-0' }, 'Liquidações e pagamentos'),
         S.botoesExportar('empenho-' + d.numero.replace(/\W+/g, '-'), [['data', 'Data'], ['tipo', 'Movimento', (v) => TIPO_MOV[v]], ['documento', 'Documento'], ['valor', 'Valor'], ['observacao', 'Observação']], async (x) => x ? [] : movs || [])),
         (movs || []).length ? tabela('Movimentos do empenho', ['Data', 'Movimento', 'Documento', 'Valor'], movs, (m) => el('tr', null,
           td('Data', dataBR(m.data), 'num'), td('Movimento', [TIPO_MOV[m.tipo], meta(m.observacao)]), td('Documento', m.documento || '—'), td('Valor', moeda(m.valor), 'num')))
           : el('p', { class: 'vazio' }, 'Ainda sem liquidação ou pagamento.')),
-      el('p', { class: 'meta', style: 'margin-top:16px' }, 'Informações atualizadas em ' + dataBR(d.atualizado_em) + '.'));
+      el('p', { class: 'mt-2 meta' }, 'Informações atualizadas em ' + dataBR(d.atualizado_em) + '.'));
   };
 
   // ===================================================================
@@ -380,7 +380,7 @@
           td('Credor e documento', [el('strong', null, o.credor_nome), meta(o.credor_doc_publico), meta([o.documento_fiscal, o.empenho_numero && (o.despesa_id ? null : 'empenho ' + o.empenho_numero), o.contrato_numero && 'contrato ' + o.contrato_numero].filter(Boolean).join(' · ')),
             o.despesa_id ? el('span', { class: 'meta' }, el('a', { href: '#/despesa/' + o.despesa_id }, 'Empenho ' + (o.empenho_numero || ''))) : null,
             o.fora_da_ordem ? el('div', { class: 'cartao', style: 'margin-top:6px;padding:8px 10px' }, el('strong', null, 'Pago fora da ordem: '), C.motivosOC[o.motivo_alteracao] || '',
-              o.justificativa ? el('span', { style: 'display:block;white-space:pre-line;margin-top:4px' }, o.justificativa) : null,
+              o.justificativa ? el('span', { class: 'bloco pre mt-05' }, o.justificativa) : null,
               o.ato_justificativa ? el('span', { class: 'meta' }, o.justificativa_url ? el('a', { href: o.justificativa_url, target: '_blank', rel: 'noopener' }, o.ato_justificativa, novaAba()) : o.ato_justificativa) : null) : null], 'lic-obj'),
           td('Categoria e fonte', [C.categoriasOC[o.categoria], meta(o.fonte_codigo ? 'Fonte ' + o.fonte_codigo + (o.fonte_nome ? ' · ' + o.fonte_nome : '') : null)]),
           td('Exigível desde', dataBR(o.data_exigibilidade), 'num'),
@@ -474,7 +474,7 @@
     const lista = data || [];
     const quando = lista.map((x) => x.atualizado_em).sort().pop();
     T.listaLocal(caixa, { titulo: 'Tabela de cargos e salários', dados: lista, nome: 'cargos-e-salarios', unidade: ['cargo', 'cargos'], vazio: 'Tabela em atualização.',
-      antes: [notaAtualizacao(quando), avisoVigente(lista, 'Tabela remuneratória'), s.texto ? el('section', { class: 'cartao', style: 'margin-bottom:16px' }, el('p', { style: 'white-space:pre-line;margin:0' }, s.texto)) : ''],
+      antes: [notaAtualizacao(quando), avisoVigente(lista, 'Tabela remuneratória'), s.texto ? el('section', { class: 'mb-2 cartao' }, el('p', { class: 'pre m-0' }, s.texto)) : ''],
       filtros: [['Pesquisar', busca('Ex.: professor, enfermeiro'), T.contem('cargo', 'referencia', 'norma')], ['Tipo', U.selecao(Object.fromEntries([...new Set(lista.map((c) => c.tipo))].map((t) => [t, TIPOS_CARGO[t]]))), (d, v) => d.tipo === v]],
       cabecalho: ['Cargo ou função', 'Tipo', 'Carga horária', 'Vencimento', 'Lei', 'Vigência'],
       colunas: [['cargo', 'Cargo'], ['tipo', 'Tipo', (v) => TIPOS_CARGO[v]], ['referencia', 'Referência'], ['carga_horaria', 'Carga horária'], ['vencimento', 'Vencimento'], ['norma', 'Lei'],
@@ -598,7 +598,7 @@
     const quando = lista.map((x) => x.atualizado_em).sort().pop();
     const valor = (v) => v.moeda === 'BRL' ? moeda(v.valor) : (v.moeda === 'USD' ? 'US$ ' : '€ ') + numBR(v.valor);
     T.listaLocal(caixa, { titulo: 'Valores das diárias', dados: lista, nome: 'diarias-tabela-de-valores', unidade: ['valor', 'valores'], vazio: 'Tabela de valores em atualização.',
-      antes: [notaAtualizacao(quando), avisoVigente(lista, 'Tabela de valores das diárias'), s.texto ? el('section', { class: 'cartao', style: 'margin-bottom:16px' }, el('p', { style: 'white-space:pre-line;margin:0' }, s.texto)) : ''],
+      antes: [notaAtualizacao(quando), avisoVigente(lista, 'Tabela de valores das diárias'), s.texto ? el('section', { class: 'mb-2 cartao' }, el('p', { class: 'pre m-0' }, s.texto)) : ''],
       filtros: [['Destino', U.selecao(Object.fromEntries([...new Set(lista.map((v) => v.abrangencia))].map((a) => [a, ABR_TABELA[a]]))), (d, v) => d.abrangencia === v]],
       cabecalho: ['Quem recebe', 'Destino', 'Valor da diária', 'Norma', 'Vigência'],
       colunas: [['grupo', 'Quem recebe'], ['abrangencia', 'Destino', (v) => ABR_TABELA[v]], ['destino_descricao', 'Descrição do destino'], ['valor', 'Valor'], ['moeda', 'Moeda'],

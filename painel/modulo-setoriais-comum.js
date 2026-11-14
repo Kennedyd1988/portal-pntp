@@ -266,7 +266,7 @@
           await listar();
         } catch (e) { mostrarErro(e); ocupado(btn); }
       });
-      const formCaixa = pode ? el('div', { class: 'cartao', style: 'margin-top:12px', 'data-livre': '' }, el('h3', { style: 'margin-top:0' }, 'Incluir ' + (o.rotulo || 'item')),
+      const formCaixa = pode ? el('div', { class: 'mt-1 cartao', 'data-livre': '' }, el('h3', { class: 'mt-0' }, 'Incluir ' + (o.rotulo || 'item')),
         linhaCampos(o.campos, mapa), el('div', { style: 'display:flex;gap:8px' }, btn, btnCancelar)) : null;
       caixa.replaceChildren(o.ajuda ? el('p', { class: 'ajuda' }, o.ajuda) : '',
         tabela(o.colunas, linhas, pode ? (l) => [botao('Editar', () => preencher(l)),
@@ -576,7 +576,7 @@
       }
       const miolo = el('div', null, campos.length ? el('div', { class: 'filtros' }, campos.map((x) => x[1])) : '', cfg.rodape ? cfg.rodape(ano) : '', lista);
       corpo.replaceChildren(
-        cfg.botoes ? el('p', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, cfg.botoes()) : '',
+        cfg.botoes ? el('p', { class: 'linha-botoes' }, cfg.botoes()) : '',
         !cfg.anos ? miolo : anos.length ? el('div', null,
           el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': cfg.rotuloAno || 'Exercício' }, anos.map((x) => el('button', { type: 'button', role: 'tab', class: 'aba aba-p',
             'aria-selected': x.ano === ano ? 'true' : 'false', onclick: () => { ano = x.ano; recarregar(true); } }, String(x.ano), el('span', { class: 'aba-qtd' }, String(x.total))))),

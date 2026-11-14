@@ -96,7 +96,7 @@
             el('td', null, el('a', { href: d.arquivo_url || d.link_externo, target: '_blank', rel: 'noopener' }, d.arquivo_url ? 'PDF' : 'Link')),
             el('td', { class: 'acoes' }, !travado && perm.editar ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(d) }, 'Excluir') : null))))))
           : el('p', { class: 'vazio' }, 'Nenhum documento ainda.'),
-        travado || !perm.editar ? null : el('div', { class: 'cartao', style: 'margin-top:12px' }, el('h3', { style: 'margin-top:0' }, 'Incluir documento'),
+        travado || !perm.editar ? null : el('div', { class: 'mt-1 cartao' }, el('h3', { class: 'mt-0' }, 'Incluir documento'),
           el('div', { class: 'grade-campos' }, campo('cd-tipo', 'Tipo', tipo), campo('cd-data', 'Data', data_)),
           campo('cd-tit', 'Título', titulo, 'Em branco: usa o nome do tipo.'),
           el('div', { class: 'grade-campos' }, campo('cd-pdf', 'PDF', pdf, 'Até ' + LIMITE_MB + ' MB.'), campo('cd-link', 'ou link', link)), btn));

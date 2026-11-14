@@ -179,7 +179,7 @@
     caixa.replaceChildren(
       S.secao('renuncias_beneficiarios', perm, { naoHa: 'Não há beneficiários de renúncia de receita no exercício.' }),
       el('p', { class: 'ajuda' }, 'PNTP 16.3: quem recebeu cada benefício, com CNPJ, setor, produto e valor. Pessoa física: o site mostra o CPF mascarado (***.123.456-**).'),
-      pode() ? el('p', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: importar }, 'Importar beneficiários (colar ou CSV)'),
+      pode() ? el('p', { class: 'linha-botoes' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: importar }, 'Importar beneficiários (colar ou CSV)'),
         el('button', { type: 'button', class: 'btn btn-claro', onclick: () => abrir() }, '+ Incluir um beneficiário')) : '',
       corpo);
     carregarRenuncias().then(() => recarregar()).catch(S.mostrarErro);

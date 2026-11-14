@@ -307,7 +307,7 @@
         linhas,
         el('div', { class: 'campo' }, el('label', { for: 'ld-link' }, 'Ou um link (ex.: documento no sistema de outra empresa)'),
           el('div', { class: 'linha-arquivo linha-doc' }, linkTipo, linkTit, linkUrl), el('span', { class: 'erro-campo', id: 'ld-link-erro' })),
-        el('div', { style: 'margin-top:10px' }, btn));
+        el('div', { class: 'mt-1' }, btn));
     }
     atualizar();
     return corpo;
@@ -509,7 +509,7 @@
       } catch (e) { toast(/function .*definir_pncp_automatico|Could not find/i.test(e.message || '') ? 'Falta rodar o script 13 no banco.' : P.erroGravacao(e), true); }
       finally { ocupado(btn); }
     });
-    return el('fieldset', { class: 'opcoes', style: 'margin-top:14px' }, el('legend', null, 'Importação automática'),
+    return el('fieldset', { class: 'mt-2 opcoes' }, el('legend', null, 'Importação automática'),
       el('label', { class: 'checkbox' }, auto, ' Buscar no PNCP todo dia de madrugada as licitações e os contratos, sem ninguém precisar clicar'),
       el('label', { class: 'checkbox' }, pub, ' Publicar no site os processos novos automaticamente (sem marcar, entram como rascunho)'),
       el('p', { class: 'ajuda' }, 'Usa os CNPJs informados acima. Cada noite busca o que foi publicado ou alterado desde a última vez (na primeira, os últimos 120 dias). '

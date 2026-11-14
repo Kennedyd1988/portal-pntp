@@ -170,15 +170,70 @@
       const url = texto(destinosCfg[chave] || '', { type: 'url', placeholder: rota ? 'https://…' : 'Em branco: usa o Portal da Transparência externo', id: 'ap-dest-' + chave });
       const ajustar = () => { url.hidden = modo.value !== 'link'; };
       modo.addEventListener('change', ajustar); ajustar();
-      return { chave, rotulo, rota, cod, grupo, modo, url };
+      // Outros endereços da mesma página (portal de anos anteriores, sistema antigo ou complementar):
+      // cada um com a explicação e os exercícios que cobre. Valem com "Página do portal" ou com link.
+      const d = { chave, rotulo, rota, cod, grupo, modo, url, outros: [], lista: el('div', { class: 'outros-enderecos' }) };
+      d.situacao = el('span', { class: 'situacao-link' });
+      const novoOutro = (l) => {
+        const k = d.outros.length + '-' + Math.random().toString(36).slice(2, 6), base = 'ap-dl-' + chave + '-' + k;
+        const ano = (v, ph) => el('input', { type: 'number', min: 1990, max: new Date().getFullYear(), step: 1, value: v || '', placeholder: ph, inputmode: 'numeric' });
+        const o = { descricao: texto(l.descricao, { maxlength: 160, placeholder: 'Do que se trata (ex.: Portal da Transparência anterior, empresa X)', id: base + '-d' }),
+          de: ano(l.de, 'De'), ate: ano(l.ate, 'Até'), url: texto(l.url, { type: 'url', placeholder: 'https://…', id: base + '-u' }), base };
+        o.de.id = base + '-a'; o.de.setAttribute('aria-label', 'Primeiro exercício'); o.ate.setAttribute('aria-label', 'Último exercício');
+        o.descricao.setAttribute('aria-label', 'Explicação do endereço'); o.url.setAttribute('aria-label', 'Endereço');
+        o.situacao = el('span', { class: 'situacao-link' });
+        o.linha = el('div', { class: 'outro-endereco' },
+          el('div', { class: 'outro-linha' }, o.descricao, el('button', { type: 'button', class: 'link', hidden: !podeEditar, 'aria-label': 'Remover este endereço',
+            onclick: () => { o.linha.remove(); d.outros.splice(d.outros.indexOf(o), 1); } }, 'Remover')),
+          el('span', { class: 'erro-campo', id: base + '-d-erro' }),
+          el('div', { class: 'outro-linha' }, el('span', { class: 'ajuda' }, 'Exercícios'), o.de, el('span', null, 'a'), o.ate, o.url),
+          el('span', { class: 'erro-campo', id: base + '-a-erro' }), el('span', { class: 'erro-campo', id: base + '-u-erro' }), o.situacao);
+        d.outros.push(o); d.lista.append(o.linha);
+        return o;
+      };
+      for (const l of (cfg.destinos_links || {})[chave] || []) novoOutro(l);
+      d.botaoOutro = rota ? el('button', { type: 'button', class: 'link', hidden: !podeEditar, onclick: () => novoOutro({}).descricao.focus() }, '+ Outro endereço (outro período ou sistema)') : null;
+      return d;
     });
     const tabelaDestinos = el('div', null, [...new Set(D.map((d) => d[4]))].map((g) => el('div', null, el('h3', { class: 'destinos-grupo' }, g),
       el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela tabela-destinos' },
-        el('thead', null, el('tr', null, ['Página', 'PNTP', 'Destino', 'Endereço do link externo'].map((t) => el('th', { scope: 'col' }, t)))),
+        el('thead', null, el('tr', null, ['Página', 'PNTP', 'Destino', 'Endereços externos'].map((t) => el('th', { scope: 'col' }, t)))),
         el('tbody', null, destinos.filter((d) => d.grupo === g).map((d) => el('tr', null,
           el('td', null, el('strong', null, d.rotulo), el('span', { class: 'sub-linha' }, d.rota ? 'Página do portal: ' + d.rota : 'Ainda não existe no portal: só link externo')),
           el('td', { class: 'num' }, d.cod || '—'), el('td', null, d.modo),
-          el('td', null, el('div', { class: 'campo', style: 'margin:0' }, d.url, el('span', { class: 'erro-campo', id: 'ap-dest-' + d.chave + '-erro' })))))))))));
+          el('td', null, el('div', { class: 'campo m-0' }, d.url, el('span', { class: 'erro-campo', id: 'ap-dest-' + d.chave + '-erro' })), d.situacao, d.lista, d.botaoOutro)))))))));
+
+    // Situação de cada endereço externo na última verificação diária (script 27).
+    const dataHora = (t) => t ? new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+    async function mostrarSituacaoLinks() {
+      const { data, error: eSit } = await sb.rpc('situacao_links_orgao', { p_orgao: org.id });
+      if (eSit) return;
+      const mapa = Object.fromEntries((data || []).map((x) => [x.url, x]));
+      const marcar = (span, url) => {
+        const x = mapa[(url || '').trim()];
+        span.className = 'situacao-link';
+        if (!x || (!x.verificado_em && !x.aguardando)) { span.textContent = ''; return; }
+        if (x.aguardando && !x.verificado_em) { span.textContent = 'Aguardando a primeira verificação…'; return; }
+        span.classList.add(x.ok ? 'ok' : 'fora');
+        span.textContent = x.ok ? 'Respondeu na verificação de ' + dataHora(x.verificado_em)
+          : (x.erro || 'Não respondeu.') + ' Verificado em ' + dataHora(x.verificado_em) + (x.falhas_seguidas > 1 ? ' (' + x.falhas_seguidas + ' verificações seguidas)' : '')
+            + (x.ultimo_ok_em ? '. Respondeu pela última vez em ' + dataHora(x.ultimo_ok_em) + '.' : '.');
+      };
+      for (const d of destinos) { marcar(d.situacao, d.modo.value === 'link' ? d.url.value : ''); for (const o of d.outros) marcar(o.situacao, o.url.value); }
+    }
+    const btnVerificar = el('button', { type: 'button', class: 'btn btn-claro', hidden: !podeEditar }, 'Verificar os endereços agora');
+    btnVerificar.addEventListener('click', async () => {
+      ocupado(btnVerificar, 'Verificando…');
+      try {
+        const { error: eV } = await sb.rpc('verificar_links_orgao', { p_orgao: org.id });
+        if (eV) throw eV;
+        await new Promise((r) => setTimeout(r, 8000));
+        await mostrarSituacaoLinks();
+        toast('Verificação feita. Endereços salvos agora entram na próxima verificação.');
+      } catch (e) { toast(traduzirErro(e), true); }
+      finally { ocupado(btnVerificar, false); }
+    });
+    mostrarSituacaoLinks();
 
     const btnSalvar = el('button', { type: 'submit', class: 'btn btn-primario' }, 'Salvar alterações');
     const form = el('form', { class: 'form-aparencia', novalidate: true },
@@ -222,7 +277,10 @@
         ['destinos', 'Destinos das páginas', el('section', { class: 'cartao' },
           el('h2', null, 'Para onde cada página leva'),
           el('p', { class: 'ajuda' }, 'Escolha, para cada página, se ela fica no próprio portal (cadastro ou importação) ou num sistema externo. Menu, capa da Transparência, página inicial, mapa do site e busca seguem esta tabela: nenhum botão leva a um lugar diferente do outro.'),
+          el('p', { class: 'msg msg-info' }, 'Mais de um endereço para a mesma página (ex.: o portal atual e o de anos anteriores, de outra empresa): use "+ Outro endereço" e explique do que se trata e quais exercícios ele cobre. ',
+            'O site mostra todos, explicados, na própria página. Na autoavaliação, os exercícios informados contam na série histórica. Todo endereço externo é conferido uma vez por dia: aqui aparece se ele respondeu na última verificação.'),
           campo('ap-transparencia', 'Portal da Transparência externo (geral)', f.transparencia_url, 'Usado pelas páginas que ainda não existem no portal e estão sem link próprio (receitas, despesas, folha…).'),
+          el('div', { class: 'linha-botoes mb-2' }, btnVerificar, el('span', { class: 'ajuda' }, 'Verificação automática todo dia às 05:10. O portal confere se o endereço responde; o conteúdo do sistema externo é conferido pelo próprio órgão.')),
           tabelaDestinos)],
         ['publicacoes', 'Diário Oficial e sistemas', el('div', { class: 'grade grade-2' },
           el('section', { class: 'cartao' },
@@ -244,7 +302,7 @@
             el('h2', null, 'Selos e certificações'),
             el('p', { class: 'ajuda' }, 'Aparecem no alto do site, à direita, logo acima do menu: só o símbolo de cada selo; o nome e o detalhe surgem ao passar o mouse.'),
             listaSelos, btnAddSelo),
-          el('section', { class: 'cartao', style: 'margin-top:16px' },
+          el('section', { class: 'mt-2 cartao' },
             el('h2', null, 'Faixa do Radar da Transparência Pública'),
             radarImg.bloco,
             campo('ap-radar-url', 'Link da faixa (opcional)', radarLink, 'Para onde a faixa, o rodapé e a página da Transparência levam (PNTP 2.9). Ex.: a página do órgão no Radar. Em branco: painel geral do Radar (' + RADAR_PADRAO + ').')))]
@@ -276,10 +334,19 @@
         if (!erroCampo('ap-selo-t-' + k, selos[k].titulo.value.trim() ? '' : 'Informe o nome do selo (ou remova a linha).')) return;
         if (!erroCampo('ap-selo-u-' + k, urlValida(selos[k].url.value.trim()) ? '' : 'Informe o endereço completo, começando com https://')) return;
       }
+      const anoAtual = new Date().getFullYear();
       for (const d of destinos) {
-        const u = d.url.value.trim();
+        const u = d.modo.value === 'link' ? d.url.value.trim() : '';
         if (d.modo.value === 'link' && d.rota && !erroCampo('ap-dest-' + d.chave, u ? '' : 'Informe o link externo ou escolha "Página do portal".')) return;
         if (!erroCampo('ap-dest-' + d.chave, urlValida(u) ? '' : 'Informe o endereço completo, começando com https://')) return;
+        for (const o of d.outros) {
+          const de = +o.de.value || null, ate = +o.ate.value || null, ou = o.url.value.trim();
+          if (!erroCampo(o.base + '-d', o.descricao.value.trim().length >= 10 ? '' : 'Explique do que se trata este endereço (mínimo de 10 letras).')) return;
+          if (!erroCampo(o.base + '-a', !de ? 'Informe o primeiro exercício que este endereço cobre.'
+            : de < 1990 || de > anoAtual || (ate && (ate < de || ate > anoAtual)) ? 'Exercícios inválidos: use anos de 1990 a ' + anoAtual + ', o último igual ou depois do primeiro.' : '')) return;
+          if (!erroCampo(o.base + '-u', !ou || !urlValida(ou) ? 'Informe o endereço completo, começando com https://'
+            : ou === u ? 'Este é o mesmo endereço principal.' : d.outros.some((x) => x !== o && x.url.value.trim() === ou) ? 'Endereço repetido nesta página.' : '')) return;
+        }
       }
       const dominio = v('dominio').toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
       if (!erroCampo('ap-dominio', !dominio || /^[a-z0-9.-]+\.[a-z]{2,}$/.test(dominio) ? '' : 'Domínio inválido. Ex.: riachodacruz.rn.gov.br')) return;
@@ -292,7 +359,11 @@
         const imagemNova = async (st) => { if (st.novo) { st.url = await P.enviarArquivo('aparencia', st.novo.blob, st.novo.ext); st.novo = null; } return st.url; };
         const faviconUrl = await imagemNova(favicon), radarUrl = await imagemNova(radarImg);
         const destinosGravar = {};
-        for (const d of destinos) if (d.modo.value === 'link' && d.url.value.trim()) destinosGravar[d.chave] = d.url.value.trim();
+        const linksGravar = {};
+        for (const d of destinos) {
+          if (d.modo.value === 'link' && d.url.value.trim()) destinosGravar[d.chave] = d.url.value.trim();
+          if (d.outros.length) linksGravar[d.chave] = d.outros.map((o) => ({ descricao: o.descricao.value.trim(), de: +o.de.value, ate: +o.ate.value || +o.de.value, url: o.url.value.trim() }));
+        }
         const selosAntigos = (Array.isArray(cfg.selos) ? cfg.selos : []).map((x) => x.imagem_url).filter(Boolean);
         const selosGravar = selos.map((sl) => ({ titulo: sl.titulo.value.trim(), descricao: sl.descricao.value.trim(), url: sl.url.value.trim(), imagem_url: sl.imagem_url || null }));
         const novaCfg = Object.assign({}, cfg, {
@@ -303,7 +374,7 @@
           diario_oficial_nome: v('diario_nome'), diario_oficial_url: v('diario_url'),
           transparencia_url: v('transparencia_url'), licitacoes_url: v('licitacoes_url'),
           estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url'),
-          selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, radar_url: radarLink.value.trim() || null, destinos: destinosGravar
+          selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, radar_url: radarLink.value.trim() || null, destinos: destinosGravar, destinos_links: linksGravar
         });
         const { data, error: e2 } = await sb.from('orgaos')
           .update({ configuracoes: novaCfg, dominio: dominio || null })
@@ -317,6 +388,7 @@
         Object.assign(cfg, novaCfg);
         brasaoNovo = null;
         toast('Aparência salva.');
+        mostrarSituacaoLinks();
       } catch (e) {
         toast(/duplicate key.*dominio/i.test(e.message || '') ? 'Este domínio já está cadastrado para outro órgão.' : (e.amigavel ? e.message : traduzirErro(e)), true);
       } finally {

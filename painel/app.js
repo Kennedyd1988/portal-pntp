@@ -651,8 +651,27 @@
       el('h1', null, nome ? 'Olá, ' + nome : 'Início'),
       el('p', { class: 'sub' }, 'Painel de gestão · ' + o.nome + ' · ' + (TIPO_ORGAO[o.tipo] || o.tipo) + ' · seu perfil: ' + o.perfil),
       painelAvaliacao(),
+      quadroLinksFora(),
       quadroLembretes()
     );
+  }
+
+  // Endereços externos (Destinos das páginas e sistemas) que não responderam em 2 verificações
+  // seguidas (script 27). A autoavaliação conta a página externa como atendida; este quadro avisa
+  // quando o endereço deixou de abrir, para o órgão corrigir antes da avaliação do Tribunal.
+  function quadroLinksFora() {
+    const sec = el('section', { class: 'cartao lembretes-inicio', hidden: true });
+    sb.rpc('situacao_links_orgao', { p_orgao: estado.orgao.id }).then(({ data, error }) => {
+      const fora = error ? [] : (data || []).filter((x) => x.falhas_seguidas >= 2);
+      if (!fora.length) return;
+      const pode = estado.permissoes.aparencia && estado.permissoes.aparencia.ver;
+      sec.hidden = false;
+      sec.replaceChildren(el('h2', null, 'Endereços externos sem responder'),
+        el('div', { class: 'msg msg-falta' }, el('p', null, fora.length + ' endereço(s) externo(s) não abriram nas últimas verificações diárias. Para quem visita o site (e para o Tribunal de Contas), a informação está fora do ar.'),
+          el('ul', null, fora.map((x) => el('li', null, el('strong', null, x.url), ' — ', x.erro || 'não respondeu', ' (', x.falhas_seguidas, ' verificações seguidas)'))),
+          pode ? el('p', null, el('a', { href: '#/m/aparencia?aba=destinos' }, 'Corrigir em Aparência › Destinos das páginas')) : null));
+    });
+    return sec;
   }
 
   // ---------- Autoavaliação automática do PNTP (script 26) ----------

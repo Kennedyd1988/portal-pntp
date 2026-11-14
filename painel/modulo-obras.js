@@ -350,12 +350,12 @@
           : el('p', { class: 'vazio' }, 'Nenhum item na planilha. O PNTP 10.2 (obrigatório) pede os quantitativos e os preços unitários e totais contratados.'),
         pode && lista.length ? el('div', { style: 'margin:10px 0 16px' }, btnExec) : null,
         pode ? el('fieldset', { class: 'opcoes' }, el('legend', null, 'Colar da planilha orçamentária'), campo('oi-colar', 'Linhas copiadas', n.colar,
-          'Funciona com Excel, LibreOffice e Google Planilhas. Linhas de título (sem quantidade e preço) são ignoradas.'), el('div', { style: 'margin-top:8px' }, btnColar)) : null,
+          'Funciona com Excel, LibreOffice e Google Planilhas. Linhas de título (sem quantidade e preço) são ignoradas.'), el('div', { class: 'mt-1' }, btnColar)) : null,
         pode ? el('fieldset', { class: 'opcoes' }, el('legend', null, 'Ou adicionar um item'),
           el('div', { class: 'grade-campos' }, campo('oi-cod', 'Item / código', n.codigo), campo('oi-un', 'Unidade', n.un)),
           campo('oi-desc', 'Descrição', n.desc, null, true),
           el('div', { class: 'grade-campos' }, campo('oi-qtd', 'Quantidade contratada', n.qtd, null, true), campo('oi-preco', 'Preço unitário (R$)', n.preco, null, true)),
-          el('div', { style: 'margin-top:8px' }, btnUm)) : null);
+          el('div', { class: 'mt-1' }, btnUm)) : null);
     }
 
     // ----- Medições: etapas medidas e valores pagos -----
@@ -412,7 +412,7 @@
           campo('om-desc', 'Etapa / serviços medidos', f.desc),
           el('div', { class: 'grade-campos' }, campo('om-med', 'Valor medido (R$)', f.medido), campo('om-pago', 'Valor pago (R$)', f.pago), campo('om-dpag', 'Data do pagamento', f.dataPag)),
           el('div', { class: 'grade-campos' }, campo('om-perc', '% acumulado da obra', f.perc), campo('om-pdf', 'PDF do boletim de medição', f.pdf), campo('om-link', 'Ou link', f.link)),
-          el('div', { style: 'margin-top:10px' }, btn)) : null);
+          el('div', { class: 'mt-1' }, btn)) : null);
     }
 
     // ----- Paralisações (10.4) -----
@@ -464,8 +464,8 @@
         bR.addEventListener('click', () => { if (!data.value || data.value < p.inicio) return toast('Data de reinício inválida.', true); gravar(bR, { reinicio: data.value }, 'Reinício registrado: a obra voltou para "Em andamento".'); });
         bP.addEventListener('click', () => { if (prev.value && prev.value < p.inicio) return toast('Previsão inválida.', true); gravar(bP, { previsao_reinicio: prev.value || null }, 'Previsão atualizada.'); });
         return el('div', { class: 'grade-campos' },
-          el('div', { class: 'campo' }, el('label', null, 'Nova previsão de reinício'), prev, el('div', { style: 'margin-top:6px' }, bP)),
-          el('div', { class: 'campo' }, el('label', null, 'Obra retomada em'), data, el('div', { style: 'margin-top:6px' }, bR)));
+          el('div', { class: 'campo' }, el('label', null, 'Nova previsão de reinício'), prev, el('div', { class: 'mt-05' }, bP)),
+          el('div', { class: 'campo' }, el('label', null, 'Obra retomada em'), data, el('div', { class: 'mt-05' }, bR)));
       }
       areaP.replaceChildren(
         aberta ? el('div', { class: 'msg msg-erro' }, el('strong', null, 'Paralisada desde ' + P.dataBR(aberta.inicio) + '. '),
@@ -485,7 +485,7 @@
           campo('op-mot', 'Motivo', f.motivo, null, true),
           campo('op-resp', 'Responsável pela inexecução temporária', f.resp, null, true),
           el('div', { class: 'grade-campos' }, campo('op-ato', 'Ato', f.ato), campo('op-pdf', 'PDF do ato', f.pdf)),
-          el('div', { style: 'margin-top:10px' }, btn)) : null);
+          el('div', { class: 'mt-1' }, btn)) : null);
     }
 
     const montar = (area, fn) => () => { area.replaceChildren(el('p', { class: 'vazio' }, 'Carregando…')); fn().catch(mostrarErro); return [aviso(), area]; };

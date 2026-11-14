@@ -137,7 +137,7 @@
             el('span', { class: 'ajuda' }, 'Opcional. Ex.: campanha da Saúde com a Educação. A notícia aparece também na página dessas secretarias; quem edita continua sendo só a unidade responsável.')),
           el('div', { class: 'grade-campos' },
             campo('nt-data', 'Data de publicação', f.data, 'Data futura = a notícia entra no ar sozinha nesse dia e hora.'),
-            el('label', { class: 'checkbox', style: 'align-self:center' }, f.destaque, ' Destacar na página inicial'))]]
+            el('label', { class: 'centro-v checkbox' }, f.destaque, ' Destacar na página inicial'))]]
       ])
     );
     if (travada) for (const i of corpo.querySelectorAll('input, textarea, select, .editor-barra button')) i.disabled = true;
@@ -247,7 +247,7 @@
               el('td', null,
                 el('div', { class: 'pessoa' },
                   n.capa_url ? el('img', { src: n.capa_url, alt: '', class: 'miniatura' }) : el('span', { class: 'miniatura miniatura-vazia', 'aria-hidden': 'true' }),
-                  el('span', null, el('strong', null, n.titulo), n.destaque ? el('span', { class: 'etiqueta', style: 'margin-left:6px' }, 'Destaque') : null,
+                  el('span', null, el('strong', null, n.titulo), n.destaque ? el('span', { class: 'ml-1 etiqueta' }, 'Destaque') : null,
                     n.resumo ? el('span', { class: 'sub-linha corta' }, n.resumo) : null))),
               el('td', null, n.categoria || '—'),
               el('td', null, nomeUnidade(n.unidade_id) || 'Órgão todo',
@@ -376,7 +376,7 @@
             campo('bn-fim', 'Mostrar até', f.fim, 'Em branco = sem data para sair')),
           el('div', { class: 'grade-campos' },
             campo('bn-ordem', 'Ordem', f.ordem, '1 = primeiro'),
-            el('label', { class: 'checkbox', style: 'align-self:center' }, f.ativo, ' Ativo'))]]
+            el('label', { class: 'centro-v checkbox' }, f.ativo, ' Ativo'))]]
       ]));
     const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
     const dlg = P.abrirDialogo(b.id ? 'Editar banner' : 'Novo banner', corpo, [

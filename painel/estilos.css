@@ -47,11 +47,6 @@ a { color: var(--brand); }
 .campo-senha input { flex: 1; min-width: 0; }
 .btn-ver-senha { border: 1px solid var(--line); background: #fff; border-radius: var(--raio); padding: 0 12px; font: inherit; font-size: 13px; color: var(--text-dim); cursor: pointer; }
 
-.msg { border-radius: var(--raio); padding: 10px 12px; font-size: 14px; margin-bottom: 14px; }
-.msg-erro { background: #fbeaea; color: #8f2626; }
-.msg-ok { background: #e6f4ee; color: #0f5f40; }
-.msg-info { background: #e8f0fc; color: #0b3f9c; }   /* informação; amarelo fica só para o que falta (aviso-pntp, .falta) */
-.msg-falta { background: #fff8e6; color: #7a4b00; border: 1px solid #f0c36d; border-left: 4px solid #e0a020; }   /* o que falta (mesmo amarelo do aviso do PNTP) */
 
 /* ---------- Telas ---------- */
 .tela-centro { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-dim); }
@@ -381,10 +376,10 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .tabela-destinos td:last-child { min-width: 0; }
 /* Todas as tabelas de destinos com as mesmas colunas: uma embaixo da outra ficam alinhadas. */
 .tabela-destinos { table-layout: fixed; }
-.tabela-destinos th:nth-child(1), .tabela-destinos td:nth-child(1) { width: 36%; }
+.tabela-destinos th:nth-child(1), .tabela-destinos td:nth-child(1) { width: 28%; }
 .tabela-destinos th:nth-child(2), .tabela-destinos td:nth-child(2) { width: 10%; }
-.tabela-destinos th:nth-child(3), .tabela-destinos td:nth-child(3) { width: 20%; }
-.tabela-destinos th:nth-child(4), .tabela-destinos td:nth-child(4) { width: 34%; }
+.tabela-destinos th:nth-child(3), .tabela-destinos td:nth-child(3) { width: 18%; }
+.tabela-destinos th:nth-child(4), .tabela-destinos td:nth-child(4) { width: 44%; }
 .tabela-destinos td { overflow-wrap: anywhere; }
 .tabela-destinos select, .tabela-destinos input { min-width: 0; }
 /* Aba de módulo cujo destino é link externo: cadastro desativado. */
@@ -502,3 +497,54 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .dims-pntp .tabela-caixa, .todos-pntp .lista-crit { margin-top: 8px; }
 .tit-pend { font-size: 16px; margin: 16px 0 6px; }
 @media (max-width: 640px) { .cab-pntp { flex-direction: column; } .crit-pntp { flex-wrap: wrap; } }
+
+/* =========================================================
+   Padrão visual comum ao painel e ao site (0.20.0)
+   Mesmas cores de situação nos dois: azul = informação, verde = certo,
+   amarelo = o que falta, vermelho = erro ou problema. Espaços em escala fixa.
+   ========================================================= */
+:root {
+  --info-fundo: #e8f0fc; --info-borda: #c3d5f4; --info-texto: #0b3f9c;
+  --ok-fundo: #e6f4ee; --ok-borda: #b7dfca; --ok-texto: #0f5f40;
+  --falta-fundo: #fff8e6; --falta-borda: #f0c36d; --falta-faixa: #e0a020; --falta-texto: #7a4b00;
+  --erro-fundo: #fbeaea; --erro-borda: #f2b8b8; --erro-texto: #8f2626;
+  --neutro-fundo: #f1f4f8; --neutro-texto: #5c7692;
+}
+.msg { border-radius: var(--raio); padding: 10px 14px; margin: 0 0 14px; border: 1px solid transparent; }
+.msg > :first-child { margin-top: 0; } .msg > :last-child { margin-bottom: 0; }
+.msg-info { background: var(--info-fundo); color: var(--info-texto); border-color: var(--info-borda); }
+.msg-ok { background: var(--ok-fundo); color: var(--ok-texto); border-color: var(--ok-borda); }
+.msg-falta { background: var(--falta-fundo); color: var(--falta-texto); border-color: var(--falta-borda); border-left: 4px solid var(--falta-faixa); }
+.msg-erro { background: var(--erro-fundo); color: var(--erro-texto); border-color: var(--erro-borda); }
+.msg-erro.forte { font-weight: 700; }
+/* Endereços externos (Destinos das páginas): um quadro só, no painel e no site. */
+.caixa-externa { border: 1px solid var(--info-borda); border-left: 4px solid var(--info-texto); background: #fff; border-radius: var(--raio); padding: 14px 18px; margin: 0 0 16px; }
+.caixa-externa h2, .caixa-externa h3 { margin: 0 0 8px; }
+.caixa-externa p { margin: 6px 0; }
+.lista-externos { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
+.lista-externos li { display: flex; gap: 6px 14px; align-items: baseline; flex-wrap: wrap; border-top: 1px solid var(--info-borda); padding-top: 10px; }
+.lista-externos li:first-child { border-top: 0; padding-top: 0; }
+.lista-externos .periodo-ext { font-weight: 700; min-width: 150px; }
+.lista-externos .descricao-ext { flex: 1 1 260px; }
+.url-ext { display: block; font-size: .85em; color: var(--neutro-texto); word-break: break-all; }
+/* Utilitários de espaço e texto (no lugar de style="" solto nas telas) */
+.m-0 { margin: 0 !important; } .mt-0 { margin-top: 0 !important; } .pt-0 { padding-top: 0 !important; }
+.mt-05 { margin-top: 4px !important; } .mt-1 { margin-top: 10px !important; } .mt-2 { margin-top: 16px !important; }
+.mt-3 { margin-top: 24px !important; } .mt-4 { margin-top: 32px !important; }
+.mb-1 { margin-bottom: 8px !important; } .mb-2 { margin-bottom: 16px !important; } .mb-3 { margin-bottom: 24px !important; }
+.ml-1 { margin-left: 6px !important; }
+.pre { white-space: pre-line; } .nowrap { white-space: nowrap; } .bloco { display: block; }
+.menor { font-size: .9em; } .maior { font-size: 1.15em; } .centro-v { align-self: center; }
+.linha-botoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+/* Aparência › Destinos: outros endereços da mesma página e situação da verificação diária */
+.outros-enderecos { display: grid; gap: 8px; margin-top: 8px; }
+.outro-endereco { border: 1px solid var(--line); border-left: 3px solid var(--info-texto); border-radius: var(--raio); padding: 8px; background: #fbfdff; display: grid; gap: 6px; }
+.outro-linha { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.outro-linha input[type=text] { flex: 1 1 220px; }
+.outro-linha input[type=url] { flex: 1 1 220px; }
+.tabela-destinos .outro-linha input[type=number] { width: 84px; min-width: 0; flex: none; }
+.situacao-link { display: block; font-size: 12px; margin-top: 4px; }
+.situacao-link:empty { display: none; }
+.situacao-link.ok { color: var(--ok-texto); } .situacao-link.ok::before { content: "✓ "; }
+.situacao-link.fora { color: var(--falta-texto); font-weight: 600; } .situacao-link.fora::before { content: "! "; }
+.lista-pendencias { padding-left: 0; list-style: none; display: grid; gap: 2px; }

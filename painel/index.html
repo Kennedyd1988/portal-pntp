@@ -38,7 +38,7 @@
         document.head.appendChild(css);
         // Carrega em sequência: app.js depende de config.js.
         // app.js primeiro (núcleo), depois as telas de cada módulo; no fim, inicia o painel.
-        ['config.js', '../site/destinos.js', 'app.js', 'modulo-aparencia.js', 'modulo-institucional.js','modulo-usuarios.js','modulo-historico.js','modulo-noticias.js','modulo-publicacoes.js','modulo-paginas.js','modulo-menu.js','modulo-servicos.js','modulo-lgpd.js','modulo-contas.js','modulo-licitacoes.js','modulo-contratos.js','modulo-pca-sancoes.js','modulo-obras.js','modulo-convenios.js','modulo-concursos.js','modulo-setoriais-comum.js','modulo-saude.js','modulo-educacao.js','modulo-renuncias.js','modulo-financeiro.js','modulo-pessoal.js','modulo-atendimento-fila.js','modulo-atendimento.js'].reduce(function (anterior, arq) {
+        ['config.js', '../site/destinos.js', 'app.js', 'modulo-aparencia.js', 'modulo-institucional.js','modulo-usuarios.js','modulo-historico.js','modulo-noticias.js','modulo-publicacoes.js','modulo-paginas.js','modulo-menu.js','modulo-servicos.js','modulo-lgpd.js','modulo-contas.js','modulo-licitacoes.js','modulo-contratos.js','modulo-pca-sancoes.js','modulo-obras.js','modulo-convenios.js','modulo-concursos.js','modulo-setoriais-comum.js','modulo-saude.js','modulo-educacao.js','modulo-renuncias.js','modulo-financeiro.js','modulo-pessoal.js','modulo-atendimento-fila.js','modulo-atendimento.js','modulo-orgaos.js'].reduce(function (anterior, arq) {
           return anterior.then(function () {
             return new Promise(function (ok, erro) {
               var s = document.createElement('script');

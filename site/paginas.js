@@ -109,7 +109,7 @@
       n.capa_url ? el('img', { src: n.capa_url, alt: n.capa_legenda || '', loading: 'lazy' }) : el('span', { class: 'noticia-sem-foto', 'aria-hidden': 'true' }, 'Notícia'),
       el('span', { class: 'meta' }, (n.categoria ? n.categoria + ' · ' : '') + dataBR(n.publicado_em)),
       el(grande ? 'h3' : 'h3', null, n.titulo),
-      n.resumo ? el('p', { class: 'meta', style: 'margin:0' }, n.resumo) : null);
+      n.resumo ? el('p', { class: 'm-0 meta' }, n.resumo) : null);
   }
 
   // ===================================================================
@@ -159,7 +159,7 @@
 
     // Faixa do Radar da Transparência Pública (PNTP 2.9). Com a imagem oficial enviada em
     // Aparência, a faixa inteira é a imagem; sem ela, faixa nas cores do Radar com o texto.
-    blocos.push(el('section', { class: 'secao', style: 'padding-top:0', 'aria-labelledby': 'tit-radar' }, el('div', { class: 'limite' },
+    blocos.push(el('section', { class: 'pt-0 secao', 'aria-labelledby': 'tit-radar' }, el('div', { class: 'limite' },
       c.radar_imagem_url
         ? el('a', { class: 'faixa-radar-img', href: S.radar(), target: '_blank', rel: 'noopener' },
           el('img', { src: c.radar_imagem_url, alt: 'Radar da Transparência Pública' }), el('h2', { id: 'tit-radar', class: 'sr' }, 'Radar da Transparência Pública (abre em nova aba)'))
@@ -180,7 +180,7 @@
       blocos.push(el('section', { class: 'secao', 'aria-labelledby': 'tit-digitais' }, el('div', { class: 'limite' },
         el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-digitais' }, 'Serviços pela internet'), el('a', { href: '#/servicos' }, 'Carta de Serviços completa →')),
         el('div', { class: 'grade g3' }, digitais.map((s) => el('a', { class: 'cartao', href: '#/servico/' + s.id },
-          el('strong', null, s.nome), el('span', { class: 'meta', style: 'display:block' }, (s.categoria ? s.categoria + ' · ' : '') + 'Pedido sem ir ao balcão')))))));
+          el('strong', null, s.nome), el('span', { class: 'bloco meta' }, (s.categoria ? s.categoria + ' · ' : '') + 'Pedido sem ir ao balcão')))))));
     }
 
     if (pubs.some((g) => g.itens.length)) blocos.push(secaoPublicacoes(pubs));
@@ -480,7 +480,7 @@
         el('a', { class: 'botao botao-claro', href: 'https://wa.me/?text=' + encodeURIComponent(n.titulo + ' ' + url), target: '_blank', rel: 'noopener' }, 'WhatsApp'),
         el('a', { class: 'botao botao-claro', href: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url), target: '_blank', rel: 'noopener' }, 'Facebook'),
         el('button', { type: 'button', class: 'botao botao-claro', onclick: (ev) => { navigator.clipboard && navigator.clipboard.writeText(url); ev.target.textContent = 'Link copiado'; } }, 'Copiar link'))),
-      outras.length ? el('section', { style: 'margin-top:40px' }, el('h2', null, 'Notícias relacionadas'), el('div', { class: 'grade g3' }, outras.map((x) => cartaoNoticia(x)))) : null);
+      outras.length ? el('section', { class: 'mt-4' }, el('h2', null, 'Notícias relacionadas'), el('div', { class: 'grade g3' }, outras.map((x) => cartaoNoticia(x)))) : null);
   };
 
   // ===================================================================
@@ -515,7 +515,7 @@
         const doc = p.arquivo_url || p.link_externo;
         return el('tr', null,
           el('td', null, el('strong', null, ato(p))),
-          el('td', null, p.ementa, p.observacao ? el('span', { class: 'meta', style: 'display:block' }, p.observacao) : null),
+          el('td', null, p.ementa, p.observacao ? el('span', { class: 'bloco meta' }, p.observacao) : null),
           el('td', null, dataBR(p.data_publicacao)),
           el('td', null, el('span', { class: 'etiqueta ' + COR_VIG[p.vigencia] }, VIGENCIA[p.vigencia])),
           el('td', null, doc ? el('a', { href: doc, target: '_blank', rel: 'noopener' }, p.arquivo_url ? 'PDF' : 'Abrir', el('span', { class: 'sr' }, ' de ' + ato(p) + ' (abre em nova aba)')) : '—'));
@@ -575,12 +575,12 @@
     const ini = (g.nome || '?').split(' ').filter(Boolean).map((p) => p[0]).slice(0, 2).join('');
     return el('div', { class: 'cartao gestor' },
       g.foto_url ? el('img', { src: g.foto_url, alt: 'Foto de ' + g.nome, loading: 'lazy' }) : el('span', { class: 'sem-foto', 'aria-hidden': 'true' }, ini),
-      el('strong', { style: 'display:block' }, g.nome),
-      el('span', { class: 'meta', style: 'display:block' }, g.cargo),
-      g.unidade_id && S.nomeUnidade(g.unidade_id) ? el('a', { href: '#/unidade/' + g.unidade_id, style: 'display:block;font-size:.9rem' }, S.nomeUnidade(g.unidade_id)) : null,
-      g.email ? el('a', { href: 'mailto:' + g.email, style: 'display:block;font-size:.9rem' }, g.email) : null,
-      g.telefone ? el('span', { class: 'meta', style: 'display:block' }, g.telefone) : null,
-      g.curriculo_url ? el('a', { href: g.curriculo_url, target: '_blank', rel: 'noopener', style: 'display:block;font-size:.9rem' }, 'Currículo (PDF)') : null);
+      el('strong', { class: 'bloco' }, g.nome),
+      el('span', { class: 'bloco meta' }, g.cargo),
+      g.unidade_id && S.nomeUnidade(g.unidade_id) ? el('a', { class: 'bloco menor', href: '#/unidade/' + g.unidade_id }, S.nomeUnidade(g.unidade_id)) : null,
+      g.email ? el('a', { class: 'bloco menor', href: 'mailto:' + g.email }, g.email) : null,
+      g.telefone ? el('span', { class: 'bloco meta' }, g.telefone) : null,
+      g.curriculo_url ? el('a', { class: 'bloco menor', href: g.curriculo_url, target: '_blank', rel: 'noopener' }, 'Currículo (PDF)') : null);
   }
 
   R.estrutura = async function (main) {
@@ -660,7 +660,7 @@
     const c = S.conf;
     pagina(main, el('h1', null, u.nome),
       pai ? el('p', { class: 'meta' }, 'Vinculada a: ', el('a', { href: '#/unidade/' + pai.id }, pai.nome)) : null,
-      el('div', { class: 'grade g2', style: 'margin-top:16px' },
+      el('div', { class: 'mt-2 grade g2' },
         el('div', { class: 'cartao' }, el('h2', null, 'Contato e atendimento'),
           el('dl', { class: 'dados' },
             u.sigla ? [el('dt', null, 'Sigla'), el('dd', null, u.sigla)] : null,
@@ -672,11 +672,11 @@
               u.norma_url ? el('a', { href: u.norma_url, target: '_blank', rel: 'noopener' }, u.norma_criacao || 'Abrir') : u.norma_criacao)] : null)),
         el('div', null, el('h2', null, daUnidade.length > 1 ? 'Responsáveis' : 'Responsável'),
           daUnidade.length ? el('div', { class: 'grade' + (daUnidade.length > 1 ? ' g2' : '') }, daUnidade.map(cartaoGestor)) : el('p', { class: 'vazio' }, 'Responsável em designação.'))),
-      el('section', { style: 'margin-top:28px' }, el('h2', null, 'Competências e atribuições'),
+      el('section', { class: 'mt-4' }, el('h2', null, 'Competências e atribuições'),
         u.competencias ? texto(u.competencias) : el('p', { class: 'vazio' }, 'Competências em cadastramento.')),
-      sv.data && sv.data.length ? el('section', { style: 'margin-top:28px' }, el('h2', null, 'Serviços desta unidade'),
+      sv.data && sv.data.length ? el('section', { class: 'mt-4' }, el('h2', null, 'Serviços desta unidade'),
         el('ul', null, sv.data.map((s) => el('li', null, el('a', { href: '#/servico/' + s.id }, s.nome), el('span', { class: 'meta' }, ' · ' + FORMAS[s.forma_prestacao]))))) : null,
-      nt.data && nt.data.length ? el('section', { style: 'margin-top:28px' },
+      nt.data && nt.data.length ? el('section', { class: 'mt-4' },
         el('div', { class: 'secao-titulo' }, el('h2', null, 'Notícias'), el('a', { href: '#/noticias?unidade=' + u.id }, 'Todas desta unidade →')),
         el('div', { class: 'grade g3' }, nt.data.map((n) => cartaoNoticia(n)))) : null);
   };
@@ -727,7 +727,7 @@
         el('h3', { style: 'margin:4px 0' }, s.nome),
         el('span', { class: 'etiqueta' + (s.forma_prestacao !== 'presencial' ? ' etiqueta-verde' : '') }, FORMAS[s.forma_prestacao]),
         s.prazo_maximo ? el('span', { class: 'meta', style: 'display:block;margin-top:6px' }, 'Prazo: ' + s.prazo_maximo) : null,
-        s.unidade_id ? el('span', { class: 'meta', style: 'display:block' }, S.nomeUnidade(s.unidade_id)) : null)));
+        s.unidade_id ? el('span', { class: 'bloco meta' }, S.nomeUnidade(s.unidade_id)) : null)));
       if (!itens.length) lista.replaceChildren(el('p', { class: 'vazio' }, 'Nenhum serviço encontrado.'));
       const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
       btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
@@ -753,8 +753,8 @@
         const { data } = await montar('*').order('nome').range(de, ate); return data || [];
       })),
       lista, mais,
-      carta && carta.compromissos ? el('section', { class: 'cartao', style: 'margin-top:32px' }, el('h2', null, 'Compromissos de qualidade do atendimento'), texto(carta.compromissos)) : null,
-      carta && carta.manifestacao ? el('section', { class: 'cartao', style: 'margin-top:16px' }, el('h2', null, 'Elogios, sugestões e reclamações'), texto(carta.manifestacao)) : null);
+      carta && carta.compromissos ? el('section', { class: 'mt-4 cartao' }, el('h2', null, 'Compromissos de qualidade do atendimento'), texto(carta.compromissos)) : null,
+      carta && carta.manifestacao ? el('section', { class: 'mt-2 cartao' }, el('h2', null, 'Elogios, sugestões e reclamações'), texto(carta.manifestacao)) : null);
     await carregar(true);
   };
 
@@ -801,7 +801,7 @@
       const lista = faq.filter((q) => !f || normalizar(q.pergunta + ' ' + q.resposta + ' ' + (q.categoria || '')).includes(f));
       const grupos = {};
       lista.forEach((q) => { (grupos[q.categoria || 'Geral'] = grupos[q.categoria || 'Geral'] || []).push(q); });
-      caixa.replaceChildren(...Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'pt-BR')).map((g) => el('section', { style: 'margin-bottom:22px' },
+      caixa.replaceChildren(...Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'pt-BR')).map((g) => el('section', { class: 'mb-3' },
         el('h2', null, g), grupos[g].map((q) => el('details', { class: 'faq' }, el('summary', null, q.pergunta), el('div', null, texto(q.resposta)))))));
       if (!lista.length) caixa.replaceChildren(el('p', { class: 'vazio' }, faq.length ? 'Nenhuma pergunta encontrada.' : 'Em cadastramento.'));
     };
@@ -818,7 +818,7 @@
     if (!p) return R['*'](main);
     S.titulo(p.titulo); S.trilha([p.titulo]);
     pagina(main, el('article', { class: 'artigo' }, el('h1', null, p.titulo), texto(p.conteudo),
-      el('p', { class: 'meta', style: 'margin-top:24px' }, 'Atualizada em ' + dataBR(p.atualizado_em) + '.')));
+      el('p', { class: 'mt-3 meta' }, 'Atualizada em ' + dataBR(p.atualizado_em) + '.')));
   };
 
   // ===================================================================
@@ -930,8 +930,8 @@
         el('caption', { class: 'sr' }, 'Conjuntos de dados'),
         el('thead', null, el('tr', null, ['Conjunto de dados', 'Baixar', 'Acesso automatizado (API, formato JSON)'].map((t) => el('th', { scope: 'col' }, t)))),
         el('tbody', null, linhas))),
-      el('p', { class: 'meta', style: 'margin-top:10px' }, 'O endereço de acesso automatizado responde em JSON e aceita filtros e ordenação no padrão PostgREST (ex.: &ano=eq.2026).'),
-      el('section', { style: 'margin-top:28px' }, el('h2', null, 'Regras de utilização'),
+      el('p', { class: 'mt-1 meta' }, 'O endereço de acesso automatizado responde em JSON e aceita filtros e ordenação no padrão PostgREST (ex.: &ano=eq.2026).'),
+      el('section', { class: 'mt-4' }, el('h2', null, 'Regras de utilização'),
         l.dados_abertos_texto ? texto(l.dados_abertos_texto) : el('p', null, 'Uso livre, citando a fonte.')));
   };
 
@@ -943,11 +943,11 @@
     const c = S.conf;
     const unidades = (await S.carregarUnidades()).filter((u) => u.ativo !== false && (u.telefone || u.email)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     pagina(main, el('h1', null, 'Contato e atendimento'),
-      el('div', { class: 'grade g2', style: 'margin-top:16px' },
+      el('div', { class: 'mt-2 grade g2' },
         el('div', { class: 'cartao' }, el('h2', null, S.conf.nome_exibicao || S.orgao.nome),
           el('dl', { class: 'dados' },
             el('dt', null, 'Endereço'), el('dd', null, c.endereco || '—', c.cep ? ' · CEP ' + c.cep : '',
-              c.endereco ? el('a', { href: 'https://www.google.com/maps/search/' + encodeURIComponent(c.endereco + (c.cep ? ' ' + c.cep : '')), target: '_blank', rel: 'noopener', style: 'display:block' }, 'Ver no mapa') : null),
+              c.endereco ? el('a', { class: 'bloco', href: 'https://www.google.com/maps/search/' + encodeURIComponent(c.endereco + (c.cep ? ' ' + c.cep : '')), target: '_blank', rel: 'noopener' }, 'Ver no mapa') : null),
             el('dt', null, 'Telefone'), el('dd', null, c.telefone ? el('a', { href: 'tel:' + c.telefone.replace(/\D/g, '') }, c.telefone) : '—'),
             el('dt', null, 'E-mail'), el('dd', null, c.email ? el('a', { href: 'mailto:' + c.email }, c.email) : '—'),
             el('dt', null, 'Horário'), el('dd', null, c.horario || '—'),
@@ -956,7 +956,7 @@
           el('p', null, el('a', { href: '#/ouvidoria' }, 'Ouvidoria'), ': elogios, sugestões, reclamações e denúncias.'),
           el('p', null, el('a', { href: '#/esic' }, 'e-SIC'), ': pedido de acesso à informação (Lei 12.527/2011).'),
           el('p', null, el('a', { href: '#/faq' }, 'Perguntas frequentes'), ': respostas para as dúvidas mais comuns.'))),
-      unidades.length ? el('section', { style: 'margin-top:28px' }, el('h2', null, 'Contatos das unidades'),
+      unidades.length ? el('section', { class: 'mt-4' }, el('h2', null, 'Contatos das unidades'),
         el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
           el('thead', null, el('tr', null, ['Unidade', 'Telefone', 'E-mail', 'Horário'].map((t) => el('th', { scope: 'col' }, t)))),
           el('tbody', null, unidades.map((u) => el('tr', null,
@@ -1216,7 +1216,7 @@
     // para o link; item sem rota (h undefined) usa a chave do destino (ou o sistema externo geral).
     const L = (t, cod, h, chave) => {
       if (chave) { const d = S.destino(chave); return { t, cod, h: d ? d.href : null }; }
-      if (h && h.startsWith('#/')) { const k = window.chaveDaRotaPNTP(h); const e = k && window.externoPNTP(c, k); if (e) return { t, cod, h: e }; }
+      if (h && h.startsWith('#/')) { const k = window.chaveDaRotaPNTP(h); const e = k && !window.outrosLinksPNTP(c, k).length && window.externoPNTP(c, k); if (e) return { t, cod, h: e }; }
       return { t, cod, h: h === undefined ? ext : h };
     };
     const plan = [];
@@ -1380,7 +1380,7 @@
       el('p', { class: 'sub' }, 'Relação das licitações, dispensas, inexigibilidades e adesões a atas de registro de preços, com edital e documentos de cada fase; plano de contratações anual e licitantes e contratados sancionados.'),
       ext ? el('p', { class: 'meta' }, 'Também disponível no sistema de licitações: ', el('a', { href: ext, target: '_blank', rel: 'noopener' }, 'acessar', el('span', { class: 'sr' }, ' (abre em nova aba)')), '.') : null,
       lista, conteudo,
-      el('p', { class: 'meta', style: 'margin-top:18px' }, 'Consulte também: ',
+      el('p', { class: 'mt-2 meta' }, 'Consulte também: ',
         el('a', { href: 'https://pncp.gov.br/app/editais?q=&pagina=1', target: '_blank', rel: 'noopener' }, 'Portal Nacional de Contratações Públicas (PNCP)'), ' · ',
         el('a', { href: 'https://portaldatransparencia.gov.br/sancoes/ceis', target: '_blank', rel: 'noopener' }, 'empresas punidas (CEIS/CNEP)')));
     await abrirGrupo(params);
@@ -1665,8 +1665,8 @@
     pagina(main,
       el('p', { class: 'meta' }, grupo[1]),
       el('h1', null, nomeLic(l)),
-      el('p', null, el('span', { class: 'etiqueta ' + and[1] }, and[0]), l.srp ? el('span', { class: 'etiqueta', style: 'margin-left:6px' }, 'Registro de preços') : null),
-      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { style: 'white-space:pre-line' }, l.objeto)),
+      el('p', null, el('span', { class: 'etiqueta ' + and[1] }, and[0]), l.srp ? el('span', { class: 'ml-1 etiqueta' }, 'Registro de preços') : null),
+      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { class: 'pre' }, l.objeto)),
       el('dl', { class: 'ficha-lic' },
         linha('Modalidade', MOD_LIC[l.modalidade] || l.modalidade), linha('Número', l.numero), linha('Processo administrativo', l.processo),
         linha('Data de publicação', dataBR(l.data_publicacao)),
@@ -1674,17 +1674,17 @@
         linha('Critério de julgamento', l.criterio), linha('Fundamento legal', l.amparo_legal), linha('Unidade requisitante', l.unidade_nome),
         linha('Valor estimado', l.valor_estimado !== null ? moedaBR(l.valor_estimado) : null), linha('Valor homologado / contratado', l.valor_homologado !== null ? moedaBR(l.valor_homologado) : null),
         linha('Resultado', l.vencedores)),
-      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Documentos'),
+      el('section', { class: 'mt-3' }, el('h2', null, 'Documentos'),
         lista.length ? el('ul', { class: 'partes-contas cartao' }, lista.map((d) => el('li', null,
           el('a', { href: d.arquivo_url || d.link_externo, target: '_blank', rel: 'noopener' }, d.titulo, el('span', { class: 'sr' }, ' (abre em nova aba)')),
           el('span', { class: 'meta' }, (DOC_LIC[d.tipo] || 'Documento') + ' · ' + dataBR(d.data) + (d.arquivo_url ? ' · PDF' : '')))))
           : el('p', { class: 'vazio' }, l.link_externo ? 'Os documentos deste processo estão no link abaixo.' : 'Nenhum documento publicado ainda.')),
-      l.link_externo ? el('p', { style: 'margin-top:16px' }, el('a', { class: 'botao botao-claro', href: l.link_externo, target: '_blank', rel: 'noopener' },
+      l.link_externo ? el('p', { class: 'mt-2' }, el('a', { class: 'botao botao-claro', href: l.link_externo, target: '_blank', rel: 'noopener' },
         l.origem === 'pncp' ? 'Ver no PNCP' : 'Ver o processo no sistema de origem', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
-      (ctrs || []).length ? el('section', { style: 'margin-top:24px' }, el('h2', null, 'Contratos decorrentes'),
+      (ctrs || []).length ? el('section', { class: 'mt-3' }, el('h2', null, 'Contratos decorrentes'),
         el('ul', { class: 'partes-contas cartao' }, ctrs.map((c) => el('li', null, el('a', { href: '#/contrato/' + c.id }, nomeCtr(c)),
           el('span', { class: 'meta' }, c.contratado_nome + (c.valor_atual !== null ? ' · ' + moedaBR(c.valor_atual) : '')))))) : null,
-      el('p', { class: 'meta', style: 'margin-top:18px' }, 'Última atualização: ' + dataBR(l.atualizado_em)));
+      el('p', { class: 'mt-2 meta' }, 'Última atualização: ' + dataBR(l.atualizado_em)));
   };
 
   // ===================================================================
@@ -1716,7 +1716,7 @@
     pagina(main, el('h1', null, 'Contratos'),
       el('p', { class: 'sub' }, 'Contratos celebrados, com contratado, valor, objeto, vigência, aditivos, inteiro teor e fiscais.'),
       lista, conteudo,
-      el('p', { class: 'meta', style: 'margin-top:18px' }, 'A ordem cronológica de pagamentos fica no ',
+      el('p', { class: 'mt-2 meta' }, 'A ordem cronológica de pagamentos fica no ',
         S.conf.transparencia_url ? el('a', { href: S.conf.transparencia_url, target: '_blank', rel: 'noopener' }, 'Portal da Transparência') : 'Portal da Transparência', '.'));
     await abrir(params);
 
@@ -1896,7 +1896,7 @@
       el('p', { class: 'meta' }, 'Contratos'),
       el('h1', null, nomeCtr(c)),
       el('p', null, el('span', { class: 'etiqueta ' + sv[1] }, sv[0])),
-      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { style: 'white-space:pre-line' }, c.objeto)),
+      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { class: 'pre' }, c.objeto)),
       el('dl', { class: 'ficha-lic' },
         linha('Contratado', c.contratado_nome), linha('CNPJ / CPF', docCtr(c.contratado_doc)), linha('Processo administrativo', c.processo),
         linha('Licitação de origem', lic ? el('a', { href: '#/licitacao/' + lic.id }, (MOD_LIC[lic.modalidade] || '') + (lic.numero ? ' nº ' + lic.numero : '')) : null),
@@ -1904,9 +1904,9 @@
         linha('Rescindido em', c.rescindido_em ? dataBR(c.rescindido_em) : null),
         linha('Valor inicial', c.valor_inicial !== null ? moedaBR(c.valor_inicial) : null), linha('Valor atual (com aditivos)', c.valor_atual !== null ? moedaBR(c.valor_atual) : null),
         linha('Unidade contratante', c.unidade_nome)),
-      teor ? el('p', { style: 'margin-top:16px' }, el('a', { class: 'botao', href: teor, target: '_blank', rel: 'noopener' },
+      teor ? el('p', { class: 'mt-2' }, el('a', { class: 'botao', href: teor, target: '_blank', rel: 'noopener' },
         c.arquivo_url ? 'Inteiro teor do contrato (PDF)' : c.origem === 'pncp' ? 'Ver o contrato no PNCP' : 'Ver o contrato no sistema de origem', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
-      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Aditivos e apostilamentos'),
+      el('section', { class: 'mt-3' }, el('h2', null, 'Aditivos e apostilamentos'),
         (ad || []).length ? el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' },
           el('thead', null, el('tr', null, ['Termo', 'Assinatura', 'Valor', 'Nova vigência', 'Inteiro teor'].map((t) => el('th', { scope: 'col' }, t)))),
           el('tbody', null, ad.map((a) => el('tr', null,
@@ -1916,12 +1916,12 @@
             el('td', { 'data-rotulo': 'Nova vigência', class: 'num' }, a.nova_vigencia_fim ? dataBR(a.nova_vigencia_fim) : '—'),
             el('td', { 'data-rotulo': 'Inteiro teor' }, a.arquivo_url || a.link_externo ? el('a', { href: a.arquivo_url || a.link_externo, target: '_blank', rel: 'noopener' }, a.arquivo_url ? 'PDF' : 'Link', el('span', { class: 'sr' }, ' (abre em nova aba)')) : '—'))))))
           : el('p', { class: 'vazio' }, 'Este contrato não tem aditivos.')),
-      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Fiscais e gestor'),
+      el('section', { class: 'mt-3' }, el('h2', null, 'Fiscais e gestor'),
         (fi || []).length ? el('ul', { class: 'partes-contas cartao' }, fi.map((x) => el('li', null, el('strong', null, x.nome),
           el('span', { class: 'meta' }, (FUNCAO_CTR[x.funcao] || x.funcao) + (x.ato ? ' · ' + x.ato : '') + (x.inicio || x.fim ? ' · ' + (x.inicio ? dataBR(x.inicio) : '…') + ' a ' + (x.fim ? dataBR(x.fim) : 'atual') : '')))))
           : el('p', { class: 'vazio' }, 'Fiscal não informado.'),
         el('p', { class: 'meta' }, el('a', { href: '#/contratos/fiscais' }, 'Ver a relação de todos os fiscais de contratos'))),
-      el('p', { class: 'meta', style: 'margin-top:18px' }, 'Última atualização: ' + dataBR(c.atualizado_em)));
+      el('p', { class: 'mt-2 meta' }, 'Última atualização: ' + dataBR(c.atualizado_em)));
   };
 
   // e-SIC e Ouvidoria: páginas próprias em atendimento.js (Fase 3).
@@ -1993,7 +1993,7 @@
     const total = grupos.reduce((s, g) => s + g[1].length, 0);
     pagina(main, el('h1', null, 'Resultados para “' + q + '”'),
       el('p', { class: 'sub', role: 'status' }, total ? total + ' resultado' + (total > 1 ? 's' : '') + ' (até 8 por seção).' : 'Nenhum resultado. Tente outra palavra ou consulte o Mapa do site.'),
-      grupos.map(([t, itens, todos]) => el('section', { style: 'margin-bottom:24px' },
+      grupos.map(([t, itens, todos]) => el('section', { class: 'mb-3' },
         el('div', { class: 'secao-titulo' }, el('h2', null, t), todos && itens.length === 8 ? el('a', { href: todos }, 'Ver todos →') : null),
         el('ul', null, itens.map(([rot, href]) => el('li', { style: 'margin:6px 0' }, el('a', { href, target: href.startsWith('http') ? '_blank' : null, rel: href.startsWith('http') ? 'noopener' : null }, rot)))))));
   };
@@ -2058,12 +2058,12 @@
     const lista = docs || [];
     pagina(main, el('p', { class: 'meta' }, 'Concursos e processos seletivos · ' + c.ano), el('h1', null, nomeSel(c)),
       el('p', { class: 'sub' }, c.titulo), el('p', null, el('span', { class: 'etiqueta ' + a[1] }, a[0])),
-      c.descricao ? el('section', { class: 'cartao' }, el('h2', null, 'Sobre a seleção'), el('p', { style: 'white-space:pre-line' }, c.descricao)) : null,
+      c.descricao ? el('section', { class: 'cartao' }, el('h2', null, 'Sobre a seleção'), el('p', { class: 'pre' }, c.descricao)) : null,
       el('dl', { class: 'ficha-lic' }, linha('Vagas', c.vagas), linha('Inscrições', c.inscricoes_inicio || c.inscricoes_fim ? periodoBR(c.inscricoes_inicio, c.inscricoes_fim) : null),
         linha('Prova / avaliação', c.data_prova ? dataBR(c.data_prova) : null), linha('Validade até', c.validade_ate ? dataBR(c.validade_ate) : null),
         linha('Organizadora', c.organizadora), linha('Unidade', c.unidade_nome)),
-      c.link_externo ? el('p', { style: 'margin-top:16px' }, el('a', { class: 'botao botao-claro', href: c.link_externo, target: '_blank', rel: 'noopener' }, 'Página da seleção (inscrições)', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
-      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Edital e atos da seleção'),
+      c.link_externo ? el('p', { class: 'mt-2' }, el('a', { class: 'botao botao-claro', href: c.link_externo, target: '_blank', rel: 'noopener' }, 'Página da seleção (inscrições)', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
+      el('section', { class: 'mt-3' }, el('h2', null, 'Edital e atos da seleção'),
         lista.length ? el('ul', { class: 'partes-contas cartao' }, lista.map((d) => el('li', null,
           el('a', { href: d.arquivo_url || d.link_externo, target: '_blank', rel: 'noopener' }, d.titulo, el('span', { class: 'sr' }, ' (abre em nova aba)')),
           el('span', { class: 'meta' }, (DOC_SEL[d.tipo] || 'Documento') + ' · ' + dataBR(d.data) + (d.arquivo_url ? ' · PDF' : '')))))
@@ -2279,7 +2279,7 @@
       el('p', { class: 'meta' }, T[0] + ' (PNTP ' + T[1] + ')'),
       el('h1', null, nomeConv(c)),
       el('p', null, el('span', { class: 'etiqueta ' + a[1] }, a[0])),
-      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { style: 'white-space:pre-line' }, c.objeto)),
+      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { class: 'pre' }, c.objeto)),
       el('dl', { class: 'ficha-lic' },
         linha(T[2], c.parte_nome), linha('CNPJ / CPF', docCtr(c.parte_doc)), linha('Esfera', ESF_CONV[c.esfera]),
         linha('Processo', c.processo), linha('Programa / ação', c.programa), linha('Unidade executora', c.unidade_nome),
@@ -2287,11 +2287,11 @@
         c.tipo === 'sem_repasse' ? null : linha('Valor total previsto', c.valor_previsto != null ? moedaBR(c.valor_previsto) : null),
         c.tipo === 'sem_repasse' ? null : linha('Contrapartida', c.valor_contrapartida != null ? moedaBR(c.valor_contrapartida) : null),
         c.tipo === 'sem_repasse' ? null : linha('Valor ' + T[3].toLowerCase(), c.valor_repassado != null ? moedaBR(c.valor_repassado) + (c.repasse_atualizado_em ? ' (posição em ' + dataBR(c.repasse_atualizado_em) + ')' : '') : null)),
-      c.obrigacoes ? el('section', { class: 'cartao', style: 'margin-top:16px' }, el('h2', null, c.tipo === 'sem_repasse' ? 'Obrigações ajustadas' : 'Obrigações e metas'), el('p', { style: 'white-space:pre-line' }, c.obrigacoes)) : null,
-      el('p', { style: 'margin-top:16px;display:flex;gap:8px;flex-wrap:wrap' },
+      c.obrigacoes ? el('section', { class: 'mt-2 cartao' }, el('h2', null, c.tipo === 'sem_repasse' ? 'Obrigações ajustadas' : 'Obrigações e metas'), el('p', { class: 'pre' }, c.obrigacoes)) : null,
+      el('p', { class: 'linha-botoes mt-2' },
         teor ? el('a', { class: 'botao', href: teor, target: '_blank', rel: 'noopener' }, 'Inteiro teor do instrumento', el('span', { class: 'sr' }, ' (abre em nova aba)')) : el('span', { class: 'meta' }, 'Inteiro teor não anexado.'),
         c.link_acompanhamento ? el('a', { class: 'botao botao-claro', href: c.link_acompanhamento, target: '_blank', rel: 'noopener' }, 'Acompanhar a execução', el('span', { class: 'sr' }, ' (abre em nova aba)')) : null),
-      (ems || []).length ? el('section', { style: 'margin-top:24px' }, el('h2', null, 'Emendas parlamentares ligadas'),
+      (ems || []).length ? el('section', { class: 'mt-3' }, el('h2', null, 'Emendas parlamentares ligadas'),
         el('ul', null, ems.map((e) => el('li', null, el('a', { href: '#/emenda/' + e.id }, 'Emenda nº ' + e.numero + ' (' + (ORI_EMENDA[e.origem] || e.origem) + ') — ' + e.autor + ' · ' + moedaBR(e.valor_previsto)))))) : null);
   };
 
@@ -2353,7 +2353,7 @@
           q.then(({ data }) => {
             const s = (k) => (data || []).reduce((t, r) => t + Number(r[k] || 0), 0);
             caixa.replaceChildren(...[['Previsto', 'valor_previsto'], ['Realizado', 'valor_realizado'], ['Empenhado', 'valor_empenhado'], ['Liquidado', 'valor_liquidado'], ['Pago', 'valor_pago']]
-              .map(([r, k]) => el('div', { class: 'cartao' }, el('span', { class: 'meta' }, r + (ano === 'todos' ? '' : ' em ' + ano)), el('strong', { style: 'display:block;font-size:1.15em' }, moedaBR(s(k))))));
+              .map(([r, k]) => el('div', { class: 'cartao' }, el('span', { class: 'meta' }, r + (ano === 'todos' ? '' : ' em ' + ano)), el('strong', { class: 'bloco maior' }, moedaBR(s(k))))));
           });
           return caixa;
         } : null,
@@ -2399,7 +2399,7 @@
       el('h1', null, titulo),
       el('p', null, el('span', { class: 'etiqueta ' + a[1] }, a[0])),
       e.andamento === 'impedida' && e.impedimento ? el('div', { class: 'cartao aviso-obra' }, el('h2', null, 'Impedimento'), el('p', null, e.impedimento)) : null,
-      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { style: 'white-space:pre-line' }, e.objeto)),
+      el('section', { class: 'cartao' }, el('h2', null, 'Objeto'), el('p', { class: 'pre' }, e.objeto)),
       el('dl', { class: 'ficha-lic' },
         linha('Origem', ORI_EMENDA[e.origem]), linha('Tipo de emenda', TIPO_EMENDA[e.tipo]), linha('Forma de repasse', FORMA_EMENDA[e.forma_repasse]),
         linha('Autoria', e.autor), linha('Função de governo', funcaoBR(e.funcao)), linha('Beneficiário', e.beneficiario), linha('Unidade executora', e.unidade_nome),
@@ -2407,8 +2407,8 @@
         linha('Empenhado', m(e.valor_empenhado)), linha('Liquidado', m(e.valor_liquidado)), linha('Pago', m(e.valor_pago)),
         linha('Posição da execução', e.execucao_em ? dataBR(e.execucao_em) : null),
         linha('Convênio', cv ? el('a', { href: '#/convenio/' + cv.id }, nomeConv(cv) + ' — ' + cv.parte_nome) : null)),
-      e.observacao ? el('p', { style: 'margin-top:16px;white-space:pre-line' }, e.observacao) : null,
-      e.arquivo_url || e.link_externo ? el('p', { style: 'margin-top:16px' }, el('a', { class: 'botao botao-claro', href: e.arquivo_url || e.link_externo, target: '_blank', rel: 'noopener' }, 'Mais informações sobre a emenda', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null);
+      e.observacao ? el('p', { class: 'pre mt-2' }, e.observacao) : null,
+      e.arquivo_url || e.link_externo ? el('p', { class: 'mt-2' }, el('a', { class: 'botao botao-claro', href: e.arquivo_url || e.link_externo, target: '_blank', rel: 'noopener' }, 'Mais informações sobre a emenda', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null);
   };
 
   // ---------- Obras (PNTP 10.1 a 10.4) ----------
@@ -2589,7 +2589,7 @@
       aberta ? el('div', { class: 'cartao aviso-obra' }, el('h2', null, 'Obra paralisada desde ' + dataBR(aberta.inicio)),
         el('p', null, el('strong', null, 'Motivo: '), aberta.motivo), el('p', null, el('strong', null, 'Responsável pela inexecução: '), aberta.responsavel),
         el('p', null, el('strong', null, 'Previsão de reinício: '), aberta.previsao_reinicio ? dataBR(aberta.previsao_reinicio) : 'não informada')) : null,
-      o.descricao ? el('section', { class: 'cartao' }, el('h2', null, 'Descrição'), el('p', { style: 'white-space:pre-line' }, o.descricao)) : null,
+      o.descricao ? el('section', { class: 'cartao' }, el('h2', null, 'Descrição'), el('p', { class: 'pre' }, o.descricao)) : null,
       el('dl', { class: 'ficha-lic' },
         linha('Local', o.local), linha('Unidade responsável', o.unidade_nome), linha('Etapa atual', o.etapa_atual),
         linha('Início', o.data_inicio ? dataBR(o.data_inicio) : 'Não iniciada'), linha('Previsão de conclusão', o.previsao_conclusao ? dataBR(o.previsao_conclusao) : null),
@@ -2598,8 +2598,8 @@
         linha('Contrato', ctr ? el('a', { href: '#/contrato/' + ctr.id }, 'Contrato' + (ctr.numero ? ' nº ' + ctr.numero : '') + ' (aditivos e fiscais)') : null),
         linha('Valor contratado', o.valor_contratado != null ? moedaBR(o.valor_contratado) : null), linha('Fonte do recurso', o.fonte_recurso),
         linha('Total medido', meds.length ? moedaBR(soma(meds, 'valor_medido')) : null), linha('Total pago', meds.length ? moedaBR(soma(meds, 'valor_pago')) : null)),
-      o.link_externo ? el('p', { style: 'margin-top:16px' }, el('a', { class: 'botao botao-claro', href: o.link_externo, target: '_blank', rel: 'noopener' }, 'Mais informações sobre a obra', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
-      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Planilha: quantitativos contratados e executados'),
+      o.link_externo ? el('p', { class: 'mt-2' }, el('a', { class: 'botao botao-claro', href: o.link_externo, target: '_blank', rel: 'noopener' }, 'Mais informações sobre a obra', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
+      el('section', { class: 'mt-3' }, el('h2', null, 'Planilha: quantitativos contratados e executados'),
         itens.length ? [
           // Filtro da planilha (PNTP 10.2/10.3 exigem filtro): no próprio navegador, a planilha já veio inteira.
           el('form', { class: 'filtros', role: 'search', onsubmit: (e) => e.preventDefault() }, el('label', null, 'Pesquisar na planilha (item ou descrição)',
@@ -2623,7 +2623,7 @@
             el('tfoot', null, el('tr', null, el('th', { scope: 'row', colspan: 5 }, 'Totais'), el('td', { class: 'num' }, el('strong', null, moedaBR(soma(itens, 'total_contratado')))),
               el('td', { colspan: 2 }), el('td', { class: 'num' }, el('strong', null, moedaBR(soma(itens, 'total_executado'))))))))]
           : el('p', { class: 'vazio' }, 'Planilha ainda não informada.')),
-      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Etapas medidas e pagamentos'),
+      el('section', { class: 'mt-3' }, el('h2', null, 'Etapas medidas e pagamentos'),
         meds.length ? el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' },
           el('thead', null, el('tr', null, ['Medição', 'Período', 'Valor medido', 'Valor pago', '% acumulado', 'Boletim'].map((t) => el('th', { scope: 'col' }, t)))),
           el('tbody', null, meds.map((m) => el('tr', null,
@@ -2634,7 +2634,7 @@
             el('td', { 'data-rotulo': '% acumulado', class: 'num' }, m.percentual_acumulado != null ? pctBR(m.percentual_acumulado) : '—'),
             el('td', { 'data-rotulo': 'Boletim' }, m.arquivo_url || m.link_externo ? el('a', { href: m.arquivo_url || m.link_externo, target: '_blank', rel: 'noopener' }, m.arquivo_url ? 'PDF' : 'Link', el('span', { class: 'sr' }, ' da ' + m.numero + 'ª medição (abre em nova aba)')) : '—'))))))
           : el('p', { class: 'vazio' }, 'Nenhuma medição registrada.')),
-      el('section', { style: 'margin-top:24px' }, el('h2', null, 'Paralisações'),
+      el('section', { class: 'mt-3' }, el('h2', null, 'Paralisações'),
         pars.length ? el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' },
           el('thead', null, el('tr', null, ['Período', 'Motivo', 'Responsável pela inexecução', 'Previsão de reinício'].map((t) => el('th', { scope: 'col' }, t)))),
           el('tbody', null, pars.map((p) => el('tr', null,
@@ -2643,7 +2643,7 @@
             el('td', { 'data-rotulo': 'Responsável pela inexecução' }, p.responsavel),
             el('td', { 'data-rotulo': 'Previsão de reinício', class: 'num' }, p.previsao_reinicio ? dataBR(p.previsao_reinicio) : '—'))))))
           : el('p', { class: 'vazio' }, 'Esta obra não teve paralisações.')),
-      el('p', { class: 'meta', style: 'margin-top:18px' }, 'Última atualização: ' + dataBR(o.atualizado_em)));
+      el('p', { class: 'mt-2 meta' }, 'Última atualização: ' + dataBR(o.atualizado_em)));
   };
 
   // Peças usadas também por setoriais.js (saúde, educação, renúncias, conselhos).

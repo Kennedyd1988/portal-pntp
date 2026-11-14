@@ -197,11 +197,28 @@ returns boolean language sql stable security definer set search_path = public as
   or exists (select 1 from public.secoes_setoriais s where s.orgao_id = p_orgao and s.secao = any (p_secoes) and s.sem_ocorrencia);
 $$;
 
--- Anos da série histórica (p_ultimo e os 2 anteriores) sem dados e sem declaração.
+-- Exercícios cobertos por "outros endereços" (Aparência › Destinos das páginas, 0.20.0):
+-- configuracoes.destinos_links = { chave: [{ url, descricao, de, ate }] }. Vale o endereço da própria
+-- parte e o da página inteira (parte "despesas_empenhos" → página "despesas").
+create or replace function public.pntp_anos_outros_links(p_orgao uuid, p_secoes text[])
+returns integer[] language sql stable security definer set search_path = public as $$
+  select coalesce(array_agg(distinct a), '{}')
+  from public.orgaos o,
+       unnest(p_secoes) s,
+       jsonb_array_elements(case when jsonb_typeof(o.configuracoes -> 'destinos_links' -> s) = 'array' then o.configuracoes -> 'destinos_links' -> s else '[]'::jsonb end
+                         || case when jsonb_typeof(o.configuracoes -> 'destinos_links' -> split_part(s, '_', 1)) = 'array' and split_part(s, '_', 1) <> s
+                                 then o.configuracoes -> 'destinos_links' -> split_part(s, '_', 1) else '[]'::jsonb end) l,
+       generate_series(case when coalesce(l ->> 'de', '') ~ '^\d{4}$' then (l ->> 'de')::int end,
+                       case when coalesce(l ->> 'ate', '') ~ '^\d{4}$' then (l ->> 'ate')::int when coalesce(l ->> 'de', '') ~ '^\d{4}$' then (l ->> 'de')::int end) a
+  where o.id = p_orgao and coalesce(l ->> 'url', '') ~* '^https?://';
+$$;
+
+-- Anos da série histórica (p_ultimo e os 2 anteriores) sem dados, sem declaração e sem outro endereço que os cubra.
 create or replace function public.pntp_anos_faltando(p_orgao uuid, p_secoes text[], p_anos integer[], p_ultimo integer)
 returns integer[] language sql stable security definer set search_path = public as $$
   select coalesce(array_agg(a order by a), '{}') from generate_series(p_ultimo - 2, p_ultimo) a
   where not (a = any (coalesce(p_anos, '{}')))
+    and not (a = any (public.pntp_anos_outros_links(p_orgao, p_secoes)))
     and not public.pntp_declarado(p_orgao, p_secoes, make_date(a, 1, 1), make_date(a, 12, 31));
 $$;
 

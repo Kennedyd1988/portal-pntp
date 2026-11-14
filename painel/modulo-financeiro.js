@@ -239,7 +239,7 @@
         ['Credor', (r) => doisValores(el('strong', null, r.credor_nome), [r.documento_fiscal, r.empenho_numero && 'empenho ' + r.empenho_numero].filter(Boolean).join(' · ')), 'quebra'],
         ['Categoria e fonte', (r) => doisValores(C.categoriasOC[r.categoria], r.fonte_codigo ? 'fonte ' + r.fonte_codigo : null)],
         ['Valor', (r) => S.moeda(r.valor), 'num'],
-        ['Pagamento', (r) => r.data_pagamento ? [P.dataBR(r.data_pagamento), r.fora_da_ordem ? el('span', { class: 'etiqueta etiqueta-pendente', style: 'margin-left:6px' }, 'fora da ordem') : null] : el('span', { class: 'etiqueta etiqueta-agendado' }, 'a pagar')]],
+        ['Pagamento', (r) => r.data_pagamento ? [P.dataBR(r.data_pagamento), r.fora_da_ordem ? el('span', { class: 'ml-1 etiqueta etiqueta-pendente' }, 'fora da ordem') : null] : el('span', { class: 'etiqueta etiqueta-agendado' }, 'a pagar')]],
       acoes: botoesLinha('ordem_cronologica', abrir, (r) => r.credor_nome + ' · ' + P.dataBR(r.data_exigibilidade), () => lst.recarregar(true)) });
     return caixa;
   }

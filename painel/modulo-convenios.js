@@ -571,7 +571,7 @@
       const tot = anos.find((x) => x.ano === ano && Number(x.total));   // ano só declarado: sem quadro de valores
       const quadro = tot ? el('div', { class: 'grade-campos', style: 'margin:8px 0 12px' },
         [['Previsto', tot.previsto], ['Realizado', tot.realizado], ['Empenhado', tot.empenhado], ['Liquidado', tot.liquidado], ['Pago', tot.pago]]
-          .map(([r, v]) => el('div', { class: 'cartao', style: 'padding:10px 12px' }, el('span', { class: 'ajuda' }, r + ' em ' + ano), el('strong', { style: 'display:block' }, moeda(v))))) : null;
+          .map(([r, v]) => el('div', { class: 'cartao', style: 'padding:10px 12px' }, el('span', { class: 'ajuda' }, r + ' em ' + ano), el('strong', { class: 'bloco' }, moeda(v))))) : null;
 
       conteiner.replaceChildren(...[
         el('div', { class: 'cabecalho-modulo' },

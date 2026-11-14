@@ -131,7 +131,7 @@
     caixa.replaceChildren(
       S.secao('saude_espera', perm, { naoHa: 'Não há pacientes aguardando consultas, exames ou cirurgias na regulação municipal.' }),
       resumo,
-      pode() ? el('p', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: importar }, 'Importar lista (colar ou CSV)'),
+      pode() ? el('p', { class: 'linha-botoes' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: importar }, 'Importar lista (colar ou CSV)'),
         el('button', { type: 'button', class: 'btn btn-claro', onclick: () => abrir() }, '+ Incluir um pedido')) : '',
       el('p', { class: 'ajuda' }, 'A posição é calculada por procedimento: primeiro a prioridade (emergência, urgência, prioritário, eletivo), depois a data da solicitação.'),
       el('div', { class: 'filtros' }, fBusca, fTipo, fSit, fPri), lista);
@@ -200,7 +200,7 @@
     caixa.replaceChildren(
       S.secao('saude_medicamentos', perm, { naoHa: false, texto: { rotulo: 'Como obter os medicamentos (orientações gerais)', linhas: 4,
         ajuda: 'Aparece no alto da página: documentos e receita exigidos, horário da farmácia e como pedir os de alto custo (componente especializado).' } }),
-      pode() ? el('p', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => abrir() }, '+ Incluir medicamento'),
+      pode() ? el('p', { class: 'linha-botoes' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => abrir() }, '+ Incluir medicamento'),
         el('button', { type: 'button', class: 'btn btn-claro', onclick: importar }, 'Colar vários')) : '',
       el('div', { class: 'filtros' }, fBusca, fComp), lista);
     listar();

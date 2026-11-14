@@ -329,7 +329,7 @@
           return el('tr', null,
             el('td', null,
               el('strong', null, p.nome || '(sem nome)'),
-              p.usuario_id === d.euId ? el('span', { class: 'etiqueta', style: 'margin-left:6px' }, 'você') : null,
+              p.usuario_id === d.euId ? el('span', { class: 'ml-1 etiqueta' }, 'você') : null,
               el('span', { class: 'sub-linha' }, p.email)),
             el('td', null, p.perfil),
             el('td', null, p.unidade || 'Todo o órgão'),

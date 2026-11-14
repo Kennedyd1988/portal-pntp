@@ -178,7 +178,7 @@
     const g = podeGravar();
     return el('tr', { class: nivel ? 'linha-sub' : null },
       el('td', null, el('span', { class: nivel ? 'recuo' : null }, nivel ? '↳ ' : '', el('strong', null, item.rotulo)),
-        item.ativo ? null : el('span', { class: 'etiqueta etiqueta-desativado', style: 'margin-left:6px' }, 'Oculto')),
+        item.ativo ? null : el('span', { class: 'ml-1 etiqueta etiqueta-desativado' }, 'Oculto')),
       el('td', { class: 'quebra' }, descreverDestino(item), item.nova_aba ? el('span', { class: 'sub-linha' }, 'Abre em nova aba') : null),
       el('td', { class: 'acoes' },
         g ? el('button', { type: 'button', class: 'btn btn-claro btn-p', disabled: pos === 0, 'aria-label': 'Subir ' + item.rotulo, onclick: () => mover(item, -1) }, '↑') : null,

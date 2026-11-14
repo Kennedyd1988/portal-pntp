@@ -1,10 +1,11 @@
 {
-  "versao": "0.19.0",
+  "versao": "0.20.0",
   "data": "2026-11-14",
   "notas": [
-    "Autoavaliação automática do PNTP 2026 no Início: índice estimado, nível atual, essenciais e o que falta, com o botão \"Corrigir\" que abre a aba certa.",
-    "Aviso padrão \"Situação no PNTP\" no alto de cada módulo; amarelo só para o que falta.",
-    "Registros ligados a outros não podem mais ser excluídos (o painel diz o que está ligado).",
-    "Rodar o script 26."
+    "Padrão visual único no painel e no site: mesmas cores de aviso (azul informação, verde certo, amarelo o que falta, vermelho erro) e espaçamentos em escala fixa.",
+    "Destinos das páginas: mais de um endereço por página (portal atual, de anos anteriores, sistema complementar), cada um com a explicação e os exercícios que cobre.",
+    "Endereços externos conferidos todo dia (e pelo botão \"Verificar agora\"); o Início avisa quando um deixa de abrir.",
+    "Órgãos da plataforma (Suporte SOFT+): cadastro de órgãos pelo painel, com menu padrão e lista do que falta para cada um entrar no ar.",
+    "Rodar de novo o script 26 e depois o 27."
   ]
 }

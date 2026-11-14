@@ -33,9 +33,7 @@
     // Link externo vem de Aparência › Destinos das páginas (lugar único), como no resto do site.
     const ext = window.externoPNTP(S.conf, chave);
     if (ext) {
-      caixa.replaceChildren(el('div', { class: 'cartao' }, el('p', null, 'Esta informação é publicada no sistema indicado pelo órgão:'),
-        el('p', null, el('a', { class: 'botao', href: ext, target: '_blank', rel: 'noopener' }, 'Acessar', novaAba())), el('p', { class: 'meta' }, ext)),
-        s.texto ? el('p', { style: 'white-space:pre-line;margin-top:14px' }, s.texto) : '');
+      caixa.replaceChildren(S.caixaExterna(chave, { nivel: 'h3' }), s.texto ? el('p', { class: 'pre mt-2' }, s.texto) : '');
       return;
     }
     // Declarações de que não há dados (script 23): a da situação atual substitui a lista. As de
@@ -96,7 +94,7 @@
       history.replaceState(null, '', '#/' + o.rota + '/' + aba + (prm && String(prm) ? '?' + prm : ''));
       titulo.textContent = def[1];
       const caixa = el('div', null, el('p', { class: 'carregando' }, 'Carregando…'));
-      conteudo.replaceChildren(titulo, def[2] ? el('p', { class: 'meta', style: 'margin-top:0' }, def[2]) : '', caixa);
+      conteudo.replaceChildren(titulo, def[2] ? el('p', { class: 'mt-0 meta' }, def[2]) : '', caixa);
       return Promise.resolve(def[3](caixa, prm || new URLSearchParams())).catch(() => caixa.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')));
     }
     return abrir(params);
@@ -142,12 +140,12 @@
     const anos = [...new Set((docs || []).map((d) => d.data.slice(0, 4)))];
     caixa.replaceChildren(
       comTitulo ? el('h2', null, c.nome + (c.sigla ? ' (' + c.sigla + ')' : '')) : '',
-      c.competencias ? el('section', { class: 'cartao' }, el('h3', { style: 'margin-top:0' }, 'Competências e funcionamento'), el('p', { style: 'white-space:pre-line' }, c.competencias)) : '',
+      c.competencias ? el('section', { class: 'cartao' }, el('h3', { class: 'mt-0' }, 'Competências e funcionamento'), el('p', { class: 'pre' }, c.competencias)) : '',
       el('dl', { class: 'ficha-lic' }, linha('Criação', c.norma_criacao ? (c.norma_url ? el('a', { href: c.norma_url, target: '_blank', rel: 'noopener' }, c.norma_criacao, novaAba()) : c.norma_criacao) : null),
         linha('Mandato atual', c.mandato_inicio || c.mandato_fim ? U.periodoBR(c.mandato_inicio, c.mandato_fim) : null), linha('Reuniões', c.periodicidade), linha('Local das reuniões', c.local_reunioes),
         linha('Telefone', c.telefone), linha('E-mail', c.email ? el('a', { href: 'mailto:' + c.email }, c.email) : null),
         linha('Regimento interno', c.regimento_url ? el('a', { href: c.regimento_url, target: '_blank', rel: 'noopener' }, 'Abrir', novaAba()) : null)),
-      el('section', { style: 'margin-top:24px' }, el('div', { class: 'secao-titulo' }, el('h3', { style: 'margin:0' }, 'Composição'),
+      el('section', { class: 'mt-3' }, el('div', { class: 'secao-titulo' }, el('h3', { class: 'm-0' }, 'Composição'),
         S.botoesExportar('composicao-' + (c.sigla || c.tipo), [['nome', 'Nome'], ['funcao', 'Função', (v) => FUNCOES[v]], ['condicao', 'Titular/suplente'], ['segmento', 'Segmento'],
           ['entidade', 'Entidade'], ['mandato_inicio', 'Mandato: início'], ['mandato_fim', 'Mandato: fim'], ['ato', 'Ato de nomeação']], async (de) => de ? [] : lista)),
         lista.length ? tabela('Composição do conselho', ['Nome', 'Função', 'Representação', 'Mandato'], lista, (m) => el('tr', null,
@@ -155,8 +153,8 @@
           td('Representação', [m.segmento || '—', m.entidade ? el('span', { class: 'meta' }, m.entidade) : null]),
           td('Mandato', m.mandato_inicio || m.mandato_fim ? U.periodoBR(m.mandato_inicio, m.mandato_fim) : '—', 'num')))
           : el('p', { class: 'vazio' }, 'Composição não informada.')),
-      el('section', { style: 'margin-top:24px' }, el('h3', null, 'Atas, pautas e resoluções'), docsCaixa),
-      el('p', { class: 'meta', style: 'margin-top:16px' }, 'Informações atualizadas em ' + dataBR(c.atualizado_em) + '.'));
+      el('section', { class: 'mt-3' }, el('h3', null, 'Atas, pautas e resoluções'), docsCaixa),
+      el('p', { class: 'mt-2 meta' }, 'Informações atualizadas em ' + dataBR(c.atualizado_em) + '.'));
     const fTipo = U.selecao(Object.fromEntries([...new Set((docs || []).map((d) => d.tipo))].map((t) => [t, DOCS_CONSELHO[t]])));
     const fAno = el('select', null, el('option', { value: '' }, 'Todos'), anos.map((a) => el('option', { value: a }, a)));
     listaLocal(docsCaixa, { titulo: 'Documentos do conselho', dados: docs || [], nome: 'documentos-' + (c.sigla || c.tipo), unidade: ['documento', 'documentos'], vazio: 'Nenhum documento publicado.',
@@ -180,9 +178,9 @@
     U.pagina(main, el('h1', null, 'Conselhos municipais'),
       el('p', { class: 'sub' }, 'Composição, funcionamento, atas, pautas e resoluções dos conselhos de políticas públicas.'),
       lista.length ? el('div', { class: 'grade g2' }, lista.map((c) => el('a', { class: 'cartao', href: '#/conselho/' + c.id },
-        el('strong', { style: 'display:block' }, c.nome + (c.sigla ? ' (' + c.sigla + ')' : '')),
-        el('span', { class: 'meta', style: 'display:block' }, c.mandato_inicio || c.mandato_fim ? 'Mandato: ' + U.periodoBR(c.mandato_inicio, c.mandato_fim) : TIPOS_CONSELHO[c.tipo]),
-        c.periodicidade ? el('span', { class: 'meta', style: 'display:block' }, 'Reuniões: ' + c.periodicidade) : null)))
+        el('strong', { class: 'bloco' }, c.nome + (c.sigla ? ' (' + c.sigla + ')' : '')),
+        el('span', { class: 'bloco meta' }, c.mandato_inicio || c.mandato_fim ? 'Mandato: ' + U.periodoBR(c.mandato_inicio, c.mandato_fim) : TIPOS_CONSELHO[c.tipo]),
+        c.periodicidade ? el('span', { class: 'bloco meta' }, 'Reuniões: ' + c.periodicidade) : null)))
         : el('p', { class: 'vazio' }, 'Nenhum conselho publicado até esta data.'));
   };
   R.conselho = async function (main, partes) {
@@ -222,13 +220,13 @@
       grade.replaceChildren(...(vis.length ? vis.map((e) => {
         const ps = profs.filter((p) => p.estabelecimento_id === e.id);
         return el('section', { class: 'cartao' },
-          el('h3', { style: 'margin-top:0' }, e.nome), el('p', { class: 'meta' }, TIPOS_ESTAB[e.tipo] + (e.cnes ? ' · CNES ' + e.cnes : '')),
-          el('dl', { class: 'ficha-lic', style: 'margin-top:8px' },
+          el('h3', { class: 'mt-0' }, e.nome), el('p', { class: 'meta' }, TIPOS_ESTAB[e.tipo] + (e.cnes ? ' · CNES ' + e.cnes : '')),
+          el('dl', { class: 'mt-1 ficha-lic' },
             el('div', null, el('dt', null, 'Endereço'), el('dd', null, [e.endereco, e.bairro].filter(Boolean).join(' — '))),
             el('div', null, el('dt', null, 'Atendimento'), el('dd', null, e.horario)),
             e.telefone ? el('div', null, el('dt', null, 'Telefone'), el('dd', null, e.telefone)) : null,
             e.especialidades ? el('div', null, el('dt', null, 'Especialidades'), el('dd', null, e.especialidades)) : null),
-          e.servicos ? el('p', { style: 'white-space:pre-line' }, el('strong', null, 'Serviços: '), e.servicos) : null,
+          e.servicos ? el('p', { class: 'pre' }, el('strong', null, 'Serviços: '), e.servicos) : null,
           ps.length ? el('details', { open: ps.length <= 8 ? true : null }, el('summary', { style: 'cursor:pointer;font-weight:600' }, 'Profissionais (' + ps.length + ')'),
             tabela('Profissionais de ' + e.nome, ['Profissional', 'Especialidade', 'Dias e horário'], ps, (p) => el('tr', null,
               td('Profissional', [p.nome, p.registro ? el('span', { class: 'meta' }, p.registro) : null]), td('Especialidade', p.especialidade), td('Dias e horário', p.horario || '—'))))
@@ -304,7 +302,7 @@
     const { data } = await sb.from('saude_medicamentos').select('nome, apresentacao, componente, onde_obter, como_obter').eq('orgao_id', org()).order('nome').limit(5000);
     const fComp = U.selecao(Object.fromEntries([...new Set((data || []).map((m) => m.componente))].map((c) => [c, COMPONENTES[c]])));
     listaLocal(caixa, { titulo: 'Medicamentos do SUS', dados: data || [], nome: 'medicamentos-sus', unidade: ['medicamento', 'medicamentos'], vazio: 'Relação de medicamentos em atualização.',
-      antes: s.texto ? el('section', { class: 'cartao', style: 'margin-bottom:16px' }, el('h3', { style: 'margin-top:0' }, 'Como obter os medicamentos'), el('p', { style: 'white-space:pre-line' }, s.texto)) : '',
+      antes: s.texto ? el('section', { class: 'mb-2 cartao' }, el('h3', { class: 'mt-0' }, 'Como obter os medicamentos'), el('p', { class: 'pre' }, s.texto)) : '',
       filtros: [['Pesquisar', busca('Nome do medicamento'), contem('nome', 'apresentacao')], ['Componente', fComp, (d, v) => d.componente === v]],
       cabecalho: ['Medicamento', 'Componente', 'Onde obter', 'Como obter'],
       colunas: [['nome', 'Medicamento'], ['apresentacao', 'Apresentação'], ['componente', 'Componente', (v) => COMPONENTES[v]], ['onde_obter', 'Onde obter'], ['como_obter', 'Como obter']],
@@ -360,7 +358,7 @@
     const fTurma = U.selecao(Object.fromEntries([...new Set(lista.map((x) => x.turma))].sort().map((x) => [x, x])), 'Todas');
     const fSit = U.selecao(SIT_CRECHE, 'Todas'); fSit.value = 'aguardando';
     listaLocal(caixa, { titulo: 'Lista de espera das creches', dados: lista, nome: 'lista-de-espera-creches', unidade: ['inscrição', 'inscrições'], vazio: 'Lista em atualização.',
-      antes: [s.texto ? el('section', { class: 'cartao', style: 'margin-bottom:16px' }, el('h3', { style: 'margin-top:0' }, 'Critérios de prioridade de acesso'), el('p', { style: 'white-space:pre-line' }, s.texto)) : '',
+      antes: [s.texto ? el('section', { class: 'mb-2 cartao' }, el('h3', { class: 'mt-0' }, 'Critérios de prioridade de acesso'), el('p', { class: 'pre' }, s.texto)) : '',
         el('p', { class: 'meta' }, (ult ? 'Lista atualizada em ' + dataBR(ult) + '. ' : '') + 'As crianças são identificadas pelo número da inscrição (ECA e LGPD). A posição é por creche e turma.')],
       filtros: [['Pesquisar', busca('Número da inscrição'), contem('protocolo', 'crianca')], ['Creche', fCreche, (d, v) => d.creche === v], ['Turma', fTurma, (d, v) => d.turma === v],
         ['Situação', fSit, (d, v) => d.situacao_espera === v]],
@@ -375,7 +373,7 @@
     const { data } = await sb.from('conselhos').select('id, tipo, nome, sigla, mandato_inicio, mandato_fim').eq('orgao_id', org()).not('tipo', 'in', '(saude,fundeb,assistencia_social)').order('nome');
     caixa.replaceChildren((data || []).length ? el('ul', { class: 'partes-contas cartao' }, data.map((c) => el('li', null, el('a', { href: '#/conselho/' + c.id }, c.nome + (c.sigla ? ' (' + c.sigla + ')' : '')),
       el('span', { class: 'meta' }, c.mandato_inicio || c.mandato_fim ? 'Mandato: ' + U.periodoBR(c.mandato_inicio, c.mandato_fim) : TIPOS_CONSELHO[c.tipo]))))
-      : el('p', { class: 'vazio' }, 'Nenhum outro conselho publicado.'), el('p', { style: 'margin-top:12px' }, el('a', { href: '#/conselhos' }, 'Todos os conselhos municipais →')));
+      : el('p', { class: 'vazio' }, 'Nenhum outro conselho publicado.'), el('p', { class: 'mt-1' }, el('a', { href: '#/conselhos' }, 'Todos os conselhos municipais →')));
   }
   R.educacao = function (main, partes, params) {
     return paginaAbas(main, { rota: 'educacao', titulo: 'Educação e assistência social', sub: 'Plano Municipal de Educação e resultados, lista de espera das creches com os critérios de prioridade, Conselho do Fundeb, Conselho de Assistência Social e demais conselhos.',
@@ -387,7 +385,7 @@
         ['fundeb', 'Conselho do Fundeb', 'Composição e funcionamento do Conselho de Acompanhamento e Controle Social do Fundeb.', (c) => conselhoDoTipo(c, 'fundeb', 'educacao_fundeb')],
         ['assistencia-social', 'Assistência social', 'Composição e funcionamento do Conselho Municipal de Assistência Social, planos e relatórios.', async (c) => {
           const cons = el('div'), docs = el('div');
-          c.replaceChildren(cons, el('h2', { style: 'margin-top:28px' }, 'Planos e relatórios da assistência social'), docs);
+          c.replaceChildren(cons, el('h2', { class: 'mt-4' }, 'Planos e relatórios da assistência social'), docs);
           await Promise.all([conselhoDoTipo(cons, 'assistencia_social', 'educacao_assistencia'), documentos(docs, 'assistencia_social', 'assistencia-social-planos', 'Nenhum plano ou relatório publicado.')]);
         }],
         ['conselhos', 'Outros conselhos', 'Conselhos de Educação, Alimentação Escolar, Criança e Adolescente e outros.', (c) => S.decl.envolver(c, 'educacao_conselhos', () => outrosConselhos(c))]
@@ -417,7 +415,7 @@
         td('Benefício', [el('strong', null, r.titulo), el('span', { class: 'meta' }, ESPECIES[r.especie] + ' · ' + TRIBUTOS[r.tributo] + (r.setor ? ' · ' + r.setor : '')), r.descricao ? el('span', { class: 'meta' }, r.descricao) : null], 'lic-obj'),
         td('Fundamento legal', r.norma_url ? el('a', { href: r.norma_url, target: '_blank', rel: 'noopener' }, r.fundamento_legal, novaAba()) : r.fundamento_legal),
         td('Quem tem direito e como pedir', [r.requisitos ? el('span', { style: 'display:block;white-space:pre-line' }, el('strong', null, 'Requisitos: '), r.requisitos) : null,
-          r.procedimento ? el('span', { style: 'display:block;white-space:pre-line;margin-top:4px' }, el('strong', null, 'Como pedir: '), r.procedimento) : null, !r.requisitos && !r.procedimento ? '—' : null]),
+          r.procedimento ? el('span', { class: 'bloco pre mt-05' }, el('strong', null, 'Como pedir: '), r.procedimento) : null, !r.requisitos && !r.procedimento ? '—' : null]),
         td('Vigência', r.vigencia_inicio || r.vigencia_fim ? U.periodoBR(r.vigencia_inicio, r.vigencia_fim) : 'Por prazo indeterminado', 'num')) });
   }
 
@@ -436,7 +434,7 @@
         q.then(({ data }) => {
           const s = (k) => (data || []).reduce((t, r) => t + Number(r[k] || 0), 0);
           caixaT.replaceChildren(...[['Previsto', 'valor_previsto'], ['Realizado', 'valor_realizado']].map(([r, k]) => el('div', { class: 'cartao' },
-            el('span', { class: 'meta' }, r + (ano === 'todos' ? ' (todos os exercícios)' : ' em ' + ano)), el('strong', { style: 'display:block;font-size:1.15em' }, U.moedaBR(s(k))))));
+            el('span', { class: 'meta' }, r + (ano === 'todos' ? ' (todos os exercícios)' : ' em ' + ano)), el('strong', { class: 'bloco maior' }, U.moedaBR(s(k))))));
         });
         return caixaT;
       },

@@ -71,7 +71,7 @@
         : vazio ? el('p', { class: 'vazio' }, vazio) : null;
     return corpo ? el('section', { class: 'cartao' }, el('h2', null, titulo), corpo) : '';
   }
-  const atualizado = (r) => r.atualizado_em ? el('p', { class: 'meta', style: 'margin-top:18px' }, 'Informações atualizadas em ' + dataBR(String(r.atualizado_em).slice(0, 10)) + '.') : '';
+  const atualizado = (r) => r.atualizado_em ? el('p', { class: 'mt-2 meta' }, 'Informações atualizadas em ' + dataBR(String(r.atualizado_em).slice(0, 10)) + '.') : '';
 
   // ---------- formulário: sistema próprio do portal ou sistema externo ----------
   const CHAVE_FORM = { esic: 'esic_pedidos', ouvidoria: 'ouvidoria_manifestacoes' };
@@ -91,7 +91,7 @@
     const d = await canal('esic');
     const r = d.r;
     caixa.replaceChildren(
-      el('section', { class: 'cartao destaque-acao', style: 'margin-bottom:18px' },
+      el('section', { class: 'mb-2 cartao destaque-acao' },
         el('h2', null, 'Fazer um pedido de acesso à informação'),
         el('p', null, 'Qualquer pessoa pode pedir informações ao órgão, sem precisar dizer o motivo. Não são exigidos documentos, firma reconhecida, declaração de responsabilidade nem comprovação de maioridade.'),
         botaoFormulario('esic', r, 'Fazer pedido pela internet (e-SIC)', 'O formulário eletrônico está em implantação. Faça o pedido no SIC, pelos contatos abaixo.'),
@@ -100,8 +100,8 @@
       el('div', { class: 'grade grade-2' },
         cartaoContato('Serviço de Informação ao Cidadão (SIC)', d, 'Responsável'),
         cartaoNorma('Regulamentação da Lei de Acesso à Informação', d, 'Regulamentação local em elaboração.')),
-      r.instrucoes ? el('section', { style: 'margin-top:24px' }, texto(r.instrucoes)) : '',
-      el('section', { class: 'cartao', style: 'margin-top:24px' }, el('h2', null, 'Mais nesta seção'),
+      r.instrucoes ? el('section', { class: 'mt-3' }, texto(r.instrucoes)) : '',
+      el('section', { class: 'mt-3 cartao' }, el('h2', null, 'Mais nesta seção'),
         el('ul', null, [['#/esic/acompanhar', 'Acompanhar um pedido ou recorrer'], ['#/esic/relatorios', 'Relatórios estatísticos dos pedidos'], ['#/esic/classificadas', 'Informações classificadas em grau de sigilo'],
           ['#/esic/desclassificadas', 'Informações desclassificadas'], ['#/ouvidoria', 'Ouvidoria (reclamações, denúncias, sugestões e elogios)']]
           .map(([h, t]) => el('li', null, S.linkDestino && window.chaveDaRotaPNTP(h) ? S.linkDestino(window.chaveDaRotaPNTP(h), t) : el('a', { href: h }, t))))),
@@ -115,8 +115,8 @@
     caixa.replaceChildren(
       itens.length ? el('section', { class: 'cartao' }, el('h2', null, 'Prazos e autoridades'), el('dl', { class: 'dados' }, itens.map(([a, b]) => [el('dt', null, a), el('dd', null, b)])))
         : el('p', { class: 'vazio' }, 'Informações em atualização.'),
-      r.procedimento_recurso ? el('section', { style: 'margin-top:24px' }, el('h2', null, 'Como recorrer'), texto(r.procedimento_recurso)) : '',
-      el('p', { style: 'margin-top:18px' }, proprio(r) ? el('a', { class: 'botao botao-claro', href: '#/esic/acompanhar' }, 'Acompanhar pedido ou recorrer')
+      r.procedimento_recurso ? el('section', { class: 'mt-3' }, el('h2', null, 'Como recorrer'), texto(r.procedimento_recurso)) : '',
+      el('p', { class: 'mt-2' }, proprio(r) ? el('a', { class: 'botao botao-claro', href: '#/esic/acompanhar' }, 'Acompanhar pedido ou recorrer')
         : formExterno('esic') ? el('a', { class: 'botao botao-claro', href: formExterno('esic'), target: '_blank', rel: 'noopener' }, 'Acompanhar pedido ou recorrer', novaAba()) : ''),
       atualizado(r));
   }
@@ -133,7 +133,7 @@
     const notaSistema = (x) => x.origem !== 'sistema' ? '' : el('p', { class: 'meta nota-sistema' },
       'Gerado automaticamente a partir dos registros feitos no portal' + (x.parcela_manual ? ', somados aos do sistema usado antes de ' + dataBR(desde) : x.data_inicio < desde ? ' desde ' + dataBR(desde) + ' (o período anterior está no sistema usado antes)' : '') + '. ',
       x.parcial ? el('strong', null, 'Período em curso: números parciais, atualizados todo dia (última mudança em ' + dataBR(String(x.atualizado_em).slice(0, 10)) + ').') : '',
-      !Number(x.recebidos) ? el('strong', { style: 'display:block' }, (esic ? 'Não houve pedidos de acesso à informação' : 'Não houve manifestações registradas na Ouvidoria') + ' ' + window.periodoFrasePNTP(x) + '.') : '');
+      !Number(x.recebidos) ? el('strong', { class: 'bloco' }, (esic ? 'Não houve pedidos de acesso à informação' : 'Não houve manifestações registradas na Ouvidoria') + ' ' + window.periodoFrasePNTP(x) + '.') : '');
     if (error) { caixa.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
     const lista = data || [];
     const porRel = new Map();
@@ -164,9 +164,9 @@
           : [['Manifestações recebidas', principal.recebidos], ['Respondidas / concluídas', principal.atendidos], ['Arquivadas / não conhecidas', principal.indeferidos],
             ['Em andamento', principal.em_andamento], ['Prazo médio de resposta', principal.prazo_medio_dias, 'dias']]),
         distribuicoes(principal),
-        principal.observacao ? el('p', { style: 'white-space:pre-line' }, principal.observacao) : '',
+        principal.observacao ? el('p', { class: 'pre' }, principal.observacao) : '',
         principal.arquivo_url || principal.link_externo ? el('p', null, linkFora(principal.arquivo_url || principal.link_externo, 'Relatório completo' + (principal.arquivo_url ? ' (PDF)' : ''))) : '');
-      const outros = doAno.length > 1 ? el('section', { style: 'margin-top:24px' }, el('h3', null, 'Todos os relatórios de ' + ano)) : '';
+      const outros = doAno.length > 1 ? el('section', { class: 'mt-3' }, el('h3', null, 'Todos os relatórios de ' + ano)) : '';
       painelAno.replaceChildren(S.decl.quadro(declAno, 'Períodos sem ocorrência em ' + ano), resumo, outros);
       if (outros) {
         const caixaLista = el('div'); outros.append(caixaLista);
@@ -199,8 +199,8 @@
       const visiveis = grupos.map(([t, pares]) => [t, pares.filter((p) => p[1] !== null && p[1] !== undefined)]).filter((g) => g[1].length);
       if (!visiveis.length) return '';
       const linhasExport = visiveis.flatMap(([t, pares]) => pares.map(([item, q]) => ({ divisao: t, item, quantidade: q })));
-      return el('section', { style: 'margin-top:8px' },
-        el('div', { class: 'barra-lista' }, el('h4', { style: 'margin:0' }, esic ? 'Perfil dos pedidos e dos solicitantes' : 'Distribuição das manifestações'),
+      return el('section', { class: 'mt-1' },
+        el('div', { class: 'barra-lista' }, el('h4', { class: 'm-0' }, esic ? 'Perfil dos pedidos e dos solicitantes' : 'Distribuição das manifestações'),
           S.botoesExportar(c + '-distribuicoes-' + rel.exercicio + (rel.abrangencia === 'ano' ? '' : '-' + rel.abrangencia + '-' + rel.numero),
             [['divisao', 'Divisão'], ['item', 'Item'], ['quantidade', 'Quantidade']], async (de) => de ? [] : linhasExport)),
         el('div', { class: 'grade', style: 'grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-top:8px' }, visiveis.map(([t, pares]) => {
@@ -255,7 +255,7 @@
       cabecalho: desc ? ['Assunto', 'Grau e fundamento', 'Classificada em', 'Desclassificada em'] : ['Assunto', 'Grau e fundamento', 'Classificada em', 'Sigilo até', 'Situação'],
       colunas: COLUNAS_CLASS,
       linha: (r) => el('tr', null, td('Assunto', [el('strong', null, r.assunto), meta([r.codigo, r.unidade].filter(Boolean).join(' · '))], 'lic-obj'),
-        td('Grau e fundamento', [etq(GRAUS[r.grau]), el('span', { class: 'meta', style: 'display:block' }, r.fundamento)]),
+        td('Grau e fundamento', [etq(GRAUS[r.grau]), el('span', { class: 'bloco meta' }, r.fundamento)]),
         td('Classificada em', [dataBR(r.data_classificacao), meta(r.autoridade)], 'num'),
         desc ? td('Desclassificada em', [dataBR(r.data_desclassificacao), meta(MOTIVOS_DESC[r.motivo_desclassificacao])], 'num')
           : td('Sigilo até', [prazoTxt(r), meta(PRAZO_GRAU[r.grau])], 'num'),
@@ -300,7 +300,7 @@
   const caixaTexto = (attrs) => el('textarea', Object.assign({ rows: 6 }, attrs));
   const lista = (obj, vazio) => el('select', null, el('option', { value: '' }, vazio || '—'), Object.entries(obj).map(([k, v]) => el('option', { value: k }, v)));
   const radios = (nome, opcoes, atual) => el('div', { class: 'radios-atend', role: 'radiogroup' }, opcoes.map(([v, rot, aj]) => el('label', { class: 'radio-atend' },
-    el('input', { type: 'radio', name: nome, value: v, checked: v === atual }), el('span', null, el('strong', null, rot), aj ? el('span', { class: 'meta', style: 'display:block' }, aj) : ''))));
+    el('input', { type: 'radio', name: nome, value: v, checked: v === atual }), el('span', null, el('strong', null, rot), aj ? el('span', { class: 'bloco meta' }, aj) : ''))));
   const valorRadio = (form, nome) => (form.querySelector('input[name="' + nome + '"]:checked') || {}).value || '';
 
   // CPF ou CNPJ com dígitos verificadores.
@@ -350,7 +350,7 @@
     return falhas;
   }
 
-  const msgErro = (caixa, texto) => { caixa.replaceChildren(texto ? el('p', { class: 'msg-erro-atend' }, texto) : ''); if (texto) caixa.scrollIntoView({ block: 'nearest' }); };
+  const msgErro = (caixa, texto) => { caixa.replaceChildren(texto ? el('p', { class: 'msg msg-erro forte' }, texto) : ''); if (texto) caixa.scrollIntoView({ block: 'nearest' }); };
   const erroRPC = (e) => String((e && e.message) || e || '').replace(/^.*?ERROR:\s*/, '') || 'Não foi possível concluir. Tente de novo.';
 
   // ---------- registrar (e-SIC: pedido · Ouvidoria: manifestação) ----------
@@ -360,8 +360,7 @@
     const esic = c === 'esic';
     if (!proprio(r)) {
       const ext = formExterno(c);
-      caixa.replaceChildren(ext ? el('div', { class: 'cartao' }, el('p', null, esic ? 'Os pedidos são feitos no sistema indicado pelo órgão:' : 'As manifestações são registradas no sistema indicado pelo órgão:'),
-        el('p', null, el('a', { class: 'botao', href: ext, target: '_blank', rel: 'noopener' }, 'Acessar', novaAba())), el('p', { class: 'meta' }, ext))
+      caixa.replaceChildren(ext ? S.caixaExterna(CHAVE_FORM[c], { nivel: 'h3' })
         : el('div', { class: 'cartao' }, el('p', null, esic ? 'O formulário eletrônico está em implantação. Faça o pedido no SIC: ' : 'O canal eletrônico está em implantação. Fale com a Ouvidoria: '),
           el('a', { href: '#/' + c + '/' + (esic ? 'como-pedir' : 'como-manifestar') }, 'endereço, telefone e horário'), '.'));
       return;
@@ -455,7 +454,7 @@
       el('dl', { class: 'dados' }, el('dt', null, 'Órgão'), el('dd', null, S.orgao.nome), el('dt', null, 'Protocolo'), el('dd', null, el('strong', { class: 'codigo-atend' }, d.protocolo)),
         el('dt', null, 'Código de acesso'), el('dd', null, el('strong', { class: 'codigo-atend' }, d.codigo)),
         el('dt', null, 'Prazo de resposta'), el('dd', null, dataBR(d.prazo)), el('dt', null, 'Registrado em'), el('dd', null, dataHora(new Date().toISOString()))),
-      el('p', { class: 'msg-aviso-atend' }, el('strong', null, 'Guarde o protocolo e o código de acesso. '), 'O código não é mostrado de novo nem enviado por e-mail: sem ele não é possível consultar a resposta' + (esic ? ' nem recorrer' : '') + '.'),
+      el('p', { class: 'msg msg-falta' }, el('strong', null, 'Guarde o protocolo e o código de acesso. '), 'O código não é mostrado de novo nem enviado por e-mail: sem ele não é possível consultar a resposta' + (esic ? ' nem recorrer' : '') + '.'),
       d.email ? el('p', { class: 'meta' }, 'Os avisos de andamento vão para o e-mail informado, quando o envio de e-mails estiver ativo no órgão.') : '',
       arquivos.length ? el('div', null, el('h3', null, 'Anexos'), saida) : '',
       el('p', { class: 'acoes-atend sem-impressao' }, el('button', { type: 'button', class: 'botao botao-claro', onclick: () => window.print() }, 'Imprimir ou salvar comprovante'),
@@ -472,9 +471,8 @@
     const r = Object.assign({ canal: c }, d.r);
     if (!proprio(r)) {
       const ext = formExterno(c);
-      caixa.replaceChildren(el('div', { class: 'cartao' }, ext ? [el('p', null, 'O acompanhamento é feito no sistema indicado pelo órgão:'),
-        el('p', null, el('a', { class: 'botao', href: ext, target: '_blank', rel: 'noopener' }, 'Acessar', novaAba()))]
-        : el('p', null, 'Para saber o andamento, fale com ' + (c === 'esic' ? 'o SIC' : 'a Ouvidoria') + ' pelos contatos da aba "' + (c === 'esic' ? 'Como pedir' : 'Como se manifestar') + '".')));
+      caixa.replaceChildren(ext ? S.caixaExterna(CHAVE_FORM[c], { nivel: 'h3' })
+        : el('div', { class: 'cartao' }, el('p', null, 'Para saber o andamento, fale com ' + (c === 'esic' ? 'o SIC' : 'a Ouvidoria') + ' pelos contatos da aba "' + (c === 'esic' ? 'Como pedir' : 'Como se manifestar') + '".')));
       return;
     }
     const prot = entrada({ maxlength: 20, autocomplete: 'off', placeholder: c === 'esic' ? 'SIC-2026-000123' : 'OUV-2026-000045', value: prm.get('protocolo') || '' });
@@ -522,21 +520,21 @@
     } }, a.nome), meta(' · ' + (a.origem === 'cidadao' ? 'enviado por você' : 'enviado pelo órgão') + ' · ' + dataHora(a.em)));
     const blocos = [
       el('section', { class: 'cartao' },
-        el('div', { class: 'barra-lista' }, el('h2', { style: 'margin:0' }, d.protocolo), etq([d.situacao_rotulo, SIT_ETQ[d.situacao]])),
+        el('div', { class: 'barra-lista' }, el('h2', { class: 'm-0' }, d.protocolo), etq([d.situacao_rotulo, SIT_ETQ[d.situacao]])),
         el('dl', { class: 'dados' },
           el('dt', null, 'Tipo'), el('dd', null, d.tipo_rotulo + (d.identificacao === 'anonimo' ? ' (anônima)' : d.identificacao === 'preservada' ? ' (identidade preservada)' : '')),
           el('dt', null, 'Registrado em'), el('dd', null, dataHora(d.registrado_em)),
           d.respondido_em ? [el('dt', null, 'Respondido em'), el('dd', null, dataHora(d.respondido_em))]
             : [el('dt', null, 'Prazo de resposta'), el('dd', null, dataBR(d.prazo), d.prorrogado ? meta(' (prorrogado)') : '', d.prazo < hoje && d.situacao === 'aberto' ? etq(['Prazo vencido', 'etiqueta-vermelha']) : '')],
           d.unidade && !d.respondido_em ? [el('dt', null, 'Em análise em'), el('dd', null, d.unidade)] : ''),
-        el('details', null, el('summary', null, esic ? 'Ver o pedido' : 'Ver a manifestação'), d.assunto ? el('p', null, el('strong', null, d.assunto)) : '', el('p', { style: 'white-space:pre-line' }, d.texto))),
+        el('details', null, el('summary', null, esic ? 'Ver o pedido' : 'Ver a manifestação'), d.assunto ? el('p', null, el('strong', null, d.assunto)) : '', el('p', { class: 'pre' }, d.texto))),
       d.resposta ? el('section', { class: 'cartao' }, el('h3', null, 'Resposta'), el('p', null, el('strong', null, d.resultado_rotulo), d.motivo_negativa ? ' — ' + d.motivo_negativa : ''),
-        el('p', { style: 'white-space:pre-line' }, d.resposta),
+        el('p', { class: 'pre' }, d.resposta),
         esic && d.prazo_recurso && d.situacao === 'respondido' ? el('p', { class: 'meta' }, 'Se discordar, você pode recorrer até ' + dataBR(d.prazo_recurso) + '.') : '') : '',
       (d.recursos || []).length ? el('section', { class: 'cartao' }, el('h3', null, 'Recursos'), d.recursos.map((x) => el('div', { class: 'recurso-atend' },
         el('p', null, el('strong', null, x.instancia + 'ª instância'), meta(' · registrado em ' + dataHora(x.registrado_em) + (x.autoridade ? ' · decide: ' + x.autoridade : ''))),
-        el('p', { style: 'white-space:pre-line' }, x.texto),
-        x.decisao ? [el('p', null, el('strong', null, x.decisao_rotulo), meta(' · ' + dataHora(x.decidido_em))), el('p', { style: 'white-space:pre-line' }, x.decisao_texto)]
+        el('p', { class: 'pre' }, x.texto),
+        x.decisao ? [el('p', null, el('strong', null, x.decisao_rotulo), meta(' · ' + dataHora(x.decidido_em))), el('p', { class: 'pre' }, x.decisao_texto)]
           : el('p', { class: 'meta' }, 'Aguardando decisão (prazo: ' + dataBR(x.prazo_decisao) + ').')))) : '',
       anexos.length ? el('section', { class: 'cartao' }, el('h3', null, 'Anexos'), el('ul', null, anexos.map(linhaAnexo))) : '',
       el('section', { class: 'cartao' }, el('h3', null, 'Andamento'), el('ol', { class: 'andamento-atend' }, andamento.map((t) => el('li', null,
@@ -629,7 +627,7 @@
         return { tot, media, sim: res('sim'), parcial: res('parcial'), nao: res('nao'), notas: [5, 4, 3, 2, 1].map((n2) => [n2, l.filter((x) => x.nota === n2).reduce((t, x) => t + Number(x.quantidade), 0)]) };
       };
       const pct = (a, b) => b ? (100 * a / b).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%' : '—';
-      const cartaoCanal = (rot, r) => el('div', { class: 'cartao' }, el('h3', { style: 'margin-top:0' }, rot),
+      const cartaoCanal = (rot, r) => el('div', { class: 'cartao' }, el('h3', { class: 'mt-0' }, rot),
         el('p', null, el('strong', { style: 'font-size:1.3em' }, r.media === null ? '—' : r.media.toLocaleString('pt-BR', { maximumFractionDigits: 1 })), meta(' nota média · ' + n(r.tot) + ' avaliação(ões)')),
         el('p', null, 'Resolveu: ' + pct(r.sim, r.tot) + ' · em parte: ' + pct(r.parcial, r.tot) + ' · não: ' + pct(r.nao, r.tot)),
         el('table', { class: 'tabela-dados' }, el('caption', { class: 'sr' }, 'Notas — ' + rot + ' — ' + ano),
@@ -637,9 +635,9 @@
           el('tbody', null, r.notas.map(([nota, q]) => el('tr', null, el('td', null, String(nota)), el('td', { class: 'num' }, n(q)), el('td', { class: 'num' }, pct(q, r.tot)))))));
       const exp = doAno.map((x) => ({ canal: x.canal === 'esic' ? 'e-SIC' : 'Ouvidoria', ano: x.ano, mes: x.mes, nota: x.nota, resolvido: x.resolvido, quantidade: Number(x.quantidade) }));
       painelAno.replaceChildren(
-        el('div', { class: 'barra-lista' }, el('h3', { style: 'margin:0' }, 'Resultados de ' + ano), S.botoesExportar('pesquisa-satisfacao-' + ano,
+        el('div', { class: 'barra-lista' }, el('h3', { class: 'm-0' }, 'Resultados de ' + ano), S.botoesExportar('pesquisa-satisfacao-' + ano,
           [['canal', 'Canal'], ['ano', 'Ano'], ['mes', 'Mês'], ['nota', 'Nota'], ['resolvido', 'Resolveu', (v) => ({ sim: 'Sim', parcial: 'Em parte', nao: 'Não' }[v])], ['quantidade', 'Avaliações']], async (de) => de ? [] : exp)),
-        el('div', { class: 'grade grade-3', style: 'margin-top:12px' }, cartaoCanal('Todos os canais', resumo(() => true)),
+        el('div', { class: 'mt-1 grade grade-3' }, cartaoCanal('Todos os canais', resumo(() => true)),
           doAno.some((x) => x.canal === 'esic') ? cartaoCanal('e-SIC', resumo((x) => x.canal === 'esic')) : '',
           doAno.some((x) => x.canal === 'ouvidoria') ? cartaoCanal('Ouvidoria', resumo((x) => x.canal === 'ouvidoria')) : ''));
     }
@@ -669,7 +667,7 @@
     const d = await canal('ouvidoria');
     const r = d.r;
     caixa.replaceChildren(
-      el('section', { class: 'cartao destaque-acao', style: 'margin-bottom:18px' },
+      el('section', { class: 'mb-2 cartao destaque-acao' },
         el('h2', null, 'Registrar uma manifestação'),
         el('p', null, 'Reclamações, denúncias, sugestões, elogios e solicitações sobre os serviços do órgão. Para pedir documentos ou dados públicos, use o ', el('a', { href: '#/esic/como-pedir' }, 'e-SIC'), '.'),
         botaoFormulario('ouvidoria', r, 'Registrar manifestação pela internet', 'O canal eletrônico está em implantação. Fale com a Ouvidoria pelos contatos abaixo.'),
@@ -678,8 +676,8 @@
       el('div', { class: 'grade grade-2' },
         cartaoContato('Atendimento presencial', d, 'Ouvidor(a)'),
         cartaoNorma('Norma da Ouvidoria', d, null)),
-      r.instrucoes ? el('section', { style: 'margin-top:24px' }, texto(r.instrucoes)) : '',
-      el('p', { style: 'margin-top:18px' }, el('a', { href: '#/ouvidoria/relatorios' }, 'Relatórios estatísticos das manifestações'), ' · ',
+      r.instrucoes ? el('section', { class: 'mt-3' }, texto(r.instrucoes)) : '',
+      el('p', { class: 'mt-2' }, el('a', { href: '#/ouvidoria/relatorios' }, 'Relatórios estatísticos das manifestações'), ' · ',
         S.linkDestino('ouvidoria_satisfacao', 'Pesquisa de satisfação'), ' · ', el('a', { href: '#/servicos' }, 'Carta de Serviços ao Usuário')),
       atualizado(r));
   }

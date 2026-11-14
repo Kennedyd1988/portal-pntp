@@ -277,7 +277,7 @@
           el('div', { class: 'grade-campos' }, campo('ad-val', 'Valor (R$)', f.valor, 'Acréscimo positivo; supressão negativa.'), campo('ad-vig', 'Nova data de fim da vigência', f.vig, 'Só se prorrogar.')),
           campo('ad-desc', 'Descrição', f.desc),
           el('div', { class: 'grade-campos' }, campo('ad-pdf', 'PDF do termo (inteiro teor)', f.pdf), campo('ad-link', 'Ou link', f.link)),
-          el('div', { style: 'margin-top:10px' }, btn)) : null);
+          el('div', { class: 'mt-1' }, btn)) : null);
     }
 
     async function fiscais() {
@@ -317,7 +317,7 @@
         pode ? el('fieldset', { class: 'opcoes' }, el('legend', null, 'Adicionar fiscal ou gestor'),
           el('div', { class: 'grade-campos' }, campo('fi-nome', 'Nome', f.nome, null, true), campo('fi-fun', 'Função', f.funcao), campo('fi-ato', 'Ato de designação', f.ato)),
           el('div', { class: 'grade-campos' }, campo('fi-ini', 'Desde', f.inicio, 'Em branco: desde o início do contrato.'), campo('fi-fim', 'Até', f.fim, 'Preencha quando for substituído.')),
-          el('div', { style: 'margin-top:10px' }, btn)) : null);
+          el('div', { class: 'mt-1' }, btn)) : null);
     }
     const aviso = travado ? el('p', { class: 'msg msg-info' }, 'Contrato publicado: só quem tem permissão de publicar altera aditivos e fiscais.') : null;
     return {
@@ -548,7 +548,7 @@
               el('td', { class: 'quebra' }, el('strong', null, rotulo(c)), el('span', { class: 'sub-linha' }, c.objeto.length > 140 ? c.objeto.slice(0, 140) + '…' : c.objeto)),
               el('td', { class: 'quebra' }, c.contratado_nome, c.contratado_doc ? el('span', { class: 'sub-linha' }, docFormatado(c.contratado_doc)) : null),
               el('td', { class: 'num' }, moeda(c.valor_atual)),
-              el('td', { class: 'num' }, (P.dataBR(c.vigencia_inicio) || '?') + ' a ' + (P.dataBR(c.vigencia_fim_atual) || '?'), el('span', { class: 'etiqueta etiqueta-' + sv[1], style: 'margin-top:4px' }, sv[0])),
+              el('td', { class: 'num' }, (P.dataBR(c.vigencia_inicio) || '?') + ' a ' + (P.dataBR(c.vigencia_fim_atual) || '?'), el('span', { class: 'mt-05 etiqueta etiqueta-' + sv[1] }, sv[0])),
               el('td', null, c.origem === 'pncp' ? 'PNCP' : c.origem === 'link' ? el('a', { href: c.link_externo, target: '_blank', rel: 'noopener' }, 'Link') : 'Portal'),
               el('td', null, el('span', { class: 'etiqueta etiqueta-' + (c.situacao === 'publicado' ? 'publicado' : 'rascunho') }, c.situacao === 'publicado' ? 'No ar' : 'Rascunho')),
               el('td', { class: 'acoes' },

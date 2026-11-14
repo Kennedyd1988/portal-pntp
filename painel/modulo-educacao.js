@@ -75,7 +75,7 @@
         texto: { rotulo: 'Critérios de prioridade de acesso às creches', obrigatorio: true, linhas: 5,
           ajuda: 'O PNTP 19.2 pede a lista E os critérios. Ex.: 1º crianças com deficiência; 2º famílias do CadÚnico; 3º mãe ou responsável trabalhando; desempate pela data de inscrição. Cite a norma (portaria/resolução).' } }),
       resumo,
-      pode() ? el('p', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: importar }, 'Importar lista (colar ou CSV)'),
+      pode() ? el('p', { class: 'linha-botoes' }, el('button', { type: 'button', class: 'btn btn-primario', onclick: importar }, 'Importar lista (colar ou CSV)'),
         el('button', { type: 'button', class: 'btn btn-claro', onclick: () => abrir() }, '+ Incluir uma inscrição')) : '',
       el('p', { class: 'ajuda' }, 'A posição é calculada por creche e turma: maior pontuação primeiro e, no empate, a inscrição mais antiga.'),
       el('div', { class: 'filtros' }, fBusca, fSit), lista);
@@ -104,7 +104,7 @@
         ['edu-assist', 'Assistência social', () => [
           S.secao('educacao_assistencia', perm, { titulo: 'Conselho de Assistência Social (19.4) no site', naoHa: false }),
           S.conselhos(caixa(), { tipos: ['assistencia_social'], obrigatorios: { assistencia_social: 'PNTP 19.4' }, perm, modulo: 'educacao' }),
-          el('h2', { style: 'margin-top:20px' }, 'Planos e relatórios da assistência social'),
+          el('h2', { class: 'mt-3' }, 'Planos e relatórios da assistência social'),
           S.documentos(caixa(), { area: 'assistencia_social', modulo: 'educacao', perm, exemplo: 'Ex.: Plano Municipal de Assistência Social 2026-2029',
             tipos: { plano_assistencia: 'Plano Municipal de Assistência Social', relatorio_assistencia: 'Relatório de gestão da assistência social' },
             ajuda: 'Opcional: planos e relatórios da assistência social (aparecem na mesma aba do site).' })], null, 'educacao_assistencia'],

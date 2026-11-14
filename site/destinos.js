@@ -5,7 +5,11 @@
 // importação) ou link externo. Menu, capa da Transparência, página inicial,
 // mapa do site e busca perguntam aqui — assim nenhum botão aponta para um
 // lugar e outro para outro.
-// Gravado em orgaos.configuracoes.destinos = { chave: 'https://…' }.
+// Gravado em orgaos.configuracoes.destinos = { chave: 'https://…' } (endereço principal) e
+// orgaos.configuracoes.destinos_links = { chave: [{ url, descricao, de, ate }] } (outros endereços:
+// portal de anos anteriores, sistema antigo, sistema complementar), sempre com a explicação e os
+// exercícios que cada um cobre. Com outros endereços, os botões levam à página do portal, que
+// mostra todos os endereços explicados (nunca abre direto um deles).
 // Sem link gravado: vai para a rota interna; se a página ainda não existe no
 // portal (rota nula), vai para o Portal da Transparência externo
 // (configuracoes.transparencia_url).
@@ -201,6 +205,8 @@ window.destinoPNTP = function (conf, chave) {
   const d = window.DESTINOS_PNTP.find((x) => x[0] === chave);
   if (!d) return null;
   const ext = window.externoPNTP(conf, chave);
+  // Mais de um endereço: vai para a página do portal, que lista e explica cada um.
+  if (ext && d[2] && window.outrosLinksPNTP(conf, chave).length) return { href: '#' + d[2], externo: false, rotulo: d[1] };
   if (ext) return { href: ext, externo: true, rotulo: d[1] };
   if (d[2]) return { href: '#' + d[2], externo: false, rotulo: d[1] };
   return conf && conf.transparencia_url ? { href: conf.transparencia_url, externo: true, rotulo: d[1] } : null;
@@ -213,8 +219,35 @@ window.externoPNTP = function (conf, chave) {
   if (dest[chave]) return dest[chave];
   const d = window.DESTINOS_PNTP.find((x) => x[0] === chave);
   if (!d || !/\(por parte\)$/.test(d[4]) || !d[2]) return null;
+  const pai = window.paiPNTP(chave);
+  return pai && dest[pai] ? dest[pai] : null;
+};
+
+// Página inteira de uma parte ("saude_espera" → "saude"); null se a chave não é parte.
+window.paiPNTP = function (chave) {
+  const d = window.DESTINOS_PNTP.find((x) => x[0] === chave);
+  if (!d || !/\(por parte\)$/.test(d[4]) || !d[2]) return null;
   const pai = window.DESTINOS_PNTP.find((x) => x[2] && d[2].startsWith(x[2] + '/') && !/\(por parte\)$/.test(x[4]));
-  return pai && dest[pai[0]] ? dest[pai[0]] : null;
+  return pai ? pai[0] : null;
+};
+
+// Outros endereços de uma chave (configuracoes.destinos_links), do mais recente para o mais antigo.
+// A parte soma os da página inteira ("receitas_divida_ativa" mostra também os de "receitas").
+window.outrosLinksPNTP = function (conf, chave) {
+  const todos = (conf || {}).destinos_links || {};
+  const pai = window.paiPNTP(chave);
+  const lista = [].concat(Array.isArray(todos[chave]) ? todos[chave] : [], pai && Array.isArray(todos[pai]) ? todos[pai] : [])
+    .filter((l) => l && /^https?:\/\//i.test(l.url || ''));
+  const vistos = new Set();
+  return lista.filter((l) => !vistos.has(l.url) && vistos.add(l.url))
+    .sort((a, b) => (b.ate || b.de || 0) - (a.ate || a.de || 0) || (b.de || 0) - (a.de || 0));
+};
+
+// "Exercícios de 2021 a 2024", "Exercício de 2023" ou "Período não informado".
+window.periodoLinkPNTP = function (l) {
+  if (l.de && l.ate && +l.de !== +l.ate) return 'Exercícios de ' + l.de + ' a ' + l.ate;
+  if (l.de || l.ate) return 'Exercício de ' + (l.de || l.ate);
+  return 'Período não informado';
 };
 
 // Rota interna → chave (para o site desviar quando o órgão escolheu link externo).

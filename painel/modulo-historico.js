@@ -218,7 +218,7 @@
         el('dt', null, 'Ação'), el('dd', null, ACOES[h.acao] + ' · ' + (AREAS[h.tabela] || h.tabela)),
         el('dt', null, 'Registro'), el('dd', null, descrever(h))
       ),
-      campos.length ? el('div', { class: 'tabela-caixa', style: 'margin-top:14px' }, el('table', { class: 'tabela tabela-compacta' },
+      campos.length ? el('div', { class: 'mt-2 tabela-caixa' }, el('table', { class: 'tabela tabela-compacta' },
         el('thead', null, el('tr', null,
           el('th', { scope: 'col' }, 'Campo'),
           h.acao !== 'inserir' ? el('th', { scope: 'col' }, 'Antes') : null,

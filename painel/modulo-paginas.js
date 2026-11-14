@@ -118,7 +118,7 @@
       lista.length ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
         el('thead', null, el('tr', null, ['Página', 'Endereço', 'Situação', 'Atualizada em'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
         el('tbody', null, lista.map((p) => el('tr', null,
-          el('td', null, el('strong', null, p.titulo), slugsNoMenu.has(p.slug) ? el('span', { class: 'etiqueta', style: 'margin-left:6px' }, 'no menu') : null),
+          el('td', null, el('strong', null, p.titulo), slugsNoMenu.has(p.slug) ? el('span', { class: 'ml-1 etiqueta' }, 'no menu') : null),
           el('td', { class: 'num' }, '/' + p.slug),
           el('td', null, el('span', { class: 'etiqueta etiqueta-' + (p.situacao === 'publicado' ? 'publicado' : 'rascunho') }, p.situacao === 'publicado' ? 'Publicada' : 'Rascunho')),
           el('td', { class: 'num' }, P.dataHoraBR(p.atualizado_em)),
@@ -144,7 +144,7 @@
           el('div', { class: 'campo' }, el('label', { for: 'fq-resposta' }, 'Resposta', el('span', { class: 'obrigatorio', 'aria-hidden': 'true' }, ' *')), editor.elemento,
             el('span', { class: 'erro-campo', id: 'fq-resposta-erro' }))]],
         ['organizacao', 'Assunto e ordem', [el('div', { class: 'grade-campos grade-3' },
-          categoria.campo, campo('fq-ordem', 'Ordem', ordem), el('label', { class: 'checkbox', style: 'align-self:center' }, ativo, ' Aparece no site'))]]
+          categoria.campo, campo('fq-ordem', 'Ordem', ordem), el('label', { class: 'centro-v checkbox' }, ativo, ' Aparece no site'))]]
       ]));
     const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
     const dlg = P.abrirDialogo(q.id ? 'Editar pergunta' : 'Nova pergunta', corpo, [
