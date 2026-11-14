@@ -263,6 +263,14 @@
       if (!vinc) return;
       document.getElementById('cd-orgaos-erro').textContent = vinc.length ? '' : 'Marque pelo menos um órgão.';
       if (!vinc.length) return;
+      if (existente) {
+        const repetidos = vinc.filter((v) => existente.acessos.some((a) => a.orgao_id === v.orgao_id));
+        if (repetidos.length) {
+          erroCampo('cd-email', (existente.nome || email) + ' já tem acesso a ' + repetidos.map((v) => v.nome).join(', ') +
+            '. Para mudar o perfil, feche esta janela e use "Abrir" na linha da pessoa.');
+          return;
+        }
+      }
       ocupado(btn, 'Cadastrando…');
       try {
         const r = await chamarFuncao({ acao: 'cadastrar', nome, email, senha: s.senha.value, trocar_senha: trocar.checked,
