@@ -442,6 +442,16 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.23.3 — 14/11/2026 — Migração do site antigo (Plataforma A)**
+- Módulo "Migração do site antigo" (Suporte SOFT+ e administrador do órgão): traz leis/decretos, licitações com
+  documentos, contratos, concursos, contas públicas e notícias do site atual do órgão, com os arquivos copiados para
+  o portal. Período: 3 anos no que pontua no PNTP, 2 anos no restante. "Analisar e medir" antes (não grava nada);
+  "Importar" depois; não duplica (tabela `migracao_itens`).
+- Leitura pelo servidor (função `migrar-site`) ou pelo navegador: muitos sites bloqueiam servidores de nuvem; aí o
+  painel abre o site antigo numa aba e o favorito "Coletor SOFT+" (`painel/coletor.js`) lê páginas e arquivos como
+  quem navega. Erros passageiros do banco/função são repetidos em vez de parar a análise.
+- Script 31 (`31_migracao_site.sql`) e função `migrar-site` (Verify JWT desligado).
+
 **0.22.0 — 14/11/2026 — Vários perfis por pessoa, perfis do sistema e barra de carregamento**
 - Barra de carregamento na entrada do painel (conferindo acesso → órgãos → abrindo o órgão → menu), respeitando
   "reduzir movimento" do aparelho.

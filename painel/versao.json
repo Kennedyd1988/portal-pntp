@@ -1,7 +1,8 @@
 {
-  "versao": "0.23.2",
+  "versao": "0.23.3",
   "data": "2026-11-14",
   "notas": [
+    "Migração do site antigo: leitura pelo navegador (favorito \"Coletor SOFT+\") para sites que bloqueiam o servidor; erros passageiros são repetidos em vez de parar a análise.",
     "Migração do site antigo (Suporte SOFT+): traz leis e decretos, licitações com documentos, contratos, concursos, contas públicas e notícias do site atual do órgão, com os arquivos, no período do PNTP. Mede o espaço antes de importar e não duplica.",
     "Rodar o script 31 e publicar a função migrar-site."
   ]

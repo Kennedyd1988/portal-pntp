@@ -1,5 +1,5 @@
 // =====================================================================
-// Módulo "Migração do site antigo" (0.23.0) — Suporte SOFT+
+// Módulo "Migração do site antigo" (0.23.0; leitura pelo navegador 0.23.3) — Suporte SOFT+
 // Traz para o portal o conteúdo do site que o órgão já tinha: leis e decretos,
 // licitações com documentos, contratos, concursos, contas públicas e notícias.
 // Período: 3 anos (exercício atual e os 2 anteriores) no que pontua no PNTP e
@@ -50,7 +50,72 @@
       }
     }
   }
+  // ---------------- ponte pelo navegador (coletor.js) ----------------
+  // Sites que bloqueiam servidores de nuvem são lidos pelo navegador de quem usa:
+  // o painel abre o site antigo numa aba, a pessoa clica no favorito "Coletor SOFT+"
+  // e o coletor atende os pedidos de página e arquivo por mensagens entre as abas.
+  const COLETOR = new URL('coletor.js', location.href).href;
+  const FAVORITO = "javascript:(function(){var s=document.createElement('script');s.src='" + COLETOR + "?'+Date.now();document.body.appendChild(s);})();";
+  const ponte = { janela: null, origem: null, pronto: false, seq: 0, pend: new Map() };
+  const semWww = (h) => String(h || '').replace(/^www\./, '').toLowerCase();
+  window.addEventListener('message', (ev) => {
+    const d = ev.data;
+    if (!d || !d.softColetor || !cfg.migracao || !cfg.migracao.origem) return;
+    let host = ''; try { host = semWww(new URL(ev.origin).host); } catch (_) { return; }
+    if (host !== semWww(new URL(cfg.migracao.origem).host)) return;
+    if (d.softColetor === 'pronto') {
+      ponte.janela = ev.source; ponte.origem = ev.origin; ponte.pronto = true;
+      toast('Coletor conectado: o site antigo será lido pelo navegador.');
+      if (caixaPonte) desenharPonte();
+    } else if (d.softColetor === 'resposta' && ponte.pend.has(d.id)) {
+      const { ok, falhou, t } = ponte.pend.get(d.id); ponte.pend.delete(d.id); clearTimeout(t);
+      if (d.ok) ok(d);
+      else { const e = new Error(d.erro || 'Falha no coletor.'); if (!/fora do site|desconhecido/.test(e.message)) e.passageiro = true; falhou(e); }
+    }
+  });
+  function viaPonte(acao, dados) {
+    if (!ponte.janela || ponte.janela.closed) {
+      ponte.pronto = false; if (caixaPonte) desenharPonte();
+      return Promise.reject(new Error('A aba do coletor foi fechada. Clique em "Ler pelo navegador" de novo.'));
+    }
+    return new Promise((ok, falhou) => {
+      const id = ++ponte.seq;
+      const t = setTimeout(() => { if (ponte.pend.delete(id)) { const e = new Error('O site antigo não respondeu.'); e.passageiro = true; falhou(e); } }, 90000);
+      ponte.pend.set(id, { ok, falhou, t });
+      ponte.janela.postMessage(Object.assign({ softColetor: 'pedido', id, acao }, dados), ponte.origem);
+    });
+  }
+  async function viaPonteRepetindo(acao, dados) {
+    for (let i = 0; ; i++) {
+      try { return await viaPonte(acao, dados); }
+      catch (e) { if (!e.passageiro || i >= 3) throw e; await espera(1500 * (i + 1)); }
+    }
+  }
+  function abrirColetor() {
+    if (!cfg.migracao || !cfg.migracao.origem) { toast('Salve antes o endereço do site antigo.', true); return; }
+    ponte.pronto = false;
+    ponte.janela = window.open(cfg.migracao.origem + '/', 'soft_coletor');
+    if (!ponte.janela) { toast('O navegador bloqueou a nova aba. Permita janelas deste site e tente de novo.', true); return; }
+    desenharPonte();
+  }
+  let caixaPonte = null;
+  function desenharPonte() {
+    if (!caixaPonte) return;
+    const fav = el('a', { class: 'btn btn-claro', title: 'Arraste para a barra de favoritos' }, '⭐ Coletor SOFT+');
+    fav.setAttribute('href', FAVORITO);
+    fav.addEventListener('click', (e) => { e.preventDefault(); toast('Arraste este botão para a barra de favoritos (não clique aqui).'); });
+    const btn = el('button', { type: 'button', class: 'btn btn-claro' }, ponte.pronto ? 'Reabrir site antigo' : 'Ler pelo navegador');
+    btn.addEventListener('click', abrirColetor);
+    caixaPonte.replaceChildren(
+      el('p', { class: ponte.pronto ? 'msg msg-ok' : 'ajuda' }, ponte.pronto
+        ? '✔ Lendo pelo navegador (coletor conectado). Deixe a aba do site antigo aberta.'
+        : 'Leitura pelo servidor. Se o site antigo bloquear o servidor (análise para com "não respondeu" ou "Não achei itens"), leia pelo navegador: ' +
+          '1) arraste o botão ⭐ Coletor SOFT+ para a barra de favoritos (só na primeira vez); 2) clique em "Ler pelo navegador"; 3) na aba do site antigo que abrir, clique no favorito.'),
+      el('div', { class: 'linha-botoes mt-05' }, btn, fav));
+  }
+
   async function pagina(url, tentativas) {
+    if (ponte.pronto) return viaPonteRepetindo('pagina', { url });
     for (let i = 0; i < (tentativas || 3); i++) {
       try { return await servidor({ acao: 'pagina', url }); }
       catch (e) { if (i === (tentativas || 3) - 1 || /instalada|Cadastre|Só o Suporte|sessão expirou/.test(e.message)) throw e; await espera(1500 * (i + 1)); }
@@ -101,7 +166,7 @@
       try { const p = await pagina(origem + l); maior = Math.max(maior, adaptador.maiorId(p.html, new RegExp(s.reId.source, 'g'))); } catch (e) { /* tenta a próxima */ }
       if (maior) break;
     }
-    if (!maior) throw new Error('Não achei itens desta seção no site antigo.');
+    if (!maior) throw new Error('Não achei itens desta seção no site antigo.' + (ponte.pronto ? '' : ' Se o site bloqueia o servidor, use "Ler pelo navegador".'));
     const { de } = periodo(s);
     let fora = 0, id = maior + 5;   // alguns ids acima do maior visível (itens recentes ainda não listados)
     while (id > 0 && fora < PARAR_APOS && !st.parar) {
@@ -140,7 +205,7 @@
       const unicos = [...new Set(st.arquivos)];
       let medidos = 0, semTamanho = 0;
       for (let i = 0; i < unicos.length && !st.parar; i += 30) {
-        const r = await servidor({ acao: 'medir', urls: unicos.slice(i, i + 30) });
+        const r = ponte.pronto ? await viaPonteRepetindo('medir', { urls: unicos.slice(i, i + 30) }) : await servidor({ acao: 'medir', urls: unicos.slice(i, i + 30) });
         for (const t of r.tamanhos) { if (t.bytes) st.bytes += t.bytes; else semTamanho++; }
         medidos += r.tamanhos.length;
         st.texto = 'Medindo arquivos: ' + medidos + ' de ' + unicos.length + '…'; atualizarCartao(chave);
@@ -164,8 +229,42 @@
       situacao, detalhe: detalhe ? String(detalhe).slice(0, 500) : null, bytes: bytes || null }, { onConflict: 'orgao_id,origem_url' });
   }
   async function copiar(url, pasta) {
-    try { const r = await servidor({ acao: 'copiar', url, pasta }); return { url: r.url_publica, bytes: r.bytes || 0 }; }
+    try {
+      if (ponte.pronto) return await copiarPeloNavegador(url, pasta);
+      const r = await servidor({ acao: 'copiar', url, pasta }); return { url: r.url_publica, bytes: r.bytes || 0 };
+    }
     catch (e) { return { erro: e.message }; }
+  }
+  // Mesmo nome de arquivo da função de servidor (sha1 do endereço sem protocolo/www): não duplica entre os dois modos.
+  const TIPOS = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx', 'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx', 'application/vnd.oasis.opendocument.text': 'odt',
+    'application/vnd.oasis.opendocument.spreadsheet': 'ods', 'application/zip': 'zip', 'text/csv': 'csv' };
+  const EXT_TIPO = Object.fromEntries(Object.entries(TIPOS).map(([t, e]) => [e, t]));
+  async function sha1(t) {
+    const b = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(t));
+    return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+  }
+  async function copiarPeloNavegador(url, pastaPedida) {
+    const pasta = String(pastaPedida || 'geral').replace(/[^a-z0-9_-]/gi, '').slice(0, 30) || 'geral';
+    const dir = org() + '/migracao/' + pasta;
+    const nome = await sha1(url.replace(/^https?:\/\/(www\.)?/, ''));
+    const { data: ja } = await sb.storage.from('arquivos').list(dir, { search: nome });
+    if (ja && ja.length) return { url: sb.storage.from('arquivos').getPublicUrl(dir + '/' + ja[0].name).data.publicUrl, bytes: (ja[0].metadata && ja[0].metadata.size) || 0 };
+    const r = await viaPonteRepetindo('arquivo', { url });
+    const blob = r.blob;
+    if (!blob || !blob.size) throw new Error('Arquivo vazio no site antigo.');
+    if (blob.size > 50 * 1048576) throw new Error('Arquivo maior que 50 MB: fica só o link.');
+    let tipo = r.tipo || '';
+    let ext = TIPOS[tipo] || ((String(r.nome || '').match(/\.([a-z0-9]{2,4})$/i) || [])[1] || '').toLowerCase();
+    if (!TIPOS[tipo] && EXT_TIPO[ext]) tipo = EXT_TIPO[ext];
+    const ini = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+    if (ini[0] === 0x25 && ini[1] === 0x50 && ini[2] === 0x44 && ini[3] === 0x46) { tipo = 'application/pdf'; ext = 'pdf'; }
+    if (!EXT_TIPO[ext]) throw new Error('Tipo de arquivo não aceito (' + (tipo || ext || 'desconhecido') + ').');
+    const caminho = dir + '/' + nome + '.' + ext;
+    const { error } = await sb.storage.from('arquivos').upload(caminho, blob, { contentType: tipo, upsert: false });
+    if (error && !/exist|duplicate/i.test(error.message || '')) throw new Error('Não foi possível gravar o arquivo: ' + error.message);
+    return { url: sb.storage.from('arquivos').getPublicUrl(caminho).data.publicUrl, bytes: blob.size };
   }
   // Já existe no portal (cadastrado à mão, pelo PNCP ou numa migração anterior)?
   async function existente(tabela, filtros) {
@@ -332,10 +431,11 @@
       el('section', { class: 'cartao' }, el('h2', { class: 'm-0' }, 'Site de origem'),
         el('div', { class: 'linha-botoes mt-1' }, origem, btnO),
         el('p', { class: 'ajuda mt-05' }, ok ? 'Modelo reconhecido: ' + adaptador.nome + '.' : 'Informe o endereço do site antigo e clique em "Salvar e reconhecer".'),
+        caixaPonte = el('div', { class: 'mt-1' }),
         caixaEspaco),
       ...(ok ? Object.entries(adaptador.secoes).map(([k, s]) => cartaoSecao(k, s)) : []),
       el('p', { class: 'ajuda mt-2' }, 'Receitas, despesas, folha, diárias, ordem cronológica, emendas e licitações/contratos dos sistemas de gestão continuam nos sistemas oficiais: ligue-os em Aparência › Destinos das páginas.')].filter(Boolean));
-    desenharEspaco();
+    desenharEspaco(); desenharPonte();
   }
 
   P.telas.migracao = async function (c) {
