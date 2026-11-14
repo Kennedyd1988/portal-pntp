@@ -126,7 +126,8 @@ Deno.serve(async (req) => {
       }
 
       // 2) Login: reaproveita se o e-mail já existe; senão cria já confirmado, com a senha inicial.
-      const { data: existente } = await admin.from('usuarios').select('id, nome').eq('email', email).maybeSingle();
+      const { data: existente, error: eEx } = await admin.from('usuarios').select('id, nome').ilike('email', email.replace(/[%_\\]/g, '\\$&')).maybeSingle();
+      if (eEx) return falha('Não foi possível conferir o e-mail no cadastro: ' + eEx.message);
       let usuarioId = existente?.id as string | undefined;
       let criadoAgora = false;
       if (usuarioId) {
