@@ -1,11 +1,12 @@
 {
-  "versao": "0.20.0",
+  "versao": "0.21.0",
   "data": "2026-11-14",
   "notas": [
-    "Padrão visual único no painel e no site: mesmas cores de aviso (azul informação, verde certo, amarelo o que falta, vermelho erro) e espaçamentos em escala fixa.",
-    "Destinos das páginas: mais de um endereço por página (portal atual, de anos anteriores, sistema complementar), cada um com a explicação e os exercícios que cobre.",
-    "Endereços externos conferidos todo dia (e pelo botão \"Verificar agora\"); o Início avisa quando um deixa de abrir.",
-    "Órgãos da plataforma (Suporte SOFT+): cadastro de órgãos pelo painel, com menu padrão e lista do que falta para cada um entrar no ar.",
-    "Rodar de novo o script 26 e depois o 27."
+    "Usuários e permissões em página única para todos os órgãos que você gerencia: cada pessoa com os acessos (órgão, perfil e alcance) de cada órgão.",
+    "Cadastro sem convite: a pessoa já sai vinculada, com senha inicial, e entra direto; no primeiro acesso cria a própria senha.",
+    "Dar acesso a outro órgão e definir nova senha pela ficha da pessoa.",
+    "Administrador vê só as pessoas e os acessos dos órgãos que administra; os demais perfis não veem a página.",
+    "Trava: quem não é administrador só dá perfis com permissões iguais ou menores que as suas.",
+    "Rodar o script 28 e atualizar a função convidar-usuario na Supabase."
   ]
 }

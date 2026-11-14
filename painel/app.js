@@ -378,10 +378,11 @@
   let modoSenha = 'recovery';
   function prepararNovaSenha(tipo) {
     modoSenha = tipo;
-    const convite = tipo === 'invite';
-    $('nova-titulo').textContent = convite ? 'Bem-vindo(a)! Crie sua senha' : 'Criar nova senha';
-    $('nova-sub').textContent = convite
-      ? 'Seu acesso ao painel foi liberado. Escolha uma senha com pelo menos 8 caracteres, misturando letras e números.'
+    const convite = tipo === 'invite' || tipo === 'primeiro';
+    $('nova-titulo').textContent = tipo === 'primeiro' ? 'Bem-vindo(a)! Crie sua senha' : convite ? 'Bem-vindo(a)! Crie sua senha' : 'Criar nova senha';
+    $('nova-sub').textContent = tipo === 'primeiro'
+      ? 'Você entrou com a senha inicial que recebeu. Agora escolha a sua: pelo menos 8 caracteres, misturando letras e números. Só você vai saber.'
+      : convite ? 'Seu acesso ao painel foi liberado. Escolha uma senha com pelo menos 8 caracteres, misturando letras e números.'
       : 'Use pelo menos 8 caracteres, misturando letras e números.';
     $('btn-salvar-senha').textContent = convite ? 'Criar senha e entrar' : 'Salvar nova senha';
     msg('nova-msg');
@@ -398,13 +399,13 @@
     if (!erroCampo('nova-senha2', s1 === s2 ? '' : 'As duas senhas não são iguais.')) return;
     const btn = $('btn-salvar-senha');
     ocupado(btn, 'Salvando…');
-    const { error } = await sb.auth.updateUser({ password: s1 });
+    const { error } = await sb.auth.updateUser({ password: s1, data: { trocar_senha: false } });
     ocupado(btn);
-    if (error) { msg('nova-msg', traduzirErro(error)); return; }
+    if (error) { msg('nova-msg', /different from the old|same.*password/i.test(error.message) ? 'A nova senha precisa ser diferente da senha inicial.' : traduzirErro(error)); return; }
     $('nova-senha').value = '';
     $('nova-senha2').value = '';
     history.replaceState(null, '', location.pathname);
-    toast(modoSenha === 'invite' ? 'Senha criada. Seja bem-vindo(a)!' : 'Senha alterada com sucesso.');
+    toast(modoSenha === 'invite' || modoSenha === 'primeiro' ? 'Senha criada. Seja bem-vindo(a)!' : 'Senha alterada com sucesso.');
     await carregarContexto();
   });
 
@@ -449,7 +450,7 @@
           $('topo-usuario').textContent = n;
         }
         if (s1.value) {
-          const { error } = await sb.auth.updateUser({ password: s1.value });
+          const { error } = await sb.auth.updateUser({ password: s1.value, data: { trocar_senha: false } });
           if (error) throw error;
         }
         dlg.close();
@@ -473,6 +474,8 @@
     mostrarTela('tela-carregando');
     const { data: { user } } = await sb.auth.getUser();
     if (!user) { mostrarForm('form-login'); return; }
+    // Cadastrado pelo administrador com senha inicial: troca a senha antes de entrar (0.21.0).
+    if (user.user_metadata && user.user_metadata.trocar_senha) { prepararNovaSenha('primeiro'); return; }
 
     const [ficha, orgaos, modulos] = await Promise.all([
       sb.from('usuarios').select('id, nome, email, suporte_softplus').eq('id', user.id).maybeSingle(),
@@ -548,6 +551,12 @@
     estado.permissoes = {};
     for (const p of data || []) {
       estado.permissoes[p.modulo] = { ver: p.pode_ver, editar: p.pode_editar, publicar: p.pode_publicar, excluir: p.pode_excluir };
+    }
+    // Usuários (0.21.0): página única de todos os órgãos que a pessoa gerencia, aberta com qualquer
+    // órgão. O que ela pode fazer em cada órgão a própria tela confere (orgaos_que_gerencio).
+    if (!(estado.permissoes.usuarios && estado.permissoes.usuarios.ver)) {
+      const g = await sb.rpc('pode_gerir_usuarios');
+      if (!g.error && g.data) estado.permissoes.usuarios = { ver: true, editar: false, publicar: false, excluir: false };
     }
     // Alcance: unidade à qual o vínculo está limitado (null = órgão todo).
     // Usado para esconder botões de registros de outras unidades (o banco também bloqueia).

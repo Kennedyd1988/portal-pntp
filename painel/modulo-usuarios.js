@@ -1,10 +1,14 @@
 // =====================================================================
-// Módulo "Usuários e permissões" (Lote 2)
-// Abas: Pessoas (convite, perfil, alcance, desativar) e Perfis
-// (perfis do sistema + perfis próprios do órgão, com a tabela de permissões).
+// Módulo "Usuários e permissões" — página única para todos os órgãos (0.21.0)
+// Abas: Pessoas (uma linha por pessoa, com os acessos de cada órgão) e Perfis
+// (do órgão escolhido). Quem vê: Suporte SOFT+ (todos) e quem tem "Usuários"
+// no perfil (por padrão, o Administrador do órgão) — só as pessoas e os
+// acessos dos órgãos que gerencia (script 28: orgaos_que_gerencio,
+// usuarios_unificados). Cadastro sem convite: o administrador cria o login
+// com senha inicial e a pessoa entra direto, trocando a senha no 1º acesso.
 //
-// Toda regra de segurança está no banco (script 05) e na função de convite.
-// Esta tela só esconde o que a pessoa não pode fazer e explica o motivo.
+// Toda regra de segurança está no banco (scripts 05 e 28) e na função
+// convidar-usuario. Esta tela só esconde o que a pessoa não pode fazer.
 // =====================================================================
 (function () {
   'use strict';
@@ -16,60 +20,70 @@
     ['pode_publicar', 'Publicar'], ['pode_excluir', 'Excluir']
   ];
 
-  let perm = {};
   let aba = 'pessoas';
   let conteiner = null;
-  const filtros = { busca: '', perfil: '', alcance: '', situacao: '' };
-  let d = { pessoas: [], perfis: [], permissoes: [], unidades: [], eAdmin: false, minhaUnidade: null, euId: null };
+  let orgPerfis = null;          // órgão escolhido na aba Perfis
+  const filtros = { busca: '', orgao: '', perfil: '', situacao: '' };
+  let d = { orgaos: [], vinculos: [], pessoas: [], perfis: [], permissoes: [], unidades: [], euId: null };
 
-  // Pessoas por órgão são poucas (dezenas): carregam de uma vez.
   async function carregar() {
-    const org = P.estado.orgao.id;
     const { data: { user } } = await sb.auth.getUser();
-    const [pe, pf, un, adm, meu] = await Promise.all([
-      sb.rpc('usuarios_do_orgao', { p_orgao: org }),
-      sb.from('perfis').select('id, nome, descricao, orgao_id, e_administrador').or('orgao_id.is.null,orgao_id.eq.' + org),
-      sb.from('unidades').select('id, nome').eq('orgao_id', org).order('nome').limit(500),
-      sb.rpc('e_admin_do_orgao', { p_orgao: org }),
-      sb.from('usuarios_orgaos').select('unidade_id').eq('orgao_id', org).eq('usuario_id', user.id).maybeSingle()
+    const [og, vi] = await Promise.all([sb.rpc('orgaos_que_gerencio'), sb.rpc('usuarios_unificados')]);
+    for (const r of [og, vi]) if (r.error) throw r.error;
+    const ids = og.data.map((o) => o.id);
+    const [pf, un] = await Promise.all([
+      sb.from('perfis').select('id, nome, descricao, orgao_id, e_administrador').or('orgao_id.is.null' + (ids.length ? ',orgao_id.in.(' + ids.join(',') + ')' : '')),
+      ids.length ? sb.from('unidades').select('id, nome, orgao_id').in('orgao_id', ids).order('nome').limit(2000) : { data: [] }
     ]);
-    for (const r of [pe, pf, un, adm]) if (r.error) throw r.error;
-    const ids = pf.data.map((p) => p.id);
-    const pp = await sb.from('perfil_permissoes').select('*').in('perfil_id', ids);
+    for (const r of [pf, un]) if (r.error) throw r.error;
+    const pp = await sb.from('perfil_permissoes').select('*').in('perfil_id', pf.data.map((p) => p.id));
     if (pp.error) throw pp.error;
-    d = {
-      pessoas: pe.data, perfis: pf.data.sort((a, b) => ordemAlfabetica(a.nome, b.nome)),
-      permissoes: pp.data, unidades: un.data, eAdmin: !!adm.data,
-      minhaUnidade: meu.data ? meu.data.unidade_id : null, euId: user.id
-    };
+    // Agrupa os acessos por pessoa.
+    const mapa = new Map();
+    for (const v of vi.data) {
+      if (!mapa.has(v.usuario_id)) mapa.set(v.usuario_id, { usuario_id: v.usuario_id, nome: v.nome, email: v.email, pendente: v.pendente, ultimo_acesso: v.ultimo_acesso, acessos: [] });
+      mapa.get(v.usuario_id).acessos.push(v);
+    }
+    d = { orgaos: og.data, vinculos: vi.data, pessoas: [...mapa.values()], perfis: pf.data.sort((a, b) => ordemAlfabetica(a.nome, b.nome)),
+      permissoes: pp.data, unidades: un.data, euId: user.id };
+    if (!orgPerfis || !d.orgaos.some((o) => o.id === orgPerfis)) {
+      orgPerfis = (d.orgaos.find((o) => o.id === P.estado.orgao.id) || d.orgaos[0] || {}).id || null;
+    }
   }
 
+  const orgao = (id) => d.orgaos.find((o) => o.id === id) || {};
+  const adminDe = (id) => !!orgao(id).e_admin;
+  const perfisDoOrgao = (id) => d.perfis.filter((p) => !p.orgao_id || p.orgao_id === id);
   const perfilPorId = (id) => d.perfis.find((p) => p.id === id) || {};
-  const nomeUnidade = (id) => (d.unidades.find((u) => u.id === id) || {}).nome || '';
+  const unidadesDo = (id) => d.unidades.filter((u) => u.orgao_id === id);
+  const nomeOrgao = (o) => o.sigla ? o.nome + ' (' + o.sigla + ')' : o.nome;
   const amigavel = (texto) => Object.assign(new Error(texto), { amigavel: true });
   function mostrarErro(e) {
     const t = (e && e.message) || '';
-    // Mensagens que o próprio banco já escreve em português passam direto.
     if (e && e.amigavel) return toast(t, true);
-    if (/administrador ativo|não pode alterar o seu próprio|só pode dar acesso|Só um administrador/i.test(t)) return toast(t, true);
+    if (/administrador ativo|não pode alterar o seu próprio|só pode dar|Só um administrador|iguais ou menores/i.test(t)) return toast(t, true);
     toast(traduzirErro(e), true);
   }
   const dataHora = (iso) => iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null;
 
-  function situacao(p) {
-    if (!p.ativo) return 'desativado';
-    if (p.pendente) return 'pendente';
+  // Situação de um acesso: desativado, "nunca entrou" ou ativo.
+  function situacao(v) {
+    if (!v.ativo) return 'desativado';
+    if (v.pendente) return 'pendente';
     return 'ativo';
   }
-  const ROTULO_SITUACAO = { ativo: 'Ativo', pendente: 'Convite pendente', desativado: 'Desativado' };
+  const ROTULO_SITUACAO = { ativo: 'Ativo', pendente: 'Ainda não entrou', desativado: 'Desativado' };
+  const situacaoPessoa = (p) => p.acessos.some((v) => situacao(v) === 'ativo') ? 'ativo' : p.acessos.some((v) => v.ativo) ? 'pendente' : 'desativado';
 
-  // A tela pode mexer nesta pessoa? (o banco confere de novo)
-  function podeMexer(p) {
-    if (!perm.editar || p.usuario_id === d.euId) return false;
-    if (p.e_administrador && !d.eAdmin) return false;
-    if (d.minhaUnidade && p.unidade_id !== d.minhaUnidade) return false;
+  // A tela pode mexer neste acesso? (o banco confere de novo)
+  function podeMexer(v) {
+    const o = orgao(v.orgao_id);
+    if (!o.pode_editar || v.usuario_id === d.euId) return false;
+    if (v.e_administrador && !o.e_admin) return false;
+    if (o.minha_unidade && v.unidade_id !== o.minha_unidade) return false;
     return true;
   }
+  const orgaosEditaveis = () => d.orgaos.filter((o) => o.pode_editar);
 
   // ---------- campos ----------
   function campo(id, rotulo, input, ajuda, obrigatorio) {
@@ -82,41 +96,30 @@
     );
   }
 
-  function seletorPerfil(atual) {
-    const s = el('select', null, el('option', { value: '' }, '— Escolha —'));
+  function seletorPerfil(orgId, atual) {
+    const s = el('select', null, el('option', { value: '' }, '— Escolha o perfil —'));
     const grupo = (rotulo, lista) => {
       if (!lista.length) return;
-      s.append(el('optgroup', { label: rotulo }, lista.map((p) =>
-        el('option', { value: p.id, selected: p.id === atual }, p.nome))));
+      s.append(el('optgroup', { label: rotulo }, lista.map((p) => el('option', { value: p.id, selected: p.id === atual }, p.nome))));
     };
     // Só administrador entrega o perfil de administrador.
-    const disponiveis = d.perfis.filter((p) => !p.e_administrador || d.eAdmin || p.id === atual);
+    const disponiveis = perfisDoOrgao(orgId).filter((p) => !p.e_administrador || adminDe(orgId) || p.id === atual);
     grupo('Perfis do órgão', disponiveis.filter((p) => p.orgao_id));
     grupo('Perfis padrão', disponiveis.filter((p) => !p.orgao_id));
     return s;
   }
 
-  function seletorAlcance(atual) {
-    // Gestor setorial só cadastra gente da própria unidade.
-    if (d.minhaUnidade) {
-      return el('select', { disabled: true }, el('option', { value: d.minhaUnidade }, nomeUnidade(d.minhaUnidade) + ' (seu alcance)'));
+  function seletorAlcance(orgId, atual) {
+    const minha = orgao(orgId).minha_unidade;
+    if (minha) {
+      const u = d.unidades.find((x) => x.id === minha);
+      return el('select', { disabled: true }, el('option', { value: minha }, (u ? u.nome : 'Sua unidade') + ' (seu alcance)'));
     }
-    return el('select', null,
-      el('option', { value: '' }, 'Todo o órgão'),
-      d.unidades.map((u) => el('option', { value: u.id, selected: u.id === atual }, 'Só: ' + u.nome)));
+    return el('select', null, el('option', { value: '' }, 'Todo o órgão'),
+      unidadesDo(orgId).map((u) => el('option', { value: u.id, selected: u.id === atual }, 'Só: ' + u.nome)));
   }
 
-  // Descrição do perfil escolhido logo abaixo do campo.
-  function ligarDescricao(sel, id) {
-    const atualizar = () => {
-      const a = document.getElementById(id + '-ajuda');
-      if (a) a.textContent = perfilPorId(sel.value).descricao || 'Veja o que cada perfil pode fazer na aba "Perfis".';
-    };
-    sel.addEventListener('change', atualizar);
-    setTimeout(atualizar);
-  }
-
-  // ---------- chamada da função de convite ----------
+  // ---------- função de servidor ----------
   async function chamarFuncao(corpo) {
     const { data, error } = await sb.functions.invoke('convidar-usuario', {
       body: Object.assign({ orgao_id: P.estado.orgao.id, redirecionar: location.origin + location.pathname }, corpo)
@@ -124,7 +127,7 @@
     if (error) {
       const status = error.context && error.context.status;
       if (status === 404 || /Failed to send a request|not found/i.test(error.message)) {
-        throw amigavel('A função de convite ainda não foi instalada na Supabase. Siga o passo "Função de convite" do README.');
+        throw amigavel('A função "convidar-usuario" não está instalada (ou está desatualizada) na Supabase. Siga o passo "Função de convite" do README.');
       }
       if (status === 401) throw amigavel('Sua sessão expirou. Saia e entre novamente.');
       throw error;
@@ -133,21 +136,46 @@
     return data;
   }
 
-  function mostrarLink(nomePessoa, email, link) {
-    const orgao = P.estado.orgao.nome;
-    const texto = 'Olá, ' + (nomePessoa || '').split(' ')[0] + '! Você recebeu acesso ao painel do site da ' + orgao +
-      '. Para criar sua senha, abra este link (ele só funciona uma vez): ' + link;
-    const caixa = el('textarea', { rows: 4, readonly: true, class: 'link-convite', 'aria-label': 'Mensagem com o link' });
+  // Senha inicial sugerida: 10 caracteres sem letras parecidas (l/1, O/0).
+  function gerarSenha() {
+    const letras = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ', numeros = '23456789';
+    const r = (s) => s[crypto.getRandomValues(new Uint32Array(1))[0] % s.length];
+    let x = '';
+    for (let i = 0; i < 7; i++) x += r(letras);
+    for (let i = 0; i < 3; i++) x += r(numeros);
+    return x;
+  }
+  const senhaForte = (v) => v.length >= 8 && /[a-z]/i.test(v) && /\d/.test(v);
+
+  function campoSenha(id) {
+    const senha = el('input', { type: 'text', maxlength: 72, autocomplete: 'off', value: gerarSenha(), spellcheck: false, class: 'senha-inicial' });
+    const btn = el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => { senha.value = gerarSenha(); } }, 'Gerar outra');
+    senha.id = id;
+    return { senha, bloco: el('div', { class: 'campo' },
+      el('label', { for: id }, 'Senha inicial', el('span', { class: 'obrigatorio', 'aria-hidden': 'true' }, ' *')),
+      el('div', { class: 'linha-botoes' }, senha, btn),
+      el('span', { class: 'ajuda' }, 'Pelo menos 8 caracteres, com letras e números. Já vem uma sugerida.'),
+      el('span', { class: 'erro-campo', id: id + '-erro' })) };
+  }
+
+  // Mensagem pronta para mandar à pessoa (WhatsApp ou e-mail próprio).
+  function mostrarAcesso(nome, email, senha, trocar, orgaos) {
+    const endereco = location.origin + location.pathname;
+    const texto = 'Olá, ' + (nome || '').split(' ')[0] + '! Seu acesso ao painel do site' + (orgaos.length === 1 ? ' da ' + orgaos[0] : '') + ' está pronto.\n' +
+      'Endereço: ' + endereco + '\nE-mail: ' + email + '\nSenha inicial: ' + senha +
+      (trocar ? '\nNo primeiro acesso, o painel pede para você criar a sua própria senha.' : '');
+    const caixa = el('textarea', { rows: 6, readonly: true, class: 'link-convite', 'aria-label': 'Mensagem com os dados de acesso' });
     caixa.value = texto;
     const btnCopiar = el('button', { type: 'button', class: 'btn btn-claro' }, 'Copiar mensagem');
     btnCopiar.addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(texto); toast('Mensagem copiada.'); }
       catch (e) { caixa.select(); document.execCommand('copy'); toast('Mensagem copiada.'); }
     });
-    const dlg = P.abrirDialogo('Link de acesso pronto', el('div', null,
-      el('p', null, 'Envie a mensagem abaixo para ', el('strong', null, email), '. Ao abrir o link, a pessoa cria a própria senha.'),
+    const dlg = P.abrirDialogo('Acesso pronto', el('div', null,
+      el('p', null, el('strong', null, nome), ' já pode entrar no painel' + (orgaos.length > 1 ? ' (' + orgaos.join('; ') + ')' : '') + '. Envie os dados abaixo só para ela.'),
       caixa,
-      el('p', { class: 'ajuda' }, 'O link só funciona uma vez e tem validade limitada. Se vencer, use "Novo link" na lista. Não envie o link em grupos: quem abrir primeiro cria a senha.')
+      el('p', { class: 'ajuda' }, trocar ? 'Na primeira entrada a pessoa troca a senha: depois disso, nem você sabe a senha dela.'
+        : 'Você marcou para não pedir troca de senha. Oriente a pessoa a trocar em "Minha conta" (clicando no nome, no alto).')
     ), [
       btnCopiar,
       el('a', { class: 'btn btn-claro', href: 'https://wa.me/?text=' + encodeURIComponent(texto), target: '_blank', rel: 'noopener' }, 'Enviar pelo WhatsApp'),
@@ -155,200 +183,262 @@
     ]);
   }
 
-  function resultadoConvite(r, nomePessoa) {
-    if (r.situacao === 'link') return mostrarLink(nomePessoa, r.email, r.link);
-    if (r.situacao === 'email_enviado') return P.aviso('Convite enviado', 'Um e-mail foi enviado para ' + r.email + ' com o link para criar a senha. Peça para conferir a caixa de spam.');
-    P.aviso('Acesso liberado', r.email + ' já tinha cadastro no painel. Ao entrar com a senha de sempre, verá este órgão na lista. Se não lembrar a senha, pode usar "Esqueci minha senha".');
+  // ================= PESSOAS =================
+  // Linhas de órgão para marcar no cadastro (ou para acrescentar acesso a quem já existe).
+  function linhasDeOrgaos(lista) {
+    return lista.map((o) => {
+      const marca = el('input', { type: 'checkbox', checked: lista.length === 1, 'aria-label': 'Dar acesso a ' + o.nome });
+      const perfil = seletorPerfil(o.id, null);
+      const alcance = seletorAlcance(o.id, null);
+      perfil.setAttribute('aria-label', 'Perfil em ' + o.nome); alcance.setAttribute('aria-label', 'Alcance em ' + o.nome);
+      const erro = el('span', { class: 'erro-campo' });
+      const ajustar = () => { perfil.disabled = !marca.checked; if (!orgao(o.id).minha_unidade) alcance.disabled = !marca.checked; };
+      marca.addEventListener('change', ajustar); ajustar();
+      return { o, marca, perfil, alcance, erro,
+        linha: el('div', { class: 'acesso-orgao' }, el('label', { class: 'checkbox' }, marca, ' ', el('strong', null, nomeOrgao(o))),
+          el('div', { class: 'grade-campos' }, perfil, alcance), erro) };
+    });
+  }
+  function lerLinhas(linhas) {
+    const escolhidas = linhas.filter((l) => l.marca.checked);
+    let ok = true;
+    for (const l of linhas) {
+      l.erro.textContent = l.marca.checked && !l.perfil.value ? 'Escolha o perfil neste órgão.' : '';
+      if (l.erro.textContent) ok = false;
+    }
+    return ok ? escolhidas.map((l) => ({ orgao_id: l.o.id, perfil_id: l.perfil.value, unidade_id: l.alcance.value || null, nome: l.o.nome })) : null;
   }
 
-  // ================= PESSOAS =================
-  function formConvite() {
+  function formCadastro() {
     const f = {
       nome: el('input', { type: 'text', maxlength: 120, autocomplete: 'off' }),
-      email: el('input', { type: 'email', maxlength: 160, autocomplete: 'off' }),
-      perfil: seletorPerfil(null),
-      alcance: seletorAlcance(null)
+      email: el('input', { type: 'email', maxlength: 160, autocomplete: 'off' })
     };
-    const modoLink = el('input', { type: 'radio', name: 'modo-convite', value: 'link', checked: true });
-    const modoEmail = el('input', { type: 'radio', name: 'modo-convite', value: 'email' });
+    const s = campoSenha('cd-senha');
+    const trocar = el('input', { type: 'checkbox', checked: true });
+    const linhas = linhasDeOrgaos(orgaosEditaveis());
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
-      campo('cv-nome', 'Nome completo', f.nome, null, true),
-      campo('cv-email', 'E-mail', f.email, 'É o e-mail que a pessoa vai usar para entrar.', true),
-      el('div', { class: 'grade-campos' },
-        campo('cv-perfil', 'Perfil', f.perfil, ' ', true),
-        campo('cv-alcance', 'Alcance', f.alcance, 'Com uma unidade escolhida, a pessoa só mexe nos dados dela.')
-      ),
-      el('fieldset', { class: 'opcoes' },
-        el('legend', null, 'Como entregar o convite'),
-        el('label', { class: 'checkbox' }, modoLink, ' Gerar link para eu enviar (WhatsApp ou e-mail próprio)'),
-        el('label', { class: 'checkbox' }, modoEmail, ' Enviar e-mail automático (só depois de configurar o e-mail da Supabase)')
-      )
-    );
-    ligarDescricao(f.perfil, 'cv-perfil');
-
-    const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Convidar');
-    const dlg = P.abrirDialogo('Convidar pessoa', corpo, [
-      el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn
-    ]);
+      campo('cd-nome', 'Nome completo', f.nome, null, true),
+      campo('cd-email', 'E-mail', f.email, 'É o e-mail que a pessoa usa para entrar. Se ela já tiver cadastro em outro órgão, só recebe os novos acessos (a senha dela não muda).', true),
+      s.bloco,
+      el('label', { class: 'checkbox mb-2' }, trocar, ' Pedir nova senha no primeiro acesso (recomendado)'),
+      el('fieldset', { class: 'opcoes' }, el('legend', null, linhas.length > 1 ? 'Órgãos, perfil e alcance' : 'Perfil e alcance'),
+        linhas.map((l) => l.linha),
+        el('span', { class: 'erro-campo', id: 'cd-orgaos-erro' })));
+    const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Cadastrar');
+    const dlg = P.abrirDialogo('Cadastrar pessoa', corpo, [
+      el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn]);
     corpo.addEventListener('submit', (ev) => { ev.preventDefault(); btn.click(); });
     btn.addEventListener('click', async () => {
       const nome = f.nome.value.trim().replace(/\s+/g, ' ');
       const email = f.email.value.trim().toLowerCase();
-      if (!erroCampo('cv-nome', nome.split(' ').length >= 2 ? '' : 'Informe nome e sobrenome.')) return;
-      if (!erroCampo('cv-email', emailValido(email) ? '' : 'Informe um e-mail válido.')) return;
-      if (d.pessoas.some((p) => p.email.toLowerCase() === email)) {
-        erroCampo('cv-email', 'Esta pessoa já está na lista deste órgão.');
-        return;
-      }
-      if (!erroCampo('cv-perfil', f.perfil.value ? '' : 'Escolha o perfil.')) return;
-      ocupado(btn, 'Convidando…');
+      if (!erroCampo('cd-nome', nome.split(' ').length >= 2 ? '' : 'Informe nome e sobrenome.')) return;
+      if (!erroCampo('cd-email', emailValido(email) ? '' : 'Informe um e-mail válido.')) return;
+      const existente = d.pessoas.find((p) => (p.email || '').toLowerCase() === email);
+      if (!erroCampo('cd-senha', existente || senhaForte(s.senha.value) ? '' : 'Use pelo menos 8 caracteres, com letras e números.')) return;
+      const vinc = lerLinhas(linhas);
+      if (!vinc) return;
+      document.getElementById('cd-orgaos-erro').textContent = vinc.length ? '' : 'Marque pelo menos um órgão.';
+      if (!vinc.length) return;
+      ocupado(btn, 'Cadastrando…');
       try {
-        const r = await chamarFuncao({
-          acao: 'convidar', nome, email, perfil_id: f.perfil.value,
-          unidade_id: f.alcance.value || null, modo: modoEmail.checked ? 'email' : 'link'
-        });
+        const r = await chamarFuncao({ acao: 'cadastrar', nome, email, senha: s.senha.value, trocar_senha: trocar.checked,
+          vinculos: vinc.map(({ orgao_id, perfil_id, unidade_id }) => ({ orgao_id, perfil_id, unidade_id })) });
         dlg.close();
         await recarregar();
-        resultadoConvite(r, nome);
+        if (r.situacao === 'cadastrado') mostrarAcesso(nome, email, s.senha.value, trocar.checked, vinc.map((v) => v.nome));
+        else P.aviso('Acesso acrescentado', email + ' já tinha cadastro no painel: recebeu o acesso agora e entra com a senha de sempre. Se não lembrar, use "Definir nova senha" ou "Esqueci minha senha".');
       } catch (e) { mostrarErro(e); }
       finally { ocupado(btn); }
     });
     f.nome.focus();
   }
 
-  function formAcesso(p) {
-    const f = { perfil: seletorPerfil(p.perfil_id), alcance: seletorAlcance(p.unidade_id) };
+  // Grava e confere se mudou de fato (0 linhas = fora do alcance), com o motivo exato vindo do banco.
+  async function atualizarVinculo(v, mudanca) {
+    const novo = Object.assign({ perfil_id: v.perfil_id, unidade_id: v.unidade_id }, mudanca);
+    const { data: motivo } = await sb.rpc('motivo_bloqueio_acesso', {
+      p_orgao: v.orgao_id, p_perfil: novo.perfil_id, p_unidade: novo.unidade_id, p_usuario: v.usuario_id
+    });
+    if (motivo) throw amigavel(motivo);
+    const { data, error } = await sb.from('usuarios_orgaos').update(mudanca).eq('id', v.vinculo_id).select('id');
+    if (error) throw error;
+    if (!data || !data.length) throw amigavel('Nada foi alterado: este acesso está fora do alcance do seu perfil.');
+  }
+
+  function formAcesso(v, depois) {
+    const f = { perfil: seletorPerfil(v.orgao_id, v.perfil_id), alcance: seletorAlcance(v.orgao_id, v.unidade_id) };
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
-      el('p', null, el('strong', null, p.nome || p.email), el('span', { class: 'sub-linha' }, p.email)),
-      campo('ac-perfil', 'Perfil', f.perfil, ' ', true),
-      campo('ac-alcance', 'Alcance', f.alcance, 'Com uma unidade escolhida, a pessoa só mexe nos dados dela.')
-    );
-    ligarDescricao(f.perfil, 'ac-perfil');
+      el('p', null, el('strong', null, v.nome || v.email), el('span', { class: 'sub-linha' }, v.orgao)),
+      campo('ac-perfil', 'Perfil', f.perfil, perfilPorId(v.perfil_id).descricao || ' ', true),
+      campo('ac-alcance', 'Alcance', f.alcance, 'Com uma unidade escolhida, a pessoa só mexe nos dados dela.'));
+    f.perfil.addEventListener('change', () => { document.getElementById('ac-perfil-ajuda').textContent = perfilPorId(f.perfil.value).descricao || ''; });
     const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Salvar');
     const dlg = P.abrirDialogo('Alterar acesso', corpo, [
-      el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn
-    ]);
+      el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn]);
     btn.addEventListener('click', async () => {
       if (!erroCampo('ac-perfil', f.perfil.value ? '' : 'Escolha o perfil.')) return;
       ocupado(btn, 'Salvando…');
       try {
-        await atualizarVinculo(p, { perfil_id: f.perfil.value, unidade_id: f.alcance.value || null });
-        dlg.close();
-        toast('Acesso alterado.');
-        await recarregar();
+        await atualizarVinculo(v, { perfil_id: f.perfil.value, unidade_id: f.alcance.value || null });
+        dlg.close(); toast('Acesso alterado.'); await recarregar(); depois();
       } catch (e) { mostrarErro(e); }
       finally { ocupado(btn); }
     });
   }
 
-  // Grava e confere se mudou de fato (0 linhas = fora do alcance), com o motivo exato vindo do banco.
-  async function atualizarVinculo(p, mudanca) {
-    const novo = Object.assign({ perfil_id: p.perfil_id, unidade_id: p.unidade_id }, mudanca);
-    const { data: motivo } = await sb.rpc('motivo_bloqueio_acesso', {
-      p_orgao: P.estado.orgao.id, p_perfil: novo.perfil_id, p_unidade: novo.unidade_id, p_usuario: p.usuario_id
-    });
-    if (motivo) throw amigavel(motivo);
-    const { data, error } = await sb.from('usuarios_orgaos').update(mudanca).eq('id', p.vinculo_id).select('id');
-    if (error) throw error;
-    if (!data || !data.length) throw amigavel('Nada foi alterado: esta pessoa está fora do alcance do seu perfil.');
-  }
-
-  async function alternarAtivo(p) {
-    const desativar = p.ativo;
+  async function alternarAtivo(v, depois) {
+    const desativar = v.ativo;
     const ok = await P.confirmar(desativar ? 'Desativar acesso' : 'Reativar acesso',
-      desativar
-        ? (p.nome || p.email) + ' não vai mais conseguir abrir este órgão no painel. O histórico do que a pessoa fez continua guardado. Dá para reativar depois.'
-        : (p.nome || p.email) + ' volta a ter acesso com o perfil "' + p.perfil + '".',
+      desativar ? (v.nome || v.email) + ' não vai mais conseguir abrir "' + v.orgao + '" no painel. O histórico do que a pessoa fez continua guardado. Dá para reativar depois.'
+        : (v.nome || v.email) + ' volta a ter acesso a "' + v.orgao + '" com o perfil "' + v.perfil + '".',
       desativar ? 'Desativar' : 'Reativar', desativar);
     if (!ok) return;
-    try {
-      await atualizarVinculo(p, { ativo: !desativar });
-      toast(desativar ? 'Acesso desativado.' : 'Acesso reativado.');
-      await recarregar();
-    } catch (e) { mostrarErro(e); }
+    try { await atualizarVinculo(v, { ativo: !desativar }); toast(desativar ? 'Acesso desativado.' : 'Acesso reativado.'); await recarregar(); depois(); }
+    catch (e) { mostrarErro(e); }
   }
 
-  async function remover(p) {
-    if (!p.pendente) {
-      P.aviso('Prefira desativar', (p.nome || p.email) + ' já entrou no painel e tem alterações no histórico. Para tirar o acesso, use "Desativar": o registro de quem fez o quê continua completo.');
+  // Excluir só quem nunca entrou (cadastro errado); quem já entrou é desativado.
+  async function remover(v, depois) {
+    if (!v.pendente) {
+      P.aviso('Prefira desativar', (v.nome || v.email) + ' já entrou no painel e tem alterações no histórico. Para tirar o acesso, use "Desativar".');
       return;
     }
-    if (!await P.confirmar('Cancelar convite', 'Cancelar o convite de ' + (p.nome || p.email) + '? O link enviado deixa de dar acesso a este órgão.', 'Cancelar convite', true)) return;
-    const { data, error } = await sb.from('usuarios_orgaos').delete().eq('id', p.vinculo_id).select('id');
+    if (!await P.confirmar('Remover acesso', 'Remover o acesso de ' + (v.nome || v.email) + ' a "' + v.orgao + '"? A pessoa ainda não tinha entrado.', 'Remover', true)) return;
+    const { data, error } = await sb.from('usuarios_orgaos').delete().eq('id', v.vinculo_id).select('id');
     if (error) return mostrarErro(error);
-    if (!data || !data.length) return toast('Seu perfil não pode remover esta pessoa.', true);
-    toast('Convite cancelado.');
-    await recarregar();
+    if (!data || !data.length) return toast('Seu perfil não pode remover este acesso.', true);
+    toast('Acesso removido.'); await recarregar(); depois();
   }
 
-  async function novoLink(p, btn) {
-    ocupado(btn, 'Gerando…');
-    try {
-      const r = await chamarFuncao({ acao: 'novo_link', usuario_id: p.usuario_id, modo: 'link' });
-      mostrarLink(p.nome, r.email, r.link);
-    } catch (e) { mostrarErro(e); }
-    finally { ocupado(btn); }
+  function formSenha(p) {
+    const s = campoSenha('ns-senha');
+    const trocar = el('input', { type: 'checkbox', checked: true });
+    const corpo = el('form', { class: 'form-dialogo', novalidate: true },
+      el('p', null, 'Nova senha inicial para ', el('strong', null, p.nome || p.email), '. A senha atual deixa de funcionar.'),
+      s.bloco, el('label', { class: 'checkbox' }, trocar, ' Pedir nova senha no próximo acesso (recomendado)'));
+    const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Definir senha');
+    const dlg = P.abrirDialogo('Definir nova senha', corpo, [
+      el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn]);
+    btn.addEventListener('click', async () => {
+      if (!erroCampo('ns-senha', senhaForte(s.senha.value) ? '' : 'Use pelo menos 8 caracteres, com letras e números.')) return;
+      ocupado(btn, 'Salvando…');
+      try {
+        await chamarFuncao({ acao: 'definir_senha', usuario_id: p.usuario_id, senha: s.senha.value, trocar_senha: trocar.checked });
+        dlg.close();
+        mostrarAcesso(p.nome, p.email, s.senha.value, trocar.checked, p.acessos.map((v) => v.orgao));
+      } catch (e) { mostrarErro(e); }
+      finally { ocupado(btn); }
+    });
+  }
+
+  // Dar acesso a mais órgãos para quem já está na lista.
+  function formMaisOrgaos(p, depois) {
+    const livres = orgaosEditaveis().filter((o) => !p.acessos.some((v) => v.orgao_id === o.id));
+    const linhas = linhasDeOrgaos(livres);
+    const corpo = el('form', { class: 'form-dialogo', novalidate: true },
+      el('p', null, 'Acesso de ', el('strong', null, p.nome || p.email), ' a mais órgãos. Ela entra com a mesma senha.'),
+      linhas.map((l) => l.linha), el('span', { class: 'erro-campo', id: 'mo-erro' }));
+    const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Dar acesso');
+    const dlg = P.abrirDialogo('Dar acesso a outro órgão', corpo, [
+      el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn]);
+    btn.addEventListener('click', async () => {
+      const vinc = lerLinhas(linhas);
+      if (!vinc) return;
+      document.getElementById('mo-erro').textContent = vinc.length ? '' : 'Marque pelo menos um órgão.';
+      if (!vinc.length) return;
+      ocupado(btn, 'Salvando…');
+      try {
+        for (const v of vinc) {
+          const { data: motivo } = await sb.rpc('motivo_bloqueio_acesso', { p_orgao: v.orgao_id, p_perfil: v.perfil_id, p_unidade: v.unidade_id, p_usuario: p.usuario_id });
+          if (motivo) throw amigavel(v.nome + ': ' + motivo);
+          const { error } = await sb.from('usuarios_orgaos').insert({ usuario_id: p.usuario_id, orgao_id: v.orgao_id, perfil_id: v.perfil_id, unidade_id: v.unidade_id });
+          if (error) throw error;
+        }
+        dlg.close(); toast('Acesso liberado. A pessoa vê o novo órgão na próxima vez que entrar.'); await recarregar(); depois();
+      } catch (e) { mostrarErro(e); }
+      finally { ocupado(btn); }
+    });
+  }
+
+  // Ficha da pessoa: os acessos que eu posso ver, com as ações de cada um.
+  function fichaPessoa(usuarioId) {
+    let dlg = null;
+    const desenharFicha = () => {
+      const p = d.pessoas.find((x) => x.usuario_id === usuarioId);
+      if (!p) { if (dlg) dlg.close(); return; }
+      const eu = p.usuario_id === d.euId;
+      const livres = orgaosEditaveis().filter((o) => !p.acessos.some((v) => v.orgao_id === o.id));
+      const gerenciaAlgum = p.acessos.some((v) => podeMexer(v));
+      const corpo = el('div', null,
+        el('p', null, el('strong', null, p.nome || '(sem nome)'), eu ? el('span', { class: 'ml-1 etiqueta' }, 'você') : null,
+          el('span', { class: 'sub-linha' }, p.email + ' · ' + (dataHora(p.ultimo_acesso) ? 'último acesso em ' + dataHora(p.ultimo_acesso) : 'ainda não entrou'))),
+        el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
+          el('thead', null, el('tr', null, ['Órgão', 'Perfil', 'Alcance', 'Situação'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
+          el('tbody', null, p.acessos.map((v) => {
+            const mexe = podeMexer(v), s = situacao(v);
+            const re = () => desenharFicha();
+            return el('tr', null, el('td', null, v.orgao), el('td', null, v.perfil), el('td', null, v.unidade || 'Todo o órgão'),
+              el('td', null, el('span', { class: 'etiqueta etiqueta-' + s }, ROTULO_SITUACAO[s])),
+              el('td', { class: 'acoes' },
+                mexe ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formAcesso(v, re) }, 'Alterar') : null,
+                mexe && !v.pendente ? el('button', { type: 'button', class: 'btn btn-claro btn-p' + (v.ativo ? ' btn-texto-perigo' : ''), onclick: () => alternarAtivo(v, re) }, v.ativo ? 'Desativar' : 'Reativar') : null,
+                mexe && v.pendente && orgao(v.orgao_id).pode_excluir ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => remover(v, re) }, 'Remover') : null,
+                mexe && v.pendente && !orgao(v.orgao_id).pode_excluir ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => alternarAtivo(v, re) }, v.ativo ? 'Desativar' : 'Reativar') : null));
+          })))),
+        el('p', { class: 'ajuda' }, 'Aqui aparecem só os acessos aos órgãos que você gerencia.'));
+      const acoes = [
+        !eu && livres.length ? el('button', { type: 'button', class: 'btn btn-claro', onclick: () => formMaisOrgaos(p, desenharFicha) }, '+ Dar acesso a outro órgão') : null,
+        !eu && gerenciaAlgum ? el('button', { type: 'button', class: 'btn btn-claro', onclick: () => formSenha(p) }, 'Definir nova senha') : null,
+        el('button', { type: 'button', class: 'btn btn-primario', onclick: () => dlg.close() }, 'Fechar')].filter(Boolean);
+      if (dlg) dlg.close();
+      dlg = P.abrirDialogo('Acessos de ' + (p.nome || p.email), corpo, acoes);
+      dlg.classList.add('dialogo-largo');
+    };
+    desenharFicha();
   }
 
   // Um filtro para cada coluna da listagem (regra do projeto).
   function barraFiltrosPessoas(redesenhar) {
     const busca = el('input', { type: 'search', placeholder: 'Nome ou e-mail', value: filtros.busca, 'aria-label': 'Buscar por nome ou e-mail' });
+    const org = el('select', { 'aria-label': 'Filtrar por órgão' }, el('option', { value: '' }, 'Todos os órgãos'),
+      d.orgaos.map((o) => el('option', { value: o.id, selected: filtros.orgao === o.id }, o.nome)));
+    const nomesPerfis = [...new Set(d.vinculos.map((v) => v.perfil))].sort(ordemAlfabetica);
     const perfil = el('select', { 'aria-label': 'Filtrar por perfil' }, el('option', { value: '' }, 'Todos os perfis'),
-      d.perfis.filter((x) => d.pessoas.some((p) => p.perfil_id === x.id)).map((x) => el('option', { value: x.id, selected: filtros.perfil === x.id }, x.nome)));
-    const alcance = el('select', { 'aria-label': 'Filtrar por alcance' }, el('option', { value: '' }, 'Qualquer alcance'),
-      el('option', { value: 'todo', selected: filtros.alcance === 'todo' }, 'Todo o órgão'),
-      d.unidades.filter((u) => d.pessoas.some((p) => p.unidade_id === u.id)).map((u) => el('option', { value: u.id, selected: filtros.alcance === u.id }, u.nome)));
+      nomesPerfis.map((x) => el('option', { value: x, selected: filtros.perfil === x }, x)));
     const sit = el('select', { 'aria-label': 'Filtrar por situação' }, el('option', { value: '' }, 'Qualquer situação'),
       Object.entries(ROTULO_SITUACAO).map(([k, v]) => el('option', { value: k, selected: filtros.situacao === k }, v)));
     busca.addEventListener('input', () => { filtros.busca = busca.value; redesenhar(); });
+    org.addEventListener('change', () => { filtros.orgao = org.value; redesenhar(); });
     perfil.addEventListener('change', () => { filtros.perfil = perfil.value; redesenhar(); });
-    alcance.addEventListener('change', () => { filtros.alcance = alcance.value; redesenhar(); });
     sit.addEventListener('change', () => { filtros.situacao = sit.value; redesenhar(); });
-    return el('div', { class: 'filtros' }, busca, perfil, alcance, sit);
+    return el('div', { class: 'filtros' }, busca, d.orgaos.length > 1 ? org : null, perfil, sit);
   }
 
   function tabelaPessoas() {
     const fb = normalizar(filtros.busca);
     const lista = d.pessoas.filter((p) =>
       (!fb || normalizar(p.nome + ' ' + p.email).includes(fb)) &&
-      (!filtros.perfil || p.perfil_id === filtros.perfil) &&
-      (!filtros.alcance || (filtros.alcance === 'todo' ? !p.unidade_id : p.unidade_id === filtros.alcance)) &&
-      (!filtros.situacao || situacao(p) === filtros.situacao));
-    if (!lista.length) return el('p', { class: 'vazio' }, d.pessoas.length ? 'Ninguém encontrado com esses filtros.' : 'Nenhuma pessoa com acesso ainda.');
-
-    return el('div', { class: 'tabela-caixa' },
-      el('table', { class: 'tabela' },
-        el('thead', null, el('tr', null,
-          ['Pessoa', 'Perfil', 'Alcance', 'Situação', 'Último acesso'].map((t) => el('th', { scope: 'col' }, t)),
-          el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
-        el('tbody', null, lista.map((p) => {
-          const s = situacao(p);
-          const mexe = podeMexer(p);
-          const btnLink = el('button', { type: 'button', class: 'btn btn-claro btn-p' }, 'Novo link');
-          btnLink.addEventListener('click', () => novoLink(p, btnLink));
-          return el('tr', null,
-            el('td', null,
-              el('strong', null, p.nome || '(sem nome)'),
-              p.usuario_id === d.euId ? el('span', { class: 'ml-1 etiqueta' }, 'você') : null,
-              el('span', { class: 'sub-linha' }, p.email)),
-            el('td', null, p.perfil),
-            el('td', null, p.unidade || 'Todo o órgão'),
-            el('td', null, el('span', { class: 'etiqueta etiqueta-' + s }, ROTULO_SITUACAO[s])),
-            el('td', null, dataHora(p.ultimo_acesso) || el('span', { class: 'falta-leve' }, 'Nunca entrou')),
-            el('td', { class: 'acoes' },
-              mexe ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formAcesso(p) }, 'Alterar') : null,
-              mexe && p.pendente && p.ativo ? btnLink : null,
-              mexe && !p.pendente ? el('button', { type: 'button', class: 'btn btn-claro btn-p' + (p.ativo ? ' btn-texto-perigo' : ''), onclick: () => alternarAtivo(p) }, p.ativo ? 'Desativar' : 'Reativar') : null,
-              mexe && p.pendente && perm.excluir ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => remover(p) }, 'Cancelar convite') : null,
-              mexe && p.pendente && !perm.excluir ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => alternarAtivo(p) }, 'Desativar') : null
-            )
-          );
-        }))
-      )
-    );
+      p.acessos.some((v) => (!filtros.orgao || v.orgao_id === filtros.orgao) && (!filtros.perfil || v.perfil === filtros.perfil) &&
+        (!filtros.situacao || situacao(v) === filtros.situacao)));
+    if (!lista.length) return el('p', { class: 'vazio' }, d.pessoas.length ? 'Ninguém encontrado com esses filtros.' : 'Nenhuma pessoa cadastrada ainda.');
+    const varios = d.orgaos.length > 1;
+    return el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
+      el('thead', null, el('tr', null, ['Pessoa', varios ? 'Órgãos e perfis' : 'Perfil e alcance', 'Último acesso'].map((t) => el('th', { scope: 'col' }, t)),
+        el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
+      el('tbody', null, lista.map((p) => el('tr', null,
+        el('td', null, el('strong', null, p.nome || '(sem nome)'), p.usuario_id === d.euId ? el('span', { class: 'ml-1 etiqueta' }, 'você') : null,
+          el('span', { class: 'sub-linha' }, p.email)),
+        el('td', null, el('ul', { class: 'lista-acessos' }, p.acessos.map((v) => {
+          const s = situacao(v);
+          return el('li', null, varios ? el('strong', null, v.orgao + ': ') : null, v.perfil, v.unidade ? ' · só ' + v.unidade : '',
+            s !== 'ativo' ? el('span', { class: 'ml-1 etiqueta etiqueta-' + s }, ROTULO_SITUACAO[s]) : null);
+        }))),
+        el('td', null, dataHora(p.ultimo_acesso) || el('span', { class: 'falta-leve' }, 'Nunca entrou')),
+        el('td', { class: 'acoes' }, el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => fichaPessoa(p.usuario_id) }, 'Abrir')))))));
   }
 
-  // ================= PERFIS =================
+// ================= PERFIS =================
   const permissoesDe = (perfilId) => d.permissoes.filter((x) => x.perfil_id === perfilId);
 
   function matrizPermissoes(perfilId, somenteLeitura) {
@@ -389,7 +479,7 @@
 
   function formPerfil(base, editar) {
     // base: perfil de origem (cópia) ou o próprio perfil (edição); null = em branco.
-    const somenteLeitura = !d.eAdmin || (editar && !base.orgao_id);
+    const somenteLeitura = !adminDe(orgPerfis) || (editar && !base.orgao_id);
     const nome = el('input', { type: 'text', maxlength: 80, value: editar ? base.nome : (base ? base.nome + ' (cópia)' : '') });
     const descricao = el('input', { type: 'text', maxlength: 200, value: base ? base.descricao || '' : '' });
     const matriz = matrizPermissoes(base ? base.id : null, somenteLeitura);
@@ -415,7 +505,7 @@
     btn.addEventListener('click', async () => {
       const n = nome.value.trim();
       if (!erroCampo('pf-nome', n ? '' : 'Informe o nome do perfil.')) return;
-      const repetido = d.perfis.some((p) => normalizar(p.nome) === normalizar(n) && (!editar || p.id !== base.id));
+      const repetido = perfisDoOrgao(orgPerfis).some((p) => normalizar(p.nome) === normalizar(n) && (!editar || p.id !== base.id));
       if (!erroCampo('pf-nome', repetido ? 'Já existe um perfil com esse nome.' : '')) return;
       const linhas = matriz.ler();
       if (!linhas.some((l) => l.pode_ver)) { toast('Marque pelo menos um módulo que o perfil pode ver.', true); return; }
@@ -425,7 +515,7 @@
         const reg = { nome: n, descricao: descricao.value.trim() || null };
         const q = editar
           ? sb.from('perfis').update(reg).eq('id', id).select('id')
-          : sb.from('perfis').insert(Object.assign({ orgao_id: P.estado.orgao.id }, reg)).select('id');
+          : sb.from('perfis').insert(Object.assign({ orgao_id: orgPerfis }, reg)).select('id');
         const { data, error } = await q;
         if (error) throw /duplicate key/i.test(error.message) ? amigavel('Já existe um perfil com esse nome.') : error;
         if (!data || !data.length) throw amigavel('Só um administrador do órgão pode mexer nos perfis.');
@@ -442,7 +532,7 @@
   }
 
   async function excluirPerfil(p) {
-    const usando = d.pessoas.filter((x) => x.perfil_id === p.id);
+    const usando = d.vinculos.filter((x) => x.perfil_id === p.id);
     if (usando.length) {
       P.aviso('Não é possível excluir', 'O perfil "' + p.nome + '" está em uso por ' + usando.length +
         (usando.length === 1 ? ' pessoa (' : ' pessoas (') + usando.map((x) => x.nome || x.email).join(', ') +
@@ -469,8 +559,8 @@
         el('thead', null, el('tr', null,
           ['Perfil', 'Tipo', 'Alcance das permissões', 'Pessoas'].map((t) => el('th', { scope: 'col' }, t)),
           el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
-        el('tbody', null, d.perfis.map((p) => {
-          const qtd = d.pessoas.filter((x) => x.perfil_id === p.id).length;
+        el('tbody', null, perfisDoOrgao(orgPerfis).map((p) => {
+          const qtd = d.vinculos.filter((x) => x.perfil_id === p.id && x.orgao_id === orgPerfis).length;
           const proprio = !!p.orgao_id;
           return el('tr', null,
             el('td', null, el('strong', null, p.nome), p.descricao ? el('span', { class: 'sub-linha' }, p.descricao) : null),
@@ -478,9 +568,9 @@
             el('td', null, resumo(p.id)),
             el('td', null, String(qtd)),
             el('td', { class: 'acoes' },
-              el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formPerfil(p, true) }, proprio && d.eAdmin ? 'Editar' : 'Ver permissões'),
-              d.eAdmin && !p.e_administrador ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formPerfil(p, false) }, 'Criar cópia') : null,
-              d.eAdmin && proprio ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirPerfil(p) }, 'Excluir') : null
+              el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formPerfil(p, true) }, proprio && adminDe(orgPerfis) ? 'Editar' : 'Ver permissões'),
+              adminDe(orgPerfis) && !p.e_administrador ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formPerfil(p, false) }, 'Criar cópia') : null,
+              adminDe(orgPerfis) && proprio ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirPerfil(p) }, 'Excluir') : null
             )
           );
         }))
@@ -488,7 +578,7 @@
     );
   }
 
-  // ================= TELA =================
+    // ================= TELA =================
   function desenhar() {
     const area = el('div');
     const redesenharPessoas = () => area.replaceChildren(tabelaPessoas());
@@ -498,24 +588,30 @@
     }, rotulo, el('span', { class: 'aba-qtd' }, String(qtd)));
 
     let botaoNovo = null;
-    if (aba === 'pessoas' && perm.editar) botaoNovo = el('button', { type: 'button', class: 'btn btn-primario', onclick: formConvite }, '+ Convidar pessoa');
-    if (aba === 'perfis' && d.eAdmin) botaoNovo = el('button', { type: 'button', class: 'btn btn-primario', onclick: () => formPerfil(null, false) }, '+ Novo perfil');
+    if (aba === 'pessoas' && orgaosEditaveis().length) botaoNovo = el('button', { type: 'button', class: 'btn btn-primario', onclick: formCadastro }, '+ Cadastrar pessoa');
+    if (aba === 'perfis' && adminDe(orgPerfis)) botaoNovo = el('button', { type: 'button', class: 'btn btn-primario', onclick: () => formPerfil(null, false) }, '+ Novo perfil');
 
-    const pendentes = d.pessoas.filter((p) => p.ativo && p.pendente).length;
+    let seletorOrgaoPerfis = null;
+    if (aba === 'perfis' && d.orgaos.length > 1) {
+      seletorOrgaoPerfis = el('select', { 'aria-label': 'Órgão dos perfis' }, d.orgaos.map((o) => el('option', { value: o.id, selected: o.id === orgPerfis }, o.nome)));
+      seletorOrgaoPerfis.addEventListener('change', () => { orgPerfis = seletorOrgaoPerfis.value; desenhar(); });
+    }
     if (aba === 'pessoas') redesenharPessoas(); else area.replaceChildren(tabelaPerfis());
+    const nunca = d.pessoas.filter((p) => p.acessos.some((v) => v.ativo && v.pendente)).length;
 
     conteiner.replaceChildren(...[
       el('div', { class: 'cabecalho-modulo' },
-        el('div', null,
-          el('h1', null, 'Usuários e permissões'),
-          el('p', { class: 'sub' }, 'Quem tem acesso ao painel deste órgão, com qual perfil e em qual unidade.')),
+        el('div', null, el('h1', null, 'Usuários e permissões'),
+          el('p', { class: 'sub' }, d.orgaos.length > 1
+            ? 'Pessoas com acesso aos ' + d.orgaos.length + ' órgãos que você gerencia, com o perfil e o alcance em cada um.'
+            : 'Quem tem acesso ao painel, com qual perfil e em qual unidade.')),
         botaoNovo),
-      aba === 'pessoas' && pendentes ? el('p', { class: 'msg msg-info' }, pendentes + (pendentes === 1 ? ' convite ainda não foi aceito.' : ' convites ainda não foram aceitos.') + ' Se o link venceu, use "Novo link".') : null,
-      aba === 'perfis' && !d.eAdmin ? el('p', { class: 'msg msg-info' }, 'Só administradores do órgão criam ou alteram perfis. Você pode consultar as permissões.') : null,
+      aba === 'pessoas' && nunca ? el('p', { class: 'msg msg-info' }, nunca + (nunca === 1 ? ' pessoa ainda não entrou' : ' pessoas ainda não entraram') + ' no painel. Se perderam a senha inicial, use "Abrir" › "Definir nova senha".') : null,
+      aba === 'perfis' && !adminDe(orgPerfis) ? el('p', { class: 'msg msg-info' }, 'Só administradores do órgão criam ou alteram perfis. Você pode consultar as permissões.') : null,
       el('div', { class: 'abas', role: 'tablist' },
         botaoAba('pessoas', 'Pessoas', d.pessoas.length),
-        botaoAba('perfis', 'Perfis', d.perfis.length)),
-      el('div', { class: 'painel-guia' }, aba === 'pessoas' ? barraFiltrosPessoas(redesenharPessoas) : null, area)
+        botaoAba('perfis', 'Perfis', perfisDoOrgao(orgPerfis).length)),
+      el('div', { class: 'painel-guia' }, aba === 'pessoas' ? barraFiltrosPessoas(redesenharPessoas) : seletorOrgaoPerfis ? el('div', { class: 'filtros' }, seletorOrgaoPerfis) : null, area)
     ].filter(Boolean));
   }
 
@@ -524,11 +620,12 @@
     catch (e) { mostrarErro(e); }
   }
 
-  P.telas.usuarios = async function (c, mod, p) {
-    perm = p;
+  P.telas.usuarios = async function (c) {
     conteiner = c;
     c.replaceChildren(el('h1', null, 'Usuários e permissões'), el('p', { class: 'sub' }, 'Carregando…'));
     try { await carregar(); desenhar(); }
-    catch (e) { c.querySelector('.sub').textContent = traduzirErro(e); }
+    catch (e) {
+      c.querySelector('.sub').textContent = /orgaos_que_gerencio|usuarios_unificados/.test(e.message || '') ? 'Falta rodar o script 28 no banco.' : traduzirErro(e);
+    }
   };
 })();

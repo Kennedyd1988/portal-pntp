@@ -173,6 +173,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/25_esic_ouvidoria_proprio.sql` | Fase 3 · Atendimento, parte 2: sistema próprio do e-SIC e da Ouvidoria. `atendimento_canais` ganha `sistema_proprio`, prazos em dias, anexos, pesquisa e avisos; o endereço do formulário externo (0.17.0) vai para Destinos (`esic_pedidos`, `ouvidoria_manifestacoes`); `feriados`; `atendimentos` (+ `_segredos`, `_solicitantes`, `_tramites`, `_recursos`, `_anexos`, `_acessos`, `_avaliacoes`, `_emails`, `_envios`, `_numeros`); bucket privado `atendimento`; funções do site (`registrar_atendimento`, `consultar_atendimento`, `recorrer_atendimento`, `complementar_atendimento`, `avaliar_atendimento`, `atendimento_satisfacao`), do painel (`atendimento_acao`, `atendimento_identificacao`, `atendimento_resumo`, `atendimento_emails_situacao`, `gerar_relatorios_atendimento`) e da rotina (`rotina_atendimento`, pg_cron 04:20 e e-mails a cada 15 min); `pendencias_atendimento` com a fila e o 15.6; `plataforma_config` (SMTP, endereço do site). Rodar depois do 24 |
 | `supabase/26_vinculos_autoavaliacao_pntp.sql` | Vínculos protegidos: nenhum registro ligado a outro pode ser excluído (as ligações que apagavam junto ou deixavam em branco passam a "no action"; ficam como estavam só as que dependem do órgão, o login da pessoa e peças internas). Autoavaliação automática do PNTP 2026: `pntp_criterios` (96 critérios da prefeitura, classificação, peso da dimensão, itens de verificação, onde corrigir), `avaliacao_pntp(órgão)` (por critério: disponibilidade, atualidade, série histórica, gravação, filtro, nota, situação, externo e o que falta) e `avaliacao_pntp_resumo(órgão)` (índice estimado e nível). Rodar depois do 25; pode repetir |
 | `supabase/27_links_externos_orgaos.sql` | Verificação diária dos endereços externos (`links_verificacao`, `verificar_links_externos`/`coletar_links_externos` no pg_cron, `verificar_links_orgao`, `situacao_links_orgao`) e cadastro de órgãos pelo Suporte SOFT+ (módulo `orgaos`, `criar_orgao`, `alterar_orgao`, `criar_menu_padrao`, `orgaos_plataforma`). Rodar o 26 de novo antes (série histórica com outros endereços); pode repetir |
+| `supabase/28_usuarios_unificados.sql` | Página única de usuários: órgãos que cada um gerencia, lista unificada sem expor vínculos de outros órgãos, trava de perfil maior, `gerencia_todos_vinculos` para a função `convidar-usuario`. Rodar depois do 27 (e de novo se rodar o 05); pode repetir |
 | `supabase/teste_apagar_ficticios.sql` | apaga todos os dados fictícios de teste na ordem certa (desde o 26 os ligados não saem junto) e mostra o que sobrou. Para recarregar os testes: rodar este, depois licitações antes de contratos e de obras |
 | `supabase/teste_esic_ouvidoria_ficticios.sql` | opcional: canais do SIC e da Ouvidoria, relatórios de 2023 a 2026 com distribuições, 6 informações classificadas (2 desclassificadas) |
 | `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
@@ -215,8 +216,13 @@ Instalação (uma vez, pelo painel da Supabase):
    (necessário com as chaves novas `sb_publishable`/`sb_secret`).
 4. A função lê as chaves do ambiente da Supabase; nada para configurar.
 
-Entrega do convite:
-- **Gerar link** (padrão): a função devolve o link e o painel monta a mensagem para
+Para atualizar (0.21.0): Edge Functions › `convidar-usuario` › Code › colar o `index.ts` novo › Deploy.
+
+Cadastro (0.21.0, o normal): o painel manda nome, e-mail, senha inicial e os órgãos; a função cria o login já
+confirmado (sem e-mail) e grava os acessos. Com "trocar_senha", o painel exige senha própria no primeiro acesso.
+
+Convite por link ou e-mail (modo antigo, ainda aceito pela função):
+- **Gerar link**: a função devolve o link e o painel monta a mensagem para
   copiar ou enviar pelo WhatsApp. Funciona sem servidor de e-mail.
 - **E-mail automático**: só depois de configurar SMTP próprio em Authentication ›
   Emails › SMTP Settings. O envio padrão da Supabase só entrega para a equipe do
@@ -434,6 +440,28 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.21.0 — 14/11/2026 — Usuários em página única e cadastro sem convite**
+- "Usuários e permissões" virou uma página só para todos os órgãos que a pessoa gerencia: uma linha por pessoa,
+  com os acessos (órgão, perfil, alcance, situação); "Abrir" mostra a ficha com Alterar, Desativar/Reativar,
+  Remover (só quem nunca entrou), "+ Dar acesso a outro órgão" e "Definir nova senha". Filtros por órgão, perfil,
+  situação e busca. A aba Perfis tem a escolha do órgão.
+- Quem vê: Suporte SOFT+ (todos) e quem tem "Usuários" no perfil (padrão: só o Administrador do órgão), só as pessoas
+  e os acessos dos órgãos que gerencia — nunca os vínculos com outros órgãos. Os demais perfis não veem a página.
+- Cadastro sem convite: o administrador cadastra nome, e-mail, senha inicial (sugerida pelo painel) e marca os
+  órgãos com perfil e alcance de cada um; a pessoa já sai vinculada e entra direto. "Pedir nova senha no primeiro
+  acesso" vem marcado: na primeira entrada o painel exige a senha própria. Mensagem pronta com endereço, e-mail e
+  senha inicial para copiar ou mandar pelo WhatsApp. E-mail que já tem login só recebe os novos acessos.
+- "Definir nova senha": só quando quem pede gerencia todos os órgãos da pessoa (senão, "Esqueci minha senha" ou o
+  Suporte); nunca para o Suporte SOFT+.
+- Trava: quem não é administrador só dá (ou altera, desativa) perfis com permissões iguais ou menores que as suas.
+- Banco: script 28 (`orgaos_que_gerencio`, `usuarios_unificados`, `pode_gerir_usuarios`, `perfil_cabe_no_meu`,
+  `gerencia_todos_vinculos`, nova `motivo_bloqueio_acesso` e regras de edição/exclusão de vínculos). Função
+  `convidar-usuario` atualizada (ações `cadastrar` e `definir_senha`; as de convite continuam funcionando).
+- Testado no PostgreSQL local e no navegador: privacidade entre órgãos (administradora da Câmara vê só os acessos da
+  Câmara), cadastrador sem a página, trava de perfil maior, cadastro em dois órgãos de uma vez, dar acesso a outro
+  órgão e troca obrigatória de senha no primeiro acesso. A função de servidor foi testada por imitação local (a
+  Supabase real só depois de publicada).
 
 **0.20.0 — 14/11/2026 — Padronização visual, vários endereços por página, verificação de links e cadastro de órgãos**
 - Padrão visual único: painel e site com as mesmas cores de situação e as mesmas mensagens (o site deixou de ter

@@ -548,3 +548,9 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .situacao-link.ok { color: var(--ok-texto); } .situacao-link.ok::before { content: "✓ "; }
 .situacao-link.fora { color: var(--falta-texto); font-weight: 600; } .situacao-link.fora::before { content: "! "; }
 .lista-pendencias { padding-left: 0; list-style: none; display: grid; gap: 2px; }
+/* Usuários (0.21.0): acessos por órgão */
+.lista-acessos { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.acesso-orgao { border-top: 1px solid var(--line); padding: 10px 0 4px; }
+.acesso-orgao:first-of-type { border-top: 0; padding-top: 0; }
+.acesso-orgao .grade-campos { margin-top: 6px; }
+.senha-inicial { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .5px; flex: 1 1 180px; }

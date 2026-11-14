@@ -11,6 +11,15 @@
 //   convidar  → cria o login (ou reaproveita, se a pessoa já tiver conta)
 //               e dá acesso ao órgão com o perfil e o alcance escolhidos.
 //   novo_link → gera de novo o link de acesso de alguém do órgão.
+//   cadastrar → (0.21.0, o normal) cria o login já com senha inicial e e-mail
+//               confirmado e vincula a pessoa a um ou mais órgãos de uma vez
+//               (campo "vinculos": [{ orgao_id, perfil_id, unidade_id }]).
+//               Sem convite: a pessoa entra direto. Com "trocar_senha", o painel
+//               pede uma senha nova no primeiro acesso. Se o e-mail já tem
+//               login, só acrescenta os vínculos (a senha dela não muda).
+//   definir_senha → nova senha inicial para quem esqueceu, sem depender de
+//               e-mail. Só se quem pede gerencia TODOS os órgãos da pessoa
+//               (gerencia_todos_vinculos, script 28); nunca para o Suporte SOFT+.
 //
 // Modos de entrega (campo "modo"):
 //   link  → devolve o link para o administrador enviar (WhatsApp, e-mail
@@ -82,9 +91,92 @@ Deno.serve(async (req) => {
     const orgao = String(corpo.orgao_id ?? '');
     const redirecionar = typeof corpo.redirecionar === 'string' && /^https?:\/\//.test(corpo.redirecionar)
       ? corpo.redirecionar : undefined;
-    if (!orgao) return falha('Órgão não informado.');
+    if (!orgao && acao !== 'cadastrar' && acao !== 'definir_senha') return falha('Órgão não informado.');
 
-    // Pode receber link na mão? Só quem nunca entrou e não tem acesso a outro órgão.
+    // Senha inicial: mínimo de 8 caracteres, com letra e número.
+    const senhaFraca = (v: string) => v.length < 8 || !/[A-Za-z]/.test(v) || !/\d/.test(v);
+
+    // =================================================================
+    if (acao === 'cadastrar') {
+      const email = String(corpo.email ?? '').trim().toLowerCase();
+      const nome = String(corpo.nome ?? '').trim().replace(/\s+/g, ' ');
+      const senha = String(corpo.senha ?? '');
+      const trocar = corpo.trocar_senha !== false;
+      const vinculos = (Array.isArray(corpo.vinculos) ? corpo.vinculos : []) as Array<Record<string, unknown>>;
+      if (!emailValido(email)) return falha('Informe um e-mail válido.');
+      if (nome.split(' ').length < 2) return falha('Informe nome e sobrenome.');
+      if (!vinculos.length) return falha('Escolha pelo menos um órgão para a pessoa.');
+
+      // 1) Confere TODOS os vínculos antes de criar o login.
+      for (const v of vinculos) {
+        const { data: motivo, error: eM } = await comoQuemPediu.rpc('motivo_bloqueio_acesso', {
+          p_orgao: String(v.orgao_id ?? ''), p_perfil: String(v.perfil_id ?? ''), p_unidade: v.unidade_id ? String(v.unidade_id) : null, p_usuario: null,
+        });
+        if (eM) throw eM;
+        if (motivo) return falha(motivo);
+      }
+
+      // 2) Login: reaproveita se o e-mail já existe; senão cria já confirmado, com a senha inicial.
+      const { data: existente } = await admin.from('usuarios').select('id, nome').eq('email', email).maybeSingle();
+      let usuarioId = existente?.id as string | undefined;
+      let criadoAgora = false;
+      if (usuarioId) {
+        if (usuarioId === quem.user.id) return falha('Você já tem cadastro.');
+      } else {
+        if (senhaFraca(senha)) return falha('A senha inicial precisa ter pelo menos 8 caracteres, com letras e números.');
+        const { data, error } = await admin.auth.admin.createUser({
+          email, password: senha, email_confirm: true, user_metadata: { nome, trocar_senha: trocar },
+        });
+        if (error) throw error;
+        usuarioId = data.user.id;
+        criadoAgora = true;
+        await admin.from('usuarios').update({ nome }).eq('id', usuarioId);
+      }
+
+      // 3) Vínculos com o login de quem pediu (as regras do banco conferem de novo).
+      const feitos: string[] = [];
+      for (const v of vinculos) {
+        const { data: jaTem } = await admin.from('usuarios_orgaos').select('id')
+          .eq('orgao_id', String(v.orgao_id)).eq('usuario_id', usuarioId!).maybeSingle();
+        if (jaTem) continue;
+        const { error: eV } = await comoQuemPediu.from('usuarios_orgaos').insert({
+          usuario_id: usuarioId, orgao_id: v.orgao_id, perfil_id: v.perfil_id, unidade_id: v.unidade_id || null,
+        });
+        if (eV) {
+          if (criadoAgora) await admin.auth.admin.deleteUser(usuarioId!);
+          return falha('Não foi possível dar o acesso: ' + eV.message);
+        }
+        feitos.push(String(v.orgao_id));
+      }
+      if (!feitos.length) return falha('Esta pessoa já tem acesso a esses órgãos.');
+      return resposta({ ok: true, situacao: criadoAgora ? 'cadastrado' : 'ja_tinha_conta', email, usuario_id: usuarioId });
+    }
+
+    // =================================================================
+    if (acao === 'definir_senha') {
+      const usuarioId = String(corpo.usuario_id ?? '');
+      const senha = String(corpo.senha ?? '');
+      if (usuarioId === quem.user.id) return falha('Para mudar a sua própria senha, use "Minha senha".');
+      if (senhaFraca(senha)) return falha('A senha precisa ter pelo menos 8 caracteres, com letras e números.');
+      const { data: ficha } = await admin.from('usuarios').select('suporte_softplus').eq('id', usuarioId).maybeSingle();
+      if (!ficha) return falha('Pessoa não encontrada.');
+      if (ficha.suporte_softplus) return falha('A senha do Suporte SOFT+ só é trocada pelo próprio Suporte.');
+      const { data: todos, error: eT } = await comoQuemPediu.rpc('gerencia_todos_vinculos', { p_usuario: usuarioId });
+      if (eT) throw eT;
+      if (todos !== true) {
+        return falha('Esta pessoa também tem acesso a órgão que você não administra. Por segurança, ela mesma troca a senha em "Esqueci minha senha", ou peça ao Suporte SOFT+.');
+      }
+      const { data: u } = await admin.auth.admin.getUserById(usuarioId);
+      const { error: eS } = await admin.auth.admin.updateUserById(usuarioId, {
+        password: senha, email_confirm: true,
+        user_metadata: { ...(u?.user?.user_metadata ?? {}), trocar_senha: corpo.trocar_senha !== false },
+      });
+      if (eS) throw eS;
+      return resposta({ ok: true, situacao: 'senha_definida' });
+    }
+
+    // Pode receber link na mão? Só quem nunca entrou e não tem acesso a órgão que quem pede
+    // não administra (0.21.0: o mesmo administrador pode dar acesso a vários órgãos dele de uma vez).
     async function podeReceberLink(usuarioId: string): Promise<boolean> {
       const { data: u } = await admin.auth.admin.getUserById(usuarioId);
       const nuncaEntrou = !!u?.user && !u.user.email_confirmed_at && !u.user.last_sign_in_at;
@@ -93,7 +185,10 @@ Deno.serve(async (req) => {
       if (ficha?.suporte_softplus) return false;
       const { count } = await admin.from('usuarios_orgaos').select('id', { count: 'exact', head: true })
         .eq('usuario_id', usuarioId).neq('orgao_id', orgao);
-      return (count ?? 0) === 0;
+      if ((count ?? 0) === 0) return true;
+      // Tem outros órgãos: só se quem pede gerencia todos eles (script 28; sem ele, nega).
+      const { data: todos, error: eTodos } = await comoQuemPediu.rpc('gerencia_todos_vinculos', { p_usuario: usuarioId });
+      return !eTodos && todos === true;
     }
 
     // Link de "criar/redefinir senha" para quem já tem login.

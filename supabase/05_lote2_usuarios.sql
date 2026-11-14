@@ -4,6 +4,7 @@
 --
 -- Como usar: Supabase › SQL Editor › New query › colar tudo › Run.
 -- Pode ser executado mais de uma vez. Rodar DEPOIS dos scripts 01 a 04.
+-- Se rodar de novo depois do 28, rode o 28 em seguida (ele reforça a regra de acesso).
 -- O aviso "destructive operations" aparece por causa dos "drop policy if
 -- exists": as regras são apagadas e recriadas na linha seguinte; nenhum
 -- dado é apagado.
