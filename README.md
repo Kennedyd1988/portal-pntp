@@ -442,6 +442,10 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.24.3 — 14/11/2026 — Usuários só para Administrador e Suporte**
+- Script 32: tira a permissão de Usuários (e de Migração) dos perfis que não são de administrador — o "Gestor de
+  conteúdo" vinha com "ver" em Usuários — e trava para não voltar.
+
 **0.24.0 — 14/11/2026 — Migração: mais seções do site antigo**
 - Atas de registro de preços (→ Contratos, tipo ata), audiências públicas (→ Publicações, tipo próprio "Audiência
   pública", um registro por documento), obras com medições (portal de obras em JSON), secretarias e responsáveis

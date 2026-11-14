@@ -537,7 +537,7 @@ select p.id, m.codigo,
   -- ver
   case p.nome
     when 'Administrador do órgão' then true
-    when 'Gestor de conteúdo'     then true
+    when 'Gestor de conteúdo'     then m.codigo <> 'usuarios'   -- Usuários: só Administrador (script 32)
     when 'Cadastrador setorial'   then m.codigo not in ('aparencia','usuarios','importacoes','historico')
     when 'Comunicação'            then m.codigo not in ('usuarios','importacoes','historico')
     when 'Atendimento (SIC e Ouvidoria)' then m.codigo not in ('aparencia','usuarios','importacoes','historico')

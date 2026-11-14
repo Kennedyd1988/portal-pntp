@@ -1,7 +1,8 @@
 {
-  "versao": "0.24.2",
+  "versao": "0.24.3",
   "data": "2026-11-14",
   "notas": [
+    "Usuários: só o Administrador do órgão e o Suporte SOFT+ veem a página (o Gestor de conteúdo via por engano). Rodar o script 32.",
     "Migração do site antigo: ritmo gentil (no máximo 2 leituras por vez, com intervalo) e pausa automática quando o site antigo para de responder, para não ser bloqueado.",
     "Migração do site antigo: novas seções — atas de registro de preços, audiências públicas, obras com medições, secretarias e responsáveis, perguntas frequentes e páginas avulsas (com subpáginas e arquivos, entram como rascunho para revisar).",
     "Migração do site antigo: leitura pelo navegador (favorito \"Coletor SOFT+\") para sites que bloqueiam o servidor; erros passageiros são repetidos em vez de parar a análise.",
