@@ -275,7 +275,7 @@
     c.replaceChildren(
       el('div', { class: 'cabecalho-modulo' }, el('div', null, el('h1', null, 'Consórcio público'),
         el('p', { class: 'sub' }, 'Entes consorciados, documentos constitutivos, contratos de rateio e de programa, atas e orçamento (PNTP 2026, matriz dos Consórcios Públicos).'))),
-      P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Os documentos do consórcio são do órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
+      P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Os documentos do consórcio são do órgão todo: só quem tem acesso ao órgão inteiro altera.') : '',
       P.abas([
         ['entes', 'Entes consorciados', abaEntes, null, 'consorcio_entes'],
         ['constitutivos', 'Documentos constitutivos', abaConstitutivos, null, 'consorcio_documentos'],

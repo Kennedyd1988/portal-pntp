@@ -449,6 +449,9 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.29.1 — 14/11/2026 — Correção**
+- Consórcio público e Atividade legislativa: some o "null" que aparecia no alto da tela.
+
 **0.29.0 — 14/11/2026 — Consórcio público (painel e site)**
 - Script 39: módulo `consorcio` (`tipos_orgao = ['consorcio']`), tabelas `consorcio_entes` e `consorcio_documentos` (RLS, publicação,
   histórico e atualização como as do 34; ente com contrato ligado não pode ser excluído; documento publicado exige PDF ou link;

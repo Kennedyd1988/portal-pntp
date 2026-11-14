@@ -654,7 +654,7 @@
     c.replaceChildren(
       el('div', { class: 'cabecalho-modulo' }, el('div', null, el('h1', null, 'Atividade legislativa'),
         el('p', { class: 'sub' }, 'Vereadores, proposições, sessões, comissões, votações e verba indenizatória (PNTP 2026, matriz do Poder Legislativo).'))),
-      P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'A atividade legislativa é da Câmara toda: só quem tem acesso ao órgão inteiro altera.') : null,
+      P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'A atividade legislativa é da Câmara toda: só quem tem acesso ao órgão inteiro altera.') : '',
       el('p', { class: 'ajuda' }, 'Leis, resoluções e decretos legislativos (20.2) ficam em Publicações oficiais. O decreto legislativo do julgamento das contas do Prefeito (20.8) fica em Planejamento e contas.'),
       P.abas([
         ['parlamentares', 'Vereadores', abaVereadores, null, 'parlamentares'],
