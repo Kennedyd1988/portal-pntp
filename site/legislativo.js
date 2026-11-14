@@ -62,7 +62,7 @@
     pagina(main, el('h1', null, 'Vereadores'),
       el('p', { class: 'sub' }, 'Composição da Câmara' + (leg ? ' na legislatura ' + leg.legislatura_inicio + (leg.legislatura_fim ? '–' + leg.legislatura_fim : '') : '') + ', com partido, cargo na Mesa Diretora e biografia de cada vereador.'),
       atuais.length ? el('div', { class: 'grade-vereadores' }, atuais.map(cartaoVereador)) : el('p', { class: 'vazio' }, 'Composição em atualização.'),
-      el('p', { class: 'mt-2' }, S.linkDestino('atividade_parlamentar', 'Atividade de cada vereador (autoria, relatoria e presenças) →')),
+      el('p', { class: 'mt-2' }, S.linkDestino('atividade_parlamentar', 'Atividade de cada vereador (autoria, relatoria, presenças, diárias e emendas) →')),
       outros.length ? el('section', { class: 'mt-3' }, el('h2', null, 'Fora de exercício e legislaturas anteriores'), el('div', { class: 'grade-vereadores' }, outros.map(cartaoVereador))) : null);
   };
   R.parlamentar = async function (main, partes) {
@@ -71,13 +71,19 @@
     const p = (await parlamentares()).find((x) => x.id === id);
     if (!p) return R['*'](main);
     const ano = new Date().getFullYear();
-    const [{ data: com }, { data: ativ }, { data: props }, { data: votos }, { data: verba }] = await Promise.all([
+    const [{ data: com }, { data: ativ }, { data: props }, { data: votos }, { data: verba }, { data: diar }, { data: emen }] = await Promise.all([
       sb.from('comissoes_membros').select('funcao, comissoes(nome, ativa)').eq('parlamentar_id', id),
       sb.rpc('atividade_parlamentar', { p_orgao: org(), p_ano: ano }),
       sb.from('proposicoes_autores').select('papel, proposicoes(id, tipo, numero, ano, ementa, andamento, data_apresentacao)').eq('parlamentar_id', id).limit(300),
       sb.from('votacoes_votos').select('voto, votacoes(descricao, resultado, sessoes(id, tipo, numero, data))').eq('parlamentar_id', id).limit(300),
-      sb.rpc('verba_publica', { p_orgao: org(), p_ano: ano })
+      sb.rpc('verba_publica', { p_orgao: org(), p_ano: ano }),
+      // Script 36: diárias que ele recebeu (desta Câmara) e emendas municipais de autoria dele (orçamento da Prefeitura).
+      sb.from('diarias').select('id, destino, motivo, data_inicio, data_fim, quantidade, valor_total, exercicio').eq('parlamentar_id', id).order('data_inicio', { ascending: false }).limit(200),
+      sb.from('emendas').select('id, exercicio, numero, objeto, beneficiario, valor_previsto, valor_pago, andamento').eq('parlamentar_id', id).eq('situacao', 'publicado').order('exercicio', { ascending: false }).limit(200)
     ]);
+    const AND_EMENDA = { prevista: 'Prevista', em_execucao: 'Em execução', concluida: 'Concluída', impedida: 'Impedida', cancelada: 'Cancelada' };
+    const minhasDiarias = diar || [], minhasEmendas = emen || [];
+    const soma = (l, k) => l.reduce((t, x) => t + Number(x[k] || 0), 0);
     const meusVotos = (votos || []).filter((x) => x.votacoes && x.votacoes.sessoes).sort((a, b) => String(b.votacoes.sessoes.data).localeCompare(String(a.votacoes.sessoes.data))).slice(0, 20);
     const minhaVerba = (verba || []).filter((x) => x.parlamentar_id === id);
     const a = (ativ || []).find((x) => x.parlamentar_id === id);
@@ -92,11 +98,23 @@
       (com || []).length ? el('section', { class: 'mt-2' }, el('h2', null, 'Comissões'), el('ul', null, com.filter((c) => c.comissoes).map((c) => el('li', null, c.comissoes.nome + ' — ' + (FUNCOES[c.funcao] || c.funcao) + (c.comissoes.ativa ? '' : ' (encerrada)'))))) : null,
       a ? el('section', { class: 'mt-2' }, el('h2', null, 'Atividade em ' + ano), el('ul', { class: 'numeros-atividade' },
         el('li', null, el('strong', null, String(a.autorias)), ' proposições de autoria'), el('li', null, el('strong', null, String(a.relatorias)), ' relatorias'),
-        el('li', null, el('strong', null, a.presencas + ' de ' + a.sessoes), ' presenças em sessões'), el('li', null, el('strong', null, String(a.votos)), ' votos registrados'))) : null,
+        el('li', null, el('strong', null, a.presencas + ' de ' + a.sessoes), ' presenças em sessões'), el('li', null, el('strong', null, String(a.votos)), ' votos registrados'),
+        a.diarias !== undefined ? el('li', null, el('strong', null, String(a.diarias)), ' diárias recebidas' + (Number(a.diarias) ? ' (' + U.moedaBR(Number(a.diarias_valor)) + ')' : '')) : null,
+        a.emendas !== undefined ? el('li', null, el('strong', null, String(a.emendas)), ' emendas municipais' + (Number(a.emendas) ? ' (' + U.moedaBR(Number(a.emendas_valor)) + ' previstos)' : '')) : null)) : null,
       meusVotos.length ? el('section', { class: 'mt-2' }, el('h2', null, 'Votos recentes'), el('ul', { class: 'partes-contas cartao' }, meusVotos.map((x) => el('li', null,
         el('a', { href: '#/sessao/' + x.votacoes.sessoes.id }, x.votacoes.descricao), el('span', { class: 'meta' }, dataBR(x.votacoes.sessoes.data) + ' · votou: ' + (VOTOS[x.voto] || x.voto) + ' · ' + (x.votacoes.resultado === 'aprovada' ? 'aprovada' : x.votacoes.resultado === 'rejeitada' ? 'rejeitada' : x.votacoes.resultado)))))) : null,
       minhaVerba.length ? el('section', { class: 'mt-2' }, el('h2', null, 'Verba indenizatória em ' + ano), el('p', null, minhaVerba.length + ' pagamentos, total ' + U.moedaBR(minhaVerba.reduce((t, x) => t + Number(x.valor), 0)) + '. '),
         S.linkDestino('verba_indenizatoria', 'Ver todos os pagamentos →')) : null,
+      minhasEmendas.length ? el('section', { class: 'mt-2' }, el('h2', null, 'Emendas ao orçamento municipal'),
+        el('p', { class: 'meta' }, minhasEmendas.length + ' emenda(s) de autoria do vereador, publicadas pela Prefeitura · ' + U.moedaBR(soma(minhasEmendas, 'valor_previsto')) + ' previstos, ' + U.moedaBR(soma(minhasEmendas, 'valor_pago')) + ' pagos.'),
+        el('ul', { class: 'partes-contas cartao' }, minhasEmendas.slice(0, 30).map((x) => el('li', null,
+          el('strong', null, 'Emenda nº ' + x.numero + ' (' + x.exercicio + ')'),
+          el('span', { class: 'meta' }, x.objeto + (x.beneficiario ? ' · Beneficiário: ' + x.beneficiario : '') + ' · ' + U.moedaBR(Number(x.valor_previsto)) + ' previstos · ' + (AND_EMENDA[x.andamento] || x.andamento)))))) : null,
+      minhasDiarias.length ? el('section', { class: 'mt-2' }, el('h2', null, 'Diárias recebidas'),
+        el('p', { class: 'meta' }, minhasDiarias.length + ' concessão(ões) · ' + U.moedaBR(soma(minhasDiarias, 'valor_total')) + ' no total. ', S.linkDestino('diarias', 'Ver todas as diárias da Câmara →')),
+        el('ul', { class: 'partes-contas cartao' }, minhasDiarias.slice(0, 30).map((x) => el('li', null,
+          el('strong', null, x.destino + ' · ' + dataBR(x.data_inicio) + (x.data_fim !== x.data_inicio ? ' a ' + dataBR(x.data_fim) : '')),
+          el('span', { class: 'meta' }, x.motivo + ' · ' + String(x.quantidade).replace('.', ',') + ' diária(s) · ' + U.moedaBR(Number(x.valor_total))))))) : null,
       el('section', { class: 'mt-2' }, el('h2', null, 'Proposições'), lista.length ? el('ul', { class: 'partes-contas cartao' }, lista.map((x) => el('li', null,
         el('a', { href: '#/proposicao/' + x.proposicoes.id }, nomeProp(x.proposicoes)), el('span', { class: 'meta' }, (x.papel === 'relator' ? 'Relator · ' : '') + x.proposicoes.ementa))))
         : el('p', { class: 'vazio' }, 'Nenhuma proposição registrada.')));
@@ -112,7 +130,7 @@
     const anos = []; for (let a = atual; a >= atual - 4; a--) anos.push([a, String(a)]);
     const faixa = U.faixaAbas(anos, ano, 'Ano', false, (id) => { ano = Number(id); history.replaceState(null, '', '#/atividade-parlamentar?ano=' + ano); desenhar(); });
     pagina(main, el('h1', null, 'Atividade dos vereadores'),
-      el('p', { class: 'sub' }, 'Proposições de autoria, relatorias, presença nas sessões e votos registrados de cada vereador, por ano. Os números vêm das proposições, sessões e votações publicadas.'),
+      el('p', { class: 'sub' }, 'Proposições de autoria, relatorias, presença nas sessões, votos registrados, diárias recebidas e emendas ao orçamento municipal de cada vereador, por ano. Os números vêm das proposições, sessões, votações, diárias e emendas publicadas.'),
       faixa.lista, el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' }, caixa));
     faixa.marcar(ano);
     async function desenhar() {
@@ -120,15 +138,19 @@
       const { data, error } = await sb.rpc('atividade_parlamentar', { p_orgao: org(), p_ano: ano });
       if (error) { caixa.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
       const linhas = data || [];
-      const colunas = [['nome', 'Vereador'], ['partido', 'Partido'], ['autorias', 'Proposições de autoria'], ['relatorias', 'Relatorias'], ['presencas', 'Presenças'], ['sessoes', 'Sessões'], ['votos', 'Votos'], ['comissoes', 'Comissões']];
+      const comExtras = linhas.length && linhas[0].diarias !== undefined;   // script 36: diárias e emendas municipais
+      const colunas = [['nome', 'Vereador'], ['partido', 'Partido'], ['autorias', 'Proposições de autoria'], ['relatorias', 'Relatorias'], ['presencas', 'Presenças'], ['sessoes', 'Sessões'], ['votos', 'Votos'], ['comissoes', 'Comissões']]
+        .concat(comExtras ? [['diarias', 'Diárias recebidas'], ['diarias_valor', 'Valor das diárias (R$)'], ['emendas', 'Emendas municipais'], ['emendas_valor', 'Valor previsto das emendas (R$)']] : []);
       caixa.replaceChildren(el('div', { class: 'barra-lista' }, el('span', { class: 'meta' }, linhas.length + ' vereadores'), S.botoesExportar('atividade-vereadores-' + ano, colunas, async (de) => de ? [] : linhas)),
         linhas.length ? el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' }, el('caption', { class: 'sr' }, 'Atividade dos vereadores em ' + ano),
-          el('thead', null, el('tr', null, ['Vereador', 'Autoria', 'Relatoria', 'Presenças', 'Votos', 'Comissões'].map((t) => el('th', { scope: 'col' }, t)))),
+          el('thead', null, el('tr', null, ['Vereador', 'Autoria', 'Relatoria', 'Presenças', 'Votos', 'Comissões'].concat(comExtras ? ['Diárias', 'Emendas'] : []).map((t) => el('th', { scope: 'col' }, t)))),
           el('tbody', null, linhas.map((x) => el('tr', null,
             el('td', { 'data-rotulo': 'Vereador' }, el('a', { href: '#/parlamentar/' + x.parlamentar_id }, x.nome), x.partido ? el('span', { class: 'meta' }, ' ' + x.partido) : null),
             el('td', { 'data-rotulo': 'Autoria', class: 'num' }, String(x.autorias)), el('td', { 'data-rotulo': 'Relatoria', class: 'num' }, String(x.relatorias)),
             el('td', { 'data-rotulo': 'Presenças', class: 'num' }, x.sessoes ? x.presencas + ' de ' + x.sessoes : '—'), el('td', { 'data-rotulo': 'Votos', class: 'num' }, String(x.votos)),
-            el('td', { 'data-rotulo': 'Comissões' }, x.comissoes || '—'))))))
+            el('td', { 'data-rotulo': 'Comissões' }, x.comissoes || '—'),
+            comExtras ? el('td', { 'data-rotulo': 'Diárias', class: 'num' }, Number(x.diarias) ? x.diarias + ' · ' + U.moedaBR(Number(x.diarias_valor)) : '—') : null,
+            comExtras ? el('td', { 'data-rotulo': 'Emendas', class: 'num' }, Number(x.emendas) ? x.emendas + ' · ' + U.moedaBR(Number(x.emendas_valor)) : '—') : null)))))
           : el('p', { class: 'vazio' }, 'Nenhum vereador publicado.'));
     }
     desenhar();

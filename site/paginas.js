@@ -1049,7 +1049,7 @@
       ['Obras paralisadas', null, '#/obras/paralisadas', ''], ['Proteção de dados (LGPD)', null, '#/lgpd', 'privacidade encarregado'],
       ['Dados abertos', null, '#/dados-abertos', 'api csv json'], ['Vídeos', null, '#/videos', 'galeria multimidia youtube'], ['Conselhos municipais', null, '#/conselhos', 'conselho fundeb saude assistencia social atas'], ['Acessibilidade', null, '#/acessibilidade', 'libras contraste'], ['Contato', null, '#/contato', 'telefone email endereco']];
     const cat = window.DESTINOS_PNTP.filter((d) => S.destino(d[0])).map((d) => [d[1], d[0], null, '']);
-    return cat.concat(fixas).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+    return cat.concat(fixas.filter((f) => !S.oculta(f[2]))).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
   }
 
   R['mapa-do-site'] = async function (main) {
@@ -1269,6 +1269,7 @@
     // Cada item segue Aparência › Destinos das páginas: rota interna com link externo escolhido vai
     // para o link; item sem rota (h undefined) usa a chave do destino (ou o sistema externo geral).
     const L = (t, cod, h, chave) => {
+      if (S.oculta(chave || h)) return null;
       if (chave) { const d = S.destino(chave); return { t, cod, h: d ? d.href : null }; }
       if (h && h.startsWith('#/')) { const k = window.chaveDaRotaPNTP(h); const e = k && !window.outrosLinksPNTP(c, k).length && window.externoPNTP(c, k); if (e) return { t, cod, h: e }; }
       return { t, cod, h: h === undefined ? ext : h };
@@ -1353,9 +1354,9 @@
         el('div', { class: 'transp-status' },
           el('span', null, el('b', null, 'Última atualização dos dados: '), ultima ? dataBR(ultima) : '—'),
           ex1 ? el('span', null, el('b', null, 'Exercícios disponíveis: '), ex1 === ex2 ? String(ex1) : ex1 + ' a ' + ex2) : null,
-          el('span', null, el('b', null, 'Formatos: '), 'CSV, JSON e PDF'),
+          el('span', null, el('b', null, 'Formatos: '), 'CSV, JSON, XML, XLSX e PDF'),
           el('a', { href: '#/dados-abertos' }, 'Dados abertos e API →')),
-        el('div', { class: 'grade g3 transp-grupos' }, gruposTransparencia().map(([titulo, ic, links]) => el('section', { class: 'transp-grupo' },
+        el('div', { class: 'grade g3 transp-grupos' }, gruposTransparencia().map(([t, ic, ls]) => [t, ic, ls.filter(Boolean)]).filter((x) => x[2].length).map(([titulo, ic, links]) => el('section', { class: 'transp-grupo' },
           el('div', { class: 'transp-grupo-topo' }, el('span', { class: 'transp-icone' }, iconeT(ic)), el('h2', null, titulo)),
           el('ul', null, links.map((l) => el('li', null, l.h
             ? el('a', { href: l.h, target: externo(l.h) ? '_blank' : null, rel: externo(l.h) ? 'noopener' : null },

@@ -446,6 +446,17 @@
       f.objeto.value = e.objeto || '';
       f.impedimento.value = e.impedimento || '';
       f.obs.value = e.observacao || '';
+      // Emenda municipal: o vereador autor, da Câmara do mesmo município (aparece na página dele no site da Câmara).
+      const { data: vers } = await sb.rpc('vereadores_do_municipio', { p_orgao: P.estado.orgao.id });
+      const listaVer = vers || [];
+      f.vereador = el('select', null, el('option', { value: '' }, listaVer.length ? '— Não ligar a um vereador —' : 'Nenhum vereador publicado no site da Câmara do município'),
+        listaVer.map((v) => el('option', { value: v.id, selected: e.parlamentar_id === v.id }, (v.nome_parlamentar || v.nome) + (v.partido ? ' (' + v.partido + ')' : '') + (v.em_exercicio ? '' : ' · fora de exercício'))));
+      if (e.parlamentar_id && !listaVer.some((v) => v.id === e.parlamentar_id)) f.vereador.append(el('option', { value: e.parlamentar_id, selected: true }, 'Vereador ligado (não publicado)'));
+      f.vereador.addEventListener('change', () => {
+        const v = listaVer.find((x) => x.id === f.vereador.value);
+        if (v && !f.autor.value.trim()) f.autor.value = 'Vereador(a) ' + (v.nome_parlamentar || v.nome);
+      });
+      const cVer = campo('em-ver', 'Vereador autor', f.vereador, 'Liga a emenda à página do vereador no site da Câmara (atividade parlamentar).');
       const conv = escolhaConvenio(e.convenio_id, convRotulo);
       const doc = blocoDocumento('em', e, 'Documento (opcional)', 'Ex.: página da emenda no Transferegov ou no portal do Legislativo.', null);
       const cImp = campo('em-imp', 'Motivo do impedimento', f.impedimento);
@@ -455,6 +466,7 @@
       const ajustar = () => {
         cImp.hidden = f.andamento.value !== 'impedida';
         cConv.hidden = f.forma.value === 'transferencia_especial';
+        cVer.hidden = f.origem.value !== 'municipal';
         rotReal.textContent = f.origem.value === 'municipal' ? 'Valor realizado (executado) (R$)' : 'Valor recebido (realizado) (R$)';
       };
       [f.andamento, f.forma, f.origem].forEach((x) => x.addEventListener('change', ajustar));
@@ -464,6 +476,7 @@
           ['emenda', 'Emenda', [
             el('div', { class: 'grade-campos' }, campo('em-ex', 'Exercício', f.exercicio, 'Ano do orçamento da emenda.', true), campo('em-ori', 'Origem', f.origem, null, true), campo('em-tipo', 'Tipo', f.tipo, null, true)),
             el('div', { class: 'grade-campos' }, campo('em-num', 'Número da emenda', f.numero, null, true), campo('em-aut', 'Autoria', f.autor, null, true)),
+            cVer,
             campo('em-obj', 'Objeto', f.objeto, null, true),
             el('div', { class: 'grade-campos' }, campo('em-fun', 'Função de governo', f.funcao, null, true), campo('em-forma', 'Forma de repasse', f.forma, null, true)),
             el('div', { class: 'grade-campos' }, campo('em-ben', 'Beneficiário (opcional)', f.beneficiario), campo('em-uni', 'Unidade executora', f.unidade)),
@@ -504,7 +517,7 @@
             objeto: f.objeto.value.trim(), funcao: f.funcao.value, beneficiario: f.beneficiario.value.trim() || null, unidade_nome: f.unidade.value.trim() || null,
             andamento: f.andamento.value, impedimento: f.andamento.value === 'impedida' ? f.impedimento.value.trim() : null,
             valor_previsto: num(f.previsto), valor_realizado: num(f.realizado), valor_empenhado: E, valor_liquidado: L, valor_pago: G,
-            execucao_em: f.posicao.value || null, convenio_id: f.forma.value === 'transferencia_especial' ? null : conv.valor(),
+            execucao_em: f.posicao.value || null, parlamentar_id: f.origem.value === 'municipal' ? f.vereador.value || null : null, convenio_id: f.forma.value === 'transferencia_especial' ? null : conv.valor(),
             observacao: f.obs.value.trim() || null, situacao
           }, dd);
           await P.gravarRegistro('emendas', dados, e.id);

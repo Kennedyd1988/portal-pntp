@@ -175,6 +175,7 @@ construída para atender a matriz do PNTP 2026 (Atricon).
 | `supabase/27_links_externos_orgaos.sql` | Verificação diária dos endereços externos (`links_verificacao`, `verificar_links_externos`/`coletar_links_externos` no pg_cron, `verificar_links_orgao`, `situacao_links_orgao`) e cadastro de órgãos pelo Suporte SOFT+ (módulo `orgaos`, `criar_orgao`, `alterar_orgao`, `criar_menu_padrao`, `orgaos_plataforma`). Rodar o 26 de novo antes (série histórica com outros endereços); pode repetir |
 | `supabase/28_usuarios_unificados.sql` | Página única de usuários: órgãos que cada um gerencia, lista unificada sem expor vínculos de outros órgãos, trava de perfil maior, `gerencia_todos_vinculos` para a função `convidar-usuario`. Rodar depois do 27 (e de novo se rodar o 05); pode repetir |
 | `supabase/29_perfis_multiplos.sql` | Perfis adicionais por acesso (`perfis_extras`, permissões somadas, travas e gatilhos) e perfis do sistema editáveis pelo Suporte SOFT+. Rodar depois do 28 (e de novo se rodar o 01, 02, 05 ou 28); pode repetir |
+| `supabase/36_vereador_diarias_emendas.sql` | Vereador ligado às diárias da Câmara e às emendas municipais da Prefeitura do mesmo município (página do vereador e 20.11). Rodar depois do 34 e do 35; pode repetir |
 | `supabase/teste_apagar_ficticios.sql` | apaga todos os dados fictícios de teste na ordem certa (desde o 26 os ligados não saem junto) e mostra o que sobrou. Para recarregar os testes: rodar este, depois licitações antes de contratos e de obras |
 | `supabase/teste_esic_ouvidoria_ficticios.sql` | opcional: canais do SIC e da Ouvidoria, relatórios de 2023 a 2026 com distribuições, 6 informações classificadas (2 desclassificadas) |
 | `supabase/teste_financeiro_pessoal_ficticios.sql` | opcional: receitas de 2025 e 2026, dívida ativa, 48 empenhos com movimentos, ordem cronológica (com um pagamento fora da ordem), 34 servidores com folha, cargos, estagiários, terceirizados e diárias |
@@ -441,6 +442,19 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
   seja o último administrador (é ação deliberada da SOFT+, feita pelo SQL).
 
 ## Histórico de mudanças
+
+**0.27.0 — 14/11/2026 — Páginas ocultas, endereços externos em abas, mais formatos e vereador ligado a diárias e emendas**
+- Aparência › Destinos: "Não exibir no site" (`configuracoes.paginas_ocultas`, `ocultaPNTP` em `site/destinos.js`, `S.oculta`).
+  A página some do menu, da capa da Transparência, do mapa do site e da busca; a rota responde como inexistente; a parte
+  segue a página inteira. O painel avisa quando é item do PNTP (não pontua). A autoavaliação automática ainda não desconta.
+- Outros endereços com exercício entram nas abas de ano como as declarações (`S.decl.de` junta entradas `link`;
+  `S.decl.quadro` mostra "Publicado em outro sistema"); o quadro do alto só mostra o que não foi para as abas. Página toda
+  externa com vários endereços: abas Atual / anos / Outros (`abasExternas`).
+- Exportação (`S.exportar`): CSV, JSON, XML, XLSX (gerado no navegador, sem biblioteca), PDF (jsPDF + autoTable pelo
+  jsDelivr, carregados só ao pedir) e Imprimir (relatório em A4 paisagem).
+- Script 36: `diarias.parlamentar_id` (vereador da própria Câmara) e `emendas.parlamentar_id` (só emenda municipal, vereador
+  publicado da Câmara do mesmo município/UF), gatilho `conferir_parlamentar_vinculado`, `vereadores_do_municipio`,
+  `atividade_parlamentar` com diárias e emendas, ligação automática pelo nome quando há um só vereador igual.
 
 **0.26.0 — 14/11/2026 — Galeria de vídeos (todos os órgãos)**
 - Script 35 (`videos`). Painel: Notícias, banners e avisos › Vídeos (`modulo-videos.js`). Site: `#/videos` e bloco

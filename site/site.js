@@ -133,11 +133,18 @@
   S.link = (rota) => '#' + (rota.startsWith('/') ? rota : '/' + rota);
   // Destino único de cada página (site/destinos.js): portal ou link externo escolhido em Aparência.
   S.destino = (chave) => window.destinoPNTP(S.conf, chave);
+  // Página oculta (Aparência › Destinos): por chave ou por rota interna ('#/obras/paralisadas').
+  S.oculta = (chaveOuRota) => {
+    const x = String(chaveOuRota || '');
+    const k = /^#?\//.test(x) ? window.chaveDaRotaPNTP(x) : x;
+    return !!k && window.ocultaPNTP(S.conf, k);
+  };
   // Radar da Transparência Pública: link definido em Aparência (ex.: página do órgão no Radar) ou o painel geral.
   S.RADAR_PADRAO = 'https://radardatransparencia.atricon.org.br/panel.html';
   S.radar = () => (S.conf && /^https?:\/\//.test(S.conf.radar_url || '') ? S.conf.radar_url : S.RADAR_PADRAO);
   // Link pronto para uma chave de destino: abre em nova aba quando é externo. Sem destino: texto simples.
   S.linkDestino = (chave, conteudo, attrs) => {
+    if (S.oculta(chave)) return null;
     const d = S.destino(chave);
     if (!d) return el('span', Object.assign({ class: 'sem-destino' }, attrs || {}), conteudo);
     return el('a', Object.assign({}, attrs || {}, { href: d.href, target: d.externo ? '_blank' : null, rel: d.externo ? 'noopener' : null }),
@@ -151,12 +158,58 @@
   };
   // Quadro padrão dos endereços externos de uma chave (Aparência › Destinos das páginas): o principal
   // (quando a página está em sistema externo) e os outros, cada um com os exercícios e a explicação.
+  const abrirExt = (url, rot, classe) => el('a', { class: classe || null, href: url, target: '_blank', rel: 'noopener' }, rot, el('span', { class: 'sr' }, ' (abre em nova aba)'));
+  const listaExternos = (outros) => el('ul', { class: 'lista-externos' }, outros.map((l) => el('li', null,
+    el('span', { class: 'periodo-ext' }, window.periodoLinkPNTP(l)),
+    el('span', { class: 'descricao-ext' }, l.descricao || '', el('span', { class: 'url-ext' }, l.url)),
+    abrirExt(l.url, 'Acessar'))));
+  // Endereços externos dentro da aba do ano (vêm de S.decl.de, como as declarações).
+  S.linksEmAbas = new Set();
+  S.quadroLinks = (itens) => {
+    const vistos = new Set();
+    const ls = itens.map((d) => d.link).filter((l) => !vistos.has(l.url) && vistos.add(l.url));
+    return el('section', { class: 'caixa-externa', 'aria-label': 'Publicado em outro sistema' },
+      el('h3', null, 'Publicado em outro sistema'),
+      el('p', null, ls.length > 1 ? 'Os dados deste período estão nos endereços indicados pelo órgão:' : 'Os dados deste período estão no endereço indicado pelo órgão:'),
+      listaExternos(ls));
+  };
+  // Vários endereços (o atual e os de outros exercícios): organizados em abas, como as declarações —
+  // "Atual", uma aba por exercício (do mais recente ao mais antigo) e "Outros" para os sem período.
+  function abasExternas(principal, outros, o) {
+    const anos = new Map(), semPeriodo = [];
+    for (const l of outros) {
+      const a = Number(l.de || l.ate), b = Number(l.ate || l.de);
+      if (!a) { semPeriodo.push(l); continue; }
+      for (let ano = Math.min(a, b); ano <= Math.max(a, b) && ano - Math.min(a, b) < 40; ano++) {
+        if (!anos.has(ano)) anos.set(ano, []);
+        anos.get(ano).push(l);
+      }
+    }
+    const itens = [];
+    if (principal) itens.push(['atual', 'Atual']);
+    [...anos.keys()].sort((x, y) => y - x).forEach((a) => itens.push([String(a), String(a)]));
+    if (semPeriodo.length) itens.push(['outros', principal || anos.size ? 'Outros' : 'Endereços']);
+    const painel = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
+    const mostrar = (id) => painel.replaceChildren(id === 'atual'
+      ? el('div', null, el('p', null, 'Endereço atual, indicado pelo órgão:'), el('p', null, abrirExt(principal, 'Acessar' + (o.rotulo ? ' ' + o.rotulo : ''), 'botao'), el('span', { class: 'url-ext' }, principal)))
+      : el('div', null, el('p', null, id === 'outros' ? 'Outros endereços indicados pelo órgão:' : 'Dados de ' + id + ', nos endereços indicados pelo órgão:'),
+        listaExternos(id === 'outros' ? semPeriodo : anos.get(Number(id)))));
+    const faixa = S.util.faixaAbas(itens, itens[0][0], 'Período', true, mostrar);
+    mostrar(itens[0][0]);
+    return [faixa.lista, painel];
+  }
   S.caixaExterna = (chave, opcoes) => {
     const o = opcoes || {};
     const principal = window.externoPNTP(S.conf, chave);
-    const outros = window.outrosLinksPNTP(S.conf, chave);
+    const outros = window.outrosLinksPNTP(S.conf, chave).filter((l) => !(o.excluir || new Set()).has(l.url));
     if (!principal && !outros.length) return null;
-    const abrir = (url, rot, classe) => el('a', { class: classe || null, href: url, target: '_blank', rel: 'noopener' }, rot, el('span', { class: 'sr' }, ' (abre em nova aba)'));
+    const abrir = abrirExt;
+    if (outros.length && S.util && S.util.faixaAbas) {
+      return el('section', { class: 'caixa-externa', 'aria-label': 'Onde consultar' },
+        el(o.nivel || 'h2', null, principal ? 'Onde consultar' : 'Períodos anteriores em outros sistemas'),
+        principal ? null : el('p', null, 'Os dados desta página são publicados neste portal. Os períodos abaixo estão nos endereços indicados pelo órgão:'),
+        abasExternas(principal, outros, o));
+    }
     return el('section', { class: 'caixa-externa', 'aria-label': 'Onde consultar' },
       principal ? [
         el(o.nivel || 'h2', null, outros.length ? 'Onde consultar' : 'Informação publicada em outro sistema'),
@@ -410,11 +463,13 @@
   // Página do portal com outros endereços (anos anteriores em outro sistema): quadro logo abaixo do título.
   function quadroOutrosPeriodos(main, rota) {
     const k = window.chaveDaRotaPNTP(rota);
-    if (!k || window.externoPNTP(S.conf, k) || !window.outrosLinksPNTP(S.conf, k).length || main.querySelector('.caixa-externa')) return;
+    if (!k || window.externoPNTP(S.conf, k) || !window.outrosLinksPNTP(S.conf, k).length || main.querySelector('.caixa-externa:not([aria-label="Publicado em outro sistema"])')) return;
+    // Os endereços que já foram para as abas de ano (como as declarações) não se repetem no alto.
+    const caixa = S.caixaExterna(k, { excluir: S.linksEmAbas });
     const h1 = main.querySelector('h1');
-    if (!h1) return;
+    if (!h1 || !caixa) return;
     const depois = h1.nextElementSibling && h1.nextElementSibling.classList.contains('sub') ? h1.nextElementSibling : h1;
-    depois.after(S.caixaExterna(k));
+    depois.after(caixa);
   }
 
   let primeiraRota = true;
@@ -429,14 +484,17 @@
     const ext = chavePagina && (S.conf.destinos || {})[chavePagina];
     // Um só destino (link externo sem outros endereços): vai direto, sem página intermediária. Com
     // vários endereços, a página explica cada um. replace: o "voltar" não cai de novo aqui.
-    if (ext && !window.outrosLinksPNTP(S.conf, chavePagina).length) {
+    if (ext && !window.ocultaPNTP(S.conf, chaveRota) && !window.outrosLinksPNTP(S.conf, chavePagina).length) {
       main.replaceChildren(el('p', { class: 'limite carregando' }, 'Abrindo ', el('a', { href: ext }, ext), '…'));
       location.replace(ext);
       return;
     }
-    const pagina = ext ? paginaExterna(ext, chavePagina) : S.rotas[nome] || S.rotas['*'];
+    // Página que o órgão escolheu não exibir no site: responde como página inexistente.
+    const oculta = !!chaveRota && window.ocultaPNTP(S.conf, chaveRota);
+    const pagina = oculta ? S.rotas['*'] : ext ? paginaExterna(ext, chavePagina) : S.rotas[nome] || S.rotas['*'];
     main.replaceChildren(el('p', { class: 'limite carregando' }, 'Carregando…'));
     S.trilha();
+    S.linksEmAbas.clear();
     try { await pagina(main, partes.slice(1), params); if (!ext) quadroOutrosPeriodos(main, partes.join('/')); }
     catch (e) {
       console.error(e);
@@ -449,6 +507,95 @@
 
   // ---------- exportação (dados abertos e "gravação de relatórios" do PNTP) ----------
   // buscar(de, ate) devolve as linhas daquele intervalo; baixa em lotes de 1000.
+  // Formatos: CSV, JSON, XML e XLSX (dados abertos), PDF e Imprimir (relatório para ler).
+  const FORMATOS_EXPORTAR = [['csv', 'CSV'], ['json', 'JSON'], ['xml', 'XML'], ['xlsx', 'XLSX'], ['pdf', 'PDF'], ['imprimir', 'Imprimir']];
+  const carregarScript = (src) => new Promise((ok, erro) => {
+    if (document.querySelector('script[src="' + src + '"]')) return ok();
+    const sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = erro; document.head.append(sc);
+  });
+  const textoCelula = (v) => v === null || v === undefined ? '' : typeof v === 'boolean' ? (v ? 'Sim' : 'Não') : Array.isArray(v) ? v.join(', ') : String(v);
+  const escXml = (v) => textoCelula(v).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const nomeXml = (k) => { const n = String(k).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9_.-]/g, '_'); return /^[A-Za-z_]/.test(n) ? n : '_' + n; };
+  const dataHoraBR = () => new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  const tituloArquivo = (nome) => String(nome).replace(/[-_]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
+
+  // XLSX sem biblioteca: planilha única, textos em linha, números como número; zip sem compressão.
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = (b) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  function zipArmazenado(arquivos) {
+    const enc = new TextEncoder(), partes = [], centrais = [];
+    let pos = 0;
+    for (const [nome, texto] of arquivos) {
+      const nb = enc.encode(nome), dados = enc.encode(texto), crc = crc32(dados);
+      const loc = new DataView(new ArrayBuffer(30));
+      loc.setUint32(0, 0x04034b50, true); loc.setUint16(4, 20, true); loc.setUint16(6, 0x0800, true); loc.setUint16(8, 0, true);
+      loc.setUint32(14, crc, true); loc.setUint32(18, dados.length, true); loc.setUint32(22, dados.length, true); loc.setUint16(26, nb.length, true);
+      const cen = new DataView(new ArrayBuffer(46));
+      cen.setUint32(0, 0x02014b50, true); cen.setUint16(4, 20, true); cen.setUint16(6, 20, true); cen.setUint16(8, 0x0800, true);
+      cen.setUint32(16, crc, true); cen.setUint32(20, dados.length, true); cen.setUint32(24, dados.length, true); cen.setUint16(28, nb.length, true); cen.setUint32(42, pos, true);
+      partes.push(new Uint8Array(loc.buffer), nb, dados); centrais.push(new Uint8Array(cen.buffer), nb);
+      pos += 30 + nb.length + dados.length;
+    }
+    const tamCentral = centrais.reduce((t, x) => t + x.length, 0);
+    const fim = new DataView(new ArrayBuffer(22));
+    fim.setUint32(0, 0x06054b50, true); fim.setUint16(8, arquivos.length, true); fim.setUint16(10, arquivos.length, true);
+    fim.setUint32(12, tamCentral, true); fim.setUint32(16, pos, true);
+    return new Blob([...partes, ...centrais, new Uint8Array(fim.buffer)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+  function gerarXlsx(cab, linhas) {
+    const col = (i) => { let s = ''; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+    const celula = (v, r, c, estilo) => typeof v === 'number' && isFinite(v)
+      ? '<c r="' + col(c) + r + '"><v>' + v + '</v></c>'
+      : '<c r="' + col(c) + r + '" t="inlineStr"' + (estilo ? ' s="1"' : '') + '><is><t xml:space="preserve">' + escXml(v) + '</t></is></c>';
+    const larguras = cab.map((h, i) => Math.min(60, Math.max(10, String(h).length + 2, ...linhas.slice(0, 200).map((l) => textoCelula(l[i]).length + 2))));
+    const folha = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+      + '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+      + '<cols>' + larguras.map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>').join('') + '</cols><sheetData>'
+      + '<row r="1">' + cab.map((h, i) => celula(h, 1, i, true)).join('') + '</row>'
+      + linhas.map((l, r) => '<row r="' + (r + 2) + '">' + l.map((v, i) => celula(v, r + 2, i)).join('') + '</row>').join('')
+      + '</sheetData>' + (linhas.length ? '<autoFilter ref="A1:' + col(cab.length - 1) + (linhas.length + 1) + '"/>' : '') + '</worksheet>';
+    return zipArmazenado([
+      ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+      ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+      ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Dados" sheetId="1" r:id="rId1"/></sheets>' + (linhas.length ? '<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">Dados!$A$1:$' + col(cab.length - 1) + '$' + (linhas.length + 1) + '</definedName></definedNames>' : '') + '</workbook>'],
+      ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+      ['xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
+      ['xl/worksheets/sheet1.xml', folha]
+    ]);
+  }
+  // Relatório para ler (PDF e impressão): título, órgão, data de geração e a tabela.
+  function htmlRelatorio(titulo, cab, linhas) {
+    const orgao = S.conf.nome_exibicao || S.orgao.nome;
+    return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>' + escXml(titulo) + '</title><style>'
+      + '@page{size:A4 landscape;margin:12mm}body{font:10px/1.35 Arial,Helvetica,sans-serif;color:#111;margin:0}'
+      + 'h1{font-size:15px;margin:0 0 2px}p{margin:0 0 8px;color:#444}table{border-collapse:collapse;width:100%}'
+      + 'th,td{border:1px solid #999;padding:3px 4px;text-align:left;vertical-align:top}th{background:#e8e8e8}thead{display:table-header-group}tr{page-break-inside:avoid}'
+      + '</style></head><body><h1>' + escXml(titulo) + '</h1><p>' + escXml(orgao) + ' · ' + linhas.length + ' registro(s) · gerado em ' + escXml(dataHoraBR()) + ' · ' + escXml(location.href) + '</p>'
+      + '<table><thead><tr>' + cab.map((h) => '<th>' + escXml(h) + '</th>').join('') + '</tr></thead><tbody>'
+      + linhas.map((l) => '<tr>' + l.map((v) => '<td>' + escXml(v) + '</td>').join('') + '</tr>').join('')
+      + '</tbody></table></body></html>';
+  }
+  function imprimir(titulo, cab, linhas) {
+    const fr = el('iframe', { title: 'Impressão', style: 'position:fixed;right:0;bottom:0;width:0;height:0;border:0' });
+    document.body.append(fr);
+    const d = fr.contentWindow.document;
+    d.open(); d.write(htmlRelatorio(titulo, cab, linhas)); d.close();
+    setTimeout(() => { fr.contentWindow.focus(); fr.contentWindow.print(); setTimeout(() => fr.remove(), 60000); }, 300);
+  }
+  async function gerarPdf(titulo, cab, linhas) {
+    await carregarScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+    await carregarScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js');
+    const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const orgao = S.conf.nome_exibicao || S.orgao.nome;
+    doc.setFontSize(13); doc.text(titulo, 12, 14);
+    doc.setFontSize(8); doc.setTextColor(80); doc.text(orgao + ' · ' + linhas.length + ' registro(s) · gerado em ' + dataHoraBR(), 12, 19);
+    doc.autoTable({ head: [cab], body: linhas.map((l) => l.map(textoCelula)), startY: 23, margin: { left: 12, right: 12 },
+      styles: { fontSize: cab.length > 10 ? 6 : 7, cellPadding: 1.2, overflow: 'linebreak' }, headStyles: { fillColor: [230, 230, 230], textColor: 20 },
+      didDrawPage: () => { doc.setFontSize(7); doc.setTextColor(120); doc.text('Página ' + doc.internal.getNumberOfPages(), doc.internal.pageSize.getWidth() - 12, doc.internal.pageSize.getHeight() - 6, { align: 'right' }); } });
+    return doc.output('blob');
+  }
+
   S.exportar = async function (nomeArquivo, formato, colunas, buscar, botao) {
     const original = botao ? botao.textContent : '';
     if (botao) { botao.disabled = true; botao.textContent = 'Gerando…'; }
@@ -459,21 +606,37 @@
         todas = todas.concat(lote);
         if (lote.length < 1000) break;
       }
+      const valor = ([k, , f], r) => f ? f(r[k], r) : r[k];
+      const cab = colunas.map((c) => c[1]);
+      const linhas = () => todas.map((r) => colunas.map((c) => valor(c, r)));
+      const titulo = tituloArquivo(nomeArquivo);
       let conteudo, tipo;
+      if (formato === 'imprimir') { imprimir(titulo, cab, linhas()); return; }
       if (formato === 'json') {
-        conteudo = JSON.stringify(todas.map((r) => Object.fromEntries(colunas.map(([k, rot, f]) => [k, f ? f(r[k], r) : r[k]]))), null, 2);
+        conteudo = JSON.stringify(todas.map((r) => Object.fromEntries(colunas.map((c) => [c[0], valor(c, r)]))), null, 2);
         tipo = 'application/json';
+      } else if (formato === 'xml') {
+        conteudo = '<?xml version="1.0" encoding="UTF-8"?>\n<dados orgao="' + escXml(S.conf.nome_exibicao || S.orgao.nome) + '" conjunto="' + escXml(nomeArquivo)
+          + '" gerado_em="' + new Date().toISOString() + '" registros="' + todas.length + '">\n'
+          + todas.map((r) => '  <registro>\n' + colunas.map((c) => '    <' + nomeXml(c[0]) + ' rotulo="' + escXml(c[1]) + '">' + escXml(valor(c, r)) + '</' + nomeXml(c[0]) + '>').join('\n') + '\n  </registro>').join('\n')
+          + '\n</dados>\n';
+        tipo = 'application/xml';
+      } else if (formato === 'xlsx') {
+        conteudo = gerarXlsx(cab, linhas());
+      } else if (formato === 'pdf') {
+        conteudo = await gerarPdf(titulo, cab, linhas());
       } else {
-        const esc = (v) => { const s = v === null || v === undefined ? '' : String(v); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-        conteudo = '﻿' + [colunas.map((c) => esc(c[1])).join(';')]
-          .concat(todas.map((r) => colunas.map(([k, , f]) => esc(f ? f(r[k], r) : r[k])).join(';'))).join('\r\n');
+        const esc = (v) => { const s = textoCelula(v); return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+        conteudo = '﻿' + [cab.map(esc).join(';')].concat(linhas().map((l) => l.map(esc).join(';'))).join('\r\n');
         tipo = 'text/csv;charset=utf-8';
       }
-      const url = URL.createObjectURL(new Blob([conteudo], { type: tipo }));
+      const blob = conteudo instanceof Blob ? conteudo : new Blob([conteudo], { type: tipo });
+      const url = URL.createObjectURL(blob);
       const a = el('a', { href: url, download: nomeArquivo + '.' + formato });
       document.body.append(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (e) {
+      console.error(e);
       alert('Não foi possível gerar o arquivo. Tente novamente.');
     } finally {
       if (botao) { botao.disabled = false; botao.textContent = original; }
@@ -481,8 +644,8 @@
   };
   S.botoesExportar = (nome, colunas, buscar) => el('span', { class: 'exportar' },
     el('span', { class: 'meta' }, 'Baixar: '),
-    ['csv', 'json'].map((f) => {
-      const b = el('button', { type: 'button', class: 'botao botao-claro', style: 'padding:6px 12px;margin-left:6px' }, f.toUpperCase());
+    FORMATOS_EXPORTAR.map(([f, rot]) => {
+      const b = el('button', { type: 'button', class: 'botao botao-claro', style: 'padding:6px 12px;margin-left:6px', 'aria-label': f === 'imprimir' ? 'Imprimir a lista' : 'Baixar em ' + rot }, rot);
       b.addEventListener('click', () => S.exportar(nome, f, colunas, buscar, b));
       return b;
     }));
@@ -501,7 +664,24 @@
       }
       return this.cache.lista;
     },
-    async de(chaves) { const ks = [].concat(chaves || []); return (await this.todas()).filter((d) => ks.includes(d.secao)); },
+    // Junta às declarações os outros endereços com exercício informado (Aparência › Destinos): cada ano
+    // coberto vira aba do ano, como a declaração, com o endereço no lugar da lista (ou junto dela).
+    async de(chaves) { const ks = [].concat(chaves || []); return (await this.todas()).filter((d) => ks.includes(d.secao)).concat(this.links(ks)); },
+    links(ks) {
+      const r = [];
+      for (const k of ks) for (const l of window.outrosLinksPNTP(S.conf, k)) {
+        const a = Number(l.de || l.ate), b = Number(l.ate || l.de);
+        if (!a) continue;
+        S.linksEmAbas.add(l.url);
+        for (let ano = Math.min(a, b); ano <= Math.max(a, b) && ano - Math.min(a, b) < 40; ano++) {
+          if (!r.some((x) => x.link.url === l.url && x.exercicio === ano)) {
+            r.push({ secao: k, abrangencia: 'ano', exercicio: ano, data_inicio: ano + '-01-01', data_fim: ano + '-12-31', link: l, texto: '' });
+          }
+        }
+      }
+      return r;
+    },
+    reais: (lista) => lista.filter((d) => !d.link),
     atual: (lista) => lista.find((d) => d.abrangencia === 'atual') || null,
     doAno: (lista, ano) => lista.filter((d) => d.abrangencia !== 'atual' && Number(d.exercicio) === Number(ano)),
     // Declarações que tocam o mês (o mês inteiro ou parte dele).
@@ -518,7 +698,11 @@
     },
     // Quadro com as declarações (titulo opcional). Lista vazia: nada.
     quadro(lista, titulo) {
-      if (!lista.length) return '';
+      const links = lista.filter((d) => d.link);
+      lista = lista.filter((d) => !d.link);
+      const ext = links.length ? S.quadroLinks(links) : '';
+      if (!lista.length) return ext;
+      if (ext) return el('div', null, this.quadro(lista, titulo), ext);
       const linha = (d) => el('li', null, d.abrangencia === 'atual' || d.abrangencia === 'ano' ? '' : el('strong', null, window.periodoDeclaracaoPNTP(d) + ': '), d.texto,
         el('span', { class: 'meta' }, ' (declaração registrada em ' + dataBR(String(d.criado_em).slice(0, 10)) + ')'));
       const ul = el('ul', { class: 'declaracoes-lista' }, lista.slice(0, 8).map(linha));
@@ -597,7 +781,11 @@
       sb.from('menu_itens').select('*').eq('orgao_id', o.id).eq('ativo', true).limit(200),
       sb.from('lgpd').select('*').eq('orgao_id', o.id).maybeSingle()
     ]);
-    S.menu = menu.data || [];
+    // Itens do menu que levam a uma página oculta saem (e o grupo que ficar sem subitens também).
+    const visivel = (i) => !(i.tipo === 'interno' && S.oculta('#' + String(i.destino || '').replace(/^#/, '')));
+    const itensMenu = (menu.data || []).filter(visivel);
+    const ocultos = new Set((menu.data || []).filter((i) => !visivel(i)).map((i) => i.id));
+    S.menu = itensMenu.filter((i) => !(ocultos.size && (menu.data || []).some((f) => f.pai_id === i.id) && !itensMenu.some((f) => f.pai_id === i.id)));
     S.lgpd = lgpd.data || null;
     montarMenu();
     montarFaixaTopo();

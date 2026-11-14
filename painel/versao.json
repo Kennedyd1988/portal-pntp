@@ -1,13 +1,13 @@
 {
-  "versao": "0.26.0",
+  "versao": "0.27.0",
   "data": "2026-11-14",
   "notas": [
+    "Aparência › Destinos das páginas: nova opção \"Não exibir no site\" em qualquer página (some do menu, da Transparência, do mapa do site e da busca; o endereço responde \"página não encontrada\"). Os dados ficam guardados.",
+    "Site: quando a página tem mais de um endereço externo, cada exercício vira aba, como as declarações de que não há dados (o endereço aparece dentro da aba do ano). Página toda externa com vários endereços: abas \"Atual\", um ano por aba e \"Outros\".",
+    "Site: todas as listas exportam também em XML, XLSX (planilha) e PDF, e têm o botão Imprimir.",
+    "Câmara: diária pode indicar o vereador que a recebeu; emenda municipal (Prefeitura) pode indicar o vereador autor. A página do vereador e a Atividade dos vereadores (20.11) mostram diárias e emendas. Rodar o script 36.",
     "Galeria de vídeos: aba Vídeos em Notícias, banners e avisos; página Vídeos no site e bloco \"Galeria multimídia\" na página inicial (vídeo em destaque tocando ali mesmo e os três seguintes ao lado). Rodar o script 35.",
     "Site: página com um só destino externo abre direto, sem a tela \"Informação publicada em outro sistema\" (com vários endereços, a tela continua explicando cada um).",
-    "Câmara Municipal: módulo Atividade legislativa (vereadores, proposições com autoria e tramitação, sessões com pauta, ata, presenças e votações nominais, comissões, verba indenizatória e transmissão), páginas no site, menu padrão da Câmara e autoavaliação PNTP da matriz do Legislativo (20.1 a 20.11). Rodar os scripts 34 e depois o 26 de novo.",
-    "Endereço oficial da plataforma: https://portal-pntp.pages.dev (o endereço antigo do GitHub leva para lá). Entre de novo no painel uma vez no endereço novo.",
-    "Usuários: só o Administrador do órgão e o Suporte SOFT+ veem a página (o Gestor de conteúdo via por engano). Rodar o script 32.",
-    "Migração do site antigo: ritmo gentil (no máximo 2 leituras por vez, com intervalo) e pausa automática quando o site antigo para de responder, para não ser bloqueado.",
-    "Migração do site antigo: novas seções — atas de registro de preços, audiências públicas, obras com medições, secretarias e responsáveis, perguntas frequentes e páginas avulsas (com subpáginas e arquivos, entram como rascunho para revisar)."
+    "Câmara Municipal: módulo Atividade legislativa (vereadores, proposições com autoria e tramitação, sessões com pauta, ata, presenças e votações nominais, comissões, verba indenizatória e transmissão), páginas no site, menu padrão da Câmara e autoavaliação PNTP da matriz do Legislativo (20.1 a 20.11). Rodar os scripts 34 e depois o 26 de novo."
   ]
 }

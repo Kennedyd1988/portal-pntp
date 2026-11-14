@@ -205,11 +205,27 @@
   // ===================================================================
   // 7.1 DIÁRIAS CONCEDIDAS · 7.2 TABELA DE VALORES
   // ===================================================================
+  // Câmara: a diária pode indicar o vereador que a recebeu (aparece na página dele no site, PNTP 20.11).
+  const normalizar = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  let cacheVer = null;
+  async function vereadores() {
+    if (P.estado.orgao.tipo !== 'camara') return [];
+    if (!cacheVer || cacheVer.org !== org()) {
+      const { data } = await sb.from('parlamentares').select('id, nome, nome_parlamentar, em_exercicio').eq('orgao_id', org()).order('em_exercicio', { ascending: false }).order('nome').limit(300);
+      cacheVer = { org: org(), lista: data || [] };
+    }
+    return cacheVer.lista;
+  }
   function diarias(caixa) {
     let lst;
-    const abrir = (r) => S.formulario({ tabela: 'diarias', modulo: 'diarias', titulo: 'diária', perm, registro: r || { abrangencia: 'estado' }, depois: () => lst.recarregar(true),
+    const abrir = async (r) => {
+      const ver = await vereadores();
+      const opVer = Object.fromEntries(ver.map((v) => [v.id, (v.nome_parlamentar ? v.nome_parlamentar + ' (' + v.nome + ')' : v.nome) + (v.em_exercicio ? '' : ' · fora de exercício')]));
+      const campoVer = ver.length ? [{ k: 'parlamentar_id', r: 'Vereador', t: 'sel', op: opVer, vazio: 'Não é vereador', aj: 'Liga a diária à página do vereador no site. Em branco, o sistema liga sozinho quando o nome do beneficiário é igual ao de um vereador.' }] : [];
+      return S.formulario({ tabela: 'diarias', modulo: 'diarias', titulo: 'diária', perm, registro: r || { abrangencia: 'estado' }, depois: () => lst.recarregar(true),
       abas: [['dados', 'Diária', [
         [{ k: 'nome', r: 'Beneficiário', t: 'text', max: 200, ob: true, minimo: 3 }, { k: 'documento', r: 'CPF', t: 'doc', doc: 'cpf', aj: 'Só para conferência: não aparece no site.' }],
+        ...campoVer,
         [{ k: 'cargo', r: 'Cargo ou função', t: 'text', max: 150, ob: true, minimo: 2 }, { k: 'unidade', r: 'Unidade / secretaria', t: 'text', max: 200 }],
         [{ k: 'destino', r: 'Destino', t: 'text', max: 200, ob: true, minimo: 2, ph: 'Ex.: Natal/RN' }, { k: 'abrangencia', r: 'Abrangência', t: 'sel', op: ABR_DIARIA }],
         { k: 'motivo', r: 'Motivo da viagem', t: 'area', max: 1000, ob: true, minimo: 3, linhas: 2 },
@@ -221,8 +237,13 @@
         const e = datasOk(d, 'data_inicio', 'data_fim', 'O retorno não pode ser antes da saída.'); if (e) return e;
         if (!(d.quantidade > 0)) return ['quantidade', 'Informe o número de diárias.'];
         if (d.valor_total === null) { if (d.valor_unitario === null) return ['valor_total', 'Informe o valor total ou o valor da diária.']; d.valor_total = Math.round(d.quantidade * d.valor_unitario * 100) / 100; }
+        if (ver.length && !d.parlamentar_id) {
+          const iguais = ver.filter((v) => [v.nome, v.nome_parlamentar].some((x) => x && normalizar(x) === normalizar(d.nome)));
+          if (iguais.length === 1) d.parlamentar_id = iguais[0].id;
+        }
         return null;
       } });
+    };
     const resumo = (ano) => {
       const box = el('div', { class: 'ajuda', style: 'margin:6px 0 10px' });
       sb.from('diarias').select('valor_total, quantidade').eq('orgao_id', org()).eq('exercicio', ano).limit(10000).then(({ data }) => {

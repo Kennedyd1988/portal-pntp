@@ -162,14 +162,20 @@
     // Para cada página: "Página do portal" (cadastro/importação) ou "Link externo".
     const D = window.DESTINOS_PNTP || [];
     const destinosCfg = cfg.destinos || {};
+    const ocultasCfg = Array.isArray(cfg.paginas_ocultas) ? cfg.paginas_ocultas : [];
     const destinos = D.filter(([chave]) => window.aplicavelPNTP(chave)).map(([chave, rotulo, rota, cod, grupo]) => {
       const usaLink = !!destinosCfg[chave] || !rota;
+      const oculta = ocultasCfg.includes(chave);
       const modo = el('select', { 'aria-label': 'Destino de ' + rotulo },
-        rota ? el('option', { value: 'portal', selected: !usaLink }, 'Página do portal') : null,
-        el('option', { value: 'link', selected: usaLink }, 'Link externo'));
+        rota ? el('option', { value: 'portal', selected: !usaLink && !oculta }, 'Página do portal') : null,
+        el('option', { value: 'link', selected: usaLink && !oculta }, 'Link externo'),
+        el('option', { value: 'oculta', selected: oculta }, 'Não exibir no site'));
       const url = texto(destinosCfg[chave] || '', { type: 'url', placeholder: rota ? 'https://…' : 'Em branco: usa o Portal da Transparência externo', id: 'ap-dest-' + chave });
-      const ajustar = () => { url.hidden = modo.value !== 'link'; };
-      modo.addEventListener('change', ajustar); ajustar();
+      const avisoOculta = el('p', { class: 'msg msg-falta mt-05', hidden: true },
+        'A página some do site: menu, Transparência, mapa do site e busca deixam de mostrá-la e o endereço responde "página não encontrada". ',
+        cod ? 'Item ' + cod + ' do PNTP: o avaliador não vai encontrar, e o item não pontua. ' : '', 'Os dados cadastrados ficam guardados.');
+      const ajustar = () => { url.hidden = modo.value !== 'link'; avisoOculta.hidden = modo.value !== 'oculta'; d.lista.hidden = modo.value === 'oculta'; if (d.botaoOutro) d.botaoOutro.hidden = !podeEditar || modo.value === 'oculta'; };
+      modo.addEventListener('change', ajustar);
       // Outros endereços da mesma página (portal de anos anteriores, sistema antigo ou complementar):
       // cada um com a explicação e os exercícios que cobre. Valem com "Página do portal" ou com link.
       const d = { chave, rotulo, rota, cod, grupo, modo, url, outros: [], lista: el('div', { class: 'outros-enderecos' }) };
@@ -193,6 +199,8 @@
       };
       for (const l of (cfg.destinos_links || {})[chave] || []) novoOutro(l);
       d.botaoOutro = rota ? el('button', { type: 'button', class: 'link', hidden: !podeEditar, onclick: () => novoOutro({}).descricao.focus() }, '+ Outro endereço (outro período ou sistema)') : null;
+      d.avisoOculta = avisoOculta;
+      ajustar();
       return d;
     });
     const tabelaDestinos = el('div', null, [...new Set(destinos.map((d) => d.grupo))].map((g) => el('div', null, el('h3', { class: 'destinos-grupo' }, g),
@@ -201,7 +209,7 @@
         el('tbody', null, destinos.filter((d) => d.grupo === g).map((d) => el('tr', null,
           el('td', null, el('strong', null, d.rotulo), el('span', { class: 'sub-linha' }, d.rota ? 'Página do portal: ' + d.rota : 'Ainda não existe no portal: só link externo')),
           el('td', { class: 'num' }, d.cod || '—'), el('td', null, d.modo),
-          el('td', null, el('div', { class: 'campo m-0' }, d.url, el('span', { class: 'erro-campo', id: 'ap-dest-' + d.chave + '-erro' })), d.situacao, d.lista, d.botaoOutro)))))))));
+          el('td', null, el('div', { class: 'campo m-0' }, d.url, el('span', { class: 'erro-campo', id: 'ap-dest-' + d.chave + '-erro' })), d.avisoOculta, d.situacao, d.lista, d.botaoOutro)))))))));
 
     // Situação de cada endereço externo na última verificação diária (script 27).
     const dataHora = (t) => t ? new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
@@ -276,7 +284,7 @@
             campo('ap-whatsapp', 'WhatsApp de atendimento', f.whatsapp)))],
         ['destinos', 'Destinos das páginas', el('section', { class: 'cartao' },
           el('h2', null, 'Para onde cada página leva'),
-          el('p', { class: 'ajuda' }, 'Escolha, para cada página, se ela fica no próprio portal (cadastro ou importação) ou num sistema externo. Menu, capa da Transparência, página inicial, mapa do site e busca seguem esta tabela: nenhum botão leva a um lugar diferente do outro.'),
+          el('p', { class: 'ajuda' }, 'Escolha, para cada página, se ela fica no próprio portal (cadastro ou importação), num sistema externo ou se não deve aparecer no site ("Não exibir no site"). Menu, capa da Transparência, página inicial, mapa do site e busca seguem esta tabela: nenhum botão leva a um lugar diferente do outro.'),
           el('p', { class: 'msg msg-info' }, 'Mais de um endereço para a mesma página (ex.: o portal atual e o de anos anteriores, de outra empresa): use "+ Outro endereço" e explique do que se trata e quais exercícios ele cobre. ',
             'O site mostra todos, explicados, na própria página. Na autoavaliação, os exercícios informados contam na série histórica. Todo endereço externo é conferido uma vez por dia: aqui aparece se ele respondeu na última verificação.'),
           campo('ap-transparencia', 'Portal da Transparência externo (geral)', f.transparencia_url, 'Usado pelas páginas que ainda não existem no portal e estão sem link próprio (receitas, despesas, folha…).'),
@@ -339,6 +347,7 @@
         const u = d.modo.value === 'link' ? d.url.value.trim() : '';
         if (d.modo.value === 'link' && d.rota && !erroCampo('ap-dest-' + d.chave, u ? '' : 'Informe o link externo ou escolha "Página do portal".')) return;
         if (!erroCampo('ap-dest-' + d.chave, urlValida(u) ? '' : 'Informe o endereço completo, começando com https://')) return;
+        if (d.modo.value === 'oculta') continue;
         for (const o of d.outros) {
           const de = +o.de.value || null, ate = +o.ate.value || null, ou = o.url.value.trim();
           if (!erroCampo(o.base + '-d', o.descricao.value.trim().length >= 10 ? '' : 'Explique do que se trata este endereço (mínimo de 10 letras).')) return;
@@ -360,8 +369,10 @@
         const faviconUrl = await imagemNova(favicon), radarUrl = await imagemNova(radarImg);
         const destinosGravar = {};
         const linksGravar = {};
+        const ocultasGravar = [];
         for (const d of destinos) {
           if (d.modo.value === 'link' && d.url.value.trim()) destinosGravar[d.chave] = d.url.value.trim();
+          if (d.modo.value === 'oculta') { ocultasGravar.push(d.chave); if ((cfg.destinos_links || {})[d.chave]) linksGravar[d.chave] = cfg.destinos_links[d.chave]; continue; }
           if (d.outros.length) linksGravar[d.chave] = d.outros.map((o) => ({ descricao: o.descricao.value.trim(), de: +o.de.value, ate: +o.ate.value || +o.de.value, url: o.url.value.trim() }));
         }
         const selosAntigos = (Array.isArray(cfg.selos) ? cfg.selos : []).map((x) => x.imagem_url).filter(Boolean);
@@ -374,7 +385,7 @@
           diario_oficial_nome: v('diario_nome'), diario_oficial_url: v('diario_url'),
           transparencia_url: v('transparencia_url'), licitacoes_url: v('licitacoes_url'),
           estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url'),
-          selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, radar_url: radarLink.value.trim() || null, destinos: destinosGravar, destinos_links: linksGravar
+          selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, radar_url: radarLink.value.trim() || null, destinos: destinosGravar, destinos_links: linksGravar, paginas_ocultas: ocultasGravar
         });
         const { data, error: e2 } = await sb.from('orgaos')
           .update({ configuracoes: novaCfg, dominio: dominio || null })

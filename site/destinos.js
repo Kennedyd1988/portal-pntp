@@ -223,9 +223,18 @@ window.aplicavelPNTP = function (chave) {
   if (/^(receitas_divida_ativa|emendas|renuncias|saude|educacao)/.test(chave)) return tipo === 'prefeitura';
   return true;
 };
+// Páginas que o órgão escolheu não exibir no site (Aparência › Destinos: "Não exibir no site").
+// A parte segue a página inteira ("saude_espera" some com "saude").
+window.ocultaPNTP = function (conf, chave) {
+  const o = (conf || {}).paginas_ocultas;
+  if (!Array.isArray(o) || !o.length || !chave) return false;
+  if (o.includes(chave)) return true;
+  const pai = window.paiPNTP(chave);
+  return !!(pai && o.includes(pai));
+};
 window.destinoPNTP = function (conf, chave) {
   const d = window.DESTINOS_PNTP.find((x) => x[0] === chave);
-  if (!d || !window.aplicavelPNTP(chave)) return null;
+  if (!d || !window.aplicavelPNTP(chave) || window.ocultaPNTP(conf, chave)) return null;
   const ext = window.externoPNTP(conf, chave);
   // Mais de um endereço: vai para a página do portal, que lista e explica cada um.
   if (ext && d[2] && window.outrosLinksPNTP(conf, chave).length) return { href: '#' + d[2], externo: false, rotulo: d[1] };

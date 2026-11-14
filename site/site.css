@@ -167,6 +167,9 @@ a.cartao:hover { border-color: #9fb3c8; box-shadow: var(--sombra); color: var(--
 .filtros label { display: flex; flex-direction: column; font-size: .8rem; font-weight: 600; color: var(--texto-suave); gap: 4px; min-width: 0; }
 .filtros input, .filtros select { height: 44px; border: 1px solid var(--linha); border-radius: 8px; padding: 0 12px; font: inherit; font-size: .95rem; background: #fff; color: var(--texto); min-width: 0; }
 .barra-lista { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.exportar { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+.caixa-externa .abas-guia { margin-top: 8px; }
+.caixa-externa .painel-guia { padding-top: 10px; }
 .tabela-caixa { overflow-x: auto; border: 1px solid var(--linha); border-radius: var(--raio); position: relative; }
 table.tabela { width: 100%; border-collapse: collapse; font-size: .95rem; min-width: 640px; }
 .tabela th { text-align: left; background: var(--fundo); font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-suave); padding: 10px 12px; border-bottom: 1px solid var(--linha); }

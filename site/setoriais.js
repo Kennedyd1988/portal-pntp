@@ -41,7 +41,7 @@
     // (documentos, estoque, tabelas…), num quadro no alto.
     const decl = await S.decl.de(chave);
     const atual = S.decl.atual(decl);
-    if (atual || (s.sem_ocorrencia && !decl.length)) {
+    if (atual || (s.sem_ocorrencia && !S.decl.reais(decl).length)) {
       caixa.replaceChildren(atual ? S.decl.cartaoAtual(atual) : el('div', { class: 'cartao' }, el('p', null, el('strong', null, declaracao)),
         el('p', { class: 'meta' }, 'Declaração registrada em ' + dataBR(String(s.atualizado_em || '').slice(0, 10)) + '.')));
       return;

@@ -213,7 +213,7 @@
     contratos_fiscais: 'fiscais do contrato', despesas: 'empenhos (despesas)', despesas_movimentos: 'liquidações e pagamentos do empenho',
     ordem_cronologica: 'pagamentos na ordem cronológica', pessoal_terceirizados: 'terceirizados', obras: 'obras',
     obras_itens: 'itens da planilha da obra', obras_medicoes: 'medições da obra', obras_paralisacoes: 'paralisações da obra',
-    emendas: 'emendas parlamentares', concursos_documentos: 'edital e atos da seleção', conselhos_documentos: 'documentos do conselho',
+    emendas: 'emendas parlamentares', diarias: 'diárias concedidas', concursos_documentos: 'edital e atos da seleção', conselhos_documentos: 'documentos do conselho',
     conselhos_membros: 'membros do conselho', renuncias_valores: 'valores previstos e realizados da renúncia',
     renuncias_beneficiarios: 'beneficiários da renúncia', saude_profissionais: 'profissionais do estabelecimento',
     saude_estoques: 'estoques do medicamento', banners: 'banners', gestores: 'gestores', noticias: 'notícias',
