@@ -53,7 +53,7 @@ create table if not exists public.plataforma_config (
 alter table public.plataforma_config enable row level security;   -- sem regras: ninguém lê pela API
 insert into public.plataforma_config (chave, valor) values
   ('smtp', '{"ativo": false}'),
-  ('site_base', '"https://kennedyd1988.github.io/portal-pntp/site/"'),
+  ('site_base', '"https://portal-pntp.pages.dev/site/"'),
   ('sal_origem', to_jsonb(encode(extensions.gen_random_bytes(24), 'hex'))),
   ('emails_url', '"https://gyjfkhyufubtmowgjgrq.supabase.co/functions/v1/atendimento-emails"')
 on conflict (chave) do nothing;

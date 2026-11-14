@@ -17,7 +17,7 @@
   'use strict';
   if (window.__softColetor) { window.__softColetor.anunciar(); return; }
   const script = document.currentScript;
-  const SRC = script ? script.src : 'https://kennedyd1988.github.io/portal-pntp/painel/coletor.js';
+  const SRC = script ? script.src : 'https://portal-pntp.pages.dev/painel/coletor.js';
   const PAINEL = new URL(SRC).origin;
   // Com quem conversa: a aba do painel que abriu esta (window.opener) ou, se o site
   // foi aberto direto, o painel embutido aqui mesmo numa moldura (login pedido nela).

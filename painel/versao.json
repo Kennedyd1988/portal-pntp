@@ -1,7 +1,8 @@
 {
-  "versao": "0.24.3",
+  "versao": "0.24.4",
   "data": "2026-11-14",
   "notas": [
+    "Endereço oficial da plataforma: https://portal-pntp.pages.dev (o endereço antigo do GitHub leva para lá). Entre de novo no painel uma vez no endereço novo.",
     "Usuários: só o Administrador do órgão e o Suporte SOFT+ veem a página (o Gestor de conteúdo via por engano). Rodar o script 32.",
     "Migração do site antigo: ritmo gentil (no máximo 2 leituras por vez, com intervalo) e pausa automática quando o site antigo para de responder, para não ser bloqueado.",
     "Migração do site antigo: novas seções — atas de registro de preços, audiências públicas, obras com medições, secretarias e responsáveis, perguntas frequentes e páginas avulsas (com subpáginas e arquivos, entram como rascunho para revisar).",

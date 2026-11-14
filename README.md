@@ -442,6 +442,11 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.24.4 — 14/11/2026 — Endereço oficial na Cloudflare Pages**
+- Site e painel em https://portal-pntp.pages.dev (projeto Cloudflare Pages ligado ao `main`; aceita vários domínios de
+  órgãos). O GitHub Pages redireciona para lá. Script 33 troca `site_base` dos e-mails. A raiz abre o site do órgão
+  quando o endereço é um domínio de órgão e o painel nos endereços da plataforma.
+
 **0.24.3 — 14/11/2026 — Usuários só para Administrador e Suporte**
 - Script 32: tira a permissão de Usuários (e de Migração) dos perfis que não são de administrador — o "Gestor de
   conteúdo" vinha com "ver" em Usuários — e trava para não voltar.
