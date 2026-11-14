@@ -442,6 +442,18 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.25.0 — 14/11/2026 — Câmara Municipal (matriz do Poder Legislativo, PNTP 2026)**
+- Script 34: vereadores (20.1), proposições com autoria, relatoria e tramitação (20.3), sessões do Plenário e
+  reuniões de comissão com pauta, ata, presenças, votações nominais e vídeo (20.4–20.7, 20.9), comissões e membros
+  (20.5), verba indenizatória com regulamentação (20.10) e atividade de cada vereador (20.11, montada das demais).
+  Leis/decretos legislativos (20.2) em Publicações; julgamento das contas do Prefeito (20.8) em Planejamento.
+- Módulos por tipo de órgão (`modulos.tipos_orgao`): Atividade legislativa só na Câmara; Saúde, Educação,
+  Renúncias e Emendas só na Prefeitura. Destinos e páginas do site seguem o tipo (`aplicavelPNTP`).
+- Autoavaliação: critérios 20.1–20.11 nas Câmaras (função `pntp_legislativo_itens`, chamada pelo 26).
+- Site: `site/legislativo.js` (#/parlamentares, #/parlamentar/:id, #/proposicoes, #/proposicao/:id, #/sessoes,
+  #/sessao/:id, #/comissoes, #/votacoes, #/verba-indenizatoria, #/atividade-parlamentar); menu padrão da Câmara.
+- Teste: `teste_camara_ficticia.sql`. Ordem em produção: rodar o 34 e depois o 26 de novo.
+
 **0.24.4 — 14/11/2026 — Endereço oficial na Cloudflare Pages**
 - Site e painel em https://portal-pntp.pages.dev (projeto Cloudflare Pages ligado ao `main`; aceita vários domínios de
   órgãos). O GitHub Pages redireciona para lá. Script 33 troca `site_base` dos e-mails. A raiz abre o site do órgão

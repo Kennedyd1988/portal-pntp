@@ -150,6 +150,12 @@
       ['ouvidoria', 'Ouvidoria', 'Elogios, sugestões e reclamações', 'ouvidoria'],
       ['esic', 'e-SIC', 'Pedido de acesso à informação', 'esic']
     ];
+    // Câmara: os acessos da atividade legislativa vêm primeiro (PNTP 20.x).
+    if (S.orgao.tipo === 'camara') acessos.splice(1, 0,
+      ['servicos', 'Vereadores', 'Composição e biografias', 'parlamentares'],
+      ['publicacoes', 'Projetos e proposições', 'Ementa, autoria e tramitação', 'proposicoes'],
+      ['diario', 'Sessões', 'Pautas, atas, presenças e vídeos', 'sessoes'],
+      ['licitacao', 'Votações', 'Voto de cada vereador', 'votacoes']);
     blocos.push(el('section', { class: 'secao', 'aria-labelledby': 'tit-acessos' }, el('div', { class: 'limite' },
       el('h2', { id: 'tit-acessos' }, 'Serviços e acessos rápidos'),
       el('div', { class: 'grade g4 acessos' }, acessos.map(([ic, t, d, chave, h]) => {
@@ -1224,7 +1230,7 @@
     if (exec || cons) plan.push(L('RREO', '11.6', '#/planejamento/rreo'));
     plan.push(L('RGF', '11.5', '#/planejamento/rgf'), L('Prestação de contas anual (Balanço)', '11.1', '#/planejamento/balanco'),
       L('Relatório de gestão ou atividades', '11.2', '#/planejamento/relatorio_gestao'), L('Parecer do Tribunal de Contas', '11.3', '#/planejamento/parecer_tce'));
-    if (exec) plan.push(L('Julgamento das contas pela Câmara', '11.4', '#/planejamento/julgamento_camara'));
+    if (exec || cam) plan.push(L(exec ? 'Julgamento das contas pela Câmara' : 'Julgamento das contas do Prefeito', exec ? '11.4' : '20.8', '#/planejamento/julgamento_camara'));
     plan.push(L('Plano estratégico institucional', '11.7', '#/planejamento/plano_estrategico'));
     const receita = [L('Receitas previstas e arrecadadas', '3.1', '#/receitas/arrecadacao'), L('Receita por natureza (classificação)', '3.2', '#/receitas/arrecadacao')];
     if (exec) receita.push(L('Inscritos em dívida ativa', '3.3', '#/receitas/divida-ativa'));
@@ -1259,9 +1265,11 @@
           L('Conselho do Fundeb', '19.3', '#/educacao/fundeb'), L('Conselho de Assistência Social', '19.4', '#/educacao/assistencia-social'), L('Todos os conselhos municipais', '', '#/conselhos')]]);
     }
     if (cam) {
-      g.push(['Atividade legislativa', 'legis', [L('Vereadores e biografias', '20.1'), L('Leis e atos produzidos', '20.2', '#/publicacoes'), L('Projetos e tramitação', '20.3'), L('Pauta do plenário e comissões', '20.4–20.5'),
-        L('Atas e presenças', '20.6'), L('Votações nominais', '20.7'), L('Julgamento das contas do Executivo', '20.8', '#/planejamento/julgamento_camara')]],
-        ['Participação e verbas', 'play', [L('Transmissão das sessões', '20.9'), L('Cota parlamentar / verba indenizatória', '20.10'), L('Atividades dos vereadores', '20.11')]]);
+      g.push(['Atividade legislativa', 'legis', [L('Vereadores e biografias', '20.1', undefined, 'parlamentares'), L('Leis e atos produzidos', '20.2', '#/publicacoes'),
+        L('Projetos e tramitação', '20.3', undefined, 'proposicoes'), L('Pauta das sessões do Plenário', '20.4', undefined, 'sessoes'), L('Comissões e suas pautas', '20.5', undefined, 'comissoes'),
+        L('Atas e presenças', '20.6', undefined, 'sessoes'), L('Votações nominais', '20.7', undefined, 'votacoes'), L('Julgamento das contas do Executivo', '20.8', '#/planejamento/julgamento_camara')]],
+        ['Participação e verbas', 'play', [L('Transmissão das sessões', '20.9', /^https?:/.test(c.transmissao_url || '') ? c.transmissao_url : undefined, /^https?:/.test(c.transmissao_url || '') ? null : 'sessoes'),
+          L('Cota parlamentar / verba indenizatória', '20.10', undefined, 'verba_indenizatoria'), L('Atividades dos vereadores', '20.11', undefined, 'atividade_parlamentar')]]);
     }
     if (cons) {
       g.push(['Atividades do consórcio', 'banco', [L('Protocolo de intenções', '25.1'), L('Estatuto', '25.2'), L('Contratos de rateio', '25.3'), L('Contrato de programa', '25.4'),

@@ -46,6 +46,7 @@ if (location.hostname === 'kennedyd1988.github.io') location.replace('https://po
           .then(function () { return carregar('setoriais.js' + q); })
           .then(function () { return carregar('financeiro.js' + q); })
           .then(function () { return carregar('atendimento.js' + q); })
+          .then(function () { return carregar('legislativo.js' + q); })
           .then(function () { window.SITE.iniciar(); });
       })
       .catch(function () {

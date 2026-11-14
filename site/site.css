@@ -652,3 +652,21 @@ html.contraste .campo-atend input, html.contraste .campo-atend select, html.cont
 .pre { white-space: pre-line; } .nowrap { white-space: nowrap; } .bloco { display: block; }
 .menor { font-size: .9em; } .maior { font-size: 1.15em; } .centro-v { align-self: center; }
 .linha-botoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* ---------- Câmara: vereadores, tramitação e votos (legislativo.js) ---------- */
+.grade-vereadores { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.cartao-vereador { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; text-decoration: none; color: var(--texto); transition: box-shadow .15s; }
+.cartao-vereador:hover, .cartao-vereador:focus-visible { box-shadow: var(--sombra); }
+.cartao-vereador strong { color: var(--cor); }
+.foto-vereador { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; background: var(--cor-clara); }
+.foto-vazia { display: flex; align-items: center; justify-content: center; font-size: 2.4rem; font-weight: 700; color: var(--cor); }
+.perfil-vereador { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+.foto-grande { width: 180px; height: 180px; }
+.numeros-atividade { list-style: none; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.numeros-atividade li { background: var(--cor-clara); border-radius: var(--raio); padding: 12px; }
+.numeros-atividade strong { display: block; font-size: 1.5rem; color: var(--cor); }
+.linha-tempo { list-style: none; padding-left: 0; border-left: 3px solid var(--cor-clara); }
+.linha-tempo li { padding: 6px 0 6px 14px; position: relative; }
+.linha-tempo li::before { content: ''; position: absolute; left: -8px; top: 12px; width: 12px; height: 12px; border-radius: 50%; background: var(--cor); }
+.votos { columns: 2; padding-left: 18px; }
+@media (max-width: 600px) { .votos { columns: 1; } }

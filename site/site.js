@@ -568,6 +568,7 @@
     }
     S.orgao = o;
     S.conf = o.configuracoes || {};
+    window.TIPO_ORGAO_PNTP = o.tipo;
 
     // Identidade do órgão (cor, brasão, nome).
     const cor = /^#[0-9a-f]{6}$/i.test(S.conf.cor_principal || '') ? S.conf.cor_principal : '#0d4fc4';

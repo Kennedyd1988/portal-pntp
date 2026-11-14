@@ -322,12 +322,18 @@ grant execute on function public.verba_publica(uuid, integer) to anon, authentic
 -- Anos com dados (abas de exercício no painel e no site).
 create or replace function public.legislativo_anos(p_orgao uuid, p_qual text)
 returns table (ano integer, total bigint)
-language sql stable security invoker set search_path = public as $$
-  select x.ano, count(*) from (
-    select p.ano from public.proposicoes p where p_qual = 'proposicoes' and p.orgao_id = p_orgao
-    union all select extract(year from s.data)::int from public.sessoes s where p_qual = 'sessoes' and s.orgao_id = p_orgao
-    union all select extract(year from v.data)::int from public.verba_indenizatoria v where p_qual = 'verba' and v.orgao_id = p_orgao
-  ) x group by x.ano order by x.ano desc;
+language sql stable security definer set search_path = public as $$
+  -- security definer: a verba não é legível direto pelo visitante (CPF); aqui só se contam os publicados
+  -- (ou tudo, para quem é da equipe do órgão).
+  with m as (select public.e_membro(p_orgao) as eq)
+  select x.ano, count(*) from m, (
+    select p.ano, p.situacao from public.proposicoes p where p_qual = 'proposicoes' and p.orgao_id = p_orgao
+    union all select extract(year from s.data)::int, s.situacao from public.sessoes s where p_qual = 'sessoes' and s.orgao_id = p_orgao
+    union all select extract(year from v.data)::int, v.situacao from public.verba_indenizatoria v where p_qual = 'verba' and v.orgao_id = p_orgao
+    union all select extract(year from s.data)::int, s.situacao from public.votacoes v join public.sessoes s on s.id = v.sessao_id where p_qual = 'votacoes' and v.orgao_id = p_orgao
+    union all select extract(year from s.data)::int, s.situacao from public.sessoes s where p_qual = 'comissoes' and s.orgao_id = p_orgao and s.comissao_id is not null
+  ) x where x.situacao = 'publicado' or m.eq
+  group by x.ano order by x.ano desc;
 $$;
 grant execute on function public.legislativo_anos(uuid, text) to anon, authenticated;
 
@@ -576,6 +582,59 @@ begin
 end;
 $$;
 grant execute on function public.pntp_legislativo_itens(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- 6. MENU PADRÃO DA CÂMARA (criação de órgão e botão "Criar menu padrão")
+-- ---------------------------------------------------------------------
+create or replace function public.criar_menu_padrao(p_orgao uuid)
+returns integer language plpgsql security definer set search_path = public as $$
+declare
+  m jsonb := '[
+    ["Início", "/"],
+    ["Institucional", "/estrutura", [["Estrutura organizacional", "/estrutura"], ["Gestores", "/gestores"], ["Perguntas frequentes", "/faq"]]],
+    ["Transparência", "/transparencia", [["Portal da Transparência", "/transparencia"], ["Receitas", "/receitas"], ["Despesas", "/despesas"], ["Pessoal", "/pessoal"], ["Diárias", "/diarias"],
+      ["Planejamento e contas", "/planejamento"], ["Licitações", "/licitacoes"], ["Contratos", "/contratos"], ["Obras", "/obras"], ["Convênios e transferências", "/convenios"],
+      ["Emendas parlamentares", "/emendas"], ["Renúncias de receita", "/renuncias"], ["Saúde", "/saude"], ["Educação e assistência social", "/educacao"], ["Conselhos municipais", "/conselhos"]]],
+    ["Publicações", "/publicacoes", [["Leis, decretos e portarias", "/publicacoes"], ["Diário Oficial", "/diario-oficial"]]],
+    ["Notícias", "/noticias"],
+    ["Serviços", "/servicos", [["Carta de Serviços ao Usuário", "/servicos"], ["Serviços on-line", "/servicos-online"]]],
+    ["Atendimento", "/contato", [["Ouvidoria", "/ouvidoria"], ["e-SIC", "/esic"], ["Contato", "/contato"]]]
+  ]'::jsonb;
+  i int; j int; pai uuid; n int := 0;
+begin
+  -- Câmara: menu com a atividade legislativa (PNTP 20.x) e sem as páginas só do Executivo.
+  if (select tipo from public.orgaos where id = p_orgao) = 'camara' then
+    m := '[
+      ["Início", "/"],
+      ["A Câmara", "/parlamentares", [["Vereadores", "/parlamentares"], ["Comissões", "/comissoes"], ["Estrutura organizacional", "/estrutura"], ["Perguntas frequentes", "/faq"]]],
+      ["Atividade legislativa", "/proposicoes", [["Projetos e proposições", "/proposicoes"], ["Sessões, pautas e atas", "/sessoes"], ["Votações", "/votacoes"],
+        ["Atividade dos vereadores", "/atividade-parlamentar"], ["Leis e resoluções", "/publicacoes"]]],
+      ["Transparência", "/transparencia", [["Portal da Transparência", "/transparencia"], ["Receitas", "/receitas"], ["Despesas", "/despesas"], ["Pessoal", "/pessoal"], ["Diárias", "/diarias"],
+        ["Verba indenizatória", "/verba-indenizatoria"], ["Planejamento e contas", "/planejamento"], ["Licitações", "/licitacoes"], ["Contratos", "/contratos"]]],
+      ["Notícias", "/noticias"],
+      ["Atendimento", "/contato", [["Ouvidoria", "/ouvidoria"], ["e-SIC", "/esic"], ["Carta de Serviços", "/servicos"], ["Contato", "/contato"]]]
+    ]'::jsonb;
+  end if;
+  if not (public.e_suporte_softplus() or public.tem_permissao(p_orgao, 'menu', 'editar')) then
+    raise exception 'Seu perfil não pode criar o menu deste órgão.';
+  end if;
+  if exists (select 1 from public.menu_itens where orgao_id = p_orgao) then return 0; end if;
+  for i in 0 .. jsonb_array_length(m) - 1 loop
+    insert into public.menu_itens (orgao_id, rotulo, tipo, destino, ordem)
+    values (p_orgao, m -> i ->> 0, 'interno', m -> i ->> 1, (i + 1) * 10) returning id into pai;
+    n := n + 1;
+    if jsonb_typeof(m -> i -> 2) = 'array' then
+      for j in 0 .. jsonb_array_length(m -> i -> 2) - 1 loop
+        insert into public.menu_itens (orgao_id, pai_id, rotulo, tipo, destino, ordem)
+        values (p_orgao, pai, m -> i -> 2 -> j ->> 0, 'interno', m -> i -> 2 -> j ->> 1, (j + 1) * 10);
+        n := n + 1;
+      end loop;
+    end if;
+  end loop;
+  return n;
+end;
+$$;
+grant execute on function public.criar_menu_padrao(uuid) to authenticated;
 
 -- Depois deste script, rode de novo o script 26: a autoavaliação passa a incluir
 -- os critérios 20.x nas Câmaras e as tabelas novas ficam com os vínculos protegidos.

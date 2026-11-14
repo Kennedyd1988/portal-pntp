@@ -162,7 +162,7 @@
     // Para cada página: "Página do portal" (cadastro/importação) ou "Link externo".
     const D = window.DESTINOS_PNTP || [];
     const destinosCfg = cfg.destinos || {};
-    const destinos = D.map(([chave, rotulo, rota, cod, grupo]) => {
+    const destinos = D.filter(([chave]) => window.aplicavelPNTP(chave)).map(([chave, rotulo, rota, cod, grupo]) => {
       const usaLink = !!destinosCfg[chave] || !rota;
       const modo = el('select', { 'aria-label': 'Destino de ' + rotulo },
         rota ? el('option', { value: 'portal', selected: !usaLink }, 'Página do portal') : null,
@@ -195,7 +195,7 @@
       d.botaoOutro = rota ? el('button', { type: 'button', class: 'link', hidden: !podeEditar, onclick: () => novoOutro({}).descricao.focus() }, '+ Outro endereço (outro período ou sistema)') : null;
       return d;
     });
-    const tabelaDestinos = el('div', null, [...new Set(D.map((d) => d[4]))].map((g) => el('div', null, el('h3', { class: 'destinos-grupo' }, g),
+    const tabelaDestinos = el('div', null, [...new Set(destinos.map((d) => d.grupo))].map((g) => el('div', null, el('h3', { class: 'destinos-grupo' }, g),
       el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela tabela-destinos' },
         el('thead', null, el('tr', null, ['Página', 'PNTP', 'Destino', 'Endereços externos'].map((t) => el('th', { scope: 'col' }, t)))),
         el('tbody', null, destinos.filter((d) => d.grupo === g).map((d) => el('tr', null,

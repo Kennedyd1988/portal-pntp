@@ -560,6 +560,7 @@
     const { data, error } = await sb.rpc('minhas_permissoes', { p_orgao: o.id });
     if (error) { toast(traduzirErro(error), true); mostrarListaOrgaos(); return; }
     estado.orgao = o;
+    window.TIPO_ORGAO_PNTP = o.tipo;   // destinos.js: páginas que só valem para um tipo de órgão
     estado.permissoes = {};
     for (const p of data || []) {
       estado.permissoes[p.modulo] = { ver: p.pode_ver, editar: p.pode_editar, publicar: p.pode_publicar, excluir: p.pode_excluir };

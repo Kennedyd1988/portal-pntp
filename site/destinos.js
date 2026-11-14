@@ -212,9 +212,20 @@ window.textoDeclaracaoPNTP = function (chave, d) {
 };
 
 // Resolve o destino de uma chave para o órgão: { href, externo, rotulo } ou null (sem destino).
+// Páginas que só existem para um tipo de órgão (o site e o painel informam o tipo em TIPO_ORGAO_PNTP).
+// Câmara: matriz do Poder Legislativo; Prefeitura: itens só do Executivo (dívida ativa, emendas recebidas,
+// renúncias, saúde e educação).
+window.aplicavelPNTP = function (chave) {
+  const tipo = window.TIPO_ORGAO_PNTP;
+  if (!tipo || !chave) return true;
+  const camara = ['parlamentares', 'proposicoes', 'sessoes', 'comissoes', 'votacoes', 'verba_indenizatoria', 'atividade_parlamentar'];
+  if (camara.includes(chave)) return tipo === 'camara';
+  if (/^(receitas_divida_ativa|emendas|renuncias|saude|educacao)/.test(chave)) return tipo === 'prefeitura';
+  return true;
+};
 window.destinoPNTP = function (conf, chave) {
   const d = window.DESTINOS_PNTP.find((x) => x[0] === chave);
-  if (!d) return null;
+  if (!d || !window.aplicavelPNTP(chave)) return null;
   const ext = window.externoPNTP(conf, chave);
   // Mais de um endereço: vai para a página do portal, que lista e explica cada um.
   if (ext && d[2] && window.outrosLinksPNTP(conf, chave).length) return { href: '#' + d[2], externo: false, rotulo: d[1] };
