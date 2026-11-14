@@ -25,20 +25,35 @@
   const mb = (b) => b == null ? '?' : (b / 1048576).toFixed(b < 10485760 ? 1 : 0).replace('.', ',') + ' MB';
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  async function servidor(corpo) {
+  // Erros passageiros (banco ou função ocupados, rede) são repetidos com espera crescente;
+  // só param a varredura os erros definitivos (função ausente, sem permissão, sem origem).
+  async function servidorUmaVez(corpo) {
     const { data, error } = await sb.functions.invoke('migrar-site', { body: Object.assign({ orgao_id: org() }, corpo) });
     if (error) {
       const st = error.context && error.context.status;
-      if (st === 404 || /Failed to send a request|not found/i.test(error.message)) throw new Error('A função "migrar-site" não está instalada na Supabase.');
-      throw error;
+      if (st === 404) throw new Error('A função "migrar-site" não está instalada na Supabase.');
+      if (st === 401) throw new Error('Sua sessão expirou. Entre novamente.');
+      let det = null;
+      try { det = error.context && typeof error.context.json === 'function' ? await error.context.json() : null; } catch (_) { /* sem corpo */ }
+      if (det && det.erro && !det.temporario) throw new Error(det.erro);
+      const e = new Error((det && det.erro) || error.message || 'Falha passageira.'); e.passageiro = true; throw e;
     }
     if (!data || !data.ok) throw new Error((data && data.erro) || 'Falha na leitura do site antigo.');
     return data;
   }
+  async function servidor(corpo) {
+    for (let i = 0; ; i++) {
+      try { return await servidorUmaVez(corpo); }
+      catch (e) {
+        if (!e.passageiro || i >= 5) throw e;
+        await espera(2000 * (i + 1));
+      }
+    }
+  }
   async function pagina(url, tentativas) {
     for (let i = 0; i < (tentativas || 3); i++) {
       try { return await servidor({ acao: 'pagina', url }); }
-      catch (e) { if (i === (tentativas || 3) - 1 || /instalada|Cadastre|Só o Suporte/.test(e.message)) throw e; await espera(1500 * (i + 1)); }
+      catch (e) { if (i === (tentativas || 3) - 1 || /instalada|Cadastre|Só o Suporte|sessão expirou/.test(e.message)) throw e; await espera(1500 * (i + 1)); }
     }
   }
 
@@ -98,7 +113,10 @@
         catch (e) { return { n, url, erro: e.message }; }
       }));
       for (const r of res.sort((a, b) => b.n - a.n)) {
-        if (r.erro) { st.log.unshift('id ' + r.n + ': ' + r.erro); fora++; continue; }
+        if (r.erro) {
+          if (/instalada|Cadastre|Só o Suporte|sessão expirou/.test(r.erro)) throw new Error(r.erro);
+          st.log.unshift('id ' + r.n + ': ' + r.erro); continue;   // erro de leitura não conta como "fora do período"
+        }
         if (r.x.vazio) { fora++; continue; }
         if (!r.x.ano || r.x.ano < de) { fora++; continue; }
         fora = 0;

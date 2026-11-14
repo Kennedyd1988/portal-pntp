@@ -92,10 +92,24 @@ Deno.serve(async (req) => {
 
     const corpo = await req.json().catch(() => ({}));
     const orgao = String(corpo.orgao_id ?? '');
-    const { data: pode } = await comoQuemPediu.rpc('e_admin_do_orgao', { p_orgao: orgao });
+    // Banco ocupado (muitas leituras em paralelo) devolve erro passageiro: tenta de novo
+    // e, se persistir, avisa como "temporário" (o painel repete) em vez de negar o acesso.
+    const tentar = async <T>(f: () => PromiseLike<{ data: T; error: unknown }>) => {
+      let ult: unknown = null;
+      for (let i = 0; i < 3; i++) {
+        const r = await f();
+        if (!r.error) return { data: r.data, error: null };
+        ult = r.error; await new Promise((ok) => setTimeout(ok, 400 * (i + 1)));
+      }
+      return { data: null as T | null, error: ult };
+    };
+    const temporario = () => json({ ok: false, temporario: true, erro: 'Banco de dados ocupado. Tentando de novo.' }, 503);
+    const { data: pode, error: eP } = await tentar(() => comoQuemPediu.rpc('e_admin_do_orgao', { p_orgao: orgao }));
+    if (eP) return temporario();
     if (pode !== true) return falha('Só o Suporte SOFT+ ou o administrador do órgão usam a migração.');
 
-    const { data: o } = await admin.from('orgaos').select('configuracoes').eq('id', orgao).maybeSingle();
+    const { data: o, error: eO } = await tentar(() => admin.from('orgaos').select('configuracoes').eq('id', orgao).maybeSingle());
+    if (eO) return temporario();
     const origem = String(o?.configuracoes?.migracao?.origem ?? '');
     if (!/^https?:\/\//.test(origem)) return falha('Cadastre antes o endereço do site antigo (Migração › Origem).');
     const hostOrigem = new URL(origem).host.replace(/^www\./, '');
