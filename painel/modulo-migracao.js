@@ -21,7 +21,16 @@
   const estado = {};          // por seção: { itens, arquivos, bytes, rodando, parar, log }
 
   const org = () => P.estado.orgao.id;
-  const periodo = (s) => ({ de: s.semPeriodo ? 0 : ANO - (s.pntp ? 2 : 1), ate: ANO });
+  // Período escolhido na tela (configuracoes.migracao.periodo): { pntp, outros } = ano inicial ou 'todos'.
+  // Padrão: 3 exercícios no que pontua no PNTP; todos os anos no restante (notícias).
+  const TODOS_DESDE = 1990;
+  const escolhaPeriodo = (s) => { const p = (cfg.migracao && cfg.migracao.periodo) || {}; return s.pntp ? (p.pntp || String(ANO - 2)) : (p.outros || 'todos'); };
+  const periodo = (s) => {
+    if (s.semPeriodo) return { de: 0, ate: ANO };
+    const v = escolhaPeriodo(s);
+    return { de: v === 'todos' ? TODOS_DESDE : Math.min(ANO, Number(v) || ANO - 2), ate: ANO };
+  };
+  const rotuloPeriodo = (s) => { if (s.semPeriodo) return 'Conteúdo fixo'; const { de } = periodo(s); return de <= TODOS_DESDE ? 'Todos os anos' : de === ANO ? 'Só ' + ANO : (ANO - de + 1) + ' anos'; };
   const mb = (b) => b == null ? '?' : (b / 1048576).toFixed(b < 10485760 ? 1 : 0).replace('.', ',') + ' MB';
   const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -737,6 +746,33 @@
       })));
   }
 
+  // ---------------- período ----------------
+  // Escolha do período a trazer, guardada no órgão. Mudar o período não apaga o que já veio:
+  // ampliar traz os anos que faltam; reduzir só deixa de buscar os anos de fora.
+  function cartaoPeriodo() {
+    const opcoes = (padrao) => [el('option', { value: 'todos' }, 'Todos os anos')]
+      .concat(Array.from({ length: ANO - 1999 }, (_, i) => String(ANO - i)).map((a) => el('option', { value: a }, a === String(ANO) ? 'Só ' + ANO : 'De ' + a + ' a ' + ANO + (a === padrao ? ' (padrão)' : ''))));
+    const selP = el('select', { id: 'mig-per-pntp' }, opcoes(String(ANO - 2)));
+    const selO = el('select', { id: 'mig-per-outros' }, opcoes(null));
+    selP.value = escolhaPeriodo({ pntp: true }); selO.value = escolhaPeriodo({ pntp: false });
+    const salvar = async () => {
+      if (Object.values(estado).some((x) => x.rodando)) { toast('Pause as importações em andamento antes de mudar o período.', true); selP.value = escolhaPeriodo({ pntp: true }); selO.value = escolhaPeriodo({ pntp: false }); return; }
+      try {
+        cfg = await P.mesclarConfiguracoes({ migracao: Object.assign({}, cfg.migracao, { periodo: { pntp: selP.value, outros: selO.value } }) });
+        for (const k of Object.keys(estado)) delete estado[k];   // análises feitas com o período anterior
+        toast('Período da migração salvo.');
+        desenhar();
+      } catch (e) { toast(traduzirErro(e), true); }
+    };
+    selP.addEventListener('change', salvar); selO.addEventListener('change', salvar);
+    return el('section', { class: 'cartao' }, el('h2', { class: 'm-0' }, 'Período da migração'),
+      el('div', { class: 'grade grade-2 mt-1' },
+        el('div', { class: 'campo' }, el('label', { for: 'mig-per-pntp' }, 'O que pontua no PNTP (leis, contas, concursos, obras, atas, audiências…)'), selP),
+        el('div', { class: 'campo' }, el('label', { for: 'mig-per-outros' }, 'O restante (notícias)'), selO)),
+      el('p', { class: 'ajuda mt-05' }, 'O PNTP cobra o exercício atual e os 2 anteriores. Secretarias, perguntas frequentes, páginas avulsas e página inicial vêm sempre inteiras. ',
+        'Mudar o período não apaga o que já foi trazido: ampliar traz os anos que faltam ao importar de novo.'));
+  }
+
   // ---------------- tela ----------------
   const cartoes = {};
   function cartaoSecao(chave, s) {
@@ -748,8 +784,8 @@
     const btnP = el('button', { type: 'button', class: 'btn btn-claro', hidden: !rodando, onclick: () => { st.parar = true; btnP.disabled = true; } }, 'Pausar');
     const c = el('section', { class: 'cartao migracao-secao' },
       el('div', { class: 'linha-botoes' }, el('h2', { class: 'm-0' }, s.nome),
-        el('span', { class: 'etiqueta' + (s.pntp ? ' etiqueta-ativo' : '') }, s.semPeriodo ? 'Conteúdo fixo' : s.pntp ? 'PNTP · 3 anos' : '2 anos'),
-        el('span', { class: 'ajuda' }, (s.semPeriodo ? 'Tudo' : 'De ' + de + ' a ' + ate) + ' → ' + s.destino)),
+        el('span', { class: 'etiqueta' + (s.pntp ? ' etiqueta-ativo' : '') }, (s.pntp ? 'PNTP · ' : '') + rotuloPeriodo(s)),
+        el('span', { class: 'ajuda' }, (s.semPeriodo ? 'Tudo' : de <= TODOS_DESDE ? 'Todos os anos' : 'De ' + de + ' a ' + ate) + ' → ' + s.destino)),
       rs ? el('p', { class: 'msg msg-ok mt-1' }, 'Já migrados: ' + rs.importados + ' novos · ' + rs.ja_existiam + ' já existiam no portal' +
         (rs.erros ? ' · ' + rs.erros + ' com erro (rode de novo para tentar outra vez)' : '') + ' · ' + mb(rs.bytes) + ' de arquivos.') : null,
       st.texto ? el('p', { class: 'msg ' + (rodando ? 'msg-info' : /Parou/.test(st.texto) ? 'msg-erro' : 'msg-info') + ' mt-1', role: 'status' }, rodando ? '⏳ ' : '', st.texto) : null,
@@ -791,7 +827,7 @@
     conteiner.replaceChildren(...[
       el('div', { class: 'cabecalho-modulo' }, el('div', null, el('h1', null, 'Migração do site antigo'),
         el('p', { class: 'sub' }, 'Traz para o portal o que já está publicado no site atual do órgão, com os arquivos.'))),
-      el('p', { class: 'msg msg-info' }, 'Período: exercício atual e os 2 anteriores (' + (ANO - 2) + ' a ' + ANO + ') no que pontua no PNTP; atual e o anterior no restante. ',
+      el('p', { class: 'msg msg-info' }, 'Escolha abaixo o período a trazer. ',
         'Primeiro use "Analisar e medir" (não grava nada) para ver quantos itens e quanto espaço; depois "Importar". Pode pausar e continuar: o que já veio não é repetido. ',
         'Mantenha esta tela aberta durante a importação.'),
       el('section', { class: 'cartao' }, el('h2', { class: 'm-0' }, 'Site de origem'),
@@ -804,6 +840,7 @@
           return b;
         })() : null,
         caixaEspaco),
+      ok ? cartaoPeriodo() : null,
       ok ? (caixaRascunhos = el('section', { class: 'cartao', hidden: true })) : null,
       ...(ok ? Object.entries(adaptador.secoes).map(([k, s]) => cartaoSecao(k, s)) : []),
       el('p', { class: 'ajuda mt-2' }, 'Receitas, despesas, folha, diárias, ordem cronológica, emendas e licitações/contratos dos sistemas de gestão continuam nos sistemas oficiais: ligue-os em Aparência › Destinos das páginas.')].filter(Boolean));

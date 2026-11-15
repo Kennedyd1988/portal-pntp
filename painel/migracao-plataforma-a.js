@@ -289,8 +289,8 @@
     },
     // ---------------------------------------------------------------
     noticia: {
-      // Todas as notícias (não pontuam no PNTP, mas são a memória do órgão), pela lista do próprio site, página a página.
-      nome: 'Notícias', destino: 'Notícias (todas)', semPeriodo: true, pasta: 'noticias',
+      // Notícias pela lista do próprio site, página a página (período em "O restante"; padrão: todas).
+      nome: 'Notícias', destino: 'Notícias', pntp: false, pasta: 'noticias',
       listas: ['/noticia/categoria'],
       reId: /\/noticia\/(\d+)\//g,
       url: (o, id) => o + '/noticia/' + id + '/x/',
