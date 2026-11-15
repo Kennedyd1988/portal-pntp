@@ -267,7 +267,7 @@
         return {
           ano: dt ? Number(dt.slice(0, 4)) : null, data: dt, chave: { titulo: titulo.slice(0, 200), data: dt },
           registro: { titulo: titulo.slice(0, 200), resumo: texto.slice(0, 280) + (texto.length > 280 ? '…' : ''), conteudo: texto, categoria: limpar(cab.split(' - ')[0]).slice(0, 60) || null,
-            publicado_em: dt ? dt + 'T09:00:00-03:00' : null, data_ordem: dt ? dt + 'T09:00:00-03:00' : null },
+            publicado_em: dt ? dt + 'T09:00:00-03:00' : null },
           arquivos: capa && /^https?:/.test(capa) ? [{ url: capa, campo: 'capa_url' }] : []
         };
       }
@@ -536,14 +536,24 @@
     const meuHost = host(origem);
     const chaveUrl = (tipo, u) => origem + '/#inicio-' + tipo + ':' + u;
 
-    // 1) Banners: imagens dentro de carrossel/slider/banner (o primeiro grupo com 1 a 15 imagens).
-    const conts = [...d.querySelectorAll('.carousel, .swiper, .swiper-container, .slick-slider, .owl-carousel, .flexslider, .slider, [class*="banner"], [id*="banner"], [class*="slide"], [id*="slide"], [id*="carousel"], [class*="carrossel"]')]
-      .filter((c) => !c.closest('footer, .rodape, [class*="footer"], [class*="rodape"], [class*="noticia"], [class*="news"]'));
+    // 1) Banners. Plataforma A: imagens de /banner/banner-principal/ (o carrossel tem cópias: tira as repetidas).
+    // Outros sites: o primeiro carrossel/slider cujas imagens são de banner (não de gestores ou notícias).
     const vistos = new Set();
     let ordem = 10;
+    const principais = imagensDe(d.body, base).filter((x) => /\/banner\/banner-principal\//i.test(x.url));
+    for (const im of principais) {
+      if (vistos.has(im.url)) continue; vistos.add(im.url);
+      const titulo = (im.alt.length >= 3 ? im.alt : 'Destaque ' + vistos.size).slice(0, 160);
+      itens.push({ url: chaveUrl('banner', im.url), x: { ano: null, tipo: 'banner', chave: { imagem: im.url },
+        registro: { titulo, link_url: im.link && im.link !== base && im.link !== origem + '/' ? im.link : null, ordem, ativo: true },
+        arquivos: [{ url: im.url, campo: 'imagem_url' }] } });
+      ordem += 10;
+    }
+    const conts = vistos.size ? [] : [...d.querySelectorAll('.carousel, .swiper, .swiper-container, .slick-slider, .owl-carousel, .flexslider, .slider, [class*="banner"], [id*="banner"], [class*="slide"], [id*="slide"], [id*="carousel"], [class*="carrossel"]')]
+      .filter((c) => !c.closest('footer, .rodape, [class*="footer"], [class*="rodape"], [class*="noticia"], [class*="news"], [class*="secretaria"], [class*="gestor"], [class*="departamento"]'));
     for (const c of conts) {
       if (conts.some((o) => o !== c && o.contains(c) && imagensDe(o, base).length)) continue;   // só o contêiner mais de fora
-      const imgs = imagensDe(c, base).filter((x) => !/logo|brasao|bras%C3%A3o|icone|icon|selo/i.test(x.url + ' ' + x.alt));
+      const imgs = imagensDe(c, base).filter((x) => !/logo|brasao|bras%C3%A3o|icone|icon|selo|departamento|gestor|secretari|noticia|obra/i.test(x.url + ' ' + x.alt));
       if (!imgs.length || imgs.length > 15) continue;
       for (const im of imgs) {
         if (vistos.has(im.url)) continue; vistos.add(im.url);
