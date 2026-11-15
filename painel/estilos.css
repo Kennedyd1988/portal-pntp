@@ -57,7 +57,7 @@ a { color: var(--brand); }
 .lado-marca p { margin: 0; max-width: 460px; color: #dce8fb; font-size: 16px; }
 .lista-marca { margin: 6px 0 0; padding-left: 20px; color: #dce8fb; display: flex; flex-direction: column; gap: 6px; }
 .marca { display: flex; align-items: center; gap: 12px; }
-.marca-simbolo { background: #fff; border-radius: 12px; padding: 4px; }
+.marca-simbolo { background: #fff; border-radius: 16px; padding: 6px; box-sizing: content-box; }
 .marca-nome { font-weight: 700; font-size: 20px; letter-spacing: .02em; }
 .lado-form { flex: 1 1 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; background: #fff; }
 .cartao-form { width: 100%; max-width: 380px; display: flex; flex-direction: column; }
@@ -582,3 +582,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
   color: var(--cor, #0d4fc4); display: flex; align-items: center; justify-content: center; }
 .lista-anexos { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .lista-anexos li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+/* Marca SOFT+ GOV (0.38.0): o "+" em azul-claro, como no logo; ícones com cantos arredondados. */
+.marca-mais { color: #22b8ff; }
+.marca img { border-radius: 8px; }

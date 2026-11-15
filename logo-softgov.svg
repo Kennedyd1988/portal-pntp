@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><g transform="translate(0.0 0.0) scale(1.0)"><defs>
+    <linearGradient id="az" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f8bff"/><stop offset=".55" stop-color="#0d5be0"/><stop offset="1" stop-color="#0a3fa8"/>
+    </linearGradient>
+    <linearGradient id="cl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1a73f0"/><stop offset="1" stop-color="#22c3ff"/>
+    </linearGradient>
+  </defs>
+  <!-- casa / escudo -->
+  <path d="M256 70 L420 160 Q440 171 440 194 L440 318 Q440 340 420 350 L256 430 L92 350 Q72 340 72 318 L72 194 Q72 171 92 160 Z" fill="url(#az)"/>
+  <!-- prédio público em branco -->
+  <g fill="#fff">
+    <path d="M256 150 L368 214 L144 214 Z"/>
+    <rect x="150" y="222" width="212" height="22" rx="4"/>
+    <rect x="166" y="252" width="34" height="104" rx="5"/>
+    <rect x="239" y="252" width="34" height="104" rx="5"/>
+    <rect x="312" y="252" width="34" height="104" rx="5"/>
+    <rect x="146" y="362" width="220" height="20" rx="4"/>
+  </g>
+  <!-- faixa -->
+  <path d="M60 392 Q250 470 470 300 Q470 300 476 312 Q300 520 60 412 Z" fill="url(#cl)"/>
+</g></svg>

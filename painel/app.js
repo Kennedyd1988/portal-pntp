@@ -337,17 +337,17 @@
     } else if (ios) {
       passos = [el('li', null, 'Toque no botão ', el('strong', null, 'Compartilhar'), ' (quadrado com seta para cima), na barra do Safari.'),
         el('li', null, 'Role a lista e toque em ', el('strong', null, '"Adicionar à Tela de Início"'), '.'),
-        el('li', null, 'Confirme em ', el('strong', null, '"Adicionar"'), '. O ícone do Painel SOFT+ aparece junto dos outros apps.')];
+        el('li', null, 'Confirme em ', el('strong', null, '"Adicionar"'), '. O ícone do SOFT+ GOV aparece junto dos outros apps.')];
     } else if (/Android/i.test(ua)) {
       passos = [el('li', null, 'Toque no menu ', el('strong', null, '⋮'), ' do navegador (canto superior direito).'),
         el('li', null, 'Toque em ', el('strong', null, '"Instalar app"'), ' ou ', el('strong', null, '"Adicionar à tela inicial"'), '.'),
         el('li', null, 'Confirme. Se a opção não aparecer, abra o painel no Google Chrome.')];
     } else {
       passos = [el('li', null, 'No Chrome ou Edge, clique no ícone de instalar no fim da barra de endereço (monitor com seta).'),
-        el('li', null, 'Ou abra o menu ', el('strong', null, '⋮'), ' e escolha ', el('strong', null, '"Instalar Painel SOFT+"'), ' (no Edge: Aplicativos → Instalar este site).'),
+        el('li', null, 'Ou abra o menu ', el('strong', null, '⋮'), ' e escolha ', el('strong', null, '"Instalar SOFT+ GOV"'), ' (no Edge: Aplicativos → Instalar este site).'),
         el('li', null, 'O painel passa a abrir numa janela própria, com ícone na área de trabalho.')];
     }
-    const dlg = abrirDialogo('Instalar o Painel SOFT+', el('div', null,
+    const dlg = abrirDialogo('Instalar o SOFT+ GOV', el('div', null,
       el('p', null, 'Com o app instalado, o painel abre direto pelo ícone, como um aplicativo, e se atualiza sozinho.'),
       el('ol', { class: 'passos-instalar' }, passos)),
       [el('button', { type: 'button', class: 'btn btn-primario', onclick: () => dlg.close() }, 'Entendi')]);
