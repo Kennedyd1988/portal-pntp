@@ -122,7 +122,7 @@
   // Sites de prefeitura costumam ficar em servidores pequenos e bloqueiam quem pede rápido demais
   // (o bloqueio pode pegar o próprio computador de quem está migrando). Por isso: no máximo 2 leituras
   // ao mesmo tempo, um intervalo entre elas e, se o site parar de responder, uma pausa automática crescente.
-  const RITMO = { maximo: 2, intervalo: 700, emUso: 0, ultimo: 0, descansoAte: 0, falhasSeguidas: 0, avisado: false };
+  const RITMO = { maximo: 3, intervalo: 500, emUso: 0, ultimo: 0, descansoAte: 0, falhasSeguidas: 0, avisado: false };
   async function comRitmo(fn) {
     for (;;) {
       const agora = Date.now();
@@ -213,14 +213,19 @@
     if (s.listar) {
       const { de } = periodo(s);
       // emitir: a seção entrega item por item enquanto lê (importa sem esperar ler tudo).
+      // Até 3 itens tratados ao mesmo tempo enquanto a leitura segue (o download de cada PDF é lento).
+      const emCurso = new Set();
       const entregar = async (url, x) => {
         if (st.parar || !x || x.vazio || x.foraPeriodo) return;
         if (!s.semPeriodo && (!x.ano || x.ano < de) && !x.ignorar) return;
-        await aoItem(url, x);
+        while (emCurso.size >= 3) await Promise.race(emCurso);
+        const p = Promise.resolve(aoItem(url, x)).catch((e) => { st.log.unshift(url.replace(origem, '') + ': ' + e.message); }).finally(() => emCurso.delete(p));
+        emCurso.add(p);
       };
       const itens = await s.listar({ origem, de, ler: (url, op) => pagina(url, 3, op), parar: () => st.parar, emitir: entregar,
         log: (t) => { st.log.unshift(t); atualizarCartao(chave); } });
       for (const it of itens || []) { if (st.parar) break; await entregar(it.url, it.x); }
+      await Promise.all(emCurso);
       return;
     }
     let maior = 0;
