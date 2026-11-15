@@ -158,6 +158,72 @@
     const RADAR_PADRAO = 'https://radardatransparencia.atricon.org.br/panel.html';
     const radarLink = texto(cfg.radar_url || '', { type: 'url', placeholder: RADAR_PADRAO });
 
+    // ----- Itens extras do Portal da Transparência -----
+    // O órgão acrescenta, nos cartões da página do Portal da Transparência, o que quiser além dos itens do
+    // PNTP (não conta na pontuação): título, grupo (um dos existentes ou um novo), ícone e destino
+    // (link externo, página institucional do portal ou publicações de um tipo). configuracoes.transparencia_extras.
+    const TIPOS_PUB_FIXOS = { lei_organica: 'Lei Orgânica', lei_complementar: 'Lei Complementar', lei: 'Lei Ordinária', decreto: 'Decreto', portaria: 'Portaria',
+      resolucao: 'Resolução', instrucao_normativa: 'Instrução Normativa', decreto_legislativo: 'Decreto Legislativo', ato: 'Ato', edital: 'Edital', outro: 'Outro' };
+    const [{ data: pagsInst }, { data: tiposCustom }] = await Promise.all([
+      sb.from('paginas').select('titulo, slug').eq('orgao_id', org.id).order('titulo'),
+      sb.from('publicacoes_tipos').select('codigo, nome').eq('orgao_id', org.id).order('nome')
+    ]);
+    const gruposTransp = window.gruposTransparenciaPNTP ? window.gruposTransparenciaPNTP(P.estado.orgao.tipo) : [];
+    const nomesIcones = window.NOMES_ICONES_PNTP || {};
+    const extras = [];
+    const caixaExtras = el('div', { class: 'lista-extras' });
+    function novoExtra(x) {
+      x = x || {};
+      const n = extras.length ? Math.max(...extras.map((e) => e.n)) + 1 : 0;
+      const grupoNovo = x.grupo && !gruposTransp.includes(x.grupo);
+      const e = { n,
+        titulo: texto(x.titulo || '', { maxlength: 80, placeholder: 'Ex.: Relatórios do Controle Interno', id: 'ap-ext-t-' + n }),
+        grupo: el('select', { id: 'ap-ext-g-' + n }, gruposTransp.map((g) => el('option', { value: g, selected: x.grupo === g }, g)),
+          el('option', { value: '__novo', selected: grupoNovo }, 'Novo grupo…')),
+        grupoNome: texto(grupoNovo ? x.grupo : '', { maxlength: 60, placeholder: 'Nome do novo grupo', id: 'ap-ext-gn-' + n }),
+        icone: el('select', { id: 'ap-ext-i-' + n }, Object.entries(nomesIcones).sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'))
+          .map(([k, rot]) => el('option', { value: k, selected: (x.icone || 'documento') === k }, rot))),
+        previa: el('span', { class: 'previa-icone', 'aria-hidden': 'true' }),
+        tipo: el('select', { id: 'ap-ext-d-' + n }, [['link', 'Link externo'], ['pagina', 'Página institucional do portal'], ['publicacoes', 'Publicações de um tipo']]
+          .map(([k, rot]) => el('option', { value: k, selected: (x.tipo || 'link') === k }, rot))),
+        url: texto(x.tipo === 'link' ? x.valor || '' : '', { type: 'url', placeholder: 'https://…', id: 'ap-ext-u-' + n }),
+        pagina: el('select', { id: 'ap-ext-p-' + n }, el('option', { value: '' }, (pagsInst || []).length ? '— Escolha a página —' : 'Nenhuma página institucional cadastrada'),
+          (pagsInst || []).map((p) => el('option', { value: p.slug, selected: x.tipo === 'pagina' && x.valor === p.slug }, p.titulo))),
+        tipoPub: el('select', { id: 'ap-ext-tp-' + n }, el('option', { value: '' }, '— Escolha o tipo —'),
+          (tiposCustom || []).length ? el('optgroup', { label: 'Tipos criados pelo órgão' }, tiposCustom.map((t) => el('option', { value: t.codigo, selected: x.tipo === 'publicacoes' && x.valor === t.codigo }, t.nome))) : null,
+          el('optgroup', { label: 'Tipos padrão' }, Object.entries(TIPOS_PUB_FIXOS).map(([k, rot]) => el('option', { value: k, selected: x.tipo === 'publicacoes' && x.valor === k }, rot))))
+      };
+      const atualizar = () => {
+        e.previa.replaceChildren(window.svgIconePNTP ? window.svgIconePNTP(e.icone.value, 22) : '');
+        e.blocoGrupoNome.hidden = e.grupo.value !== '__novo';
+        e.blocoUrl.hidden = e.tipo.value !== 'link'; e.blocoPagina.hidden = e.tipo.value !== 'pagina'; e.blocoPub.hidden = e.tipo.value !== 'publicacoes';
+      };
+      e.blocoGrupoNome = campo('ap-ext-gn-' + n, 'Nome do novo grupo', e.grupoNome);
+      e.blocoUrl = campo('ap-ext-u-' + n, 'Endereço', e.url);
+      e.blocoPagina = campo('ap-ext-p-' + n, 'Página', e.pagina, 'Páginas cadastradas em "Páginas institucionais".');
+      e.blocoPub = campo('ap-ext-tp-' + n, 'Tipo de publicação', e.tipoPub, 'O cartão abre as Publicações oficiais já filtradas neste tipo.');
+      const mover = (d) => { const i = extras.indexOf(e), j = i + d; if (j < 0 || j >= extras.length) return; extras.splice(i, 1); extras.splice(j, 0, e); desenharExtras(); };
+      e.linha = el('div', { class: 'cartao-extra' },
+        el('div', { class: 'grade-campos grade-3' }, campo('ap-ext-t-' + n, 'Título do cartão', e.titulo),
+          el('div', null, campo('ap-ext-g-' + n, 'Grupo', e.grupo), e.blocoGrupoNome),
+          el('div', { class: 'campo-icone' }, campo('ap-ext-i-' + n, 'Ícone', e.icone), e.previa)),
+        el('div', { class: 'grade-campos' }, campo('ap-ext-d-' + n, 'O cartão leva para', e.tipo), el('div', null, e.blocoUrl, e.blocoPagina, e.blocoPub)),
+        podeEditar ? el('div', { class: 'linha-botoes' },
+          el('button', { type: 'button', class: 'link', onclick: () => mover(-1), 'aria-label': 'Subir este item' }, '↑ Subir'),
+          el('button', { type: 'button', class: 'link', onclick: () => mover(1), 'aria-label': 'Descer este item' }, '↓ Descer'),
+          el('button', { type: 'button', class: 'link perigo', onclick: () => { extras.splice(extras.indexOf(e), 1); desenharExtras(); } }, 'Remover item')) : null);
+      [e.icone, e.grupo, e.tipo].forEach((c) => c.addEventListener('change', atualizar));
+      atualizar();
+      extras.push(e);
+      return e;
+    }
+    function desenharExtras() {
+      caixaExtras.replaceChildren(...(extras.length ? extras.map((e) => e.linha) : [el('p', { class: 'ajuda' }, 'Nenhum item extra. A página mostra só os itens do PNTP.')]));
+    }
+    for (const x of Array.isArray(cfg.transparencia_extras) ? cfg.transparencia_extras : []) novoExtra(x);
+    desenharExtras();
+    const btnExtra = el('button', { type: 'button', class: 'btn btn-claro', hidden: !podeEditar, onclick: () => { novoExtra(); desenharExtras(); } }, '+ Adicionar item');
+
     // ----- Destinos das páginas (fonte única em site/destinos.js) -----
     // Para cada página: "Página do portal" (cadastro/importação) ou "Link externo".
     const D = window.DESTINOS_PNTP || [];
@@ -289,7 +355,11 @@
             'O site mostra todos, explicados, na própria página. Na autoavaliação, os exercícios informados contam na série histórica. Todo endereço externo é conferido uma vez por dia: aqui aparece se ele respondeu na última verificação.'),
           campo('ap-transparencia', 'Portal da Transparência externo (geral)', f.transparencia_url, 'Usado pelas páginas que ainda não existem no portal e estão sem link próprio (receitas, despesas, folha…).'),
           el('div', { class: 'linha-botoes mb-2' }, btnVerificar, el('span', { class: 'ajuda' }, 'Verificação automática todo dia às 05:10. O portal confere se o endereço responde; o conteúdo do sistema externo é conferido pelo próprio órgão.')),
-          tabelaDestinos)],
+          tabelaDestinos,
+          el('h2', { class: 'mt-3' }, 'Itens extras no Portal da Transparência'),
+          el('p', { class: 'ajuda' }, 'Acrescente cartões à página do Portal da Transparência com o que o órgão quiser mostrar além dos itens do PNTP: relatórios, prestações de contas de programas, links de outros sistemas… ',
+            'Escolha o grupo (um dos existentes ou um novo), o ícone e para onde o cartão leva. Itens extras aparecem sem número de critério e não contam na avaliação do PNTP.'),
+          caixaExtras, btnExtra)],
         ['publicacoes', 'Diário Oficial e sistemas', el('div', { class: 'grade grade-2' },
           el('section', { class: 'cartao' },
             el('h2', null, 'Diário Oficial'),
@@ -357,6 +427,13 @@
             : ou === u ? 'Este é o mesmo endereço principal.' : d.outros.some((x) => x !== o && x.url.value.trim() === ou) ? 'Endereço repetido nesta página.' : '')) return;
         }
       }
+      for (const e of extras) {
+        if (!erroCampo('ap-ext-t-' + e.n, e.titulo.value.trim().length >= 3 ? '' : 'Informe o título do cartão (ou remova o item).')) return;
+        if (e.grupo.value === '__novo' && !erroCampo('ap-ext-gn-' + e.n, e.grupoNome.value.trim().length >= 3 ? '' : 'Informe o nome do novo grupo.')) return;
+        if (e.tipo.value === 'link' && !erroCampo('ap-ext-u-' + e.n, urlValida(e.url.value.trim()) && e.url.value.trim() ? '' : 'Informe o endereço completo, começando com https://')) return;
+        if (e.tipo.value === 'pagina' && !erroCampo('ap-ext-p-' + e.n, e.pagina.value ? '' : 'Escolha a página.')) return;
+        if (e.tipo.value === 'publicacoes' && !erroCampo('ap-ext-tp-' + e.n, e.tipoPub.value ? '' : 'Escolha o tipo de publicação.')) return;
+      }
       const dominio = v('dominio').toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
       if (!erroCampo('ap-dominio', !dominio || /^[a-z0-9.-]+\.[a-z]{2,}$/.test(dominio) ? '' : 'Domínio inválido. Ex.: riachodacruz.rn.gov.br')) return;
 
@@ -385,7 +462,9 @@
           diario_oficial_nome: v('diario_nome'), diario_oficial_url: v('diario_url'),
           transparencia_url: v('transparencia_url'), licitacoes_url: v('licitacoes_url'),
           estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url'),
-          selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, radar_url: radarLink.value.trim() || null, destinos: destinosGravar, destinos_links: linksGravar, paginas_ocultas: ocultasGravar
+          selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, radar_url: radarLink.value.trim() || null, destinos: destinosGravar, destinos_links: linksGravar, paginas_ocultas: ocultasGravar,
+          transparencia_extras: extras.map((e) => ({ titulo: e.titulo.value.trim(), grupo: e.grupo.value === '__novo' ? e.grupoNome.value.trim() : e.grupo.value,
+            icone: e.icone.value, tipo: e.tipo.value, valor: e.tipo.value === 'link' ? e.url.value.trim() : e.tipo.value === 'pagina' ? e.pagina.value : e.tipoPub.value }))
         };
         const novaCfg = Object.assign({}, cfg, mudancas);
         // Só o que esta tela cuida vai para o banco, junto com o que já está lá (script 41):

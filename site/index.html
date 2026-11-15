@@ -41,6 +41,7 @@ if (location.hostname === 'kennedyd1988.github.io') location.replace('https://po
         return carregar('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2')
           .then(function () { return carregar('../painel/config.js' + q); })
           .then(function () { return carregar('destinos.js' + q); })
+          .then(function () { return carregar('icones.js' + q); })
           .then(function () { return carregar('site.js' + q); })
           .then(function () { return carregar('paginas.js' + q); })
           .then(function () { return carregar('setoriais.js' + q); })
@@ -75,6 +76,7 @@ if (location.hostname === 'kennedyd1988.github.io') location.replace('https://po
           <button type="button" id="fonte-menos" aria-label="Diminuir o texto">A−</button>
         </li>
         <li><a href="#/mapa-do-site">Mapa do site</a></li>
+        <li class="acesso-painel"><a href="../painel/" title="Área restrita: entrar no painel de gestão do site">🔒 Entrar no painel</a></li>
       </ul>
     </div>
   </div>

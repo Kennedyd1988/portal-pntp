@@ -86,6 +86,7 @@
       ementa: el('textarea', { rows: 3 }),
       vigencia: el('select', null, Object.entries(VIGENCIA).map(([k, v]) => el('option', { value: k, selected: (x.vigencia || 'vigente') === k }, v))),
       observacao: el('input', { type: 'text', maxlength: 300, value: x.observacao || '', placeholder: 'Ex.: Revogada pela Lei nº 123/2026' }),
+      competencia: el('input', { type: 'text', maxlength: 60, value: x.competencia || '', placeholder: 'Ex.: Outubro/2026, 1º bimestre/2026, Exercício 2025' }),
       unidade: alcance()
         ? el('select', { disabled: true }, el('option', { value: alcance() }, nomeUnidade(alcance())))
         : el('select', null, el('option', { value: '' }, '— Órgão todo —'),
@@ -105,6 +106,22 @@
     const blocoLink = el('div', null, campo('pb-link', 'Link do documento', f.link,
       'Ex.: a página da edição no ' + (cfg.diario_oficial_nome || 'Diário Oficial') + '.'));
     const alternar = () => { blocoPdf.hidden = !rPdf.checked; blocoLink.hidden = !rLink.checked; };
+    // Anexos: outros arquivos além do documento principal (planilhas, imagens, PDFs), cada um com título.
+    const anexos = { atuais: [], removidos: [], novos: [] };
+    const listaAnexos = el('ul', { class: 'lista-anexos' });
+    const desenharAnexos = () => listaAnexos.replaceChildren(
+      ...anexos.atuais.map((a) => el('li', null, el('a', { href: a.arquivo_url, target: '_blank', rel: 'noopener' }, a.titulo),
+        el('button', { type: 'button', class: 'link perigo', onclick: () => { anexos.atuais = anexos.atuais.filter((y) => y !== a); anexos.removidos.push(a); desenharAnexos(); } }, 'Remover'))),
+      ...anexos.novos.map((n, i) => el('li', null, el('div', { class: 'grade-campos' },
+        campo('pb-anx-t-' + i, 'Título do anexo', n.titulo), campo('pb-anx-a-' + i, 'Arquivo', n.arquivo, 'PDF, planilha, documento ou imagem, até 20 MB.')),
+        el('button', { type: 'button', class: 'link perigo', onclick: () => { anexos.novos.splice(i, 1); desenharAnexos(); } }, 'Remover'))));
+    const btnAnexo = el('button', { type: 'button', class: 'btn btn-claro btn-p' }, '+ Adicionar anexo');
+    btnAnexo.addEventListener('click', () => {
+      anexos.novos.push({ titulo: el('input', { type: 'text', maxlength: 200, placeholder: 'Ex.: Planilha de cálculo' }),
+        arquivo: el('input', { type: 'file', accept: '.pdf,.doc,.docx,.xls,.xlsx,.ods,.odt,.csv,.zip,.jpg,.jpeg,.png,.webp' }) });
+      desenharAnexos();
+    });
+    if (x.id) sb.from('publicacoes_anexos').select('*').eq('publicacao_id', x.id).order('ordem').then(({ data }) => { anexos.atuais = data || []; desenharAnexos(); });
     rPdf.addEventListener('change', alternar); rLink.addEventListener('change', alternar); alternar();
 
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
@@ -115,12 +132,16 @@
           campo('pb-numero', 'Número', f.numero),
           campo('pb-data', 'Data de publicação', f.data, null, true)),
           campo('pb-ementa', 'Ementa', f.ementa, 'Resumo oficial do ato ("Dispõe sobre…"). É por ela que o cidadão pesquisa.', true),
-          campo('pb-ano', 'Ano', f.ano, null, true)]],
+          el('div', { class: 'grade-campos' }, campo('pb-ano', 'Ano', f.ano, null, true),
+            campo('pb-competencia', 'Competência (opcional)', f.competencia, 'Período a que o documento se refere, quando houver (mês, bimestre, exercício…).'))]],
         ['documento', 'Documento', [el('fieldset', { class: 'opcoes' },
           el('legend', null, 'Como o documento chega ao cidadão'),
           el('label', { class: 'checkbox' }, rPdf, ' Enviar o PDF'),
           el('label', { class: 'checkbox' }, rLink, ' Apontar para um link externo (Diário Oficial, outro sistema)'),
-          blocoPdf, blocoLink)]],
+          blocoPdf, blocoLink),
+          el('h3', { class: 'mt-2' }, 'Anexos'),
+          el('p', { class: 'ajuda' }, 'Outros arquivos que acompanham o documento principal. Aparecem no site junto da publicação.'),
+          listaAnexos, btnAnexo]],
         ['situacao', 'Situação e unidade', [el('div', { class: 'grade-campos' },
           campo('pb-vigencia', 'Situação do ato', f.vigencia),
           campo('pb-unidade', 'Unidade', f.unidade)),
@@ -153,18 +174,43 @@
         const temDoc = rPdf.checked ? (pdf || x.arquivo_url) : link;
         if (!temDoc) { erroCampo(rPdf.checked ? 'pb-pdf' : 'pb-link', 'Para publicar, informe o documento.'); return; }
       }
+      for (let i = 0; i < anexos.novos.length; i++) {
+        const n = anexos.novos[i], arq = n.arquivo.files[0];
+        if (!erroCampo('pb-anx-t-' + i, n.titulo.value.trim().length >= 2 ? '' : 'Dê um título ao anexo (ou remova a linha).')) return;
+        if (!erroCampo('pb-anx-a-' + i, !arq ? 'Escolha o arquivo.' : arq.size > 20 * 1024 * 1024 ? 'O arquivo passa de 20 MB.' : '')) return;
+      }
       ocupado(btn, situacao === 'publicado' ? 'Publicando…' : 'Salvando…');
       try {
         const antigo = x.arquivo_url || null;
         let arquivo = rPdf.checked ? antigo : null;
         if (pdf) arquivo = await P.enviarArquivo('publicacoes', pdf, 'pdf', 'application/pdf');
-        await P.gravarRegistro('publicacoes', {
+        const registro = {
           tipo: f.tipo.value, numero: f.numero.value.trim() || null, ano, data_publicacao: f.data.value,
           ementa: f.ementa.value.trim(), vigencia: f.vigencia.value, observacao: f.observacao.value.trim() || null,
           unidade_id: f.unidade.value || null, arquivo_url: arquivo, link_externo: rLink.checked ? (link || null) : null,
           origem: rLink.checked ? 'link' : 'manual', situacao
-        }, x.id);
+        };
+        if (f.competencia.value.trim()) registro.competencia = f.competencia.value.trim();
+        else if (x.competencia) registro.competencia = null;
+        const id = await P.gravarRegistro('publicacoes', registro, x.id);
         if (antigo && antigo !== arquivo) P.apagarArquivo(antigo);
+        // Anexos (script 42): remove os tirados e envia os novos, na ordem em que aparecem.
+        for (const a of anexos.removidos) {
+          const { error } = await sb.from('publicacoes_anexos').delete().eq('id', a.id);
+          if (error) throw error;
+          P.apagarArquivo(a.arquivo_url);
+        }
+        let ordem = anexos.atuais.length;
+        for (const n of anexos.novos) {
+          const arq = n.arquivo.files[0];
+          const ext = ((arq.name.match(/\.([a-z0-9]{2,4})$/i) || [])[1] || 'pdf').toLowerCase();
+          const MIME = { pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ods: 'application/vnd.oasis.opendocument.spreadsheet',
+            odt: 'application/vnd.oasis.opendocument.text', csv: 'text/csv', zip: 'application/zip', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+          const url = await P.enviarArquivo('publicacoes', arq, ext, MIME[ext] || arq.type || 'application/octet-stream');
+          const { error } = await sb.from('publicacoes_anexos').insert({ publicacao_id: id, orgao_id: P.estado.orgao.id, titulo: n.titulo.value.trim(), arquivo_url: url, ordem: ordem++ });
+          if (error) { P.apagarArquivo(url); throw error; }
+        }
         dlg.close();
         toast(situacao === 'publicado' ? 'Publicação no ar.' : 'Rascunho salvo.');
         await recarregar();

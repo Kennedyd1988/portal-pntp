@@ -723,3 +723,13 @@ tr.pag-oculta { display: none; }
 
 /* Aba cuja seção está em outro sistema (Aparência › Destinos das páginas) (0.36.0) */
 .aba-guia .aba-ext { color: var(--texto-suave); font-weight: 700; }
+
+/* Anexos das publicações (0.37.0) */
+.anexos-pub { list-style: none; margin: 8px 0 0; padding: 0; font-size: .85rem; }
+.anexos-pub li { margin-top: 4px; }
+.anexos-pub a::before { content: '📎 '; }
+
+/* Acesso ao painel (área restrita) (0.37.0) */
+.acess-ferramentas .acesso-painel { margin-left: auto; }
+.acess-ferramentas .acesso-painel a { font-weight: 700; }
+.rodape-fim .link-painel { color: inherit; }

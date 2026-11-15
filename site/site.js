@@ -376,7 +376,8 @@
           el('p', null, el('a', { href: S.radar(), target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública')))),
       el('div', { class: 'rodape-fim' }, el('div', { class: 'limite' },
         el('span', { id: 'ultima-atualizacao' }, ''),
-        el('span', null, 'Plataforma SOFT+ · Portal Institucional · versão ' + (window.VERSAO_SITE || '')))));
+        el('span', null, 'Plataforma SOFT+ · Portal Institucional · versão ' + (window.VERSAO_SITE || ''),
+          ' · ', el('a', { href: '../painel/', class: 'link-painel' }, 'Área restrita (entrar no painel)')))));
     ultimaAtualizacao();
   }
 

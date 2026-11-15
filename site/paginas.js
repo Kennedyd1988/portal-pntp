@@ -555,13 +555,15 @@
   R.publicacoes = async function (main, partes, params) {
     await tiposPub();
     S.titulo('Publicações oficiais'); S.trilha(['Publicações oficiais']);
-    const f = { busca: params.get('q') || '', tipo: '', ano: '', vigencia: '' };
-    let grupo = ABAS_PUBLICACOES.some((x) => x[0] === params.get('aba')) ? params.get('aba') : 'todas';
+    // ?tipo=x_… abre direto num tipo (ex.: item extra do Portal da Transparência apontando para um tipo de publicação).
+    const tipoPedido = TIPOS[params.get('tipo')] ? params.get('tipo') : '';
+    const f = { busca: params.get('q') || '', tipo: tipoPedido, ano: '', vigencia: '' };
+    let grupo = tipoPedido ? (GRUPO_PUB[tipoPedido] || 'outros') : ABAS_PUBLICACOES.some((x) => x[0] === params.get('aba')) ? params.get('aba') : 'todas';
     const tiposDoGrupo = () => Object.keys(TIPOS).filter((k) => grupo === 'todas' || (GRUPO_PUB[k] || 'outros') === grupo);
     const LOTE = 20;
     let itens = [];
     const montar = (sel, op) => {
-      let q = sb.from('publicacoes').select(sel || 'id, tipo, numero, ano, data_publicacao, ementa, vigencia, observacao, arquivo_url, link_externo', op).eq('orgao_id', org());
+      let q = sb.from('publicacoes').select(sel || '*', op).eq('orgao_id', org());
       if (f.busca) q = q.ilike('busca', termo(f.busca));
       if (f.tipo) q = q.eq('tipo', f.tipo);
       else if (grupo !== 'todas') q = q.in('tipo', tiposDoGrupo());
@@ -582,14 +584,23 @@
       }
       const lote = await paginar(() => montar(), 'data_publicacao', pag, LOTE);
       itens = lote;
+      // Anexos da página (script 42); sem a tabela, segue sem eles.
+      const anexos = new Map();
+      if (itens.length) {
+        const { data: ax } = await sb.from('publicacoes_anexos').select('publicacao_id, titulo, arquivo_url, ordem').in('publicacao_id', itens.map((p) => p.id)).order('ordem');
+        for (const a of ax || []) { if (!anexos.has(a.publicacao_id)) anexos.set(a.publicacao_id, []); anexos.get(a.publicacao_id).push(a); }
+      }
       corpo.replaceChildren(...itens.map((p) => {
         const doc = p.arquivo_url || p.link_externo;
+        const ax = anexos.get(p.id) || [];
         return el('tr', null,
           el('td', null, el('strong', null, ato(p))),
-          el('td', null, p.ementa, p.observacao ? el('span', { class: 'bloco meta' }, p.observacao) : null),
+          el('td', null, p.ementa, p.competencia ? el('span', { class: 'bloco meta' }, 'Competência: ' + p.competencia) : null,
+            p.observacao ? el('span', { class: 'bloco meta' }, p.observacao) : null),
           el('td', null, dataBR(p.data_publicacao)),
           el('td', null, el('span', { class: 'etiqueta ' + COR_VIG[p.vigencia] }, VIGENCIA[p.vigencia])),
-          el('td', null, doc ? el('a', { class: 'botao botao-claro botao-p', href: doc, target: '_blank', rel: 'noopener' }, p.arquivo_url ? 'PDF' : 'Abrir', el('span', { class: 'sr' }, ' de ' + ato(p) + ' (abre em nova aba)')) : '—'));
+          el('td', null, doc ? el('a', { class: 'botao botao-claro botao-p', href: doc, target: '_blank', rel: 'noopener' }, p.arquivo_url ? 'PDF' : 'Abrir', el('span', { class: 'sr' }, ' de ' + ato(p) + ' (abre em nova aba)')) : '—',
+            ax.length ? el('ul', { class: 'anexos-pub' }, ax.map((a) => el('li', null, el('a', { href: a.arquivo_url, target: '_blank', rel: 'noopener' }, a.titulo, el('span', { class: 'sr' }, ' — anexo de ' + ato(p) + ' (abre em nova aba)'))))) : null));
       }));
       if (!itens.length) corpo.replaceChildren(el('tr', null, el('td', { colspan: 5, class: 'vazio' }, 'Nenhuma publicação encontrada.')));
       mais.replaceChildren(S.navPaginas(total, LOTE, pag, (p) => { pag = p; carregar(false); }, mais));
@@ -599,6 +610,7 @@
     const opcoesTipo = () => fTipo.replaceChildren(el('option', { value: '' }, grupo === 'todas' ? 'Todos' : 'Todos desta aba'),
       tiposDoGrupo().map((k) => el('option', { value: k }, TIPOS[k])));
     opcoesTipo();
+    fTipo.value = f.tipo;
     const fAno = el('input', { type: 'number', min: 1900, max: 2100, placeholder: 'Ex.: 2026' });
     const fVig = el('select', null, el('option', { value: '' }, 'Todas'), Object.entries(VIGENCIA).map(([k, v]) => el('option', { value: k }, v)));
     let espera;
@@ -606,7 +618,7 @@
     [fBusca, fAno].forEach((x) => x.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); }));
     [fTipo, fVig].forEach((x) => x.addEventListener('change', aplicar));
     const colunas = [['tipo', 'Tipo', (v) => TIPOS[v] || v], ['numero', 'Número'], ['ano', 'Ano'], ['data_publicacao', 'Data de publicação'],
-      ['ementa', 'Ementa'], ['vigencia', 'Situação', (v) => VIGENCIA[v]], ['observacao', 'Observação'], ['documento', 'Documento', (v, r) => r.arquivo_url || r.link_externo || '']];
+      ['ementa', 'Ementa'], ['competencia', 'Competência'], ['vigencia', 'Situação', (v) => VIGENCIA[v]], ['observacao', 'Observação'], ['documento', 'Documento', (v, r) => r.arquivo_url || r.link_externo || '']];
     const exportar = S.botoesExportar('publicacoes-oficiais', colunas, async (de, ate) => {
       const { data } = await montar().order('data_publicacao', { ascending: false }).order('id').range(de, ate);
       return data || [];
@@ -1275,80 +1287,7 @@
   // (receitas, despesas, pessoal…) vai para o sistema externo informado
   // no painel. O número do critério aparece ao lado de cada item.
   // ===================================================================
-  const IC_T = {
-    receita: 'M12 3v18 M16.5 7.5c0-1.7-2-2.8-4.5-2.8S7.5 5.8 7.5 7.5s2 2.4 4.5 2.8 4.5 1.4 4.5 3.2-2 3-4.5 3-4.5-1.2-4.5-3',
-    despesa: 'M3 6h18v13H3z M3 10h18 M7 15h4',
-    licit: 'M9 3h6v4H9z M7 5H5v16h14V5h-2 M8 12h8 M8 16h5',
-    contrato: 'M6 3h9l4 4v14H6z M9 14l2 2 4-4',
-    pessoas: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M2 21c0-3.9 3.1-6 7-6s7 2.1 7 6 M16 4a3.5 3.5 0 0 1 0 7 M22 20c0-2.6-1.6-4.4-4-5',
-    viagem: 'M3 11l18-7-6 17-3-7z',
-    obra: 'M3 21h18 M5 21V10l7-5 7 5v11 M10 21v-5h4v5',
-    convenio: 'M8 12l3 3 5-6 M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0',
-    chat: 'M4 5h16v11H9l-5 4z M8 9h8 M8 12h5',
-    ouvido: 'M4 13a8 8 0 0 1 16 0v5a2 2 0 0 1-2 2h-1v-6h3 M4 14h3v6H6a2 2 0 0 1-2-2z',
-    lock: 'M6 11h12v10H6z M8 11V7a4 4 0 0 1 8 0v4',
-    saude: 'M12 20s-8-4.8-8-10.5A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 8 2.5C20 15.2 12 20 12 20z',
-    edu: 'M2 9l10-5 10 5-10 5z M6 11v5c3.5 2.5 8.5 2.5 12 0v-5',
-    legis: 'M4 21h10 M9 17V8 M4 8h10 M5 8l2-4h4l2 4 M17 6v15 M15 21h4',
-    play: 'M3 5h18v14H3z M10 9v6l5-3z',
-    banco: 'M3 10l9-6 9 6 M5 10v8 M9.5 10v8 M14.5 10v8 M19 10v8 M3 21h18',
-    grafico: 'M4 19V10 M10 19V5 M16 19v-7 M21 19H3',
-    // Ícones dos itens (cartões da página de Transparência)
-    organograma: 'M9 3h6v5H9z M3 16h6v5H3z M15 16h6v5h-6z M12 8v4 M6 16v-4h12v4',
-    lista: 'M9 6h12 M9 12h12 M9 18h12 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2',
-    pessoa: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21c0-4 3.6-6 8-6s8 2 8 6',
-    local: 'M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
-    documento: 'M6 3h9l4 4v14H6z M14 3v5h5 M9 12h7 M9 16h7',
-    pergunta: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7 M12 17h.01',
-    moedas: 'M12 8c4.4 0 8-1.3 8-3s-3.6-3-8-3-8 1.3-8 3 3.6 3 8 3z M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5 M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6',
-    etiqueta: 'M3 12V3h9l9 9-9 9z M7.5 7.5h.01',
-    alerta: 'M12 3l10 18H2z M12 10v5 M12 18h.01',
-    recibo: 'M6 2h12v20l-3-2-3 2-3-2-3 2z M9 7h6 M9 11h6 M9 15h4',
-    ordem: 'M10 6h11 M10 12h11 M10 18h11 M4 6h1v4 M4 10h2 M4 14h2l-2 3h2',
-    entrada: 'M15 3h4v18h-4 M3 12h12 M10 7l5 5-5 5',
-    saida: 'M9 3H5v18h4 M9 12h12 M16 7l5 5-5 5',
-    acordo: 'M3 11l4-4 4 3 3-3 7 7 M7 15l2 2 M10 13l3 3 M13 11l3 3',
-    cracha: 'M4 6h16v14H4z M9 3h6v4H9z M9 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M6 18c.5-1.5 1.6-2.2 3-2.2s2.5.7 3 2.2 M14 11h4 M14 15h3',
-    carteira: 'M3 7h16v13H3z M3 7l12-4 2 4 M15 13h4 M16 13.5h.01',
-    tabela: 'M3 4h18v16H3z M3 10h18 M3 15h18 M9 4v16',
-    formatura: 'M2 9l10-5 10 5-10 5z M6 11v5c3.5 2.5 8.5 2.5 12 0v-5 M22 9v6',
-    grupo: 'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M2 20c0-3 2.7-5 6-5s6 2 6 5 M14 15.5c.6-.3 1.3-.5 2-.5 3.3 0 6 2 6 5',
-    premio: 'M12 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M8.5 13.5L7 22l5-3 5 3-1.5-8.5',
-    calendario: 'M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4 M8 14h2 M13 14h3 M8 17h2',
-    pasta: 'M3 6h6l2 2h10v12H3z M3 10h18',
-    bloqueio: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M5.6 5.6l12.8 12.8',
-    olho: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
-    pausa: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M10 9v6 M14 9v6',
-    regua: 'M3 17L17 3l4 4L7 21z M7 13l2 2 M10 10l2 2 M13 7l2 2',
-    livro: 'M4 4h6a3 3 0 0 1 3 3v14a2 2 0 0 0-2-2H4z M20 4h-4a3 3 0 0 0-3 3v14a2 2 0 0 1 2-2h5z',
-    balanca: 'M12 3v18 M5 21h14 M4 8h16 M7 8l-3 7h6z M17 8l-3 7h6z',
-    carimbo: 'M9 3h6v6l3 3H6l3-3z M5 16h14v3H5z M5 22h14',
-    martelo: 'M14 5l5 5 M11 8l5 5 M12.5 6.5l-4 4 3 3 4-4 M10 12l-7 7 2 2 7-7 M14 21h7',
-    alvo: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
-    info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 11v6 M12 7.5h.01',
-    enviar: 'M22 2L11 13 M22 2l-7 20-4-9-9-4z',
-    lupa: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M21 21l-5-5',
-    relogio: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2',
-    pizza: 'M12 3v9h9 M20.5 15.5A9 9 0 1 1 8.5 3.7',
-    cadeado_aberto: 'M6 11h12v10H6z M8 11V7a4 4 0 0 1 7.5-2',
-    predio: 'M4 21V5l8-3v19 M12 9h8v12 M7 8h2 M7 12h2 M7 16h2 M15 13h2 M15 17h2 M2 21h20',
-    monitor: 'M3 4h18v12H3z M8 20h8 M12 16v4',
-    globo: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M3 12h18 M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z',
-    sorriso: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M8 14s1.5 2 4 2 4-2 4-2 M9 9h.01 M15 9h.01',
-    escudo: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4',
-    banco_dados: 'M12 8c4.4 0 8-1.3 8-3s-3.6-3-8-3-8 1.3-8 3 3.6 3 8 3z M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5 M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
-    codigo: 'M8 7l-5 5 5 5 M16 7l5 5-5 5 M14 4l-4 16',
-    porcento: 'M19 5L5 19 M6.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z M17.5 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
-    estrela: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z',
-    prancheta: 'M8 4h8v3H8z M6 5H4v16h16V5h-2 M8 12h8 M8 16h5',
-    ampulheta: 'M6 3h12 M6 21h12 M7 3c0 5 10 5 10 9s-10 4-10 9 M17 3c0 5-10 5-10 9s10 4 10 9',
-    remedio: 'M10.5 20.5l10-10a5 5 0 0 0-7-7l-10 10a5 5 0 0 0 7 7z M8.5 8.5l7 7',
-    caixa: 'M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10',
-    bebe: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M6 21c0-3.3 2.7-6 6-6s6 2.7 6 6 M10 7.5h.01 M14 7.5h.01',
-    microfone: 'M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z M19 11a7 7 0 0 1-14 0 M12 18v3 M8 21h8',
-    votacao: 'M4 4h16v16H4z M8 12l3 3 5-6',
-    mapa: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z M9 4v14 M15 6v14'
-  };
+  const IC_T = window.ICONES_PNTP;   // site/icones.js
   // Ícone de cada item da Transparência, pelo assunto (o primeiro que casar).
   const ICONE_ITEM = [
     [/estrutura organizacional/i, 'organograma'], [/compet[eê]ncia/i, 'lista'], [/gestores|encarregado/i, 'pessoa'], [/endere[cç]o|telefone/i, 'local'],
@@ -1369,13 +1308,7 @@
     [/vota[cç][oõ]es/i, 'votacao'], [/transmiss/i, 'play'], [/cota parlamentar|verba/i, 'carteira'], [/protocolo de inten|estatuto/i, 'documento'], [/entes consorciados/i, 'mapa']
   ];
   const iconeItem = (texto, padrao) => (ICONE_ITEM.find(([re]) => re.test(texto)) || [null, padrao])[1];
-  function iconeT(nome) {
-    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', '22'); s.setAttribute('height', '22'); s.setAttribute('aria-hidden', 'true');
-    s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '1.8'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
-    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', IC_T[nome]); s.append(p);
-    return s;
-  }
+  const iconeT = (nome) => window.svgIconePNTP(nome, 22);
   function gruposTransparencia() {
     const c = S.conf;
     const tipo = S.orgao.tipo;
@@ -1446,6 +1379,23 @@
     return g;
   }
 
+  // Itens extras (Aparência › Destinos das páginas › Itens extras): cartões que o órgão acrescenta,
+  // sem número de critério (não contam no PNTP). Grupo existente: entram no fim dele; grupo novo: vira um
+  // grupo no fim da página, com o ícone do primeiro item.
+  function comExtras(grupos) {
+    const extras = Array.isArray(S.conf.transparencia_extras) ? S.conf.transparencia_extras : [];
+    const g = grupos.map(([t, ic, ls]) => [t, ic, ls.slice()]);
+    for (const x of extras) {
+      if (!x || !x.titulo || !x.valor) continue;
+      const h = x.tipo === 'pagina' ? '#/pagina/' + encodeURIComponent(x.valor) : x.tipo === 'publicacoes' ? '#/publicacoes?tipo=' + encodeURIComponent(x.valor)
+        : /^https?:\/\//.test(x.valor) ? x.valor : null;
+      if (!h) continue;
+      const item = { t: x.titulo, cod: '', h, ic: x.icone || 'documento', extra: true };
+      const alvo = g.find((y) => y[0].toLowerCase() === String(x.grupo || '').toLowerCase());
+      if (alvo) alvo[2].push(item); else g.push([x.grupo || 'Outras informações', x.icone || 'documento', [item]]);
+    }
+    return g;
+  }
   R.transparencia = async function (main) {
     S.titulo('Portal da Transparência'); S.trilha(['Portal da Transparência']);
     const c = S.conf;
@@ -1476,11 +1426,11 @@
           el('span', null, el('b', null, 'Formatos: '), 'CSV, JSON, XML, XLSX e PDF'),
           el('a', { href: '#/dados-abertos' }, 'Dados abertos e API →')),
         // Cada grupo ocupa a largura toda; dentro dele, um cartão por item do PNTP (ícone, nome e número do critério).
-        el('div', { class: 'transp-grupos' }, gruposTransparencia().map(([t, ic, ls]) => [t, ic, ls.filter(Boolean)]).filter((x) => x[2].length).map(([titulo, ic, links]) => el('section', { class: 'transp-grupo', 'aria-label': titulo },
+        el('div', { class: 'transp-grupos' }, comExtras(gruposTransparencia()).map(([t, ic, ls]) => [t, ic, ls.filter(Boolean)]).filter((x) => x[2].length).map(([titulo, ic, links]) => el('section', { class: 'transp-grupo', 'aria-label': titulo },
           el('div', { class: 'transp-grupo-topo' }, el('span', { class: 'transp-icone' }, iconeT(ic)), el('h2', null, titulo),
             el('span', { class: 'meta' }, links.length + (links.length === 1 ? ' item' : ' itens'))),
           el('ul', { class: 'transp-itens' }, links.map((l) => {
-            const corpo = [el('span', { class: 'transp-item-icone' }, iconeT(iconeItem(l.t, ic))),
+            const corpo = [el('span', { class: 'transp-item-icone' }, iconeT(l.ic || iconeItem(l.t, ic))),
               el('span', { class: 'transp-item-nome' }, l.t), l.cod ? el('span', { class: 'transp-cod', title: 'Critério ' + l.cod + ' do PNTP' }, el('span', { class: 'sr' }, 'Critério '), l.cod) : null];
             return el('li', null, l.h
               ? el('a', { class: 'transp-item', href: l.h, target: externo(l.h) ? '_blank' : null, rel: externo(l.h) ? 'noopener' : null }, corpo,
