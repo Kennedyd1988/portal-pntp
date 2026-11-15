@@ -398,7 +398,8 @@
     async concurso(x, s) {
       const r = x.registro;
       if (await existente('concursos', { tipo: r.tipo, numero: r.numero, ano: r.ano })) return { situacao: 'ja_existia' };
-      const { data, error } = await sb.from('concursos').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r)).select('id').single();
+      // Entra como rascunho: o banco só deixa publicar depois que o edital está anexado.
+      const { data, error } = await sb.from('concursos').insert(Object.assign({ orgao_id: org() }, r, { situacao: 'rascunho' })).select('id').single();
       if (error) throw error;
       let bytes = 0, falhas = 0;
       for (const d of x.documentos || []) {
@@ -409,7 +410,10 @@
           titulo: d.titulo.length >= 2 ? d.titulo : 'Documento', data: d.data, arquivo_url: a.url });
         if (e2) falhas++;
       }
-      return { situacao: 'importado', id: data.id, tabela: 'concursos', bytes, aviso: falhas ? falhas + ' documento(s) não copiado(s)' : null };
+      const pub = await sb.from('concursos').update({ situacao: 'publicado' }).eq('id', data.id).select('id');
+      const avisos = [falhas ? falhas + ' documento(s) não copiado(s)' : '',
+        pub.error ? 'Ficou em rascunho: ' + (pub.error.message || 'falta o edital') : ''].filter(Boolean).join(' · ');
+      return { situacao: 'importado', id: data.id, tabela: 'concursos', bytes, aviso: avisos || null };
     },
     async conta(x, s) {
       const r = x.registro;
