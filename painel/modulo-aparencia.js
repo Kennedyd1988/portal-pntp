@@ -201,7 +201,7 @@
       e.blocoGrupoNome = campo('ap-ext-gn-' + n, 'Nome do novo grupo', e.grupoNome);
       e.blocoUrl = campo('ap-ext-u-' + n, 'Endereço', e.url);
       e.blocoPagina = campo('ap-ext-p-' + n, 'Página', e.pagina, 'Páginas cadastradas em "Páginas institucionais".');
-      e.blocoPub = campo('ap-ext-tp-' + n, 'Tipo de publicação', e.tipoPub, 'O cartão abre as Publicações oficiais já filtradas neste tipo.');
+      e.blocoPub = campo('ap-ext-tp-' + n, 'Tipo de publicação', e.tipoPub, 'O cartão abre uma página só deste tipo, com o título do cartão e abas por ano (competência, PDF e anexos de cada documento).');
       const mover = (d) => { const i = extras.indexOf(e), j = i + d; if (j < 0 || j >= extras.length) return; extras.splice(i, 1); extras.splice(j, 0, e); desenharExtras(); };
       e.linha = el('div', { class: 'cartao-extra' },
         el('div', { class: 'grade-campos grade-3' }, campo('ap-ext-t-' + n, 'Título do cartão', e.titulo),

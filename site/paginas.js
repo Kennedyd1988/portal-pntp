@@ -552,8 +552,68 @@
   // ===================================================================
   // PUBLICAÇÕES OFICIAIS (2.6 atos normativos) — filtros, total e exportação
   // ===================================================================
+  // Página própria de um tipo de publicação (#/publicacoes/tipo/<código>), aberta pelos itens extras do
+  // Portal da Transparência: título do cartão (ou o nome do tipo) e abas por ano, como Planejamento e Contratos.
+  async function paginaTipoPublicacao(main, codigo, params) {
+    const extra = (Array.isArray(S.conf.transparencia_extras) ? S.conf.transparencia_extras : []).find((x) => x && x.tipo === 'publicacoes' && x.valor === codigo);
+    const titulo = (extra && extra.titulo) || TIPOS[codigo];
+    S.titulo(titulo); S.trilha(['Transparência', '#/transparencia'], [titulo]);
+    const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' });
+    pagina(main, el('h1', null, titulo),
+      el('p', { class: 'sub' }, 'Documentos publicados pelo órgão, organizados por ano. ', el('a', { href: '#/publicacoes?tipo=' + encodeURIComponent(codigo) }, 'Ver também em Publicações oficiais'), '.'),
+      conteudo);
+    conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));
+    const { data: linhasAno, error } = await sb.from('publicacoes').select('ano').eq('orgao_id', org()).eq('tipo', codigo).limit(10000);
+    if (error) { conteudo.replaceChildren(el('p', null, 'Não foi possível carregar. Tente novamente.')); return; }
+    const contagem = new Map();
+    for (const x of linhasAno || []) contagem.set(x.ano, (contagem.get(x.ano) || 0) + 1);
+    if (!contagem.size) { conteudo.replaceChildren(el('p', { class: 'vazio' }, 'Ainda não há documentos publicados.')); return; }
+    const anos = [...contagem.keys()].sort((a, b) => b - a);
+    const pedido = parseInt(params.get('ano'), 10);
+    let ano = anos.includes(pedido) ? pedido : anos[0];
+    const painelAno = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
+    const faixa = faixaAbas(anos.map((a) => [a, a + ' (' + contagem.get(a) + ')']), ano, 'Ano', true, (id) => { ano = Number(id); abrirAno(); });
+    conteudo.replaceChildren(faixa.lista, painelAno);
+    abrirAno();
+    function abrirAno() {
+      history.replaceState(null, '', '#/publicacoes/tipo/' + encodeURIComponent(codigo) + '?ano=' + ano);
+      const LOTE = 20;
+      let pag = 1;
+      const montar = (sel, op) => sb.from('publicacoes').select(sel || '*', op).eq('orgao_id', org()).eq('tipo', codigo).eq('ano', ano);
+      const corpo = el('tbody'), mais = el('div', { class: 'mais' });
+      const colunas = [['numero', 'Número'], ['data_publicacao', 'Data de publicação'], ['competencia', 'Competência'], ['ementa', 'Descrição'],
+        ['vigencia', 'Situação', (v) => VIGENCIA[v]], ['documento', 'Documento', (v, r) => r.arquivo_url || r.link_externo || '']];
+      const exportar = S.botoesExportar(codigo.replace(/^x_/, '') + '-' + ano, colunas, async (de, ate) => {
+        const { data } = await montar().order('data_publicacao', { ascending: false }).order('id').range(de, ate); return data || [];
+      });
+      painelAno.replaceChildren(el('div', { class: 'barra-lista' }, el('span', { class: 'meta' }, contagem.get(ano) + (contagem.get(ano) === 1 ? ' documento em ' : ' documentos em ') + ano), exportar),
+        el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' }, el('caption', { class: 'sr' }, titulo + ' de ' + ano),
+          el('thead', null, el('tr', null, ['Documento', 'Descrição', 'Data', 'Arquivos'].map((t) => el('th', { scope: 'col' }, t)))), corpo)), mais);
+      async function carregar() {
+        const linhas = await paginar(() => montar(), 'data_publicacao', pag, LOTE);
+        const anexos = new Map();
+        if (linhas.length) {
+          const { data: ax } = await sb.from('publicacoes_anexos').select('publicacao_id, titulo, arquivo_url, ordem').in('publicacao_id', linhas.map((p) => p.id)).order('ordem');
+          for (const a of ax || []) { if (!anexos.has(a.publicacao_id)) anexos.set(a.publicacao_id, []); anexos.get(a.publicacao_id).push(a); }
+        }
+        corpo.replaceChildren(...linhas.map((p) => {
+          const doc = p.arquivo_url || p.link_externo, ax = anexos.get(p.id) || [];
+          return el('tr', null,
+            el('td', null, el('strong', null, p.numero ? 'Nº ' + p.numero + '/' + p.ano : (TIPOS[p.tipo] || 'Documento')), p.competencia ? el('span', { class: 'bloco meta' }, 'Competência: ' + p.competencia) : null),
+            el('td', null, p.ementa, p.observacao ? el('span', { class: 'bloco meta' }, p.observacao) : null),
+            el('td', null, dataBR(p.data_publicacao)),
+            el('td', null, doc ? el('a', { class: 'botao botao-claro botao-p', href: doc, target: '_blank', rel: 'noopener' }, p.arquivo_url ? 'PDF' : 'Abrir', el('span', { class: 'sr' }, ' (abre em nova aba)')) : '—',
+              ax.length ? el('ul', { class: 'anexos-pub' }, ax.map((a) => el('li', null, el('a', { href: a.arquivo_url, target: '_blank', rel: 'noopener' }, a.titulo, el('span', { class: 'sr' }, ' — anexo (abre em nova aba)'))))) : null));
+        }));
+        mais.replaceChildren(S.navPaginas(contagem.get(ano), LOTE, pag, (p) => { pag = p; carregar(); }, mais));
+      }
+      carregar();
+    }
+  }
+
   R.publicacoes = async function (main, partes, params) {
     await tiposPub();
+    if (partes[0] === 'tipo' && TIPOS[partes[1]]) return paginaTipoPublicacao(main, partes[1], params);
     S.titulo('Publicações oficiais'); S.trilha(['Publicações oficiais']);
     // ?tipo=x_… abre direto num tipo (ex.: item extra do Portal da Transparência apontando para um tipo de publicação).
     const tipoPedido = TIPOS[params.get('tipo')] ? params.get('tipo') : '';
@@ -1387,7 +1447,7 @@
     const g = grupos.map(([t, ic, ls]) => [t, ic, ls.slice()]);
     for (const x of extras) {
       if (!x || !x.titulo || !x.valor) continue;
-      const h = x.tipo === 'pagina' ? '#/pagina/' + encodeURIComponent(x.valor) : x.tipo === 'publicacoes' ? '#/publicacoes?tipo=' + encodeURIComponent(x.valor)
+      const h = x.tipo === 'pagina' ? '#/pagina/' + encodeURIComponent(x.valor) : x.tipo === 'publicacoes' ? '#/publicacoes/tipo/' + encodeURIComponent(x.valor)
         : /^https?:\/\//.test(x.valor) ? x.valor : null;
       if (!h) continue;
       const item = { t: x.titulo, cod: '', h, ic: x.icone || 'documento', extra: true };
