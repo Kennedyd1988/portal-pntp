@@ -316,6 +316,7 @@
 
     P.telas.convenios = async function (c, mod, p) {
       perm = p; conteiner = c;
+      { const q = P.abaDoEndereco(Object.keys(TIPOS)); if (q && q !== tipo) { tipo = q; ano = null; } }
       c.replaceChildren(el('h1', null, 'Convênios e transferências'), el('p', { class: 'sub' }, 'Carregando…'));
       try { await carregarAnos(); await carregar(true); desenhar(); }
       catch (e) { c.querySelector('.sub').textContent = /convenios_anos|Could not find/i.test(e.message || '') ? 'Falta rodar o script 19 no banco.' : P.erroGravacao(e); }
@@ -612,6 +613,7 @@
 
     P.telas.emendas = async function (c, mod, p) {
       perm = p; conteiner = c;
+      { const q = P.abaDoEndereco(['todas', 'federal', 'estmun']); if (q && q !== abaOrigem) { abaOrigem = q; filtros.origem = ''; } }
       c.replaceChildren(el('h1', null, 'Emendas parlamentares'), el('p', { class: 'sub' }, 'Carregando…'));
       try { await carregarAnos(); await carregar(true); desenhar(); }
       catch (e) { c.querySelector('.sub').textContent = /emendas_anos|Could not find/i.test(e.message || '') ? 'Falta rodar o script 19 no banco.' : P.erroGravacao(e); }

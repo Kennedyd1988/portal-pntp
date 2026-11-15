@@ -1,13 +1,13 @@
 {
-  "versao": "0.29.1",
-  "data": "2026-11-14",
+  "versao": "0.30.0",
+  "data": "2026-11-15",
   "notas": [
+    "Autoavaliação PNTP: o botão \"Corrigir\" dos cartões de pendência agora abre a aba exata do critério, e não só a tela do módulo (ex.: 2.3 → Gestores, 2.7 → Perguntas frequentes, 5.2 → Transferências realizadas, 8.4 → Dispensas e inexigibilidades, 9.3 → Fiscais, 10.4 → Obras paralisadas, 11.5 → RGF, 15.3 → serviços pedidos pela internet, 17.1 → Emendas federais). Rodar o script 40.",
     "Correção: a palavra \"null\" aparecia no alto das telas Consórcio público e Atividade legislativa.",
     "Consórcio público: novo módulo no painel (só para órgão do tipo consórcio) com Entes consorciados, Documentos constitutivos (protocolo de intenções, contrato, estatuto e alterações), Contratos de rateio (por exercício e por ente, com aviso do ente que falta), Contratos de programa, Dirigentes e atas da assembleia e Orçamento. Rodar o script 39 e depois o 26 de novo.",
     "Site do consórcio: páginas de entes consorciados (cada ente com os contratos dele), documentos constitutivos, contratos de rateio, contratos de programa, dirigentes e atas, e orçamento, com abas por exercício, declarações de que não há dados e exportação em CSV, JSON, XML, XLSX, PDF e impressão.",
     "Autoavaliação PNTP do consórcio: critérios 11.11 e 25.1 a 25.7 (Cartilha 2026), além da matriz comum e do RREO.",
     "Menu padrão do consórcio ao criar o órgão em Órgãos da plataforma (Suporte SOFT+).",
-    "Correção: o botão \"Tornar Suporte SOFT+\" não aparecia na ficha da pessoa.",
-    "Usuários e permissões: quem é Suporte SOFT+ pode tornar outra pessoa Suporte SOFT+ (ou tirar), na ficha dela. Ninguém muda a própria marca e a plataforma nunca fica sem Suporte. Rodar o script 38."
+    "Correção: o botão \"Tornar Suporte SOFT+\" não aparecia na ficha da pessoa."
   ]
 }

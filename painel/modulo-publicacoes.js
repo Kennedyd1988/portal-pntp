@@ -323,6 +323,7 @@
 
   P.telas.publicacoes = async function (c, mod, p) {
     perm = p; conteiner = c;
+    { const q = P.abaDoEndereco(ABAS.map((x) => x[0]).concat('tipos')); if (q) { aba = q; filtros.tipo = ''; } }
     c.replaceChildren(el('h1', null, 'Publicações oficiais e atos normativos'), el('p', { class: 'sub' }, 'Carregando…'));
     try {
       const [u, o] = await Promise.all([

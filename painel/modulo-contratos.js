@@ -584,6 +584,7 @@
 
   P.telas.contratos = async function (c, mod, p) {
     perm = p; conteiner = c;
+    abaTopo = P.abaDoEndereco(['contratos', 'fiscais']) || abaTopo;
     c.replaceChildren(el('h1', null, 'Contratos'), el('p', { class: 'sub' }, 'Carregando…'));
     try {
       const o = await sb.from('orgaos').select('cnpj, configuracoes').eq('id', P.estado.orgao.id).maybeSingle();

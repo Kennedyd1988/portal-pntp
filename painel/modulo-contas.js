@@ -336,6 +336,7 @@
 
   P.telas.contas = async function (c, mod, p) {
     perm = p; conteiner = c;
+    { const q = P.abaDoEndereco(ABAS_SITE.map((x) => x[0]).concat('todos')); if (q) filtros.tipo = q === 'todos' ? '' : q; }
     c.replaceChildren(el('h1', null, 'Planejamento e prestação de contas'), el('p', { class: 'sub' }, 'Carregando…'));
     try {
       const o = await sb.from('orgaos').select('configuracoes').eq('id', P.estado.orgao.id).maybeSingle();

@@ -218,6 +218,7 @@
 
   P.telas.paginas = async function (c, mod, p) {
     perm = p; conteiner = c;
+    aba = P.abaDoEndereco(['paginas', 'faq']) || aba;
     c.replaceChildren(el('h1', null, 'Páginas e perguntas frequentes'), el('p', { class: 'sub' }, 'Carregando…'));
     try { await carregar(); desenhar(); }
     catch (e) { c.querySelector('.sub').textContent = P.erroGravacao(e); }

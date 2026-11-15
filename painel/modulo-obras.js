@@ -572,6 +572,7 @@
 
   P.telas.obras = async function (c, mod, p) {
     perm = p; conteiner = c;
+    { const q = P.abaDoEndereco(['obras', 'paralisadas']); if (q && q !== abaTopo) { abaTopo = q; filtros.obra = ''; } }
     c.replaceChildren(el('h1', null, 'Obras'), el('p', { class: 'sub' }, 'Carregando…'));
     try { await carregarAnos(); await carregar(true); desenhar(); }
     catch (e) { c.querySelector('.sub').textContent = /obras_anos|Could not find/i.test(e.message || '') ? 'Falta rodar o script 18 no banco.' : P.erroGravacao(e); }

@@ -606,6 +606,7 @@
 
   P.telas.licitacoes = async function (c, mod, p) {
     perm = p; conteiner = c;
+    { const q = P.abaDoEndereco(GRUPOS.map((g) => g[0])); if (q && q !== grupo) { grupo = q; ano = null; filtros.modalidade = ''; } }
     c.replaceChildren(el('h1', null, 'Licitações'), el('p', { class: 'sub' }, 'Carregando…'));
     try {
       const o = await sb.from('orgaos').select('cnpj, configuracoes').eq('id', P.estado.orgao.id).maybeSingle();

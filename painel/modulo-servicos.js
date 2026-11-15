@@ -307,6 +307,8 @@
 
   P.telas.servicos = async function (c, mod, p) {
     perm = p; conteiner = c;
+    // "online" (PNTP 15.3): lista de serviços já filtrada pelos que se pedem pela internet.
+    { const q = P.abaDoEndereco(['servicos', 'textos', 'online']); if (q === 'online') { aba = 'servicos'; filtros.forma = 'internet'; } else if (q) aba = q; }
     c.replaceChildren(el('h1', null, 'Carta de Serviços'), el('p', { class: 'sub' }, 'Carregando…'));
     try {
       const [u, o] = await Promise.all([

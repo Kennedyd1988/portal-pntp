@@ -428,7 +428,7 @@ insert into public.pntp_criterios (codigo, ordem, dimensao, peso_dimensao, titul
   ('20.5',  2005, 'Atividades finalísticas (Legislativo)', 3, 'Pauta das Comissões', 'obrigatoria', 'legislativo', 'DAGF', 'legislativo', '#/m/legislativo?aba=comissoes', '/comissoes'),
   ('20.6',  2006, 'Atividades finalísticas (Legislativo)', 3, 'Atas das sessões e lista de presença dos parlamentares', 'obrigatoria', 'legislativo', 'DASGF', 'legislativo', '#/m/legislativo?aba=sessoes', '/sessoes'),
   ('20.7',  2007, 'Atividades finalísticas (Legislativo)', 3, 'Votações nominais', 'recomendada', 'legislativo', 'DASGF', 'legislativo', '#/m/legislativo?aba=sessoes', '/votacoes'),
-  ('20.8',  2008, 'Atividades finalísticas (Legislativo)', 3, 'Julgamento das contas do Chefe do Executivo (ato e teor)', 'obrigatoria', 'legislativo', 'DASF', 'contas', '#/m/contas', '/planejamento'),
+  ('20.8',  2008, 'Atividades finalísticas (Legislativo)', 3, 'Julgamento das contas do Chefe do Executivo (ato e teor)', 'obrigatoria', 'legislativo', 'DASF', 'contas', '#/m/contas?aba=julgamento_camara', '/planejamento'),
   ('20.9',  2009, 'Atividades finalísticas (Legislativo)', 3, 'Transmissão das sessões, audiências e consultas públicas', 'recomendada', 'legislativo', 'D', 'legislativo', '#/m/legislativo?aba=transmissao', '/sessoes'),
   ('20.10', 2010, 'Atividades finalísticas (Legislativo)', 3, 'Cotas e verba indenizatória: regulamentação e valores', 'recomendada', 'legislativo', 'DASGF', 'legislativo', '#/m/legislativo?aba=verba', '/verba-indenizatoria'),
   ('20.11', 2011, 'Atividades finalísticas (Legislativo)', 3, 'Atividades legislativas de cada parlamentar', 'recomendada', 'legislativo', 'DASF', 'legislativo', '#/m/legislativo?aba=parlamentares', '/atividade-parlamentar')

@@ -433,6 +433,7 @@
 
   P.telas.institucional = async function (c, mod, p) {
     perm = p;
+    aba = P.abaDoEndereco(['unidades', 'gestores']) || aba;
     conteinerAtual = c;
     c.replaceChildren(el('h1', null, 'Unidades e gestores'), el('p', { class: 'sub' }, 'Carregando…'));
     try { await carregar(); desenhar(); }

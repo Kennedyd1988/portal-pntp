@@ -143,6 +143,15 @@
       el('p', { class: 'ajuda' }, 'Para voltar a cadastrar no portal, escolha "Página do portal" nessa linha. O que já estava cadastrado continua guardado.'));
   }
 
+  // Aba pedida no endereço (#/m/modulo?aba=…, links "Corrigir" da autoavaliação), para telas
+  // que desenham as próprias abas no alto: devolve a aba se for uma das válidas e a tira do endereço.
+  function abaDoEndereco(validas) {
+    const q = new URLSearchParams(location.hash.split('?')[1] || '').get('aba');
+    if (!q || !validas.includes(q)) return null;
+    history.replaceState(null, '', location.pathname + location.search + location.hash.split('?')[0]);
+    return q;
+  }
+
   // lista: [id, rótulo, conteúdo, motivo (desativa a aba), chave(s) de destino (aba vira aviso se tiver link externo)]
   function abas(lista, inicial) {
     // Sem aba inicial: usa a do endereço (#/m/modulo?aba=…, links "Corrigir" da autoavaliação) uma vez só.
@@ -1473,7 +1482,7 @@
     cpfValido, cnpjValido, erroDoc, formatarDoc, mascaraDoc,
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
-    campo, campoOutra, abas, externo, avisoExterno, declaracoes, declaracoesAnuais, declaracoesDoOrgao, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
+    campo, campoOutra, abas, abaDoEndereco, externo, avisoExterno, declaracoes, declaracoesAnuais, declaracoesDoOrgao, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
     paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf, atualizarAvisos, excluirComPecas
   };
 })();
