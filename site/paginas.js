@@ -17,8 +17,12 @@
   };
   // Tipos de publicação criados pelo órgão (painel › Publicações › Tipos personalizados).
   let tiposCarregados = null;
-  const tiposPub = () => tiposCarregados || (tiposCarregados = sb.from('publicacoes_tipos').select('codigo, nome').eq('orgao_id', org())
-    .then(({ data }) => { for (const t of data || []) TIPOS[t.codigo] = t.nome; }, () => {}));
+  // Aba de cada tipo (mesmas abas do painel › Publicações): os personalizados trazem a sua.
+  const GRUPO_PUB = { lei_organica: 'leis', emenda_lei_organica: 'leis', lei_complementar: 'leis', lei: 'leis', decreto: 'decretos', portaria: 'portarias',
+    resolucao: 'normas', instrucao_normativa: 'normas', decreto_legislativo: 'decretos', edital: 'editais', ato: 'outros', outro: 'outros' };
+  const ABAS_PUBLICACOES = [['todas', 'Todas'], ['leis', 'Leis'], ['decretos', 'Decretos'], ['portarias', 'Portarias'], ['normas', 'Resoluções e instruções'], ['editais', 'Editais'], ['outros', 'Outros atos']];
+  const tiposPub = () => tiposCarregados || (tiposCarregados = sb.from('publicacoes_tipos').select('codigo, nome, grupo').eq('orgao_id', org())
+    .then(({ data }) => { for (const t of data || []) { TIPOS[t.codigo] = t.nome; GRUPO_PUB[t.codigo] = t.grupo || 'outros'; } }, () => {}));
   const VIGENCIA = { vigente: 'Vigente', alterada: 'Alterada', revogada: 'Revogada', sem_efeito: 'Sem efeito' };
   const COR_VIG = { vigente: 'etiqueta-verde', alterada: 'etiqueta-ambar', revogada: 'etiqueta-vermelha', sem_efeito: 'etiqueta-vermelha' };
   const FORMAS = { presencial: 'Presencial', digital: 'Pela internet', presencial_digital: 'Presencial e pela internet' };
@@ -550,12 +554,15 @@
     await tiposPub();
     S.titulo('Publicações oficiais'); S.trilha(['Publicações oficiais']);
     const f = { busca: params.get('q') || '', tipo: '', ano: '', vigencia: '' };
+    let grupo = ABAS_PUBLICACOES.some((x) => x[0] === params.get('aba')) ? params.get('aba') : 'todas';
+    const tiposDoGrupo = () => Object.keys(TIPOS).filter((k) => grupo === 'todas' || (GRUPO_PUB[k] || 'outros') === grupo);
     const LOTE = 20;
     let itens = [];
     const montar = (sel, op) => {
       let q = sb.from('publicacoes').select(sel || 'id, tipo, numero, ano, data_publicacao, ementa, vigencia, observacao, arquivo_url, link_externo', op).eq('orgao_id', org());
       if (f.busca) q = q.ilike('busca', termo(f.busca));
       if (f.tipo) q = q.eq('tipo', f.tipo);
+      else if (grupo !== 'todas') q = q.in('tipo', tiposDoGrupo());
       if (f.ano) q = q.eq('ano', parseInt(f.ano, 10));
       if (f.vigencia) q = q.eq('vigencia', f.vigencia);
       return q;
@@ -578,7 +585,7 @@
           el('td', null, p.ementa, p.observacao ? el('span', { class: 'bloco meta' }, p.observacao) : null),
           el('td', null, dataBR(p.data_publicacao)),
           el('td', null, el('span', { class: 'etiqueta ' + COR_VIG[p.vigencia] }, VIGENCIA[p.vigencia])),
-          el('td', null, doc ? el('a', { href: doc, target: '_blank', rel: 'noopener' }, p.arquivo_url ? 'PDF' : 'Abrir', el('span', { class: 'sr' }, ' de ' + ato(p) + ' (abre em nova aba)')) : '—'));
+          el('td', null, doc ? el('a', { class: 'botao botao-claro botao-p', href: doc, target: '_blank', rel: 'noopener' }, p.arquivo_url ? 'PDF' : 'Abrir', el('span', { class: 'sr' }, ' de ' + ato(p) + ' (abre em nova aba)')) : '—'));
       }));
       if (!itens.length) corpo.replaceChildren(el('tr', null, el('td', { colspan: 5, class: 'vazio' }, 'Nenhuma publicação encontrada.')));
       const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
@@ -586,7 +593,10 @@
       mais.replaceChildren(lote.length === LOTE ? btn : '');
     }
     const fBusca = el('input', { type: 'search', value: f.busca, placeholder: 'Número ou assunto' });
-    const fTipo = el('select', null, el('option', { value: '' }, 'Todos'), Object.entries(TIPOS).map(([k, v]) => el('option', { value: k }, v)));
+    const fTipo = el('select');
+    const opcoesTipo = () => fTipo.replaceChildren(el('option', { value: '' }, grupo === 'todas' ? 'Todos' : 'Todos desta aba'),
+      tiposDoGrupo().map((k) => el('option', { value: k }, TIPOS[k])));
+    opcoesTipo();
     const fAno = el('input', { type: 'number', min: 1900, max: 2100, placeholder: 'Ex.: 2026' });
     const fVig = el('select', null, el('option', { value: '' }, 'Todas'), Object.entries(VIGENCIA).map(([k, v]) => el('option', { value: k }, v)));
     let espera;
@@ -600,9 +610,28 @@
       return data || [];
     });
     const c = S.conf;
-    pagina(main, el('h1', null, 'Publicações oficiais'),
-      el('p', { class: 'sub' }, 'Leis, decretos, portarias e demais atos normativos.',
-        c.diario_oficial_url ? [' A íntegra das edições do Diário Oficial está em ', el('a', { href: '#/diario-oficial' }, c.diario_oficial_nome || 'Diário Oficial'), '.'] : null),
+    // Abas por tipo de ato, iguais às do painel (Leis, Decretos, Portarias…), no mesmo desenho das abas de Planejamento e contas.
+    const abas = ABAS_PUBLICACOES.map(([id, rot]) => el('a', { class: 'aba-guia', href: '#/publicacoes?aba=' + id, role: 'tab', id: 'aba-pub-' + id,
+      'aria-controls': 'painel-pub', 'aria-selected': id === grupo ? 'true' : 'false', tabindex: id === grupo ? '0' : '-1' }, rot));
+    const lista = el('div', { class: 'abas-guia', role: 'tablist', 'aria-label': 'Tipo de ato' }, abas);
+    function escolher(id, focar) {
+      grupo = id; f.tipo = '';
+      for (const a of abas) { const sel = a.id === 'aba-pub-' + id; a.setAttribute('aria-selected', sel ? 'true' : 'false'); a.tabIndex = sel ? 0 : -1; if (sel && focar) a.focus(); }
+      const ativa = abas.find((x) => x.id === 'aba-pub-' + id);
+      if (ativa.offsetLeft < lista.scrollLeft || ativa.offsetLeft + ativa.offsetWidth > lista.scrollLeft + lista.clientWidth) lista.scrollLeft = ativa.offsetLeft - 8;
+      painelPub.setAttribute('aria-labelledby', 'aba-pub-' + id);
+      history.replaceState(null, '', '#/publicacoes' + (id === 'todas' ? '' : '?aba=' + id));
+      opcoesTipo();
+      carregar(true);
+    }
+    lista.addEventListener('click', (e) => { const a = e.target.closest('a.aba-guia'); if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); escolher(a.id.slice(8), false); });
+    lista.addEventListener('keydown', (e) => {
+      const i = ABAS_PUBLICACOES.findIndex((x) => x[0] === grupo);
+      const n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? ABAS_PUBLICACOES.length - 1 : null;
+      if (n === null) return;
+      e.preventDefault(); escolher(ABAS_PUBLICACOES[(n + ABAS_PUBLICACOES.length) % ABAS_PUBLICACOES.length][0], true);
+    });
+    const painelPub = el('div', { id: 'painel-pub', class: 'painel-guia', role: 'tabpanel', tabindex: '-1', 'aria-labelledby': 'aba-pub-' + grupo },
       el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
         el('label', null, 'Pesquisar', fBusca), el('label', null, 'Tipo', fTipo), el('label', null, 'Ano', fAno), el('label', null, 'Situação', fVig)),
       el('div', { class: 'barra-lista' }, totalTxt, exportar),
@@ -610,6 +639,10 @@
         el('caption', { class: 'sr' }, 'Publicações oficiais'),
         el('thead', null, el('tr', null, ['Ato', 'Ementa', 'Data', 'Situação', 'Documento'].map((t) => el('th', { scope: 'col' }, t)))), corpo)),
       mais);
+    pagina(main, el('h1', null, 'Publicações oficiais'),
+      el('p', { class: 'sub' }, 'Leis, decretos, portarias e demais atos normativos.',
+        c.diario_oficial_url ? [' A íntegra das edições do Diário Oficial está em ', el('a', { href: '#/diario-oficial' }, c.diario_oficial_nome || 'Diário Oficial'), '.'] : null),
+      lista, painelPub);
     await carregar(true);
   };
 
@@ -1216,7 +1249,7 @@
             el('ul', { class: 'partes-contas' }, grupo.map((d) => {
               const doc = d.arquivo_url || d.link_externo;
               return el('li', null,
-                doc ? el('a', { href: doc, target: '_blank', rel: 'noopener' }, d.parte, el('span', { class: 'sr' }, ' — ' + curtoContas(tipo) + ' ' + periodoContas(d) + (comPeriodo ? ' de ' + d.exercicio : '') + ' (abre em nova aba)'))
+                doc ? el('a', { class: 'botao botao-claro botao-p', href: doc, target: '_blank', rel: 'noopener' }, d.parte, el('span', { class: 'sr' }, ' — ' + curtoContas(tipo) + ' ' + periodoContas(d) + (comPeriodo ? ' de ' + d.exercicio : '') + ' (abre em nova aba)'))
                   : el('span', null, d.resultado === 'pendente' ? 'Contas ainda não apreciadas' : d.parte),
                 el('span', { class: 'meta' }, (doc ? (d.arquivo_url ? 'PDF' : 'Link') + ' · ' : '') + 'publicado em ' + dataBR(d.data_publicacao) + (d.descricao ? ' · ' + d.descricao : '')));
             })));

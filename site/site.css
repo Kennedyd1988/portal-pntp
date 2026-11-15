@@ -369,7 +369,7 @@ html.contraste .pub-cartao, html.contraste .pub-data { background: #000 !importa
 .bloco-contas { margin-bottom: 10px; padding: 14px 18px; }
 .cabeca-contas { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 8px; }
 .partes-contas { list-style: none; margin: 0; padding: 0; }
-.partes-contas li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 6px 0; border-top: 1px solid var(--linha); }
+.partes-contas li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 6px 0; border-top: 1px solid var(--linha); }
 .partes-contas li:first-child { border-top: 0; }
 .partes-contas a { font-weight: 600; }
 
