@@ -260,22 +260,21 @@
       td('Solicitado em', dataBR(r.data_solicitacao), 'num'), td('Prioridade', etq(PRIORIDADES[r.prioridade])),
       td('Situação', [etq(SIT_ESPERA[r.situacao_espera]), r.data_agendamento ? el('span', { class: 'meta' }, dataBR(r.data_agendamento) + (r.local_atendimento ? ' · ' + r.local_atendimento : '')) : null]));
     let itens = [], versao = 0;
+    let pag = 1, total = 0;   // paginação numerada (S.navPaginas)
     async function carregar(reiniciar) {
+      if (reiniciar) pag = 1;
       const minha = reiniciar ? ++versao : versao;
-      const ultimo = reiniciar ? null : itens[itens.length - 1];
-      let q = montar().order('data_solicitacao').order('id').limit(100);
-      if (ultimo) q = q.or('data_solicitacao.gt.' + ultimo.data_solicitacao + ',and(data_solicitacao.eq.' + ultimo.data_solicitacao + ',id.gt.' + ultimo.id + ')');
+      let q = montar().order('data_solicitacao').order('id').range((pag - 1) * 50, pag * 50 - 1);
       const [{ data }, cont] = await Promise.all([q, reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
       if (minha !== versao) return;
       const linhas = data || [];
+      if (cont) total = cont.count || 0;
       if (cont) totalTxt.textContent = (cont.count || 0) + ' pedido' + (cont.count === 1 ? '' : 's');
-      itens = reiniciar ? linhas : itens.concat(linhas);
-      if (reiniciar) corpo.replaceChildren(...linhas.map(linha)); else corpo.append(...linhas.map(linha));
+      itens = linhas;
+      corpo.replaceChildren(...linhas.map(linha));
       tab.hidden = !itens.length;
       vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhum pedido com esses filtros.'));
-      const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
-      btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
-      mais.replaceChildren(linhas.length === 100 ? btn : '');
+      mais.replaceChildren(S.navPaginas(total, 50, pag, (p) => { pag = p; carregar(false); }, mais));
     }
     const fBusca = busca('Protocolo, procedimento ou especialidade'); fBusca.value = f.busca;
     const fTipo = U.selecao(TIPOS_ESPERA), fPri = U.selecao(PRIORIDADES, 'Todas'), fSit = U.selecao(SIT_ESPERA, 'Todas');

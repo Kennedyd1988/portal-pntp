@@ -650,6 +650,76 @@
       return b;
     }));
 
+  // ---------- Paginação numerada ----------
+  // S.navPaginas: barra « Anterior 1 2 3 … 9 Próxima » das listas que buscam uma página por vez no banco.
+  // ir(p) busca a página p; ancora (a caixa onde a barra fica) serve para voltar ao começo da lista.
+  S.navPaginas = (total, por, atual, ir, ancora) => {
+    const n = Math.ceil((total || 0) / por);
+    if (n <= 1) return '';
+    const nav = el('nav', { class: 'paginacao', 'aria-label': 'Páginas da lista' });
+    const topo = () => {
+      let t = ancora && ancora.previousElementSibling;
+      while (t && !(t.matches('.tabela-rolagem, .tabela-caixa, .grade, table') && !t.hidden)) t = t.previousElementSibling;
+      const alvo = t || (ancora && ancora.parentElement) || nav;
+      window.scrollTo({ top: Math.max(0, alvo.getBoundingClientRect().top + window.scrollY - 140), behavior: 'smooth' });
+    };
+    const botao = (p, rotulo, attrs) => {
+      const b = el('button', Object.assign({ type: 'button', class: 'pag-botao' + (p === atual ? ' pag-atual' : '') }, attrs || {}), rotulo);
+      if (p === atual) b.setAttribute('aria-current', 'page');
+      if (p < 1 || p > n) b.disabled = true;
+      else b.addEventListener('click', () => { if (p !== atual) { ir(p); topo(); } });
+      return b;
+    };
+    const paginas = new Set([1, n, atual - 1, atual, atual + 1].filter((p) => p >= 1 && p <= n));
+    if (atual <= 3) [2, 3, 4].forEach((p) => p <= n && paginas.add(p));
+    if (atual >= n - 2) [n - 1, n - 2, n - 3].forEach((p) => p >= 1 && paginas.add(p));
+    const lista = [...paginas].sort((a, b) => a - b);
+    const filhos = [botao(atual - 1, '‹ Anterior', { 'aria-label': 'Página anterior' })];
+    lista.forEach((p, i) => {
+      if (i && p - lista[i - 1] > 1) filhos.push(el('span', { class: 'pag-reticencias', 'aria-hidden': 'true' }, '…'));
+      filhos.push(botao(p, String(p), { 'aria-label': 'Página ' + p + (p === atual ? ' (atual)' : '') }));
+    });
+    filhos.push(botao(atual + 1, 'Próxima ›', { 'aria-label': 'Próxima página' }));
+    nav.append(el('div', { class: 'pag-botoes' }, filhos),
+      el('span', { class: 'meta pag-info' }, 'Página ' + atual + ' de ' + n + ' · ' + total.toLocaleString('pt-BR') + ' registros'));
+    return nav;
+  };
+
+  // Tabelas montadas inteiras na página (ex.: folha, receitas, estoque): acima de 60 linhas,
+  // mostra 25 por vez com a mesma barra de páginas. Vale para o site todo, sem mexer em cada página.
+  const POR_PAGINA_TABELA = 25, MINIMO_PAGINAR = 60;
+  function paginarTabela(tbody) {
+    const tabela = tbody.closest('table');
+    const caixa = tabela.closest('.tabela-rolagem, .tabela-caixa') || tabela;
+    let nav = caixa.nextElementSibling && caixa.nextElementSibling.classList.contains('paginacao-local') ? caixa.nextElementSibling : null;
+    const linhas = [...tbody.children].filter((tr) => tr.tagName === 'TR' && !tr.hidden);
+    [...tbody.children].forEach((tr) => tr.classList.remove('pag-oculta'));
+    if (linhas.length <= MINIMO_PAGINAR) { if (nav) nav.remove(); tbody._pagAssinatura = null; return; }
+    const n = Math.ceil(linhas.length / POR_PAGINA_TABELA);
+    tbody._pag = Math.min(tbody._pag || 1, n);
+    const mostrar = (p) => {
+      tbody._pag = p;
+      linhas.forEach((tr, i) => tr.classList.toggle('pag-oculta', Math.floor(i / POR_PAGINA_TABELA) + 1 !== p));
+      const novo = el('div', { class: 'paginacao-local' }, S.navPaginas(linhas.length, POR_PAGINA_TABELA, p, mostrar, null));
+      if (nav) nav.replaceWith(novo); else caixa.after(novo);
+      nav = novo;
+      tbody._pagAssinatura = assinatura(tbody);
+    };
+    mostrar(tbody._pag);
+  }
+  const assinatura = (tbody) => tbody.children.length + ':' + [...tbody.children].filter((tr) => tr.hidden).length;
+  let esperaPag = null;
+  new MutationObserver(() => {
+    clearTimeout(esperaPag);
+    esperaPag = setTimeout(() => {
+      for (const tb of document.querySelectorAll('#conteudo table tbody')) {
+        if (tb._pagAssinatura === assinatura(tb)) continue;
+        if (tb.children.length <= MINIMO_PAGINAR && !tb._pagAssinatura) continue;
+        paginarTabela(tb);
+      }
+    }, 60);
+  }).observe(document.getElementById('conteudo') || document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+
   // Unidades carregadas uma vez (nomes usados em várias páginas).
   // ---------- Declarações de que não há dados (script 23) ----------
   // Cada declaração vale para a situação atual (substitui a lista) ou para um período, e aparece

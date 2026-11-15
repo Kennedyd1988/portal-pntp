@@ -51,11 +51,14 @@
     s.append(p); return s;
   })());
 
-  // Lista paginada por cursor (mais recentes primeiro, ou alfabética).
+  // Lista paginada (mais recentes primeiro, ou alfabética). Com número de página (1, 2, 3…),
+  // traz aquela página (paginação numerada); com o último item, continua dele (cursor).
   async function paginar(montar, coluna, ultimo, lote, crescente) {
     const op = crescente ? 'gt' : 'lt';
-    let q = montar().order(coluna, { ascending: !!crescente }).order('id', { ascending: !!crescente }).limit(lote);
-    if (ultimo) {
+    let q = montar().order(coluna, { ascending: !!crescente }).order('id', { ascending: !!crescente });
+    if (typeof ultimo === 'number') q = q.range((ultimo - 1) * lote, ultimo * lote - 1);
+    else q = q.limit(lote);
+    if (ultimo && typeof ultimo !== 'number') {
       const v = '"' + String(ultimo[coluna]).replace(/"/g, '') + '"';
       q = q.or(coluna + '.' + op + '.' + v + ',and(' + coluna + '.eq.' + v + ',id.' + op + '.' + ultimo.id + ')');
     }
@@ -465,8 +468,8 @@
     let itens = [];
     const { data: cats } = await sb.from('noticias').select('categoria').eq('orgao_id', org()).not('categoria', 'is', null).limit(1000);
     const categorias = [...new Set((cats || []).map((x) => x.categoria))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    const montar = () => {
-      let q = sb.from('noticias').select('id, titulo, resumo, capa_url, capa_legenda, categoria, publicado_em').eq('orgao_id', org());
+    const montar = (sel, op) => {
+      let q = sb.from('noticias').select(sel || 'id, titulo, resumo, capa_url, capa_legenda, categoria, publicado_em', op).eq('orgao_id', org());
       if (f.busca) q = q.ilike('busca', termo(f.busca));
       if (f.categoria) q = q.eq('categoria', f.categoria);
       if (f.unidade) q = q.or('unidade_id.eq.' + f.unidade + ',unidades_relacionadas.cs.{' + f.unidade + '}');
@@ -476,15 +479,14 @@
     };
     const grade = el('div', { class: 'grade g3' });
     const mais = el('div', { class: 'mais' });
+    let pag = 1, total = 0;   // paginação numerada (S.navPaginas)
     async function carregar(reiniciar) {
-      if (reiniciar) itens = [];
-      const lote = await paginar(montar, 'publicado_em', itens[itens.length - 1], LOTE);
-      itens = itens.concat(lote);
+      if (reiniciar) { pag = 1; const { count } = await montar('id', { count: 'exact', head: true }); total = count || 0; }
+      const lote = await paginar(() => montar(), 'publicado_em', pag, LOTE);
+      itens = lote;
       grade.replaceChildren(...itens.map((n) => cartaoNoticia(n)));
       if (!itens.length) grade.replaceChildren(el('p', { class: 'vazio' }, 'Nenhuma notícia encontrada.'));
-      const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais notícias');
-      btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
-      mais.replaceChildren(lote.length === LOTE ? btn : '');
+      mais.replaceChildren(S.navPaginas(total, LOTE, pag, (p) => { pag = p; carregar(false); }, mais));
     }
     const fBusca = el('input', { type: 'search', value: f.busca, placeholder: 'Assunto' });
     const fCat = el('select', null, el('option', { value: '' }, 'Todas'), categorias.map((x) => el('option', { value: x }, x)));
@@ -570,14 +572,16 @@
     const corpo = el('tbody');
     const totalTxt = el('span', { class: 'meta', role: 'status' });
     const mais = el('div', { class: 'mais' });
+    let pag = 1, total = 0;   // paginação numerada (S.navPaginas)
     async function carregar(reiniciar) {
+      if (reiniciar) pag = 1;
       if (reiniciar) {
         itens = [];
-        const { count } = await montar('id', { count: 'exact', head: true });
+        const { count } = await montar('id', { count: 'exact', head: true }); total = count || 0;
         totalTxt.textContent = (count || 0) + (count === 1 ? ' publicação encontrada' : ' publicações encontradas');
       }
-      const lote = await paginar(() => montar(), 'data_publicacao', itens[itens.length - 1], LOTE);
-      itens = itens.concat(lote);
+      const lote = await paginar(() => montar(), 'data_publicacao', pag, LOTE);
+      itens = lote;
       corpo.replaceChildren(...itens.map((p) => {
         const doc = p.arquivo_url || p.link_externo;
         return el('tr', null,
@@ -588,9 +592,7 @@
           el('td', null, doc ? el('a', { class: 'botao botao-claro botao-p', href: doc, target: '_blank', rel: 'noopener' }, p.arquivo_url ? 'PDF' : 'Abrir', el('span', { class: 'sr' }, ' de ' + ato(p) + ' (abre em nova aba)')) : '—'));
       }));
       if (!itens.length) corpo.replaceChildren(el('tr', null, el('td', { colspan: 5, class: 'vazio' }, 'Nenhuma publicação encontrada.')));
-      const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
-      btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
-      mais.replaceChildren(lote.length === LOTE ? btn : '');
+      mais.replaceChildren(S.navPaginas(total, LOTE, pag, (p) => { pag = p; carregar(false); }, mais));
     }
     const fBusca = el('input', { type: 'search', value: f.busca, placeholder: 'Número ou assunto' });
     const fTipo = el('select');
@@ -807,14 +809,16 @@
     const lista = el('div', { class: 'grade g3' });
     const totalTxt = el('span', { class: 'meta', role: 'status' });
     const mais = el('div', { class: 'mais' });
+    let pag = 1, total = 0;   // paginação numerada (S.navPaginas)
     async function carregar(reiniciar) {
+      if (reiniciar) pag = 1;
       if (reiniciar) {
         itens = [];
-        const { count } = await montar('id', { count: 'exact', head: true });
+        const { count } = await montar('id', { count: 'exact', head: true }); total = count || 0;
         totalTxt.textContent = (count || 0) + (count === 1 ? ' serviço' : ' serviços');
       }
-      const lote = await paginar(() => montar(), 'nome', itens[itens.length - 1], LOTE, true);
-      itens = itens.concat(lote);
+      const lote = await paginar(() => montar(), 'nome', pag, LOTE, true);
+      itens = lote;
       lista.replaceChildren(...itens.map((s) => el('a', { class: 'cartao', href: '#/servico/' + s.id },
         el('span', { class: 'meta' }, s.categoria || 'Serviço'),
         el('h3', { style: 'margin:4px 0' }, s.nome),
@@ -822,9 +826,7 @@
         s.prazo_maximo ? el('span', { class: 'meta', style: 'display:block;margin-top:6px' }, 'Prazo: ' + s.prazo_maximo) : null,
         s.unidade_id ? el('span', { class: 'bloco meta' }, S.nomeUnidade(s.unidade_id)) : null)));
       if (!itens.length) lista.replaceChildren(el('p', { class: 'vazio' }, 'Nenhum serviço encontrado.'));
-      const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
-      btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
-      mais.replaceChildren(lote.length === LOTE ? btn : '');
+      mais.replaceChildren(S.navPaginas(total, LOTE, pag, (p) => { pag = p; carregar(false); }, mais));
     }
     const fBusca = el('input', { type: 'search', value: f.busca, placeholder: 'Ex.: IPTU, matrícula, consulta' });
     const fArea = el('select', null, el('option', { value: '' }, 'Todas'), areas.map((a) => el('option', { value: a }, a)));
@@ -1290,8 +1292,83 @@
     legis: 'M4 21h10 M9 17V8 M4 8h10 M5 8l2-4h4l2 4 M17 6v15 M15 21h4',
     play: 'M3 5h18v14H3z M10 9v6l5-3z',
     banco: 'M3 10l9-6 9 6 M5 10v8 M9.5 10v8 M14.5 10v8 M19 10v8 M3 21h18',
-    grafico: 'M4 19V10 M10 19V5 M16 19v-7 M21 19H3'
+    grafico: 'M4 19V10 M10 19V5 M16 19v-7 M21 19H3',
+    // Ícones dos itens (cartões da página de Transparência)
+    organograma: 'M9 3h6v5H9z M3 16h6v5H3z M15 16h6v5h-6z M12 8v4 M6 16v-4h12v4',
+    lista: 'M9 6h12 M9 12h12 M9 18h12 M4 6l1 1 2-2 M4 12l1 1 2-2 M4 18l1 1 2-2',
+    pessoa: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21c0-4 3.6-6 8-6s8 2 8 6',
+    local: 'M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+    documento: 'M6 3h9l4 4v14H6z M14 3v5h5 M9 12h7 M9 16h7',
+    pergunta: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7 M12 17h.01',
+    moedas: 'M12 8c4.4 0 8-1.3 8-3s-3.6-3-8-3-8 1.3-8 3 3.6 3 8 3z M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5 M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6',
+    etiqueta: 'M3 12V3h9l9 9-9 9z M7.5 7.5h.01',
+    alerta: 'M12 3l10 18H2z M12 10v5 M12 18h.01',
+    recibo: 'M6 2h12v20l-3-2-3 2-3-2-3 2z M9 7h6 M9 11h6 M9 15h4',
+    ordem: 'M10 6h11 M10 12h11 M10 18h11 M4 6h1v4 M4 10h2 M4 14h2l-2 3h2',
+    entrada: 'M15 3h4v18h-4 M3 12h12 M10 7l5 5-5 5',
+    saida: 'M9 3H5v18h4 M9 12h12 M16 7l5 5-5 5',
+    acordo: 'M3 11l4-4 4 3 3-3 7 7 M7 15l2 2 M10 13l3 3 M13 11l3 3',
+    cracha: 'M4 6h16v14H4z M9 3h6v4H9z M9 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M6 18c.5-1.5 1.6-2.2 3-2.2s2.5.7 3 2.2 M14 11h4 M14 15h3',
+    carteira: 'M3 7h16v13H3z M3 7l12-4 2 4 M15 13h4 M16 13.5h.01',
+    tabela: 'M3 4h18v16H3z M3 10h18 M3 15h18 M9 4v16',
+    formatura: 'M2 9l10-5 10 5-10 5z M6 11v5c3.5 2.5 8.5 2.5 12 0v-5 M22 9v6',
+    grupo: 'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M2 20c0-3 2.7-5 6-5s6 2 6 5 M14 15.5c.6-.3 1.3-.5 2-.5 3.3 0 6 2 6 5',
+    premio: 'M12 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M8.5 13.5L7 22l5-3 5 3-1.5-8.5',
+    calendario: 'M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4 M8 14h2 M13 14h3 M8 17h2',
+    pasta: 'M3 6h6l2 2h10v12H3z M3 10h18',
+    bloqueio: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M5.6 5.6l12.8 12.8',
+    olho: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    pausa: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M10 9v6 M14 9v6',
+    regua: 'M3 17L17 3l4 4L7 21z M7 13l2 2 M10 10l2 2 M13 7l2 2',
+    livro: 'M4 4h6a3 3 0 0 1 3 3v14a2 2 0 0 0-2-2H4z M20 4h-4a3 3 0 0 0-3 3v14a2 2 0 0 1 2-2h5z',
+    balanca: 'M12 3v18 M5 21h14 M4 8h16 M7 8l-3 7h6z M17 8l-3 7h6z',
+    carimbo: 'M9 3h6v6l3 3H6l3-3z M5 16h14v3H5z M5 22h14',
+    martelo: 'M14 5l5 5 M11 8l5 5 M12.5 6.5l-4 4 3 3 4-4 M10 12l-7 7 2 2 7-7 M14 21h7',
+    alvo: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+    info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 11v6 M12 7.5h.01',
+    enviar: 'M22 2L11 13 M22 2l-7 20-4-9-9-4z',
+    lupa: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M21 21l-5-5',
+    relogio: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2',
+    pizza: 'M12 3v9h9 M20.5 15.5A9 9 0 1 1 8.5 3.7',
+    cadeado_aberto: 'M6 11h12v10H6z M8 11V7a4 4 0 0 1 7.5-2',
+    predio: 'M4 21V5l8-3v19 M12 9h8v12 M7 8h2 M7 12h2 M7 16h2 M15 13h2 M15 17h2 M2 21h20',
+    monitor: 'M3 4h18v12H3z M8 20h8 M12 16v4',
+    globo: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M3 12h18 M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z',
+    sorriso: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M8 14s1.5 2 4 2 4-2 4-2 M9 9h.01 M15 9h.01',
+    escudo: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4',
+    banco_dados: 'M12 8c4.4 0 8-1.3 8-3s-3.6-3-8-3-8 1.3-8 3 3.6 3 8 3z M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5 M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
+    codigo: 'M8 7l-5 5 5 5 M16 7l5 5-5 5 M14 4l-4 16',
+    porcento: 'M19 5L5 19 M6.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z M17.5 20a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+    estrela: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z',
+    prancheta: 'M8 4h8v3H8z M6 5H4v16h16V5h-2 M8 12h8 M8 16h5',
+    ampulheta: 'M6 3h12 M6 21h12 M7 3c0 5 10 5 10 9s-10 4-10 9 M17 3c0 5-10 5-10 9s10 4 10 9',
+    remedio: 'M10.5 20.5l10-10a5 5 0 0 0-7-7l-10 10a5 5 0 0 0 7 7z M8.5 8.5l7 7',
+    caixa: 'M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10',
+    bebe: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M6 21c0-3.3 2.7-6 6-6s6 2.7 6 6 M10 7.5h.01 M14 7.5h.01',
+    microfone: 'M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z M19 11a7 7 0 0 1-14 0 M12 18v3 M8 21h8',
+    votacao: 'M4 4h16v16H4z M8 12l3 3 5-6',
+    mapa: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z M9 4v14 M15 6v14'
   };
+  // Ícone de cada item da Transparência, pelo assunto (o primeiro que casar).
+  const ICONE_ITEM = [
+    [/estrutura organizacional/i, 'organograma'], [/compet[eê]ncia/i, 'lista'], [/gestores|encarregado/i, 'pessoa'], [/endere[cç]o|telefone/i, 'local'],
+    [/atos normativos|leis e atos/i, 'documento'], [/perguntas/i, 'pergunta'], [/previstas e arrecadadas/i, 'moedas'], [/natureza|classifica[cç][aã]o/i, 'etiqueta'],
+    [/d[ií]vida ativa/i, 'alerta'], [/empenhos/i, 'recibo'], [/ordem cronol/i, 'ordem'], [/recebidas/i, 'entrada'], [/realizadas/i, 'saida'], [/sem repasse/i, 'acordo'],
+    [/servidores e lota/i, 'cracha'], [/remunera/i, 'carteira'], [/cargos e sal|valores das di[aá]rias/i, 'tabela'], [/estagi/i, 'formatura'], [/terceirizad/i, 'grupo'],
+    [/concursos/i, 'premio'], [/di[aá]rias concedidas/i, 'viagem'], [/rela[cç][aã]o das licita/i, 'licit'], [/editais/i, 'pasta'], [/dispensas/i, 'documento'],
+    [/ades[oõ]es/i, 'acordo'], [/plano de contrata/i, 'calendario'], [/sancionad/i, 'bloqueio'], [/contratos e termos|contratos de (rateio|programa)/i, 'contrato'],
+    [/fiscais/i, 'olho'], [/paralisad/i, 'pausa'], [/quantitativos/i, 'regua'], [/obras e situa/i, 'obra'], [/plurianual|diretrizes|or[cç]ament[aá]ria anual|or[cç]amento do cons/i, 'livro'],
+    [/rreo|rgf/i, 'grafico'], [/balan[cç]o/i, 'balanca'], [/relat[oó]rio de gest/i, 'prancheta'], [/parecer/i, 'carimbo'], [/julgamento/i, 'martelo'], [/estrat[eé]gico/i, 'alvo'],
+    [/unidade, endere/i, 'info'], [/fazer pedido|canal eletr/i, 'enviar'], [/acompanhar/i, 'lupa'], [/regulamenta[cç][aã]o da lai|regulamenta[cç][aã]o do governo/i, 'livro'],
+    [/prazos/i, 'relogio'], [/estat[ií]stico/i, 'pizza'], [/desclassificad/i, 'cadeado_aberto'], [/classificad/i, 'lock'], [/presencial/i, 'predio'],
+    [/carta de servi/i, 'livro'], [/servi[cç]os on-line/i, 'globo'], [/satisfa[cç]/i, 'sorriso'], [/privacidade/i, 'escudo'], [/dados abertos/i, 'banco_dados'],
+    [/desonera/i, 'porcento'], [/prevista e realizada/i, 'grafico'], [/benefici[aá]rios/i, 'pessoa'], [/incentivo/i, 'estrela'], [/emendas federais|emendas estaduais/i, 'legis'],
+    [/execu[cç][aã]o das emendas/i, 'grafico'], [/plano, programa/i, 'prancheta'], [/servi[cç]os, hor[aá]rios e profiss/i, 'saude'], [/lista de espera da regula/i, 'ampulheta'],
+    [/medicamentos/i, 'remedio'], [/estoque/i, 'caixa'], [/conselho/i, 'grupo'], [/plano de educa/i, 'edu'], [/creches/i, 'bebe'],
+    [/vereadores e biografias|atividades dos vereadores/i, 'pessoa'], [/projetos/i, 'documento'], [/pauta/i, 'lista'], [/comiss/i, 'grupo'], [/atas e presen|atas da assembleia|ata de elei/i, 'prancheta'],
+    [/vota[cç][oõ]es/i, 'votacao'], [/transmiss/i, 'play'], [/cota parlamentar|verba/i, 'carteira'], [/protocolo de inten|estatuto/i, 'documento'], [/entes consorciados/i, 'mapa']
+  ];
+  const iconeItem = (texto, padrao) => (ICONE_ITEM.find(([re]) => re.test(texto)) || [null, padrao])[1];
   function iconeT(nome) {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', '22'); s.setAttribute('height', '22'); s.setAttribute('aria-hidden', 'true');
@@ -1398,13 +1475,18 @@
           ex1 ? el('span', null, el('b', null, 'Exercícios disponíveis: '), ex1 === ex2 ? String(ex1) : ex1 + ' a ' + ex2) : null,
           el('span', null, el('b', null, 'Formatos: '), 'CSV, JSON, XML, XLSX e PDF'),
           el('a', { href: '#/dados-abertos' }, 'Dados abertos e API →')),
-        el('div', { class: 'grade g3 transp-grupos' }, gruposTransparencia().map(([t, ic, ls]) => [t, ic, ls.filter(Boolean)]).filter((x) => x[2].length).map(([titulo, ic, links]) => el('section', { class: 'transp-grupo' },
-          el('div', { class: 'transp-grupo-topo' }, el('span', { class: 'transp-icone' }, iconeT(ic)), el('h2', null, titulo)),
-          el('ul', null, links.map((l) => el('li', null, l.h
-            ? el('a', { href: l.h, target: externo(l.h) ? '_blank' : null, rel: externo(l.h) ? 'noopener' : null },
-              el('span', null, l.t, externo(l.h) ? el('span', { class: 'sr' }, ' (abre em nova aba, no sistema de transparência)') : null),
-              el('span', { class: 'transp-cod', title: 'Critério ' + l.cod + ' do PNTP' }, l.cod))
-            : el('span', { class: 'transp-sem' }, el('span', null, l.t, el('span', { class: 'sr' }, ' (endereço ainda não informado)')), el('span', { class: 'transp-cod' }, l.cod)))))))),
+        // Cada grupo ocupa a largura toda; dentro dele, um cartão por item do PNTP (ícone, nome e número do critério).
+        el('div', { class: 'transp-grupos' }, gruposTransparencia().map(([t, ic, ls]) => [t, ic, ls.filter(Boolean)]).filter((x) => x[2].length).map(([titulo, ic, links]) => el('section', { class: 'transp-grupo', 'aria-label': titulo },
+          el('div', { class: 'transp-grupo-topo' }, el('span', { class: 'transp-icone' }, iconeT(ic)), el('h2', null, titulo),
+            el('span', { class: 'meta' }, links.length + (links.length === 1 ? ' item' : ' itens'))),
+          el('ul', { class: 'transp-itens' }, links.map((l) => {
+            const corpo = [el('span', { class: 'transp-item-icone' }, iconeT(iconeItem(l.t, ic))),
+              el('span', { class: 'transp-item-nome' }, l.t), l.cod ? el('span', { class: 'transp-cod', title: 'Critério ' + l.cod + ' do PNTP' }, el('span', { class: 'sr' }, 'Critério '), l.cod) : null];
+            return el('li', null, l.h
+              ? el('a', { class: 'transp-item', href: l.h, target: externo(l.h) ? '_blank' : null, rel: externo(l.h) ? 'noopener' : null }, corpo,
+                externo(l.h) ? [el('span', { class: 'transp-ext', 'aria-hidden': 'true' }, '↗'), el('span', { class: 'sr' }, ' (abre em nova aba, no sistema de transparência)')] : null)
+              : el('span', { class: 'transp-item transp-sem' }, corpo, el('span', { class: 'sr' }, ' (endereço ainda não informado)')));
+          }))))),
         el('p', { class: 'meta transp-nota' }, 'Itens que ficam em sistema externo abrem em nova aba.',
           ' ', el('a', { href: S.radar(), target: '_blank', rel: 'noopener' }, 'Radar da Transparência Pública', el('span', { class: 'sr' }, ' (abre em nova aba)'))))));
     function ext() { return c.transparencia_url || null; }
@@ -1543,21 +1625,22 @@
         const mais = el('div', { class: 'mais' });
         const totalTxt = el('span', { class: 'meta', role: 'status' });
         let itens = [], versao = 0;
+        let pag = 1, total = 0;   // paginação numerada (S.navPaginas)
         async function carregar(reiniciar) {
+          if (reiniciar) pag = 1;
           const minha = reiniciar ? ++versao : versao;
           const [linhas, cont] = await Promise.all([
-            paginar(montar, 'chave_ordem', reiniciar ? null : itens[itens.length - 1], 50, true),   // modalidade + número (PNTP 8.1)
+            paginar(montar, 'chave_ordem', pag, 50, true),   // modalidade + número (PNTP 8.1)
             reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
           if (minha !== versao) return;
+          if (cont) total = cont.count || 0;
           if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' processo' : ' processos');
           declMes.replaceChildren(f.mes ? S.decl.quadro(S.decl.doMes(decl, ano, f.mes)) : '');
-          itens = reiniciar ? linhas : itens.concat(linhas);
+          itens = linhas;
           tabela.hidden = !itens.length;
           vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhum processo com esses filtros.'));
-          if (reiniciar) corpoTab.replaceChildren(...linhas.map(linhaLic)); else corpoTab.append(...linhas.map(linhaLic));
-          const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
-          btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
-          mais.replaceChildren(linhas.length === 50 ? btn : '');
+          corpoTab.replaceChildren(...linhas.map(linhaLic));
+          mais.replaceChildren(S.navPaginas(total, 50, pag, (p) => { pag = p; carregar(false); }, mais));
         }
         const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
         const fBusca = el('input', { type: 'search', placeholder: 'Ex.: merenda, combustível, 012/2026' });
@@ -1688,20 +1771,21 @@
       el('td', { 'data-rotulo': 'Processo / ato' }, s.processo ? el('span', null, 'Processo ' + s.processo) : null, s.ato ? el('span', { class: 'meta' }, s.ato) : null,
         s.arquivo_url || s.link_externo ? el('a', { href: s.arquivo_url || s.link_externo, target: '_blank', rel: 'noopener', class: 'botao botao-claro botao-p' },
           s.arquivo_url ? 'PDF do ato' : 'Ver ato', el('span', { class: 'sr' }, ' de ' + s.sancionado_nome + ' (abre em nova aba)')) : null));
+    let pag = 1, total = 0;   // paginação numerada (S.navPaginas)
     async function carregar(reiniciar) {
+      if (reiniciar) pag = 1;
       const minha = reiniciar ? ++versao : versao;
       const [linhas, cont] = await Promise.all([
-        paginar(montar, 'data_aplicacao', reiniciar ? null : itens[itens.length - 1], 50),
+        paginar(montar, 'data_aplicacao', pag, 50),
         reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
       if (minha !== versao) return;
+      if (cont) total = cont.count || 0;
       if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' sanção' : ' sanções');
-      itens = reiniciar ? linhas : itens.concat(linhas);
+      itens = linhas;
       tabela.hidden = !itens.length;
       vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhuma sanção com esses filtros.'));
-      if (reiniciar) corpoTab.replaceChildren(...linhas.map(linha)); else corpoTab.append(...linhas.map(linha));
-      const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
-      btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
-      mais.replaceChildren(linhas.length === 50 ? btn : '');
+      corpoTab.replaceChildren(...linhas.map(linha));
+      mais.replaceChildren(S.navPaginas(total, 50, pag, (p) => { pag = p; carregar(false); }, mais));
     }
     const { data: anosDadosS } = await sb.rpc('sancoes_anos', { p_orgao: org() });
     // Declarações (script 23): a atual substitui a lista; as de período aparecem no ano filtrado (ou todas).
@@ -1862,19 +1946,20 @@
           corpoTab));
         const vazio = el('div'), mais = el('div', { class: 'mais' }), totalTxt = el('span', { class: 'meta', role: 'status' });
         let itens = [], versao = 0;
+        let pag = 1, total = 0;   // paginação numerada (S.navPaginas)
         async function carregar(reiniciar) {
+          if (reiniciar) pag = 1;
           const minha = reiniciar ? ++versao : versao;
-          const [linhas, cont] = await Promise.all([paginar(montar, 'data_assinatura', reiniciar ? null : itens[itens.length - 1], 50),
+          const [linhas, cont] = await Promise.all([paginar(montar, 'data_assinatura', pag, 50),
             reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
           if (minha !== versao) return;
+          if (cont) total = cont.count || 0;
           if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' contrato' : ' contratos');
-          itens = reiniciar ? linhas : itens.concat(linhas);
+          itens = linhas;
           tabela.hidden = !itens.length;
           vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhum contrato com esses filtros.'));
-          if (reiniciar) corpoTab.replaceChildren(...linhas.map(linhaCtr)); else corpoTab.append(...linhas.map(linhaCtr));
-          const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
-          btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
-          mais.replaceChildren(linhas.length === 50 ? btn : '');
+          corpoTab.replaceChildren(...linhas.map(linhaCtr));
+          mais.replaceChildren(S.navPaginas(total, 50, pag, (p) => { pag = p; carregar(false); }, mais));
         }
         const fBusca = el('input', { type: 'search', placeholder: 'Contratado, CNPJ, objeto ou número' });
         const fDe = el('input', { type: 'date' }), fAte = el('input', { type: 'date' });
@@ -1924,23 +2009,22 @@
           el('td', { 'data-rotulo': 'Vigência', class: 'num' }, (dataBR(c.vigencia_inicio) || '?') + ' a ' + (dataBR(c.vigencia_fim_atual) || '?')),
           el('td', { 'data-rotulo': 'Situação' }, el('span', { class: 'etiqueta ' + sv[1] }, sv[0])));
       };
+      let pag = 1, total = 0;   // paginação numerada (S.navPaginas)
       async function carregar(reiniciar) {
+        if (reiniciar) pag = 1;
         const minha = reiniciar ? ++versao : versao;
-        const ultimo = reiniciar ? null : itens[itens.length - 1];
         // Ordem alfabética por nome (é cadastro de pessoas); cursor nome + id.
-        let q = montar().order('nome').order('id').limit(50);
-        if (ultimo) q = q.or('nome.gt.' + JSON.stringify(ultimo.nome) + ',and(nome.eq.' + JSON.stringify(ultimo.nome) + ',id.gt.' + ultimo.id + ')');
+        let q = montar().order('nome').order('id').range((pag - 1) * 50, pag * 50 - 1);
         const [{ data }, cont] = await Promise.all([q, reiniciar ? montar('id, contratos!inner(id)', { count: 'exact', head: true }) : Promise.resolve(null)]);
         if (minha !== versao) return;
         const linhas = data || [];
+        if (cont) total = cont.count || 0;
         if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' designação' : ' designações');
-        itens = reiniciar ? linhas : itens.concat(linhas);
+        itens = linhas;
         tabela.hidden = !itens.length;
         vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, f.busca || f.vig ? 'Nenhum fiscal com esses filtros.' : 'Nenhum fiscal publicado ainda.'));
-        if (reiniciar) corpoTab.replaceChildren(...linhas.map(linha)); else corpoTab.append(...linhas.map(linha));
-        const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
-        btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
-        mais.replaceChildren(linhas.length === 50 ? btn : '');
+        corpoTab.replaceChildren(...linhas.map(linha));
+        mais.replaceChildren(S.navPaginas(total, 50, pag, (p) => { pag = p; carregar(false); }, mais));
       }
       const fBusca = el('input', { type: 'search', placeholder: 'Nome do fiscal ou portaria' });
       const fVig = el('select', null, el('option', { value: '' }, 'Vigentes e encerrados'), el('option', { value: 'vigente' }, 'Contratos vigentes'), el('option', { value: 'encerrado' }, 'Contratos encerrados'));
@@ -2248,22 +2332,23 @@
           el('thead', null, el('tr', null, cfg.cabecalho.map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Detalhes')))), corpoTab));
         const vazio = el('div'), mais = el('div', { class: 'mais' }), totalTxt = el('span', { class: 'meta', role: 'status' });
         let itens = [], versao = 0;
+        let pag = 1, total = 0;   // paginação numerada (S.navPaginas)
         async function carregar(reiniciar) {
+          if (reiniciar) pag = 1;
           const minha = reiniciar ? ++versao : versao;
           const [linhas, cont] = await Promise.all([
-            paginar(montar, cfg.ordem || 'atualizado_em', reiniciar ? null : itens[itens.length - 1], 50, !!cfg.crescente),
+            paginar(montar, cfg.ordem || 'atualizado_em', pag, 50, !!cfg.crescente),
             reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
           if (minha !== versao) return;
           // Mês filtrado com declaração: mostra a declaração daquele mês.
           declMes.replaceChildren(f.mes && ano !== 'todos' ? S.decl.quadro(S.decl.doMes(decl, ano, f.mes)) : '');
+          if (cont) total = cont.count || 0;
           if (cont) totalTxt.textContent = (cont.count || 0) + ' ' + ((cont.count || 0) === 1 ? cfg.unidade[0] : cfg.unidade[1]);
-          itens = reiniciar ? linhas : itens.concat(linhas);
+          itens = linhas;
           tabela.hidden = !itens.length;
           vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhum registro com esses filtros.'));
-          if (reiniciar) corpoTab.replaceChildren(...linhas.map(cfg.linha)); else corpoTab.append(...linhas.map(cfg.linha));
-          const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
-          btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
-          mais.replaceChildren(linhas.length === 50 ? btn : '');
+          corpoTab.replaceChildren(...linhas.map(cfg.linha));
+          mais.replaceChildren(S.navPaginas(total, 50, pag, (p) => { pag = p; carregar(false); }, mais));
         }
         const campos = cfg.filtros(ano);
         for (const [k, , e] of campos) if (e.value) f[k] = e.value.trim();   // filtro que já vem marcado (ex.: último mês)
@@ -2627,20 +2712,21 @@
             el('td', { 'data-rotulo': 'Valor contratado', class: 'num' }, o.valor_contratado != null ? moedaBR(o.valor_contratado) : '—'),
             el('td', { 'data-rotulo': '' }, el('a', { href: '#/obra/' + o.id, class: 'botao botao-claro botao-p' }, 'Detalhes', el('span', { class: 'sr' }, ' de ' + o.titulo))));
         };
+        let pag = 1, total = 0;   // paginação numerada (S.navPaginas)
         async function carregar(reiniciar) {
+          if (reiniciar) pag = 1;
           const minha = reiniciar ? ++versao : versao;
           const [linhas, cont] = await Promise.all([
-            paginar(montar, 'atualizado_em', reiniciar ? null : itens[itens.length - 1], 50),
+            paginar(montar, 'atualizado_em', pag, 50),
             reiniciar ? montar('id', { count: 'exact', head: true }) : Promise.resolve(null)]);
           if (minha !== versao) return;
+          if (cont) total = cont.count || 0;
           if (cont) totalTxt.textContent = (cont.count || 0) + ((cont.count || 0) === 1 ? ' obra' : ' obras');
-          itens = reiniciar ? linhas : itens.concat(linhas);
+          itens = linhas;
           tabela.hidden = !itens.length;
           vazio.replaceChildren(itens.length ? '' : el('p', { class: 'vazio' }, 'Nenhuma obra com esses filtros.'));
-          if (reiniciar) corpoTab.replaceChildren(...linhas.map(linha)); else corpoTab.append(...linhas.map(linha));
-          const btn = el('button', { type: 'button', class: 'botao botao-claro' }, 'Carregar mais');
-          btn.addEventListener('click', async () => { btn.disabled = true; btn.textContent = 'Carregando…'; await carregar(false); });
-          mais.replaceChildren(linhas.length === 50 ? btn : '');
+          corpoTab.replaceChildren(...linhas.map(linha));
+          mais.replaceChildren(S.navPaginas(total, 50, pag, (p) => { pag = p; carregar(false); }, mais));
         }
         const fBusca = el('input', { type: 'search', placeholder: 'Ex.: pavimentação, escola, nome da empresa' });
         const fSit = el('select', null, el('option', { value: '' }, 'Todas'), Object.entries(SIT_OBRA).map(([k, v]) => el('option', { value: k }, v[0])));
