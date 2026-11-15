@@ -212,14 +212,15 @@
     // Seções que leem uma lista pronta (JSON, página única, páginas com subpáginas)
     if (s.listar) {
       const { de } = periodo(s);
-      const itens = await s.listar({ origem, de, ler: (url, op) => pagina(url, 3, op), parar: () => st.parar,
+      // emitir: a seção entrega item por item enquanto lê (importa sem esperar ler tudo).
+      const entregar = async (url, x) => {
+        if (st.parar || !x || x.vazio || x.foraPeriodo) return;
+        if (!s.semPeriodo && (!x.ano || x.ano < de) && !x.ignorar) return;
+        await aoItem(url, x);
+      };
+      const itens = await s.listar({ origem, de, ler: (url, op) => pagina(url, 3, op), parar: () => st.parar, emitir: entregar,
         log: (t) => { st.log.unshift(t); atualizarCartao(chave); } });
-      for (const it of itens) {
-        if (st.parar) break;
-        if (!it.x || it.x.vazio || it.x.foraPeriodo) continue;
-        if (!s.semPeriodo && (!it.x.ano || it.x.ano < de) && !it.x.ignorar) continue;
-        await aoItem(it.url, it.x);
-      }
+      for (const it of itens || []) { if (st.parar) break; await entregar(it.url, it.x); }
       return;
     }
     let maior = 0;

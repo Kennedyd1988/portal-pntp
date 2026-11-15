@@ -98,6 +98,39 @@
       listas: ['/legislacao/index/categoria/page/1/busca', '/legislacao'],
       reId: /\/legislacao\/detalhe\/(\d+)\//g,
       url: (o, id) => o + '/legislacao/detalhe/' + id + '/x/',
+      // Pela busca do próprio site, ano a ano: os números (ids) não seguem a ordem dos anos
+      // (há leis antigas cadastradas depois), então a varredura por id parava antes da hora.
+      // As portarias de diárias (categoria "Diária") ficam de fora: Diárias segue no sistema de pessoal.
+      async listar(ctx) {
+        const ini = await ctx.ler(ctx.origem + '/legislacao');
+        const csrf = (new DOMParser().parseFromString(ini.html, 'text/html').querySelector('input[name=csrf]') || {}).value || '';
+        const vistos = new Set();
+        let diarias = 0;
+        for (let ano = new Date().getFullYear(); ano >= ctx.de && !ctx.parar(); ano--) {
+          for (let pag = 1, total = 1; pag <= total && !ctx.parar(); pag++) {
+            const r = await ctx.ler(ctx.origem + '/legislacao/index/categoria/page/' + pag + '/busca?csrf=' + encodeURIComponent(csrf) +
+              '&descricao=&numero=&ano=' + ano + '&dataInicio=&dataFinal=&categoria=');
+            for (const x of r.html.matchAll(/\/legislacao\/index\/categoria\/page\/(\d+)\/busca/g)) total = Math.max(total, Number(x[1]));
+            const d = new DOMParser().parseFromString(r.html, 'text/html');
+            const tabela = [...d.querySelectorAll('table')].find((t) => /categoria/i.test(t.textContent) && t.querySelector('a[href*="/legislacao/detalhe/"]'));
+            if (!tabela) break;
+            for (const tr of tabela.querySelectorAll('tr')) {
+              const a = tr.querySelector('a[href*="/legislacao/detalhe/"]');
+              if (!a) continue;
+              const id = Number((a.getAttribute('href').match(/\/detalhe\/(\d+)/) || [])[1]);
+              if (!id || vistos.has(id)) continue;
+              vistos.add(id);
+              const cat = limpar((tr.querySelectorAll('td')[1] || {}).textContent);
+              if (/^di[aá]rias?$/i.test(cat)) { diarias++; continue; }
+              const url = ctx.origem + '/legislacao/detalhe/' + id + '/x/';
+              let p; try { p = await ctx.ler(url); } catch (e) { ctx.log('lei ' + id + ': ' + e.message); continue; }
+              await ctx.emitir(url, p.status === 200 ? SECOES.legislacao.ler(p.html, url) : { vazio: true });
+            }
+          }
+        }
+        if (diarias) ctx.log(diarias + ' portarias de diárias deixadas de fora (Diárias segue no sistema de pessoal).');
+        return [];
+      },
       ler(html, url) {
         const { m } = doc(html);
         const t = tituloSecao(m);
