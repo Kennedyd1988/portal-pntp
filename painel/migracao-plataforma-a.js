@@ -289,10 +289,27 @@
     },
     // ---------------------------------------------------------------
     noticia: {
-      nome: 'Notícias', destino: 'Notícias', pntp: false, pasta: 'noticias',
+      // Todas as notícias (não pontuam no PNTP, mas são a memória do órgão), pela lista do próprio site, página a página.
+      nome: 'Notícias', destino: 'Notícias (todas)', semPeriodo: true, pasta: 'noticias',
       listas: ['/noticia/categoria'],
       reId: /\/noticia\/(\d+)\//g,
       url: (o, id) => o + '/noticia/' + id + '/x/',
+      async listar(ctx) {
+        const vistos = new Set();
+        for (let pag = 1, total = 1; pag <= total && !ctx.parar(); pag++) {
+          const r = await ctx.ler(ctx.origem + '/noticia/categoria' + (pag > 1 ? '/page/' + pag : ''));
+          for (const x of r.html.matchAll(/\/noticia\/categoria\/page\/(\d+)/g)) total = Math.max(total, Number(x[1]));
+          for (const x of r.html.matchAll(/\/noticia\/(\d+)\/[^"'\s]*/g)) {
+            const id = Number(x[1]);
+            if (vistos.has(id)) continue;
+            vistos.add(id);
+            const url = ctx.origem + '/noticia/' + id + '/x/';
+            let p; try { p = await ctx.ler(url); } catch (e) { ctx.log('notícia ' + id + ': ' + e.message); continue; }
+            await ctx.emitir(url, p.status === 200 ? SECOES.noticia.ler(p.html, url) : { vazio: true });
+          }
+        }
+        return [];
+      },
       ler(html, url) {
         const { d, m } = doc(html);
         const cab = [...m.querySelectorAll('h2')].map((x) => limpar(x.textContent)).find((x) => /\d{4}$/.test(x) && / - /.test(x));
