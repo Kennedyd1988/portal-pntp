@@ -85,6 +85,10 @@
   const DOC_CONC = [[/retifica|errata/, 'retificacao'], [/edital/, 'edital'], [/inscri/, 'inscritos'], [/gabarito/, 'gabarito'], [/preliminar/, 'resultado_preliminar'],
     [/recurso/, 'recurso'], [/homolog/, 'homologacao'], [/resultado/, 'resultado_final'], [/convoca/, 'convocacao'], [/nomea/, 'nomeacao'], [/prorroga/, 'prorrogacao'], [/anexo/, 'anexo']];
 
+  // "MARCOS AURELIO DE PAIVA RÊGO" → "Marcos Aurelio de Paiva Rêgo" (nomes em caixa alta no site antigo)
+  const nomeProprio = (t) => t === t.toUpperCase()
+    ? t.toLowerCase().replace(/(^|[\s'(-])(\S)/g, (x, a, b) => a + b.toUpperCase()).replace(/ (De|Da|Do|Das|Dos|E)(?= )/g, (x) => x.toLowerCase())
+    : t;
   function maiorIdDe(html, re) {
     let maior = 0;
     for (const x of html.matchAll(re)) maior = Math.max(maior, Number(x[1]));
@@ -434,7 +438,7 @@
         return { ano: null, chave: { nome: unidade },
           registro: { nome: unidade.slice(0, 200), endereco: depois(/^endere[cç]o:?/i).slice(0, 300) || null, horario_atendimento: depois(/^hor[aá]rio[^:]*:?/i).slice(0, 200) || null,
             telefone: limpar(tel).slice(0, 60) || null, email: limpar(mail) || null, competencias: compTexto || null },
-          gestor: resp && !/^respons[aá]vel$/i.test(resp) ? { nome: resp.slice(0, 200), cargo } : null,
+          gestor: resp && !/^respons[aá]vel$/i.test(resp) ? { nome: nomeProprio(resp).slice(0, 200), cargo } : null,
           arquivos: img && img.getAttribute('src') ? [{ url: new URL(img.getAttribute('src'), url).href, campo: 'foto_url' }] : [] };
       }
     },

@@ -519,7 +519,14 @@
         id = data.id; novo = true;
       }
       let bytes = 0, aviso = null;
-      if (x.gestor && !(await existente('gestores', { nome: x.gestor.nome }))) {
+      // Gestor: compara o nome sem acento nem maiúsculas ("MARCOS AURÉLIO" = "Marcos Aurelio"); se já existe sem foto, só põe a foto.
+      const { data: gs } = await sb.from('gestores').select('id, nome, foto_url').eq('orgao_id', org());
+      const jaG = x.gestor && (gs || []).find((g) => chaveNome(g.nome) === chaveNome(x.gestor.nome));
+      if (jaG && !jaG.foto_url && x.arquivos[0]) {
+        const a = await copiar(x.arquivos[0].url, s.pasta);
+        if (a.url) { await sb.from('gestores').update({ foto_url: a.url }).eq('id', jaG.id); bytes = a.bytes || 0; novo = true; }
+      }
+      if (x.gestor && !jaG && !/^n[aã]o informad/i.test(x.gestor.nome)) {
         const a = x.arquivos[0] ? await copiar(x.arquivos[0].url, s.pasta) : {};
         bytes = a.bytes || 0; aviso = a.erro || null;
         const { error } = await sb.from('gestores').insert({ orgao_id: org(), unidade_id: id, nome: x.gestor.nome, cargo: x.gestor.cargo, foto_url: a.url || null,
