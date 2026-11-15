@@ -600,7 +600,95 @@
       st.texto = (st.parar ? 'Pausado: ' : 'Concluído: ') + (st.texto || 'nada novo para importar.');
     } catch (e) { st.texto = 'Parou: ' + e.message; }
     st.rodando = null;
+    rascunhosPorSecao = null;
     await carregar(); desenhar();
+  }
+
+  // ---------------- publicar os rascunhos da migração ----------------
+  // O que entrou como rascunho (lei sem arquivo, página avulsa, vídeo sem título, atalho de serviço…)
+  // pode ser publicado de uma vez, por seção ou tudo. Quem não pode ir ao ar (ex.: lei sem documento)
+  // continua em rascunho e é contado à parte.
+  const TABELAS_PUBLICAVEIS = ['publicacoes', 'licitacoes', 'contratos', 'concursos', 'documentos_contas', 'noticias', 'obras', 'paginas', 'videos', 'servicos'];
+  const ONDE = { publicacoes: 'Publicações', licitacoes: 'Licitações', contratos: 'Contratos', concursos: 'Concursos e seletivos', documentos_contas: 'Planejamento e contas',
+    noticias: 'Notícias', obras: 'Obras', paginas: 'Páginas', videos: 'Notícias › Vídeos', servicos: 'Carta de Serviços' };
+  let caixaRascunhos = null, rascunhosPorSecao = null;
+  const fatias = (l, n) => { const r = []; for (let i = 0; i < l.length; i += n) r.push(l.slice(i, i + n)); return r; };
+  async function levantarRascunhos() {
+    const vinculos = [];
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await sb.from('migracao_itens').select('secao, tabela, registro_id').eq('orgao_id', org())
+        .eq('situacao', 'importado').not('registro_id', 'is', null).in('tabela', TABELAS_PUBLICAVEIS).range(de, de + 999);
+      if (error) throw error;
+      vinculos.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    const secaoDe = {};   // tabela:id → seção
+    for (const v of vinculos) secaoDe[v.tabela + ':' + v.registro_id] = v.secao;
+    const porSecao = {};
+    const somar = (secao, tabela, id) => { const g = porSecao[secao] = porSecao[secao] || {}; (g[tabela] = g[tabela] || []).push(id); };
+    for (const t of TABELAS_PUBLICAVEIS) {
+      const ids = vinculos.filter((v) => v.tabela === t).map((v) => v.registro_id);
+      for (const lote of fatias(ids, 150)) {
+        const { data, error } = await sb.from(t).select('id').eq('orgao_id', org()).eq('situacao', 'rascunho').in('id', lote);
+        if (error) throw error;
+        for (const r of data || []) somar(secaoDe[t + ':' + r.id], t, r.id);
+      }
+    }
+    // Audiências públicas criam várias publicações por item: as que não ficaram anotadas vêm pela origem "importação".
+    const { data: extras } = await sb.from('publicacoes').select('id, tipo').eq('orgao_id', org()).eq('origem', 'importacao').eq('situacao', 'rascunho').limit(5000);
+    const ja = new Set(Object.values(porSecao).flatMap((g) => g.publicacoes || []));
+    for (const r of extras || []) if (!ja.has(r.id)) somar(r.tipo === 'x_audiencia_publica' ? 'audiencia' : 'legislacao', 'publicacoes', r.id);
+    return porSecao;
+  }
+  const totalDe = (g) => Object.values(g || {}).reduce((t, l) => t + l.length, 0);
+  async function publicarRascunhos(secoes, btn) {
+    const grupos = secoes.map((k) => rascunhosPorSecao[k]).filter(Boolean);
+    const total = grupos.reduce((t, g) => t + totalDe(g), 0);
+    if (!total) return;
+    const paginas = grupos.reduce((t, g) => t + ((g.paginas || []).length), 0);
+    if (!await P.confirmar('Publicar rascunhos da migração', 'Publicar ' + total + ' ' + (total === 1 ? 'item' : 'itens') + ' que vieram do site antigo como rascunho? ' +
+      'Eles passam a aparecer no site.' + (paginas ? ' Atenção: ' + paginas + ' página(s) avulsa(s) entraram como rascunho para revisão; confira o conteúdo antes, se ainda não conferiu.' : '') +
+      ' O que não puder ir ao ar (por exemplo, lei sem documento) continua em rascunho.', 'Publicar ' + total)) return;
+    ocupado(btn, 'Publicando…');
+    let ok = 0, falhas = 0; const motivos = new Set();
+    try {
+      for (const g of grupos) for (const [t, ids] of Object.entries(g)) for (const lote of fatias(ids, 100)) {
+        const { data, error } = await sb.from(t).update({ situacao: 'publicado' }).eq('orgao_id', org()).eq('situacao', 'rascunho').in('id', lote).select('id');
+        if (!error) { ok += (data || []).length; falhas += lote.length - (data || []).length; continue; }
+        // Algum do lote não pode ir ao ar: tenta um por um para publicar os demais.
+        for (const id of lote) {
+          const r = await sb.from(t).update({ situacao: 'publicado' }).eq('id', id).eq('situacao', 'rascunho').select('id');
+          if (!r.error && r.data && r.data.length) ok++;
+          else { falhas++; motivos.add(ONDE[t] + ': ' + (r.error ? P.erroGravacao(r.error) : 'sem permissão para publicar')); }
+        }
+      }
+      toast(ok + ' publicado(s).' + (falhas ? ' ' + falhas + ' continua(m) em rascunho: ' + [...motivos].slice(0, 3).join(' · ') : ''), !!falhas);
+    } catch (e) { toast(P.erroGravacao(e), true); }
+    finally { ocupado(btn); }
+    await desenharRascunhos(true);
+  }
+  async function desenharRascunhos(recontar) {
+    if (!caixaRascunhos) return;
+    const caixa = caixaRascunhos;
+    try { if (recontar || !rascunhosPorSecao) rascunhosPorSecao = await levantarRascunhos(); }
+    catch (e) { caixa.replaceChildren(el('p', { class: 'msg msg-erro m-0' }, 'Não consegui contar os rascunhos: ' + P.erroGravacao(e))); return; }
+    if (caixa !== caixaRascunhos) return;
+    const chaves = Object.keys(rascunhosPorSecao).filter((k) => totalDe(rascunhosPorSecao[k]));
+    if (!chaves.length) { caixa.replaceChildren(); caixa.hidden = true; return; }
+    caixa.hidden = false;
+    const total = chaves.reduce((t, k) => t + totalDe(rascunhosPorSecao[k]), 0);
+    const nomeSecao = (k) => (adaptador && adaptador.secoes[k] ? adaptador.secoes[k].nome : k);
+    const btnTudo = el('button', { type: 'button', class: 'btn btn-primario' }, 'Publicar todos (' + total + ')');
+    btnTudo.addEventListener('click', () => publicarRascunhos(chaves, btnTudo));
+    caixa.replaceChildren(
+      el('div', { class: 'linha-botoes' }, el('h2', { class: 'm-0' }, 'Rascunhos trazidos do site antigo'), btnTudo),
+      el('p', { class: 'ajuda' }, 'Itens que entraram como rascunho e ainda não aparecem no site. Publique de uma vez, por seção ou tudo.'),
+      el('ul', { class: 'lista-rascunhos' }, chaves.map((k) => {
+        const g = rascunhosPorSecao[k], n = totalDe(g);
+        const b = el('button', { type: 'button', class: 'btn btn-claro btn-p' }, 'Publicar ' + n);
+        b.addEventListener('click', () => publicarRascunhos([k], b));
+        return el('li', { class: 'linha-botoes' }, el('span', null, el('strong', null, nomeSecao(k)), ' · ', n + ' em rascunho (' + Object.keys(g).map((t) => ONDE[t]).join(', ') + ')'), b);
+      })));
   }
 
   // ---------------- tela ----------------
@@ -670,9 +758,11 @@
           return b;
         })() : null,
         caixaEspaco),
+      ok ? (caixaRascunhos = el('section', { class: 'cartao', hidden: true })) : null,
       ...(ok ? Object.entries(adaptador.secoes).map(([k, s]) => cartaoSecao(k, s)) : []),
       el('p', { class: 'ajuda mt-2' }, 'Receitas, despesas, folha, diárias, ordem cronológica, emendas e licitações/contratos dos sistemas de gestão continuam nos sistemas oficiais: ligue-os em Aparência › Destinos das páginas.')].filter(Boolean));
     desenharEspaco(); desenharPonte();
+    if (ok) desenharRascunhos(false);
   }
 
   P.telas.migracao = async function (c) {
