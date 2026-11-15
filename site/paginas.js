@@ -1529,6 +1529,17 @@
     ['srp', 'Registro de preços', (v) => v ? 'Sim' : 'Não'], ['amparo_legal', 'Fundamento legal'], ['link_externo', 'Link']];
 
   // Faixa de abas reutilizável (guia de navegador): troca no lugar e atualiza o endereço.
+  // Aba de uma página com várias seções (ex.: Contratos | Fiscais) cujo destino, em Aparência › Destinos
+  // das páginas, é link externo: a aba continua, com "↗" no nome, e mostra onde os dados estão (com os
+  // outros endereços, se houver) — nunca a lista vazia do portal nem a frase "não foram celebrados…".
+  const extDaAba = (chave) => !!(chave && window.externoPNTP(S.conf, chave));
+  const rotuloAba = (texto, chave) => extDaAba(chave)
+    ? [texto, el('span', { class: 'aba-ext', 'aria-hidden': 'true' }, ' ↗'), el('span', { class: 'sr' }, ' (em outro sistema)')] : texto;
+  function abaExterna(alvo, chave, rotulo) {
+    if (!extDaAba(chave)) return false;
+    alvo.replaceChildren(S.caixaExterna(chave, { nivel: 'h2', rotulo }));
+    return true;
+  }
   function faixaAbas(itens, atual, rotulo, interna, aoEscolher) {
     const abas = itens.map(([id, texto]) => el('a', { class: 'aba-guia' + (interna ? ' aba-guia-p' : ''), href: '#', role: 'tab', 'data-id': id,
       'aria-selected': String(id) === String(atual) ? 'true' : 'false', tabindex: String(id) === String(atual) ? '0' : '-1' }, texto));
@@ -1555,7 +1566,11 @@
     const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' });
     // PCA (8.6) e sancionados (8.7) ficam na mesma faixa de abas: é onde o avaliador procura.
     if (ABAS_LIC_EXTRA.some((x) => x[0] === partes[0])) grupo = partes[0];
-    const { lista } = faixaAbas(GRUPOS_LIC.map((g) => [g[0], g[1]]).concat(ABAS_LIC_EXTRA), grupo, 'Tipo de processo', false, (id) => { grupo = id; abrirGrupo(new URLSearchParams()); });
+    // Chave de destino de cada aba: os 4 grupos de processos são "licitacoes"; PCA e sancionados têm a sua.
+    const chaveLic = (id) => id === 'pca' ? 'pca' : id === 'sancionados' ? 'sancionados' : 'licitacoes';
+    const abasLic = GRUPOS_LIC.map((g) => [g[0], g[1]]).concat(ABAS_LIC_EXTRA).filter(([id]) => !S.oculta(chaveLic(id)));
+    if (!abasLic.some((x) => x[0] === grupo)) grupo = abasLic[0][0];
+    const { lista } = faixaAbas(abasLic.map(([id, t]) => [id, rotuloAba(t, chaveLic(id))]), grupo, 'Tipo de processo', false, (id) => { grupo = id; abrirGrupo(new URLSearchParams()); });
     const ext = c.licitacoes_url;
     pagina(main, el('h1', null, 'Licitações'),
       el('p', { class: 'sub' }, 'Relação das licitações, dispensas, inexigibilidades e adesões a atas de registro de preços, com edital e documentos de cada fase; plano de contratações anual e licitantes e contratados sancionados.'),
@@ -1567,6 +1582,9 @@
     await abrirGrupo(params);
 
     async function abrirGrupo(prm) {
+      if (abaExterna(conteudo, chaveLic(grupo), grupo === 'pca' ? 'Plano de contratações anual' : grupo === 'sancionados' ? 'Sancionados' : 'Licitações')) {
+        history.replaceState(null, '', '#/licitacoes/' + grupo); return;
+      }
       if (grupo === 'pca') return abrirPca(conteudo, prm);
       if (grupo === 'sancionados') return abrirSancoes(conteudo, prm);
       const g = GRUPOS_LIC.find((x) => x[0] === grupo);
@@ -1893,9 +1911,10 @@
 
   R.contratos = async function (main, partes, params) {
     S.titulo('Contratos'); S.trilha(['Transparência', '#/transparencia'], ['Contratos']);
-    let aba = partes[0] === 'fiscais' ? 'fiscais' : 'contratos';
+    const secoesCtr = [['contratos', 'Contratos e aditivos'], ['fiscais', 'Fiscais de contratos']].filter(([k]) => !S.oculta(k));
+    let aba = partes[0] === 'fiscais' && secoesCtr.some((x) => x[0] === 'fiscais') ? 'fiscais' : secoesCtr[0][0];
     const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' });
-    const { lista } = faixaAbas([['contratos', 'Contratos e aditivos'], ['fiscais', 'Fiscais de contratos']], aba, 'Seção', false, (id) => { aba = id; abrir(new URLSearchParams()); });
+    const { lista } = faixaAbas(secoesCtr.map(([k, t]) => [k, rotuloAba(t, k)]), aba, 'Seção', false, (id) => { aba = id; abrir(new URLSearchParams()); });
     pagina(main, el('h1', null, 'Contratos'),
       el('p', { class: 'sub' }, 'Contratos celebrados, com contratado, valor, objeto, vigência, aditivos, inteiro teor e fiscais.'),
       lista, conteudo,
@@ -1903,7 +1922,11 @@
         S.conf.transparencia_url ? el('a', { href: S.conf.transparencia_url, target: '_blank', rel: 'noopener' }, 'Portal da Transparência') : 'Portal da Transparência', '.'));
     await abrir(params);
 
-    async function abrir(prm) { return aba === 'fiscais' ? S.decl.envolver(conteudo, 'fiscais', abrirFiscais) : abrirContratos(prm); }
+    async function abrir(prm) {
+      history.replaceState(null, '', '#/contratos' + (aba === 'fiscais' ? '/fiscais' : ''));
+      if (abaExterna(conteudo, aba, aba === 'fiscais' ? 'Fiscais de contratos' : 'Contratos')) return;
+      return aba === 'fiscais' ? S.decl.envolver(conteudo, 'fiscais', abrirFiscais) : abrirContratos(prm);
+    }
 
     async function abrirContratos(prm) {
       conteudo.replaceChildren(el('p', { class: 'carregando' }, 'Carregando…'));

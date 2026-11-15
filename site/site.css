@@ -720,3 +720,6 @@ html.contraste .campo-atend input, html.contraste .campo-atend select, html.cont
 .pag-info { white-space: nowrap; }
 tr.pag-oculta { display: none; }
 @media print { .paginacao, .paginacao-local { display: none !important; } tr.pag-oculta { display: table-row; } }
+
+/* Aba cuja seção está em outro sistema (Aparência › Destinos das páginas) (0.36.0) */
+.aba-guia .aba-ext { color: var(--texto-suave); font-weight: 700; }
