@@ -389,9 +389,7 @@
       try {
         // Guarda os CNPJs escolhidos para a próxima importação (se tiver permissão em Aparência; se não, segue).
         if (cnpjs.join() !== (cfg.pncp_cnpjs || []).join()) {
-          const novaCfg = Object.assign({}, cfg, { pncp_cnpjs: cnpjs });
-          const r = await sb.from('orgaos').update({ configuracoes: novaCfg }).eq('id', P.estado.orgao.id).select('id');
-          if (!r.error && r.data && r.data.length) P.estado.orgao.configuracoes = novaCfg;
+          try { await P.mesclarConfiguracoes({ pncp_cnpjs: cnpjs }); } catch (_) { /* sem permissão em Aparência: segue sem guardar */ }
         }
         // Período em janelas de até 1 ano (o PNCP limita consultas longas).
         const janelas = [];

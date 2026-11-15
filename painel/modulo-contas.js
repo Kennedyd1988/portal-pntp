@@ -62,10 +62,9 @@
       el('option', { value: 'quadrimestral', selected: rgfPeriodicidade === 'quadrimestral' }, 'quadrimestral'),
       el('option', { value: 'semestral', selected: rgfPeriodicidade === 'semestral' }, 'semestral (até 50 mil hab.)'));
     selRgf.addEventListener('change', async () => {
-      const cfg = Object.assign({}, P.estado.orgao.configuracoes || {}, { rgf_periodicidade: selRgf.value });
-      const { data, error } = await sb.from('orgaos').update({ configuracoes: cfg }).eq('id', P.estado.orgao.id).select('id');
-      if (error || !data || !data.length) { toast('Só quem altera "Aparência e contatos" pode mudar a periodicidade do RGF.', true); selRgf.value = rgfPeriodicidade; return; }
-      P.estado.orgao.configuracoes = cfg; rgfPeriodicidade = selRgf.value;
+      try { await P.mesclarConfiguracoes({ rgf_periodicidade: selRgf.value }); }
+      catch (e) { toast('Só quem altera "Aparência e contatos" pode mudar a periodicidade do RGF.', true); selRgf.value = rgfPeriodicidade; return; }
+      rgfPeriodicidade = selRgf.value;
       toast('Periodicidade do RGF: ' + selRgf.value + '.'); desenhar();
     });
     return el('p', { class: 'ajuda' }, 'O RGF deste órgão é publicado ', selRgf, ' (a autoavaliação do PNTP cobra os períodos por esta escolha).');

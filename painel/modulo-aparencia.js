@@ -377,7 +377,7 @@
         }
         const selosAntigos = (Array.isArray(cfg.selos) ? cfg.selos : []).map((x) => x.imagem_url).filter(Boolean);
         const selosGravar = selos.map((sl) => ({ titulo: sl.titulo.value.trim(), descricao: sl.descricao.value.trim(), url: sl.url.value.trim(), imagem_url: sl.imagem_url || null }));
-        const novaCfg = Object.assign({}, cfg, {
+        const mudancas = {
           nome_exibicao: v('nome_exibicao'), cor_principal: corTexto.value.toLowerCase(),
           brasao_url: brasaoUrl, endereco: v('endereco'), cep: v('cep'), telefone: v('telefone'),
           email: v('email'), horario: v('horario'), instagram: v('instagram'), facebook: v('facebook'),
@@ -386,12 +386,14 @@
           transparencia_url: v('transparencia_url'), licitacoes_url: v('licitacoes_url'),
           estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url'),
           selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, radar_url: radarLink.value.trim() || null, destinos: destinosGravar, destinos_links: linksGravar, paginas_ocultas: ocultasGravar
-        });
-        const { data, error: e2 } = await sb.from('orgaos')
-          .update({ configuracoes: novaCfg, dominio: dominio || null })
-          .eq('id', org.id).select('id');
+        };
+        const novaCfg = Object.assign({}, cfg, mudancas);
+        // Só o que esta tela cuida vai para o banco, junto com o que já está lá (script 41):
+        // não apaga o que outra tela gravou enquanto esta estava aberta (ex.: site antigo da Migração).
+        const { data, error: e2 } = await sb.from('orgaos').update({ dominio: dominio || null }).eq('id', org.id).select('id');
         if (e2) throw e2;
         if (!data || !data.length) throw Object.assign(new Error('Seu perfil não tem permissão para alterar a aparência deste órgão.'), { amigavel: true });
+        Object.assign(novaCfg, await P.mesclarConfiguracoes(mudancas, org.id));
         if (antigo && antigo !== brasaoUrl) P.apagarArquivo(antigo);
         for (const k of ['favicon_url', 'radar_imagem_url']) if (cfg[k] && cfg[k] !== novaCfg[k]) P.apagarArquivo(cfg[k]);
         // Imagens de selos trocadas ou removidas: apaga do armazenamento.

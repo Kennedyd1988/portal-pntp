@@ -487,8 +487,133 @@
         }
         return itens;
       }
+    },
+    // ---------------------------------------------------------------
+    // Página inicial: banners do carrossel, brasão, contatos e redes sociais do rodapé,
+    // link do Diário Oficial, vídeos e atalhos para serviços pela internet.
+    // A leitura é por pistas comuns a sites de prefeitura (não depende do modelo do site).
+    inicio: {
+      nome: 'Página inicial (banners, contatos, redes, vídeos e atalhos)', destino: 'Banners, Aparência e contatos, Vídeos e Carta de Serviços', semPeriodo: true, pasta: 'inicio',
+      listas: [],
+      async listar(ctx) {
+        const r = await ctx.ler(ctx.origem + '/');
+        return lerInicio(r.html, r.url_final || ctx.origem + '/', ctx.origem);
+      }
     }
   };
+
+  // ---------------- página inicial ----------------
+  const REDES = [['facebook', /facebook\.com|fb\.com/i], ['instagram', /instagram\.com/i], ['youtube', /youtube\.com\/(?:@|c\/|channel\/|user\/)|youtube\.com\/[A-Za-z0-9_.-]+\/?$/i],
+    ['whatsapp', /wa\.me|whatsapp\.com/i]];
+  // Atalho que parece serviço pedido pela internet (vai para a Carta de Serviços como rascunho).
+  const RE_SERVICO = /nota fiscal|nfs-?e|iptu|itbi|alvar|certid|tribut|contribuinte|boleto|guia|protocolo|agendamento|matr[ií]cula|inscri[cç]|segunda via|2[ªa] via|emiss[aã]o|contracheque|holerite|portal do servidor|consulta|servi[cç]os? on-?line|requerimento|licenciamento|cadastro/i;
+  // Atalhos que o portal já tem como página própria (Aparência › Destinos das páginas).
+  const RE_PROPRIO = /transpar|licita|contrato|e-?sic|acesso [aà] informa|ouvidoria|di[aá]rio oficial|receita|despesa|folha|di[aá]rias|obras|conv[eê]nio|emenda|concurso|seletivo|lgpd|carta de servi/i;
+  function imagensDe(no, base) {
+    const urls = [];
+    const add = (u, alt, link) => {
+      if (!u || /^data:/.test(u)) return;
+      let abs; try { abs = new URL(u.trim().split(/\s+/)[0], base).href; } catch (_) { return; }
+      if (!/\.(jpe?g|png|webp)(\?|$)/i.test(abs) && !/globalarq|upload|imagem|image|banner/i.test(abs)) return;
+      if (!urls.some((x) => x.url === abs)) urls.push({ url: abs, alt: limpar(alt), link });
+    };
+    for (const n of no.querySelectorAll('img, [style*="background"]')) {
+      const a = n.closest('a[href]');
+      let link = a ? a.getAttribute('href') : null;
+      try { link = link && !/^(#|javascript:)/i.test(link) ? new URL(link, base).href : null; } catch (_) { link = null; }
+      const alt = n.getAttribute('alt') || n.getAttribute('title') || (a && (a.getAttribute('title') || a.textContent)) || '';
+      if (n.tagName === 'IMG') add(n.getAttribute('data-src') || n.getAttribute('data-lazy-src') || n.getAttribute('src') || n.getAttribute('srcset'), alt, link);
+      const bg = (n.getAttribute('style') || '').match(/background(?:-image)?\s*:[^;]*url\(\s*['"]?([^'")]+)['"]?\s*\)/i);
+      if (bg) add(bg[1], alt, link);
+    }
+    return urls;
+  }
+  function lerInicio(html, base, origem) {
+    const d = new DOMParser().parseFromString(html, 'text/html');
+    d.querySelectorAll('script,style,noscript').forEach((x) => x.remove());
+    const itens = [];
+    const host = (u) => { try { return new URL(u).host.replace(/^www\./, ''); } catch (_) { return ''; } };
+    const meuHost = host(origem);
+    const chaveUrl = (tipo, u) => origem + '/#inicio-' + tipo + ':' + u;
+
+    // 1) Banners: imagens dentro de carrossel/slider/banner (o primeiro grupo com 1 a 15 imagens).
+    const conts = [...d.querySelectorAll('.carousel, .swiper, .swiper-container, .slick-slider, .owl-carousel, .flexslider, .slider, [class*="banner"], [id*="banner"], [class*="slide"], [id*="slide"], [id*="carousel"], [class*="carrossel"]')]
+      .filter((c) => !c.closest('footer, .rodape, [class*="footer"], [class*="rodape"], [class*="noticia"], [class*="news"]'));
+    const vistos = new Set();
+    let ordem = 10;
+    for (const c of conts) {
+      if (conts.some((o) => o !== c && o.contains(c) && imagensDe(o, base).length)) continue;   // só o contêiner mais de fora
+      const imgs = imagensDe(c, base).filter((x) => !/logo|brasao|bras%C3%A3o|icone|icon|selo/i.test(x.url + ' ' + x.alt));
+      if (!imgs.length || imgs.length > 15) continue;
+      for (const im of imgs) {
+        if (vistos.has(im.url)) continue; vistos.add(im.url);
+        const titulo = (im.alt.length >= 3 ? im.alt : 'Destaque ' + (vistos.size)).slice(0, 160);
+        itens.push({ url: chaveUrl('banner', im.url), x: { ano: null, tipo: 'banner', chave: { imagem: im.url },
+          registro: { titulo, link_url: im.link && im.link !== base && im.link !== origem + '/' ? im.link : null, ordem: ordem, ativo: true },
+          arquivos: [{ url: im.url, campo: 'imagem_url' }] } });
+        ordem += 10;
+      }
+      if (vistos.size) break;
+    }
+
+    // 2) Identidade, contatos e redes sociais (rodapé, cabeçalho e links da página).
+    const rodape = d.querySelector('footer, .rodape, #rodape, [class*="footer"], [class*="rodape"]') || d.body;
+    // Texto com espaço entre os blocos (textContent cola "000Telefone" e atrapalha as buscas).
+    const pedacos = []; const tw = d.createTreeWalker(rodape, 4); while (tw.nextNode()) pedacos.push(tw.currentNode.nodeValue);
+    const texto = limpar(pedacos.join(' '));
+    const ct = {};
+    const mail = rodape.querySelector('a[href^="mailto:"]');
+    ct.email = mail ? limpar(mail.getAttribute('href').replace(/^mailto:/i, '').split('?')[0]) : ((texto.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/) || [])[0] || '');
+    const tel = rodape.querySelector('a[href^="tel:"]');
+    ct.telefone = tel ? limpar(tel.textContent) || limpar(tel.getAttribute('href').replace(/^tel:/i, '')) : ((texto.match(/\(?\d{2}\)?\s?\d{4,5}[-\s]?\d{4}/) || [])[0] || '');
+    ct.cep = ((texto.match(/\b\d{2}\.?\d{3}-?\d{3}\b/) || [])[0] || '').replace(/\./, '');
+    const linhas = [...rodape.querySelectorAll('p, li, span, address, div')].filter((n) => !n.children.length || n.tagName === 'ADDRESS' || n.tagName === 'P').map((n) => limpar(n.textContent)).filter(Boolean);
+    const endereco = linhas.find((t) => /^(rua|r\.|av\.?|avenida|pra[cç]a|travessa|tv\.|rodovia|estrada|s[ií]tio)\b/i.test(t) || /endere[cç]o\s*:/i.test(t));
+    ct.endereco = endereco ? limpar(endereco.replace(/^endere[cç]o\s*:\s*/i, '')).replace(/\s*[-–|]?\s*CEP.*$/i, '').slice(0, 300) : '';
+    const horario = linhas.find((t) => /hor[aá]rio|expediente|segunda[\s-]*(feira)?\s*(a|à)\s*sexta/i.test(t) && /\d/.test(t) && t.length < 200);
+    ct.horario = horario ? limpar(horario.replace(/^hor[aá]rio[^:]*:\s*/i, '')).slice(0, 200) : '';
+    for (const a of d.querySelectorAll('a[href]')) {
+      const h = a.getAttribute('href') || '';
+      for (const [k, re] of REDES) if (!ct[k] && re.test(h) && !/sharer|share|intent|plugins/i.test(h)) ct[k] = h.trim();
+    }
+    const diario = [...d.querySelectorAll('a[href]')].find((a) => /di[aá]rio oficial/i.test(limpar(a.textContent + ' ' + (a.getAttribute('title') || ''))));
+    if (diario) { try { const u = new URL(diario.getAttribute('href'), base).href; if (host(u) !== meuHost) ct.diario_oficial_url = u; } catch (_) { /* sem link */ } }
+    const cab = d.querySelector('header, .cabecalho, #cabecalho, [class*="header"], [class*="topo"]') || d.body;
+    const logo = [...cab.querySelectorAll('img')].find((i) => /logo|bras[aã]o|marca|prefeitura/i.test((i.getAttribute('src') || '') + ' ' + (i.getAttribute('alt') || '') + ' ' + (i.className || '')))
+      || cab.querySelector('img');
+    const logoUrl = logo ? (() => { try { return new URL(logo.getAttribute('data-src') || logo.getAttribute('src'), base).href; } catch (_) { return null; } })() : null;
+    const valores = Object.fromEntries(Object.entries(ct).filter(([, v]) => v));
+    if (Object.keys(valores).length || logoUrl) {
+      itens.push({ url: chaveUrl('contatos', 'rodape'), x: { ano: null, tipo: 'contatos', chave: { contatos: true }, registro: valores,
+        arquivos: logoUrl && /\.(jpe?g|png|webp)(\?|$)/i.test(logoUrl) ? [{ url: logoUrl, campo: 'brasao_url' }] : [] } });
+    }
+
+    // 3) Vídeos (YouTube incorporado ou link de vídeo na página inicial).
+    const videos = new Map();
+    for (const n of d.querySelectorAll('iframe[src], iframe[data-src], a[href]')) {
+      const u = n.getAttribute('src') || n.getAttribute('data-src') || n.getAttribute('href') || '';
+      const id = (u.match(/(?:youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?v=|shorts\/)|youtu\.be\/)([\w-]{11})/) || [])[1];
+      if (!id || videos.has(id)) continue;
+      const t = limpar(n.getAttribute('title') || (n.tagName === 'A' ? n.textContent : ''));
+      videos.set(id, /^(youtube( video)?( player)?|v[ií]deo)?$/i.test(t) || t.length < 3 ? '' : t);
+    }
+    for (const [id, t] of videos) itens.push({ url: chaveUrl('video', id), x: { ano: null, tipo: 'video', chave: { video: id },
+      registro: { titulo: (t || 'Vídeo do site antigo (' + id + ')').slice(0, 200), url: 'https://www.youtube.com/watch?v=' + id, situacao: t ? 'publicado' : 'rascunho' } } });
+
+    // 4) Atalhos para serviços pela internet (sistemas de fora: nota fiscal, IPTU, contracheque…).
+    const atalhos = new Map();
+    for (const a of d.querySelectorAll('a[href]')) {
+      let u; try { u = new URL(a.getAttribute('href'), base).href; } catch (_) { continue; }
+      if (!/^https?:/.test(u) || host(u) === meuHost || REDES.some(([, re]) => re.test(u)) || /youtu/.test(u)) continue;
+      const nome = limpar(a.getAttribute('title') || a.textContent || (a.querySelector('img') || {}).alt || '');
+      if (nome.length < 3 || nome.length > 120 || !RE_SERVICO.test(nome) || RE_PROPRIO.test(nome)) continue;
+      if (![...atalhos.values()].some((x) => x.nome.toLowerCase() === nome.toLowerCase()) && !atalhos.has(u)) atalhos.set(u, { nome, url: u });
+    }
+    for (const { nome, url } of atalhos.values()) itens.push({ url: chaveUrl('atalho', url), x: { ano: null, tipo: 'atalho', chave: { nome },
+      registro: { nome: nome.slice(0, 200), categoria: 'Serviços on-line', forma_prestacao: 'digital', link_digital: url, situacao: 'rascunho',
+        descricao: 'Atalho trazido da página inicial do site antigo. Complete a descrição, os requisitos e as etapas antes de publicar.' } } });
+    return itens;
+  }
 
   window.MIGRACAO_ADAPTADORES = window.MIGRACAO_ADAPTADORES || {};
   window.MIGRACAO_ADAPTADORES.plataforma_a = {

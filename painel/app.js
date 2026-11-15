@@ -143,6 +143,26 @@
       el('p', { class: 'ajuda' }, 'Para voltar a cadastrar no portal, escolha "Página do portal" nessa linha. O que já estava cadastrado continua guardado.'));
   }
 
+  // Grava só as configurações que a tela mudou, juntando no banco com o que já está lá
+  // (script 41). Assim uma tela não apaga o que outra gravou enquanto estava aberta.
+  // Sem o script 41: lê as configurações atuais na hora e grava o conjunto (como antes).
+  async function mesclarConfiguracoes(valores, orgaoId) {
+    const id = orgaoId || estado.orgao.id;
+    const r = await sb.rpc('mesclar_configuracoes', { p_orgao: id, p_valores: valores });
+    let cfg = r.data;
+    if (r.error) {
+      if (!/mesclar_configuracoes|Could not find|does not exist/i.test(r.error.message || '')) throw r.error;
+      const atual = await sb.from('orgaos').select('configuracoes').eq('id', id).maybeSingle();
+      if (atual.error) throw atual.error;
+      cfg = Object.assign({}, (atual.data && atual.data.configuracoes) || {}, valores);
+      const u = await sb.from('orgaos').update({ configuracoes: cfg }).eq('id', id).select('id');
+      if (u.error) throw u.error;
+      if (!u.data || !u.data.length) throw new Error('Seu perfil não pode alterar as configurações deste órgão.');
+    }
+    if (estado.orgao && estado.orgao.id === id) estado.orgao.configuracoes = cfg || estado.orgao.configuracoes;
+    return cfg;
+  }
+
   // Aba pedida no endereço (#/m/modulo?aba=…, links "Corrigir" da autoavaliação), para telas
   // que desenham as próprias abas no alto: devolve a aba se for uma das válidas e a tira do endereço.
   function abaDoEndereco(validas) {
@@ -1482,7 +1502,7 @@
     cpfValido, cnpjValido, erroDoc, formatarDoc, mascaraDoc,
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
-    campo, campoOutra, abas, abaDoEndereco, externo, avisoExterno, declaracoes, declaracoesAnuais, declaracoesDoOrgao, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
+    campo, campoOutra, abas, abaDoEndereco, mesclarConfiguracoes, externo, avisoExterno, declaracoes, declaracoesAnuais, declaracoesDoOrgao, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
     paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf, atualizarAvisos, excluirComPecas
   };
 })();

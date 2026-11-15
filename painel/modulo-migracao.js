@@ -17,7 +17,7 @@
   const PARAR_APOS = 30;      // ids seguidos fora do período (ou vazios) para encerrar a varredura
   const PARALELO = 2;
 
-  let conteiner = null, cfg = {}, adaptador = null, resumo = {}, espaco = null;
+  let conteiner = null, cfg = {}, adaptador = null, resumo = {}, espaco = null, editandoOrigem = false;
   const estado = {};          // por seção: { itens, arquivos, bytes, rodando, parar, log }
 
   const org = () => P.estado.orgao.id;
@@ -67,6 +67,8 @@
       ponte.janela = ev.source; ponte.origem = ev.origin; ponte.pronto = true;
       toast('Coletor conectado: o site antigo será lido pelo navegador.');
       if (caixaPonte) desenharPonte();
+      // Ainda sem modelo reconhecido (o servidor estava bloqueado): reconhece agora, sem precisar clicar de novo.
+      if (!cfg.migracao.plataforma) reconhecer(false).then(() => carregar()).then(() => { if (conteiner && conteiner.isConnected) desenhar(); }).catch(() => {});
     } else if (d.softColetor === 'resposta' && ponte.pend.has(d.id)) {
       const { ok, falhou, t } = ponte.pend.get(d.id); ponte.pend.delete(d.id); clearTimeout(t);
       if (d.ok) ok(d);
@@ -179,18 +181,27 @@
     try { new URL(url); } catch (e) { toast('Informe o endereço completo do site antigo, ex.: https://www.municipio.rn.gov.br', true); return; }
     ocupado(btn, 'Conferindo…');
     try {
-      const atual = (await sb.from('orgaos').select('configuracoes').eq('id', org()).maybeSingle()).data.configuracoes || {};
-      const novo = Object.assign({}, atual, { migracao: Object.assign({}, atual.migracao || {}, { origem: url }) });
-      const { error } = await sb.from('orgaos').update({ configuracoes: novo }).eq('id', org());
-      if (error) throw error;
-      const p = await pagina(url + '/');
-      const qual = Object.entries(window.MIGRACAO_ADAPTADORES).find(([, a]) => a.reconhece(p.html));
-      novo.migracao.plataforma = qual ? qual[0] : null;
-      await sb.from('orgaos').update({ configuracoes: novo }).eq('id', org());
-      toast(qual ? 'Site antigo reconhecido: ' + qual[1].nome.split(' (')[0] + '.' : 'O site respondeu, mas o modelo dele ainda não é conhecido pela ferramenta.', !qual);
+      // Grava o endereço antes de ler o site: mesmo que a leitura falhe, ele fica guardado.
+      const mig = Object.assign({}, cfg.migracao || {}, { origem: url });
+      if (((cfg.migracao || {}).origem || '') !== url) delete mig.plataforma;
+      cfg = await P.mesclarConfiguracoes({ migracao: mig });
+      editandoOrigem = false;
+      await reconhecer(true);
       await carregar(); desenhar();
-    } catch (e) { toast(e.message || traduzirErro(e), true); }
+    } catch (e) {
+      toast(e.message || traduzirErro(e), true);
+      try { await carregar(); desenhar(); } catch (_) { /* fica a tela como está */ }
+    }
     finally { ocupado(btn); }
+  }
+  // Lê a página inicial do site antigo e guarda qual modelo ele usa. Feito uma vez só:
+  // ao abrir a tela de novo, o endereço e o modelo já vêm guardados.
+  async function reconhecer(avisar) {
+    const p = await pagina(cfg.migracao.origem + '/');
+    const qual = Object.entries(window.MIGRACAO_ADAPTADORES).find(([, a]) => a.reconhece(p.html));
+    cfg = await P.mesclarConfiguracoes({ migracao: Object.assign({}, cfg.migracao, { plataforma: qual ? qual[0] : null, reconhecido_em: new Date().toISOString() }) });
+    if (avisar || qual) toast(qual ? 'Site antigo reconhecido: ' + qual[1].nome.split(' (')[0] + '.' : 'O site respondeu, mas o modelo dele ainda não é conhecido pela ferramenta.', !qual);
+    return qual;
   }
 
   // ---------------- varredura ----------------
@@ -510,6 +521,53 @@
     }
   });
 
+  // Página inicial: um tipo de item por destino. Nada do que já está preenchido no portal é trocado.
+  Object.assign(GRAVAR, {
+    async inicio(x, s) {
+      const r = x.registro;
+      if (x.tipo === 'banner') {
+        if (!/^Destaque \d+$/.test(r.titulo) && await existente('banners', { titulo: r.titulo })) return { situacao: 'ja_existia' };
+        const a = await copiar(x.arquivos[0].url, s.pasta);
+        if (!a.url) return { situacao: 'erro', aviso: 'Imagem do banner não copiada: ' + (a.erro || 'sem arquivo') };
+        const { data, error } = await sb.from('banners').insert(Object.assign({ orgao_id: org() }, r, { imagem_url: a.url })).select('id').single();
+        if (error) throw error;
+        return { situacao: 'importado', id: data.id, tabela: 'banners', bytes: a.bytes,
+          aviso: /^Destaque \d+$/.test(r.titulo) ? 'Banner sem texto alternativo no site antigo: troque o título "' + r.titulo + '" em Notícias › Banners' : null };
+      }
+      if (x.tipo === 'contatos') {
+        const atual = (await sb.from('orgaos').select('configuracoes').eq('id', org()).maybeSingle()).data;
+        const c = (atual && atual.configuracoes) || {};
+        const mudar = {}, preenchidos = [];
+        for (const [k, v] of Object.entries(r)) if (v && !c[k]) { mudar[k] = v; preenchidos.push(k); }
+        let bytes = 0, aviso = null;
+        if (x.arquivos[0] && !c.brasao_url) {
+          const a = await copiar(x.arquivos[0].url, 'aparencia');
+          if (a.url) { mudar.brasao_url = a.url; bytes = a.bytes || 0; preenchidos.push('brasão'); } else aviso = 'Brasão não copiado: ' + a.erro;
+        }
+        if (!preenchidos.length) return { situacao: 'ja_existia', aviso };
+        cfg = await P.mesclarConfiguracoes(mudar);
+        const nomes = { endereco: 'endereço', cep: 'CEP', telefone: 'telefone', email: 'e-mail', horario: 'horário', facebook: 'Facebook', instagram: 'Instagram',
+          youtube: 'YouTube', whatsapp: 'WhatsApp', diario_oficial_url: 'Diário Oficial' };
+        return { situacao: 'importado', tabela: 'orgaos', id: org(), bytes,
+          aviso: [('Preenchidos em Aparência e contatos (confira): ' + preenchidos.map((k) => nomes[k] || k).join(', ')), aviso].filter(Boolean).join(' · ') };
+      }
+      if (x.tipo === 'video') {
+        if (await existente('videos', { url: r.url })) return { situacao: 'ja_existia' };
+        const reg = Object.assign({ orgao_id: org() }, r);
+        const { data, error } = await sb.from('videos').insert(reg).select('id').single();
+        if (error) throw error;
+        return { situacao: 'importado', id: data.id, tabela: 'videos', aviso: r.situacao === 'rascunho' ? 'Vídeo sem título no site antigo: entrou como rascunho em Notícias › Vídeos' : null };
+      }
+      if (x.tipo === 'atalho') {
+        if (await existente('servicos', { nome: r.nome })) return { situacao: 'ja_existia' };
+        const { data, error } = await sb.from('servicos').insert(Object.assign({ orgao_id: org() }, r)).select('id').single();
+        if (error) throw error;
+        return { situacao: 'importado', id: data.id, tabela: 'servicos', aviso: 'Entrou como rascunho na Carta de Serviços: complete e publique' };
+      }
+      return { situacao: 'erro', aviso: 'Item da página inicial sem destino.' };
+    }
+  });
+
   async function importar(chave) {
     const s = adaptador.secoes[chave];
     const st = estado[chave] = Object.assign(estado[chave] || {}, { rodando: 'importacao', parar: false, log: [], feitos: 0, novos: 0, existentes: 0, erros: 0, bytesCopiados: 0 });
@@ -589,6 +647,13 @@
     btnO.addEventListener('click', () => salvarOrigem(origem, btnO));
     caixaEspaco = el('div', { class: 'mt-1' });
     const ok = adaptador && cfg.migracao && cfg.migracao.origem;
+    // Endereço já guardado: mostra só o resumo; o campo volta ao clicar em "Trocar endereço".
+    const reconhecido = ok && cfg.migracao.plataforma;
+    const btnTrocar = el('button', { type: 'button', class: 'link', onclick: () => { editandoOrigem = true; desenhar(); } }, 'Trocar endereço');
+    const linhaOrigem = ok && !editandoOrigem
+      ? el('p', { class: 'mt-05' }, el('a', { href: cfg.migracao.origem, target: '_blank', rel: 'noopener' }, cfg.migracao.origem), ' · ',
+        reconhecido ? 'modelo ' + adaptador.nome.split(' (')[0] : cfg.migracao.reconhecido_em ? 'modelo não reconhecido pela ferramenta' : 'modelo ainda não conferido (é conferido sozinho ao ligar o coletor)', ' · ', btnTrocar)
+      : el('div', { class: 'linha-botoes mt-1' }, origem, btnO);
     conteiner.replaceChildren(...[
       el('div', { class: 'cabecalho-modulo' }, el('div', null, el('h1', null, 'Migração do site antigo'),
         el('p', { class: 'sub' }, 'Traz para o portal o que já está publicado no site atual do órgão, com os arquivos.'))),
@@ -596,8 +661,8 @@
         'Primeiro use "Analisar e medir" (não grava nada) para ver quantos itens e quanto espaço; depois "Importar". Pode pausar e continuar: o que já veio não é repetido. ',
         'Mantenha esta tela aberta durante a importação.'),
       el('section', { class: 'cartao' }, el('h2', { class: 'm-0' }, 'Site de origem'),
-        el('div', { class: 'linha-botoes mt-1' }, origem, btnO),
-        el('p', { class: 'ajuda mt-05' }, ok ? 'Modelo reconhecido: ' + adaptador.nome + '.' : 'Informe o endereço do site antigo e clique em "Salvar e reconhecer".'),
+        linhaOrigem,
+        ok && !editandoOrigem ? null : el('p', { class: 'ajuda mt-05' }, 'Informe o endereço do site antigo e clique em "Salvar e reconhecer". Fica guardado: não precisa repetir ao abrir esta tela de novo.'),
         caixaPonte = el('div', { class: 'mt-1' }),
         ok ? (() => {
           const b = el('button', { type: 'button', class: 'btn btn-claro mt-1' }, 'Analisar e medir todas as seções');
