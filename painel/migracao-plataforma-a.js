@@ -233,7 +233,9 @@
         else if (/\bloa\b|orcamentaria anual/.test(cat)) tipo = 'loa';
         else if (/\bppa\b|plurianual/.test(cat)) { tipo = 'ppa'; exercicio_fim = ano ? ano + 3 : null; }
         else if (/balan/.test(cat)) tipo = 'balanco';
-        else if (/\bpcg\b|\bpcs\b|prestacao de contas/.test(cat)) tipo = 'relatorio_gestao';
+        else if (/\bpcg\b|\bpcs\b|prestacao de contas|relatorio( de)? gestao|controle interno/.test(cat)) tipo = 'relatorio_gestao';
+        else if (/parecer/.test(cat)) tipo = 'parecer_tce';
+        else if (/julgamento/.test(cat)) tipo = 'julgamento_camara';
         if (!tipo || ((tipo === 'rreo' || tipo === 'rgf') && !periodo)) return { ignorar: 'Categoria sem equivalente no portal: ' + t.replace(/^Conta P[uú]blica\s*-\s*/i, '') + (tipo ? ' (período não informado)' : ''), ano };
         if (tipo === 'rreo' && periodo > 6) return { ignorar: 'Período inválido', ano };
         if (tipo === 'rgf' && periodo > (periodicidade === 'semestral' ? 2 : 3)) return { ignorar: 'Período inválido', ano };

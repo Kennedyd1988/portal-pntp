@@ -334,7 +334,9 @@
     if (ini[0] === 0x25 && ini[1] === 0x50 && ini[2] === 0x44 && ini[3] === 0x46) { tipo = 'application/pdf'; ext = 'pdf'; }
     if (!EXT_TIPO[ext]) throw new Error('Tipo de arquivo não aceito (' + (tipo || ext || 'desconhecido') + ').');
     const caminho = dir + '/' + nome + '.' + ext;
-    const { error } = await sb.storage.from('arquivos').upload(caminho, blob, { contentType: tipo, upsert: false });
+    // Arquivo que o site antigo manda sem tipo (ex.: .docx): grava com o tipo certo, senão o armazenamento recusa.
+    const corpo = blob.type === tipo ? blob : new Blob([blob], { type: tipo });
+    const { error } = await sb.storage.from('arquivos').upload(caminho, corpo, { contentType: tipo, upsert: false });
     if (error && !/exist|duplicate/i.test(error.message || '')) throw new Error('Não foi possível gravar o arquivo: ' + error.message);
     return { url: sb.storage.from('arquivos').getPublicUrl(caminho).data.publicUrl, bytes: blob.size };
   }
@@ -397,10 +399,19 @@
     },
     async concurso(x, s) {
       const r = x.registro;
-      if (await existente('concursos', { tipo: r.tipo, numero: r.numero, ano: r.ano })) return { situacao: 'ja_existia' };
-      // Entra como rascunho: o banco só deixa publicar depois que o edital está anexado.
-      const { data, error } = await sb.from('concursos').insert(Object.assign({ orgao_id: org() }, r, { situacao: 'rascunho' })).select('id').single();
-      if (error) throw error;
+      const jaId = await existente('concursos', { tipo: r.tipo, numero: r.numero, ano: r.ano, titulo: r.titulo });
+      let data;
+      if (jaId) {
+        // Já existe: só completa os documentos que faltaram (cópia que falhou antes).
+        const { count } = await sb.from('concursos_documentos').select('id', { count: 'exact', head: true }).eq('concurso_id', jaId);
+        if (count || !(x.documentos || []).length) return { situacao: 'ja_existia' };
+        data = { id: jaId };
+      } else {
+        // Entra como rascunho: o banco só deixa publicar depois que o edital está anexado.
+        const ins = await sb.from('concursos').insert(Object.assign({ orgao_id: org() }, r, { situacao: 'rascunho' })).select('id').single();
+        if (ins.error) throw ins.error;
+        data = ins.data;
+      }
       let bytes = 0, falhas = 0;
       for (const d of x.documentos || []) {
         const a = await copiar(d.url, s.pasta);
