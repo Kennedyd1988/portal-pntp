@@ -394,7 +394,12 @@ html.contraste .pub-cartao, html.contraste .pub-data { background: #000 !importa
 .transp-grupo-topo .meta { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
 @media (max-width: 600px) { .transp-grupo-topo { padding: 0; flex-wrap: wrap; } .transp-grupo-topo .meta { position: static; transform: none; width: 100%; text-align: center; } }
 .transp-icone { width: 40px; height: 40px; flex: none; border-radius: 10px; background: #eef3f8; color: var(--cor); display: flex; align-items: center; justify-content: center; }
-.transp-itens { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.transp-itens { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+/* Cartões do mesmo tamanho; a última linha, incompleta, fica centralizada no grupo. */
+.transp-itens > li { flex: 0 0 calc((100% - 36px) / 4); min-width: 0; }
+@media (max-width: 1100px) { .transp-itens > li { flex-basis: calc((100% - 24px) / 3); } }
+@media (max-width: 800px) { .transp-itens > li { flex-basis: calc((100% - 12px) / 2); } }
+@media (max-width: 520px) { .transp-itens > li { flex-basis: 100%; } }
 .transp-item { position: relative; display: grid; grid-template-columns: auto 1fr; grid-template-areas: 'ic nome' 'cod nome'; column-gap: 14px; row-gap: 6px; align-items: center; height: 100%;
   box-sizing: border-box; padding: 14px 14px 12px; border: 1px solid var(--linha); border-radius: 12px; background: var(--fundo); color: var(--texto); text-decoration: none;
   transition: border-color .15s, box-shadow .15s, transform .15s; }

@@ -1,8 +1,8 @@
 {
-  "versao": "0.34.1",
+  "versao": "0.34.2",
   "data": "2026-11-15",
   "notas": [
-    "Site (Transparência): título de cada grupo centralizado e em caixa alta; nos cartões, o número do critério fica embaixo do ícone.",
+    "Site (Transparência): título de cada grupo centralizado e em caixa alta; nos cartões, o número do critério fica embaixo do ícone. Os cartões ficam centralizados dentro do grupo (a última linha, incompleta, fica no meio).",
     "Site: paginação numerada (‹ Anterior 1 2 3 … Próxima ›) em todas as listas grandes — notícias, publicações, serviços, licitações, contratos, fiscais, sancionados, obras, receitas, despesas, diárias, pessoal, lista de espera e demais. Tabelas montadas inteiras com mais de 60 linhas passam a mostrar 25 por página.",
     "Site: página do Portal da Transparência redesenhada — cada grupo ocupa a largura toda e cada item do PNTP é um cartão com ícone próprio, nome e número do critério.",
     "Migração: Notícias passam a vir todas (não só as dos 2 últimos anos), pela lista do próprio site antigo, página a página.",
