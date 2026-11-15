@@ -293,7 +293,7 @@
 
   // ---------------- importação ----------------
   async function jaMigrado(url) {
-    const { data } = await sb.from('migracao_itens').select('situacao').eq('orgao_id', org()).eq('origem_url', url).maybeSingle();
+    const { data } = await sb.from('migracao_itens').select('situacao, detalhe').eq('orgao_id', org()).eq('origem_url', url).maybeSingle();
     return data;
   }
   async function marcar(url, chave, tabela, id, x, situacao, detalhe, bytes) {
@@ -338,6 +338,19 @@
     if (error && !/exist|duplicate/i.test(error.message || '')) throw new Error('Não foi possível gravar o arquivo: ' + error.message);
     return { url: sb.storage.from('arquivos').getPublicUrl(caminho).data.publicUrl, bytes: blob.size };
   }
+  const FALTOU_ARQUIVO = /Failed to fetch|não copiad|Sem arquivo|não respondeu|timed out|tempo/i;
+  // Registro que já existe mas ficou sem o arquivo (cópia falhou antes): copia agora e completa.
+  async function completarArquivo(tabela, id, x, s, publicar) {
+    const { data: r } = await sb.from(tabela).select('arquivo_url, situacao').eq('id', id).maybeSingle();
+    if (!r || r.arquivo_url || !x.arquivos || !x.arquivos[0]) return { situacao: 'ja_existia' };
+    const a = await copiar(x.arquivos[0].url, s.pasta);
+    if (!a.url) return { situacao: 'importado', id, tabela, aviso: 'Arquivo ainda não copiado: ' + a.erro };
+    const mud = { arquivo_url: a.url };
+    if (publicar && r.situacao === 'rascunho') mud.situacao = 'publicado';
+    const { error } = await sb.from(tabela).update(mud).eq('id', id);
+    if (error) throw error;
+    return { situacao: 'importado', id, tabela, bytes: a.bytes, aviso: null };
+  }
   // Já existe no portal (cadastrado à mão, pelo PNCP ou numa migração anterior)?
   async function existente(tabela, filtros) {
     let q = sb.from(tabela).select('id').eq('orgao_id', org()).limit(1);
@@ -349,7 +362,8 @@
   const GRAVAR = {
     async legislacao(x, s) {
       const r = x.registro;
-      if (r.numero && await existente('publicacoes', { tipo: r.tipo, numero: r.numero, ano: r.ano })) return { situacao: 'ja_existia' };
+      const jaId = r.numero && await existente('publicacoes', { tipo: r.tipo, numero: r.numero, ano: r.ano });
+      if (jaId) return completarArquivo('publicacoes', jaId, x, s, true);
       const a = x.arquivos[0] ? await copiar(x.arquivos[0].url, s.pasta) : {};
       const reg = Object.assign({ orgao_id: org(), origem: 'importacao' }, r, { arquivo_url: a.url || null, situacao: a.url ? 'publicado' : 'rascunho' });
       const { data, error } = await sb.from('publicacoes').insert(reg).select('id').single();
@@ -374,7 +388,8 @@
     },
     async contrato(x, s) {
       const r = x.registro;
-      if (r.numero && await existente('contratos', { numero: r.numero, ano: r.ano })) return { situacao: 'ja_existia' };
+      const jaId = r.numero && await existente('contratos', { numero: r.numero, ano: r.ano });
+      if (jaId) return completarArquivo('contratos', jaId, x, s, false);
       const a = x.arquivos[0] ? await copiar(x.arquivos[0].url, s.pasta) : {};
       const { data, error } = await sb.from('contratos').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r, { arquivo_url: a.url || null })).select('id').single();
       if (error) throw error;
@@ -426,7 +441,8 @@
   Object.assign(GRAVAR, {
     async ata(x, s) {
       const r = x.registro;
-      if (r.numero && await existente('contratos', { tipo: 'ata_registro_precos', numero: r.numero, ano: r.ano })) return { situacao: 'ja_existia' };
+      const jaId = r.numero && await existente('contratos', { tipo: 'ata_registro_precos', numero: r.numero, ano: r.ano });
+      if (jaId) return completarArquivo('contratos', jaId, x, s, false);
       const a = x.arquivos[0] ? await copiar(x.arquivos[0].url, s.pasta) : {};
       const { data, error } = await sb.from('contratos').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r, { arquivo_url: a.url || null })).select('id').single();
       if (error) throw error;
@@ -574,7 +590,9 @@
     atualizarCartao(chave);
     const tratar = async (url, x) => {
       const ja = await jaMigrado(url);
-      if (ja && ja.situacao !== 'erro') { st.feitos++; return; }
+      // Já veio, mas o arquivo não foi copiado (ex.: "Failed to fetch"): tenta de novo só o arquivo.
+      const semArquivo = ja && ja.situacao === 'importado' && FALTOU_ARQUIVO.test(ja.detalhe || '');
+      if (ja && ja.situacao !== 'erro' && !semArquivo) { st.feitos++; return; }
       if (x.ignorar) { await marcar(url, chave, null, null, x, 'ignorado', x.ignorar); st.feitos++; return; }
       try {
         const r = await GRAVAR[chave](x, s);
