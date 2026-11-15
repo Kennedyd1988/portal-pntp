@@ -231,7 +231,14 @@
         const p = Promise.resolve(aoItem(url, x)).catch((e) => { st.log.unshift(url.replace(origem, '') + ': ' + e.message); }).finally(() => emCurso.delete(p));
         emCurso.add(p);
       };
-      const itens = await s.listar({ origem, de, ler: (url, op) => pagina(url, 3, op), parar: () => st.parar, emitir: entregar,
+      // Na importação, o que já veio (e completo) nem é relido: retomar fica rápido.
+      const jaFeito = st.rodando === 'importacao' ? async (url) => {
+        const j = await jaMigrado(url);
+        const ok = !!j && j.situacao !== 'erro' && !(j.situacao === 'importado' && FALTOU_ARQUIVO.test(j.detalhe || ''));
+        if (ok) { st.feitos = (st.feitos || 0) + 1; st.texto = st.feitos + ' processados (já trazidos antes são pulados)…'; atualizarCartao(chave); }
+        return ok;
+      } : null;
+      const itens = await s.listar({ origem, de, ler: (url, op) => pagina(url, 3, op), parar: () => st.parar, emitir: entregar, jaFeito,
         log: (t) => { st.log.unshift(t); atualizarCartao(chave); } });
       for (const it of itens || []) { if (st.parar) break; await entregar(it.url, it.x); }
       await Promise.all(emCurso);

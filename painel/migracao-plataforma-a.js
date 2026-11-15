@@ -127,6 +127,7 @@
               const cat = limpar((tr.querySelectorAll('td')[1] || {}).textContent);
               if (/^di[aá]rias?$/i.test(cat)) { diarias++; continue; }
               const url = ctx.origem + '/legislacao/detalhe/' + id + '/x/';
+              if (ctx.jaFeito && await ctx.jaFeito(url)) continue;
               let p; try { p = await ctx.ler(url); } catch (e) { ctx.log('lei ' + id + ': ' + e.message); continue; }
               await ctx.emitir(url, p.status === 200 ? SECOES.legislacao.ler(p.html, url) : { vazio: true });
             }
@@ -304,6 +305,7 @@
             if (vistos.has(id)) continue;
             vistos.add(id);
             const url = ctx.origem + '/noticia/' + id + '/x/';
+            if (ctx.jaFeito && await ctx.jaFeito(url)) continue;
             let p; try { p = await ctx.ler(url); } catch (e) { ctx.log('notícia ' + id + ': ' + e.message); continue; }
             await ctx.emitir(url, p.status === 200 ? SECOES.noticia.ler(p.html, url) : { vazio: true });
           }
