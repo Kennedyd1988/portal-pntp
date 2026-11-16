@@ -828,7 +828,7 @@
     // Pela primeira palavra do cargo ("Assistente de secretaria" não é "Secretário")
     const cabeca = tronco(cargo)[0];
     let linha = l.find((v) => /presiden/.test(sem(v.grupo)) && /presiden/.test(sem(cargo)))
-      || (cabeca ? l.find((v) => tronco(v.grupo).includes(cabeca)) : null);
+      || (cabeca ? l.find((v) => tronco(v.grupo)[0] === cabeca) || l.find((v) => tronco(v.grupo).includes(cabeca)) : null);
     if (linha) return { linha, padrao: false };
     linha = l.find((v) => /demais/.test(sem(v.grupo)));
     return linha ? { linha, padrao: true } : null;
