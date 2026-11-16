@@ -11,7 +11,7 @@
 
   // Telas do site público (construído no Lote 5). Rotas fixas, iguais para todo órgão.
   const ROTAS = [
-    ['/', 'Página inicial'], ['/noticias', 'Notícias'], ['/publicacoes', 'Publicações oficiais (leis, decretos…)'],
+    ['/', 'Página inicial'], ['/noticias', 'Notícias'], ['/agenda', 'Agenda'], ['/videos', 'Vídeos'], ['/publicacoes', 'Publicações oficiais (leis, decretos…)'],
     ['/diario-oficial', 'Diário Oficial'], ['/transparencia', 'Transparência'], ['/receitas', 'Receitas'], ['/despesas', 'Despesas'], ['/ordem-cronologica', 'Ordem cronológica de pagamentos'], ['/pessoal', 'Pessoal e folha de pagamento'], ['/diarias', 'Diárias'], ['/planejamento', 'Planejamento e prestação de contas'], ['/licitacoes', 'Licitações'], ['/licitacoes/pca', 'Plano de contratações anual (PCA)'], ['/licitacoes/sancionados', 'Licitantes e contratados sancionados'], ['/contratos', 'Contratos'], ['/contratos/fiscais', 'Fiscais de contratos'], ['/obras', 'Obras'], ['/obras/paralisadas', 'Obras paralisadas'], ['/convenios', 'Convênios e transferências'], ['/emendas', 'Emendas parlamentares'], ['/concursos', 'Concursos e processos seletivos'],
     ['/renuncias', 'Renúncias de receita'], ['/saude', 'Saúde'], ['/educacao', 'Educação e assistência social'], ['/conselhos', 'Conselhos municipais'],
     ['/estrutura', 'Estrutura organizacional'], ['/gestores', 'Gestores'], ['/servicos', 'Carta de Serviços'], ['/servicos-online', 'Serviços on-line'],

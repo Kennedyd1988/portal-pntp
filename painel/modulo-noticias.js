@@ -549,11 +549,13 @@
     if (aba === 'banners' && perm.editar && !alcance()) botaoNovo = el('button', { type: 'button', class: 'btn btn-primario', onclick: () => formBanner() }, '+ Novo banner');
     if (aba === 'avisos' && perm.editar && !alcance()) botaoNovo = el('button', { type: 'button', class: 'btn btn-primario', onclick: () => formAviso() }, '+ Novo aviso');
     if (aba === 'videos' && perm.editar && !alcance()) botaoNovo = el('button', { type: 'button', class: 'btn btn-primario', onclick: () => P.videos.novo() }, '+ Novo vídeo');
+    if (aba === 'agenda' && perm.editar && !alcance()) botaoNovo = el('button', { type: 'button', class: 'btn btn-primario', onclick: () => P.agenda.novo() }, '+ Novo compromisso');
 
     if (aba === 'noticias') telaNoticias(area);
     if (aba === 'banners') telaBanners(area);
     if (aba === 'avisos') telaAvisos(area);
     if (aba === 'videos' && P.videos) P.videos.tela(area, perm, alcance());
+    if (aba === 'agenda' && P.agenda) P.agenda.tela(area, perm, alcance());
 
     conteiner.replaceChildren(...[
       el('div', { class: 'cabecalho-modulo' },
@@ -561,7 +563,7 @@
           el('p', { class: 'sub' }, 'O que aparece na página inicial do site: notícias, banners, avisos e a galeria de vídeos.')),
         botaoNovo),
       alcance() && aba !== 'noticias' ? el('p', { class: 'msg msg-info' }, 'Banners, avisos e vídeos valem para o órgão todo: só quem tem acesso ao órgão inteiro altera.') : null,
-      el('div', { class: 'abas', role: 'tablist' }, botaoAba('noticias', 'Notícias'), botaoAba('banners', 'Banners'), botaoAba('avisos', 'Avisos'), botaoAba('videos', 'Vídeos')),
+      el('div', { class: 'abas', role: 'tablist' }, botaoAba('noticias', 'Notícias'), botaoAba('banners', 'Banners'), botaoAba('avisos', 'Avisos'), botaoAba('videos', 'Vídeos'), botaoAba('agenda', 'Agenda')),
       el('div', { class: 'painel-guia' }, area)
     ].filter(Boolean));
   }

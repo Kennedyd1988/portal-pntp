@@ -360,6 +360,12 @@ html.contraste .noticia-h, html.contraste .noticia-h-topo, html.contraste .notic
 .pub-texto p { margin: 0 0 8px; color: var(--texto-suave); font-size: .92rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pub-ver { margin-top: auto; font-weight: 600; text-decoration: none; font-size: .92rem; }
 .pub-ver:hover { text-decoration: underline; }
+/* Agenda: mesmo cartão das publicações, com a descrição inteira na página da agenda */
+.agenda-cartao .pub-texto h3 a { color: inherit; text-decoration: none; }
+.agenda-cartao .pub-texto h3 a:hover { text-decoration: underline; }
+.agenda-cartao .pub-texto .meta { display: block; }
+.agenda-cartao .pub-texto p { -webkit-line-clamp: 3; margin-top: 6px; }
+.agenda-cancelada h3 { text-decoration: line-through; opacity: .75; }
 html.contraste .pub-cartao, html.contraste .pub-data { background: #000 !important; border-color: #fff !important; }
 
 /* ---------- Planejamento e prestação de contas (v0.7.0) ---------- */

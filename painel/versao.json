@@ -1,7 +1,9 @@
 {
-  "versao": "0.40.0",
+  "versao": "0.41.0",
   "data": "2026-11-16",
   "notas": [
+    "Novo módulo Agenda (para todos os órgãos): compromissos e eventos — sessões, reuniões, audiências, solenidades, agenda do gestor. Cadastro em Notícias, banners e avisos › Agenda (mesmas permissões das notícias), com tipo, data e hora (ou dia inteiro), término, local, link de transmissão ou inscrição, descrição e andamento (previsto, realizado, adiado, cancelado). Rode o script 44 na Supabase.",
+    "Site: página Agenda (próximos e anteriores, filtro por mês e pesquisa), página de cada compromisso, bloco \"Agenda\" na página inicial com os próximos 4 compromissos (some quando não há nenhum marcado), Agenda no mapa do site e na busca. Para pôr no menu: Menu do site › tela \"Agenda\".",
     "Migração do site antigo (Plataforma B · IntGest): as portarias de concessão de diárias agora vêm para o módulo Diárias (não para Publicações). A ementa dá o beneficiário, o cargo e a quantidade; o PDF da portaria (escaneado) é lido no próprio navegador (OCR) para tirar valor, destino, datas e motivo. Vereador beneficiário fica ligado ao vereador. O que o ato não informa: destino \"Não informado no ato\"; datas = data da portaria + quantidade de diárias; valor (se o OCR não ler) pela tabela de valores do cargo — tudo com aviso para conferir.",
     "Diárias: novo campo \"Link do ato\" (PDF da portaria), mostrado no site junto do número do ato. Rode o script 43 na Supabase.",
     "Migração (Plataforma B): novas seções — Atos administrativos (portarias, decretos legislativos e editais → Publicações, sem as diárias), TV Câmara (vídeos do YouTube com o título do próprio YouTube), Notícias, Página inicial (brasão, contatos, redes sociais, Diário Oficial e banners), Organograma (setores, horário, e-mail e responsável → Estrutura), Carta de Serviços (rascunho), Páginas institucionais (galeria de presidentes, cronologia, Entenda o Legislativo, Lei de Governo Digital… como rascunho) e Declarações de inexistência (aba \"Declarações\" de cada página → declaração no item PNTP, por período).",

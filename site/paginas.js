@@ -166,12 +166,100 @@
         : el('p', { class: 'vazio' }, q ? 'Nenhum vídeo encontrado.' : 'Nenhum vídeo publicado.'));
   };
 
+  // ---------- Agenda (0.41.0): compromissos e eventos do órgão ----------
+  const AND_AG = { prevista: null, realizada: ['Realizado', 'etiqueta-verde'], adiada: ['Adiado', 'etiqueta-ambar'], cancelada: ['Cancelado', 'etiqueta-vermelha'] };
+  const MESES_AG = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const hoje0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); };
+  const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  // "Quinta-feira, 20 de novembro de 2026 · 9h00 às 12h00" (dia inteiro: só a data; vários dias: "de … a …")
+  function quandoAgenda(a) {
+    const dia = (iso) => new Date(iso).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const outroDia = a.fim && new Date(a.fim).toDateString() !== new Date(a.inicio).toDateString();
+    const d = dia(a.inicio).replace(/^./, (c) => c.toUpperCase());
+    if (outroDia) return 'De ' + dataBR(a.inicio) + (a.dia_inteiro ? '' : ', ' + hora(a.inicio)) + ' a ' + dataBR(a.fim) + (a.dia_inteiro ? '' : ', ' + hora(a.fim));
+    if (a.dia_inteiro) return d + ' · dia inteiro';
+    const h = hora(a.inicio);
+    return d + (h !== '00:00' ? ' · ' + h + (a.fim ? ' às ' + hora(a.fim) : '') : '');
+  }
+  function cartaoAgenda(a, curto) {
+    const d = new Date(a.inicio);
+    const and = AND_AG[a.andamento];
+    return el('article', { class: 'pub-cartao agenda-cartao' + (a.andamento === 'cancelada' ? ' agenda-cancelada' : '') },
+      el('div', { class: 'pub-data', 'aria-hidden': 'true' },
+        el('span', { class: 'pub-dia' }, String(d.getDate()).padStart(2, '0')),
+        el('span', { class: 'pub-mes' }, MESES_AG[d.getMonth()]), el('span', { class: 'pub-ano' }, String(d.getFullYear()))),
+      el('div', { class: 'pub-texto' },
+        (a.categoria || and) ? el('div', { class: 'pub-etiquetas' }, a.categoria ? el('span', { class: 'etiqueta' }, a.categoria) : null, and ? el('span', { class: 'etiqueta ' + and[1] }, and[0]) : null) : null,
+        el('h3', null, el('a', { href: '#/compromisso/' + a.id }, a.titulo)),
+        el('span', { class: 'meta' }, quandoAgenda(a)),
+        a.local ? el('span', { class: 'meta' }, 'Local: ' + a.local) : null,
+        !curto && a.descricao ? el('p', null, a.descricao) : null));
+  }
+  function secaoAgenda(lista) {
+    return el('section', { class: 'secao', 'aria-labelledby': 'tit-agenda' }, el('div', { class: 'limite' },
+      el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-agenda' }, 'Agenda'), el('a', { href: '#/agenda' }, 'Agenda completa →')),
+      el('div', { class: 'grade g2' }, lista.map((a) => cartaoAgenda(a, true)))));
+  }
+  R.agenda = async function (main, partes, params) {
+    S.titulo('Agenda'); S.trilha(['Agenda']);
+    const f = { quando: params.get('ver') === 'anteriores' ? 'anteriores' : 'proximos', busca: params.get('q') || '', mes: params.get('mes') || '' };
+    const LOTE = 12;
+    const montar = (sel, op) => {
+      let q = sb.from('agenda').select(sel || 'id, titulo, descricao, categoria, inicio, fim, dia_inteiro, local, andamento', op).eq('orgao_id', org());
+      if (f.mes) { const [a, m] = f.mes.split('-').map(Number); q = q.gte('inicio', new Date(a, m - 1, 1).toISOString()).lt('inicio', new Date(a, m, 1).toISOString()); }
+      else q = f.quando === 'proximos' ? q.gte('inicio', hoje0()) : q.lt('inicio', hoje0());
+      if (f.busca) q = q.ilike('busca', termo(f.busca));
+      return q;
+    };
+    const lista = el('div', { class: 'grade g2' });
+    const mais = el('div', { class: 'mais' });
+    let pag = 1, total = 0;
+    async function carregar(reiniciar) {
+      if (reiniciar) { pag = 1; const { count } = await montar('id', { count: 'exact', head: true }); total = count || 0; }
+      const crescente = !!f.mes || f.quando === 'proximos';
+      const { data } = await montar().order('inicio', { ascending: crescente }).order('id').range((pag - 1) * LOTE, pag * LOTE - 1);
+      const itens = data || [];
+      lista.replaceChildren(...(itens.length ? itens.map((a) => cartaoAgenda(a)) : [el('p', { class: 'vazio' },
+        f.busca || f.mes ? 'Nenhum compromisso encontrado.' : f.quando === 'proximos' ? 'Não há compromissos marcados de hoje em diante.' : 'Nenhum compromisso anterior publicado.')]));
+      mais.replaceChildren(S.navPaginas(total, LOTE, pag, (p) => { pag = p; carregar(false); }, mais));
+    }
+    const fQuando = el('select', null, el('option', { value: 'proximos', selected: f.quando === 'proximos' }, 'Próximos'), el('option', { value: 'anteriores', selected: f.quando === 'anteriores' }, 'Anteriores'));
+    const fMes = el('input', { type: 'month', value: f.mes });
+    const fBusca = el('input', { type: 'search', value: f.busca, placeholder: 'Assunto, local ou tipo' });
+    let espera;
+    const aplicar = () => { Object.assign(f, { quando: fQuando.value, mes: fMes.value, busca: fBusca.value.trim() }); fQuando.disabled = !!f.mes; carregar(true); };
+    fBusca.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); });
+    [fQuando, fMes].forEach((x) => x.addEventListener('change', aplicar));
+    fQuando.disabled = !!f.mes;
+    pagina(main, el('h1', null, 'Agenda'),
+      el('p', { class: 'sub' }, 'Sessões, reuniões, audiências e eventos. Datas e horários sujeitos a alteração.'),
+      el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
+        el('label', null, 'Mostrar', fQuando), el('label', null, 'Mês', fMes), el('label', null, 'Pesquisar', fBusca)),
+      lista, mais);
+    await carregar(true);
+  };
+  R.compromisso = async function (main, partes) {
+    if (!/^[0-9a-f-]{36}$/i.test(partes[0] || '')) return R['*'](main);
+    const { data: a } = await sb.from('agenda').select('*').eq('orgao_id', org()).eq('id', partes[0]).maybeSingle();
+    if (!a) return R['*'](main);
+    S.titulo(a.titulo); S.trilha(['Agenda', '#/agenda'], [a.titulo]);
+    const and = AND_AG[a.andamento];
+    pagina(main, el('p', { class: 'pub-etiquetas' }, a.categoria ? el('span', { class: 'etiqueta' }, a.categoria) : null, and ? el('span', { class: 'etiqueta ' + and[1] }, and[0]) : null),
+      el('h1', null, a.titulo),
+      el('dl', { class: 'ficha-lic' },
+        el('dt', null, 'Quando'), el('dd', null, quandoAgenda(a)),
+        a.local ? [el('dt', null, 'Local'), el('dd', null, a.local)] : null,
+        a.link_url ? [el('dt', null, 'Link'), el('dd', null, el('a', { href: a.link_url, target: '_blank', rel: 'noopener' }, a.link_url, el('span', { class: 'sr' }, ' (abre em nova aba)')))] : null),
+      a.descricao ? texto(a.descricao) : null,
+      el('p', { class: 'mt-2' }, el('a', { href: '#/agenda' }, '← Voltar para a agenda')));
+  };
+
   R[''] = async function (main) {
     S.titulo('');
     await tiposPub();
     const c = S.conf;
     const agora = new Date().toISOString();
-    const [bn, nt, pb, gs, sv, vd] = await Promise.all([
+    const [bn, nt, pb, gs, sv, vd, ag] = await Promise.all([
       sb.from('banners').select('*').eq('orgao_id', org()).eq('ativo', true).order('ordem').limit(8),
       sb.from('noticias').select('id, titulo, resumo, conteudo, capa_url, capa_legenda, categoria, publicado_em, destaque').eq('orgao_id', org())
         .lte('publicado_em', agora).order('publicado_em', { ascending: false }).limit(7),
@@ -179,7 +267,8 @@
       sb.from('gestores').select('*').eq('orgao_id', org()).order('destaque_capa', { ascending: false }).order('ordem').order('nome').limit(120),
       sb.from('servicos').select('id, nome, categoria, link_digital').eq('orgao_id', org())
         .in('forma_prestacao', ['digital', 'presencial_digital']).order('nome').limit(6),
-      sb.from('videos').select('id, titulo, url, miniatura_url, data, destaque').eq('orgao_id', org()).order('data', { ascending: false }).order('criado_em', { ascending: false }).limit(5)
+      sb.from('videos').select('id, titulo, url, miniatura_url, data, destaque').eq('orgao_id', org()).order('data', { ascending: false }).order('criado_em', { ascending: false }).limit(5),
+      sb.from('agenda').select('id, titulo, categoria, inicio, fim, dia_inteiro, local, andamento').eq('orgao_id', org()).gte('inicio', hoje0()).order('inicio').limit(4)
     ]);
     const banners = bn.data || [], noticias = nt.data || [], pubs = pb, gestores = gs.data || [], digitais = sv.data || [], videos = (vd && vd.data) || [];
     // A notícia grande é a mais recente; se alguma das recentes foi marcada como
@@ -239,6 +328,9 @@
         cartaoHorizontal(destaque, vis, true),
         demais.length ? el('div', { class: 'grade g2 noticias-lista' }, demais.map((n) => cartaoHorizontal(n, vis))) : null)));
     }
+
+    // Agenda: os próximos compromissos (some quando não há nenhum marcado).
+    if (ag && ag.data && ag.data.length) blocos.push(secaoAgenda(ag.data));
 
     // Galeria multimídia: vídeo em destaque (ou o mais recente) tocando ali mesmo e os 3 seguintes ao lado.
     if (videos.length) blocos.push(secaoVideos(videos));
@@ -1160,7 +1252,7 @@
       ['Gestores', null, '#/gestores', 'prefeito secretario autoridades'], ['Perguntas frequentes', null, '#/faq', 'duvidas faq'],
       ['Portal da Transparência', null, '#/transparencia', 'transparencia'],
       ['Obras paralisadas', null, '#/obras/paralisadas', ''], ['Proteção de dados (LGPD)', null, '#/lgpd', 'privacidade encarregado'],
-      ['Dados abertos', null, '#/dados-abertos', 'api csv json'], ['Vídeos', null, '#/videos', 'galeria multimidia youtube'], ['Conselhos municipais', null, '#/conselhos', 'conselho fundeb saude assistencia social atas'], ['Acessibilidade', null, '#/acessibilidade', 'libras contraste'], ['Contato', null, '#/contato', 'telefone email endereco']];
+      ['Dados abertos', null, '#/dados-abertos', 'api csv json'], ['Vídeos', null, '#/videos', 'galeria multimidia youtube'], ['Agenda', null, '#/agenda', 'eventos compromissos calendario reunioes audiencias'], ['Conselhos municipais', null, '#/conselhos', 'conselho fundeb saude assistencia social atas'], ['Acessibilidade', null, '#/acessibilidade', 'libras contraste'], ['Contato', null, '#/contato', 'telefone email endereco']];
     const cat = window.DESTINOS_PNTP.filter((d) => S.destino(d[0])).map((d) => [d[1], d[0], null, '']);
     return cat.concat(fixas.filter((f) => !S.oculta(f[2]))).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
   }
@@ -2153,7 +2245,7 @@
     if (q.length < 2) { pagina(main, el('h1', null, 'Busca'), el('p', null, 'Digite pelo menos 2 letras no campo de pesquisa.')); return; }
     // Dentro de or() o curinga é * (o % confunde a sintaxe do filtro).
     const n = termo(q), cru = '*' + q.replace(/[%_*(),.]/g, ' ').trim() + '*';
-    const [nt, pb, sv, pg, fq, un, ct, lc, co, cv, em, ob, cs, rn, ds, es, md, cn, pv, dp] = await Promise.all([
+    const [nt, pb, sv, pg, fq, un, ct, lc, co, cv, em, ob, cs, rn, ds, es, md, cn, pv, dp, ag] = await Promise.all([
       sb.from('noticias').select('id, titulo, publicado_em').eq('orgao_id', org()).ilike('busca', n).order('publicado_em', { ascending: false }).limit(8),
       sb.from('publicacoes').select('id, tipo, numero, ano, ementa, arquivo_url, link_externo').eq('orgao_id', org()).ilike('busca', n).order('data_publicacao', { ascending: false }).limit(8),
       sb.from('servicos').select('id, nome').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
@@ -2173,7 +2265,8 @@
       sb.from('saude_medicamentos').select('nome, apresentacao').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
       sb.from('conselhos').select('id, nome').eq('orgao_id', org()).or('nome.ilike.' + cru + ',sigla.ilike.' + cru).limit(8),
       sb.from('pessoal_vinculos').select('nome, cargo, lotacao').eq('orgao_id', org()).ilike('busca', n).order('nome').limit(8),
-      sb.from('despesas').select('id, numero, credor_nome, objeto').eq('orgao_id', org()).ilike('busca', n).order('data_empenho', { ascending: false }).limit(8)
+      sb.from('despesas').select('id, numero, credor_nome, objeto').eq('orgao_id', org()).ilike('busca', n).order('data_empenho', { ascending: false }).limit(8),
+      sb.from('agenda').select('id, titulo, inicio').eq('orgao_id', org()).ilike('busca', n).order('inicio', { ascending: false }).limit(8)
     ]);
     // Nomes das seções do site: quem digita "contratos" ou "licitação" chega à página, mesmo que
     // a palavra não apareça dentro dos registros. Compara sem acento e sem plural simples.
@@ -2188,6 +2281,7 @@
       ['Páginas do site', secoes.map(([t, chave, h]) => [t, chave ? (S.destino(chave) || {}).href : h]).filter((x) => x[1]), null],
       ['Serviços', (sv.data || []).map((s) => [s.nome, '#/servico/' + s.id]), '#/servicos?q=' + encodeURIComponent(q)],
       ['Notícias', (nt.data || []).map((x) => [x.titulo + ' (' + dataBR(x.publicado_em) + ')', '#/noticia/' + x.id]), '#/noticias?q=' + encodeURIComponent(q)],
+      ['Agenda', ((ag && ag.data) || []).map((x) => [x.titulo + ' (' + dataBR(x.inicio) + ')', '#/compromisso/' + x.id]), '#/agenda?q=' + encodeURIComponent(q)],
       ['Publicações oficiais', (pb.data || []).map((x) => [ato(x) + ' — ' + x.ementa, x.arquivo_url || x.link_externo || '#/publicacoes?q=' + encodeURIComponent(q)]), '#/publicacoes?q=' + encodeURIComponent(q)],
       ['Contratos', (co.data || []).map((x) => [nomeCtr(x) + ' · ' + x.contratado_nome + ' · ' + (x.objeto.length > 70 ? x.objeto.slice(0, 70) + '…' : x.objeto), '#/contrato/' + x.id]), '#/contratos'],
       ['Licitações', (lc.data || []).map((x) => [nomeLic(x) + ' · ' + (x.objeto.length > 90 ? x.objeto.slice(0, 90) + '…' : x.objeto), '#/licitacao/' + x.id]), '#/licitacoes'],

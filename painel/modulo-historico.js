@@ -15,7 +15,7 @@
     unidades: 'Unidades',
     gestores: 'Gestores',
     usuarios_orgaos: 'Acesso de usuários',
-    noticias: 'Notícias', banners: 'Banners', avisos: 'Avisos', publicacoes: 'Publicações oficiais',
+    noticias: 'Notícias', banners: 'Banners', avisos: 'Avisos', agenda: 'Agenda', videos: 'Vídeos', publicacoes: 'Publicações oficiais',
     paginas: 'Páginas', faq: 'Perguntas frequentes', menu_itens: 'Menu do site',
     servicos: 'Carta de Serviços', carta_servicos: 'Textos da Carta de Serviços', lgpd: 'LGPD e Governo Digital',
     documentos_contas: 'Planejamento e contas',
