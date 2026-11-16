@@ -343,7 +343,15 @@
     }
 
     if (pubs.some((g) => g.itens.length)) blocos.push(secaoPublicacoes(pubs));
-    if (gestores.length) {
+    // Câmara: no lugar do bloco "Gestão", os vereadores em exercício (Presidente, demais da Mesa e os outros).
+    if (S.orgao.tipo === 'camara') {
+      const { data: vs } = await sb.from('parlamentares').select('id, nome, nome_parlamentar, partido, cargo_mesa, foto_url, ordem')
+        .eq('orgao_id', org()).eq('em_exercicio', true).order('ordem').order('nome').limit(60);
+      const vereadores = (vs || []).sort((a, b) => ordemVereador(a) - ordemVereador(b) || (a.ordem || 0) - (b.ordem || 0));
+      if (vereadores.length) blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-vereadores' }, el('div', { class: 'limite' },
+        el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-vereadores' }, 'Vereadores'), el('a', { href: '#/parlamentares' }, 'Todos os vereadores →')),
+        carrosselGestores(vereadores, cartaoVereadorInicio, 'Vereadores'))));
+    } else if (gestores.length) {
       await S.carregarUnidades();
       blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-gestao' }, el('div', { class: 'limite' },
         el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-gestao' }, 'Gestão'), el('a', { href: '#/gestores' }, 'Todos os gestores →')),
@@ -404,9 +412,10 @@
   // para o lado um cartão por vez. No fim, segue em frente para o primeiro (cópias dos primeiros
   // cartões no final do trilho, trocadas sem animação), sem voltar de ré. Para ao passar o
   // mouse/focar, tem botão de pausa e não anda quando o sistema pede menos movimento.
-  function carrosselGestores(lista) {
+  // Carrossel automático de 4 (gestores; nas Câmaras, os vereadores). cartao: como desenhar cada um.
+  function carrosselGestores(lista, cartao, rotulo) {
     const n = lista.length;
-    const trilho = el('div', { class: 'gest-trilho' }, lista.map((g) => el('div', { class: 'gest-item' }, cartaoGestor(g))));
+    const trilho = el('div', { class: 'gest-trilho' }, lista.map((g) => el('div', { class: 'gest-item' }, (cartao || cartaoGestor)(g))));
     let pos = 0, timer = null, clones = 0, pausado = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const porVez = () => { const w = trilho.parentElement ? trilho.parentElement.clientWidth : 1200; return w < 560 ? 1 : w < 860 ? 2 : w < 1100 ? 3 : 4; };
     const roda = () => n > porVez();
@@ -448,7 +457,7 @@
     const controles = el('div', { class: 'banner-controles gest-controles' },
       el('button', { type: 'button', 'aria-label': 'Anterior', onclick: () => ir(pos - 1) }, '‹'), btnPausa,
       el('button', { type: 'button', 'aria-label': 'Próximo', onclick: () => ir(pos + 1) }, '›'));
-    const caixa = el('div', { class: 'gest-carrossel', role: 'region', 'aria-roledescription': 'carrossel', 'aria-label': 'Gestores' }, janela, controles);
+    const caixa = el('div', { class: 'gest-carrossel', role: 'region', 'aria-roledescription': 'carrossel', 'aria-label': rotulo || 'Gestores' }, janela, controles);
     caixa.addEventListener('mouseenter', () => clearInterval(timer));
     caixa.addEventListener('mouseleave', iniciar);
     caixa.addEventListener('focusin', () => clearInterval(timer));
@@ -829,6 +838,21 @@
   async function gestoresAtivos() {
     const { data } = await sb.from('gestores').select('*').eq('orgao_id', org()).order('ordem').order('nome').limit(500);
     return data || [];
+  }
+  // Ordem dos vereadores na página inicial: Presidente, vice-presidentes, secretários, tesoureiro, demais da Mesa, os outros.
+  function ordemVereador(p) {
+    const s = normalizar(p.cargo_mesa || ''), k = Number((s.match(/(\d)/) || [])[1]) || 1;
+    if (!s) return 100;
+    return /vice/.test(s) ? 10 + k : /presiden/.test(s) ? 1 : /secretari/.test(s) ? 20 + k : /tesoureir/.test(s) ? 30 + k : 40;
+  }
+  function cartaoVereadorInicio(p) {
+    const nome = p.nome_parlamentar || p.nome;
+    const ini = (nome || '?').split(' ').filter(Boolean).map((x) => x[0]).slice(0, 2).join('');
+    return el('a', { class: 'cartao gestor', href: '#/parlamentar/' + p.id },
+      p.foto_url ? el('img', { src: p.foto_url, alt: 'Foto de ' + nome, loading: 'lazy' }) : el('span', { class: 'sem-foto', 'aria-hidden': 'true' }, ini),
+      el('strong', { class: 'bloco' }, nome),
+      p.partido ? el('span', { class: 'bloco meta' }, p.partido) : null,
+      p.cargo_mesa ? el('span', { class: 'bloco menor' }, p.cargo_mesa) : null);
   }
   function cartaoGestor(g) {
     const ini = (g.nome || '?').split(' ').filter(Boolean).map((p) => p[0]).slice(0, 2).join('');

@@ -181,6 +181,8 @@ table.tabela { width: 100%; border-collapse: collapse; font-size: .95rem; min-wi
 .gestor { text-align: center; }
 .gestor img, .gestor .sem-foto { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin: 0 auto 10px; display: block; background: var(--fundo); }
 .gestor .sem-foto { display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; color: #9aa8b8; }
+a.gestor { color: inherit; text-decoration: none; }
+a.gestor:hover strong, a.gestor:focus strong { text-decoration: underline; }
 .dados { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
 .dados dt { font-weight: 700; color: var(--texto-suave); }
 .dados dd { margin: 0; }
