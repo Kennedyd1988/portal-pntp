@@ -825,9 +825,10 @@
   const tronco = (t) => sem(t).split(/[^a-z]+/).filter((p) => p.length > 3 && !/^(municipa|munic|demais|servi(c|d)o|cidade|estado|outr|camara|prefeitura|poder|cargo|func)/.test(p)).map((p) => p.slice(0, 6));
   function valorDaTabela(cargo, abr, valores) {
     const l = (valores || []).filter((v) => v.abrangencia === abr);
-    const tc = tronco(cargo);
+    // Pela primeira palavra do cargo ("Assistente de secretaria" não é "Secretário")
+    const cabeca = tronco(cargo)[0];
     let linha = l.find((v) => /presiden/.test(sem(v.grupo)) && /presiden/.test(sem(cargo)))
-      || l.find((v) => tronco(v.grupo).some((p) => tc.includes(p)));
+      || (cabeca ? l.find((v) => tronco(v.grupo).includes(cabeca)) : null);
     if (linha) return { linha, padrao: false };
     linha = l.find((v) => /demais/.test(sem(v.grupo)));
     return linha ? { linha, padrao: true } : null;
@@ -841,7 +842,7 @@
     const cs = sem(t);
     // Beneficiário: depois de "Conceder (,) a (o) (Sr./Sra./Vereador)" até o CPF ou a primeira vírgula
     let nome = null, cargo = null, unidade = null;
-    const mn = t.match(/conceder\s*,?\s*(?:a|à|ao|aos|às)\s+(?:(?:o|a)\s+)?(?:excelent[ií]ssim[oa]\s+)?(?:(?:senhora?|sr\.?\s*a?|sra\.?)\s+)?(?:(?:vereador[a]?|servidor[a]?)\s+)?/i);
+    const mn = t.match(/conceder\s*,?\s*(?:(?:a|à|ao|aos|às|o)\s+)?(?:(?:o|a)\s+)?(?:excelent[ií]ssim[oa]\s+)?(?:(?:senhora?|sr\.?\s*a?|sra\.?)\s+)?(?:(?:vereador[a]?|servidor[a]?)\s+)?/i);
     let resto = '';
     if (mn) {
       const seg = t.slice(t.indexOf(mn[0]) + mn[0].length);
@@ -853,7 +854,10 @@
     }
     if (nome && (nome.length < 5 || /\d/.test(nome))) nome = null;
     // Cargo: o trecho depois do CPF até a próxima vírgula / quantidade
-    for (let k = 0; k < 3 && /^[,\s]*CPF/i.test(resto); k++) resto = resto.replace(/^[,\s]*CPF\s*(?:n[ºo°.]*\s*)?:?\s*[\d.*\-]+[\s-]*,?\s*/i, '');
+    for (let k = 0; k < 3 && /^[,\s]*(CPF|matr[ií]cula)/i.test(resto); k++) {
+      resto = resto.replace(/^[,\s]*CPF\s*(?:n[ºo°.]*\s*)?:?\s*[\dxX.*]+(?:[\s.]*[\dxX.*]+)*\s*-?\s*\d*\s*-?\s*,?\s*/i, '')
+        .replace(/^[,\s]*matr[ií]cula\s*(?:n[ºo°.]*\s*)?:?\s*[\d.\-/]+\s*,?\s*/i, '');
+    }
     const mu = resto.match(/lotad[oa]\s+n[ao]\s+(.+?)(?:,|\s+0?\d+\s*\()/i);
     if (mu) unidade = limpar(mu[1]).slice(0, 200);
     const mc = resto.match(/^(.+?)(?:,|\s+lotad|\s+0?\d+\s*\(|\s+(?:meia|uma|duas|tr[eê]s)\s+di[aá]ria)/i);
@@ -870,7 +874,10 @@
     // Destino
     const LUGAR = "([A-ZÀ-Ú][\\wÀ-ú'.]*(?:\\s+(?:d[aeo]s?\\s+)?[A-ZÀ-Ú][\\wÀ-ú'.]*){0,4})";
     let destino = null;
-    let md = t.match(new RegExp('(?:cidade|munic[ií]pio|capital)\\s+(?:d[eoa]\\s+)?' + LUGAR + '\\s*(?:[/–—-]\\s*|\\s+)(' + UFS + ')\\b'));
+    // Primeiro o "até (a cidade de) X/UF" (a cidade de origem também aparece no texto: "melhorias para o município de Riacho da Cruz/RN")
+    const ATE = '\\bat[eé]\\s+(?:a\\s+)?(?:(?:cidade|capital|munic[ií]pio)\\s+(?:d[eoa]\\s+)?)?';
+    let md = t.match(new RegExp(ATE + LUGAR + '\\s*(?:[/–—-]\\s*|\\s+)(' + UFS + ')\\b'))
+      || t.match(new RegExp('(?:cidade|munic[ií]pio|capital)\\s+(?:d[eoa]\\s+)?' + LUGAR + '\\s*(?:[/–—-]\\s*|\\s+)(' + UFS + ')\\b'));
     if (md) destino = limpar(md[1]) + '/' + md[2];
     else {
       md = t.match(new RegExp('(?:cidade|munic[ií]pio|capital)\\s+(?:d[eoa]\\s+)?' + LUGAR)) || t.match(new RegExp('\\bat[eé]\\s+(?:a\\s+)?' + LUGAR));
@@ -920,6 +927,7 @@
     let motivo = null;
     const partes = t.split(/[,.]\s*para\s+(?!que\b)/i);
     if (partes.length > 1) motivo = limpar(partes.slice(1).join(', para ')).replace(/[.;,\s]+$/, '');
+    else { const dep = t.match(/\bde\s+(?:19|20)\d\d\s*[,.]?\s*(.{8,})$/i); if (dep) motivo = limpar(dep[1]).replace(/[.;,'\s]+$/, ''); }
     if (!motivo || motivo.length < 3) { motivo = 'Custeio de despesas de deslocamento, alimentação e hospedagem'; avisos.push('Motivo não lido no ato: texto padrão'); }
     motivo = motivo.charAt(0).toUpperCase() + motivo.slice(1);
     // Valor: no PDF (quando houver) ou pela tabela de valores do cargo
