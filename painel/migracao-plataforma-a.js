@@ -610,6 +610,7 @@
   const abs = (h, base) => { try { return new URL(String(h || '').trim(), base).href; } catch (_) { return null; } };
   // Texto de "não houve / não há": vira declaração de inexistência no portal.
   const NEGA = /\bn[aã]o (houve|h[aá]|ocorre\w*|possui|possu[ií]a|firmou|realizou|foram|existe\w*|teve|contratou|celebrou|recebeu|concedeu|tem)\b|inexist|nenhum[a]? .{0,60}(cadastrad|registrad|realizad|firmad|vigente|contrat)|aguardando/i;
+  const decod = (t) => { try { return decodeURIComponent(t); } catch (_) { return t; } };
   const ehDocumento = (h) => /download|globalarq|\/uploads\/|\.(pdf|docx?|xlsx?|odt|ods|zip|jpe?g|png)(\?|$)/i.test(h || '');
 
   // Tabelas do modelo: cabeçalho (th) numa linha e valores (td) na(s) linha(s) seguinte(s). Linha de um só
@@ -728,7 +729,7 @@
         const u = abs(h, base);
         if (!u || arquivos.some((a) => a.url === u)) continue;
         const t0 = limpar(n.getAttribute('title') || n.textContent);
-        const t = (/^https?:/.test(t0) ? decodeURIComponent(u.split('/').pop()).replace(/\.\w+$/, '') : t0) || 'Documento';
+        const t = (/^https?:/.test(t0) ? decod(u.split('/').pop()).replace(/\.\w+$/, '') : t0) || 'Documento';
         arquivos.push({ url: u, titulo: t.slice(0, 150), data: data(t) });
         linhas.push('- [' + t.replace(/[[\]]/g, '') + '](' + u + ')');
       } else if (!n.closest('a')) {
@@ -739,7 +740,7 @@
           for (const su of soltos) {
             const u = abs(su, base);
             if (!u || arquivos.some((a) => a.url === u)) continue;
-            const tt = decodeURIComponent(u.split('/').pop()).replace(/\.\w+$/, '').replace(/[_+]/g, ' ').slice(0, 150) || 'Documento';
+            const tt = decod(u.split('/').pop()).replace(/\.\w+$/, '').replace(/[_+]/g, ' ').slice(0, 150) || 'Documento';
             arquivos.push({ url: u, titulo: tt, data: null });
             linhas.push('- [' + tt.replace(/[[\]]/g, '') + '](' + u + ')');
           }
@@ -756,7 +757,7 @@
     for (const su of (f.textContent.match(/https?:\/\/[^\s"'<>]+\.(?:pdf|docx?|xlsx?|odt|ods|zip)\b/gi) || [])) {
       const u = abs(su, base);
       if (!u || arquivos.some((a) => a.url === u)) continue;
-      const tt = decodeURIComponent(u.split('/').pop()).replace(/\.\w+$/, '').replace(/[_+]/g, ' ').slice(0, 150) || 'Documento';
+      const tt = decod(u.split('/').pop()).replace(/\.\w+$/, '').replace(/[_+]/g, ' ').slice(0, 150) || 'Documento';
       arquivos.push({ url: u, titulo: tt, data: null });
       linhas.push('- [' + tt.replace(/[[\]]/g, '') + '](' + u + ')');
     }
