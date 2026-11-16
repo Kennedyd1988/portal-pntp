@@ -114,19 +114,25 @@
         let diarias = 0, props = 0;
         const buscas = [];
         for (let ano = new Date().getFullYear(); ano >= ctx.de; ano--) buscas.push({ ano, categoria: '' });
-        for (const c of sempre) buscas.push({ ano: '', categoria: c.id, semPeriodo: true });
+        for (const c of sempre) buscas.push({ ano: '', categoria: c.id, ementa: /regimento/.test(sem(c.nome)) ? 'Regimento' : 'Lei Org', semPeriodo: true });
         for (const b of buscas) {
           if (ctx.parar()) break;
           await buscaLegislacao(ctx, b, async (lin) => {
             if (vistos.has(lin.id)) return;
-            vistos.add(lin.id);
-            if (ehConcessaoDiaria(lin.categoria, lin.ementa)) { diarias++; return; }
-            if (/requerimento|indicac|mocao/.test(sem(lin.categoria))) { props++; return; }
+            if (ehConcessaoDiaria(lin.categoria, lin.ementa)) { vistos.add(lin.id); diarias++; return; }
+            if (/requerimento|indicac|mocao/.test(sem(lin.categoria))) { vistos.add(lin.id); props++; return; }
             const url = ctx.origem + '/legislacao/detalhe/' + lin.id + '/x/';
-            if (ctx.jaFeito && await ctx.jaFeito(url)) return;
+            if (ctx.jaFeito && await ctx.jaFeito(url)) { vistos.add(lin.id); return; }
             let p; try { p = await ctx.ler(url); } catch (e) { ctx.log('lei ' + lin.id + ': ' + e.message); return; }
             const x = p.status === 200 ? SECOES.legislacao.ler(p.html, url) : { vazio: true };
-            if (b.semPeriodo && !x.vazio) x.semPeriodo = true;
+            // Busca de matérias (Câmara): a categoria só aparece na página do item
+            if (!lin.categoria && x.categoriaSite) {
+              if (ehConcessaoDiaria(x.categoriaSite, x.registro.ementa)) { vistos.add(lin.id); diarias++; return; }
+              if (/requerimento|indicac|mocao/.test(sem(x.categoriaSite))) { vistos.add(lin.id); props++; return; }
+            }
+            if (b.semPeriodo && (x.vazio || !['lei_organica', 'x_regimento_interno'].includes(x.registro.tipo))) return;   // busca por texto: só o que é
+            vistos.add(lin.id);
+            if (b.semPeriodo) x.semPeriodo = true;
             await ctx.emitir(url, x);
           });
         }
@@ -152,7 +158,7 @@
         const docs = documentos(m, url);
         const arq = [...m.querySelectorAll('a[href*="download-lei"]')].map((a) => new URL(a.getAttribute('href'), url).href)[0] || (docs[0] && docs[0].url);
         return {
-          ano, data: dt, chave: { tipo, numero: limpar(pega(c, 'numero')) || null, ano },
+          ano, data: dt, chave: { tipo, numero: limpar(pega(c, 'numero')) || null, ano }, categoriaSite: t.replace(/^Legisla[cç][aã]o\s*-\s*/i, ''),
           tipoNovo: tipo === 'x_regimento_interno' ? { codigo: 'x_regimento_interno', nome: 'Regimento Interno' } : null,
           registro: { tipo, numero: limpar(pega(c, 'numero')) || null, ano, data_publicacao: dt, ementa: ementa.length >= 5 ? ementa : (t + ' ' + (pega(c, 'numero') || '')).trim(),
             vigencia: /revogad/.test(sit) ? 'revogada' : /alterad/.test(sit) ? 'alterada' : 'vigente', observacao: /\(teste\)/i.test(ementa) ? null : (cat !== sem(tipo) ? 'Categoria no site antigo: ' + t.replace(/^Legisla[cç][aã]o\s*-\s*/i, '') : null) },
@@ -646,18 +652,26 @@
     return l;
   }
   // Uma busca (ano e/ou categoria), página a página. "cada" recebe { id, numero, categoria, ementa, data }.
+  // Dois jeitos no modelo: Prefeitura — /legislacao/index/categoria/page/N/busca (com categoria na lista);
+  // Câmara — essa busca dá erro e a busca é a de matérias (/busca/busca-materia/page/N/?tipoMateria=10), sem a categoria
+  // (categoria vem vazia: quem chama confere na página do item). b.ementa: texto a procurar (só na busca de matérias).
   async function buscaLegislacao(ctx, b, cada) {
     if (ctx._csrf === undefined) await categoriasLegislacao(ctx);
     let renovou = false;
     for (let pag = 1, total = 1; pag <= total && !ctx.parar(); pag++) {
-      const r = await ctx.ler(ctx.origem + '/legislacao/index/categoria/page/' + pag + '/busca?csrf=' + encodeURIComponent(ctx._csrf || '') +
-        '&descricao=&numero=&ano=' + (b.ano || '') + '&dataInicio=&dataFinal=&categoria=' + (b.categoria || ''));
-      for (const x of r.html.matchAll(/\/legislacao\/index\/categoria\/page\/(\d+)\/busca/g)) total = Math.max(total, Number(x[1]));
+      const materia = ctx._modoBusca === 'materia';
+      const u = materia
+        ? ctx.origem + '/busca/busca-materia/page/' + pag + '/?ementa=' + encodeURIComponent(b.ementa || '') + '&numero=&ano=' + (b.ano || '') + '&vereador=&tipoMateria=10&situacao=&status='
+        : ctx.origem + '/legislacao/index/categoria/page/' + pag + '/busca?csrf=' + encodeURIComponent(ctx._csrf || '') +
+          '&descricao=&numero=&ano=' + (b.ano || '') + '&dataInicio=&dataFinal=&categoria=' + (b.categoria || '');
+      const r = await ctx.ler(u);
+      if (!materia && pag === 1 && /<h1>\s*An error occurred/i.test(r.html)) { ctx._modoBusca = 'materia'; pag = 0; continue; }
+      for (const x of r.html.matchAll(materia ? /\/busca\/busca-materia\/page\/(\d+)\//g : /\/legislacao\/index\/categoria\/page\/(\d+)\/busca/g)) total = Math.max(total, Number(x[1]));
       const d = new DOMParser().parseFromString(r.html, 'text/html');
-      // A primeira tabela com "Categoria" é o resultado (a segunda, quando há, é "últimas publicadas").
-      const tabela = [...d.querySelectorAll('table')].find((t) => /categoria/i.test(t.textContent) && t.querySelector('a[href*="/legislacao/detalhe/"]'));
-      // Sem resultado na 1ª página: o código de segurança da busca (csrf) pode ter vencido — pega outro e tenta de novo, uma vez.
-      if (!tabela && pag === 1 && !renovou && !/nenhum/i.test(d.body ? d.body.textContent : '')) { renovou = true; ctx._cats = null; await categoriasLegislacao(ctx); pag = 0; continue; }
+      // A primeira tabela com itens é o resultado (na Prefeitura, a segunda, quando há, é "últimas publicadas").
+      const tabela = [...d.querySelectorAll('table')].find((t) => (materia || /categoria/i.test(t.textContent)) && t.querySelector('a[href*="/legislacao/detalhe/"]'));
+      // Sem resultado na 1ª página (Prefeitura): o código de segurança da busca (csrf) pode ter vencido — pega outro e tenta de novo, uma vez.
+      if (!tabela && !materia && pag === 1 && !renovou) { renovou = true; ctx._cats = null; await categoriasLegislacao(ctx); pag = 0; continue; }
       if (!tabela) break;
       for (const tr of tabela.querySelectorAll('tr')) {
         const a = tr.querySelector('a[href*="/legislacao/detalhe/"]');
@@ -665,7 +679,8 @@
         const td = [...tr.querySelectorAll('td')].map((x) => limpar(x.textContent));
         const id = Number((a.getAttribute('href').match(/\/detalhe\/(\d+)/) || [])[1]);
         if (!id) continue;
-        await cada({ id, numero: td[0] || '', categoria: td[1] || '', ementa: td[2] || '', data: data(td[3] || '') });
+        if (materia) await cada({ id, numero: td[0] || '', categoria: '', ementa: td[1] || '', data: data(td[2] || '') });
+        else await cada({ id, numero: td[0] || '', categoria: td[1] || '', ementa: td[2] || '', data: data(td[3] || '') });
       }
     }
   }
@@ -1182,7 +1197,7 @@
         // Prefeitura: categoria da Legislação "Tabela Explicativa de Valores de Diárias" (a mais recente)
         const cats = await categoriasLegislacao(ctx);
         const cat = cats.find((c) => /tabela.*diaria|valores? de diaria/.test(sem(c.nome)));
-        if (cat) {
+        if (cat && ctx._modoBusca !== 'materia') {
           let primeiro = null;
           await buscaLegislacao(ctx, { ano: '', categoria: cat.id }, async (l) => { if (!primeiro && sem(l.categoria) === sem(cat.nome)) primeiro = l; });
           if (primeiro) itens.push({ url: ctx.origem + '/legislacao/download-lei/' + primeiro.id + '/', x: { ano: null, chave: { norma: primeiro.id }, pdf: ctx.origem + '/legislacao/download-lei/' + primeiro.id + '/',
@@ -1208,10 +1223,14 @@
       async listar(ctx) {
         const cats = await categoriasLegislacao(ctx);
         const alvo = cats.filter((c) => /^diarias?$/.test(sem(c.nome)) || /portaria|atos? d/.test(sem(c.nome)));
+        const vistos = new Set();
         for (let ano = ANO_ATUAL; ano >= ctx.de && !ctx.parar(); ano--) {
-          for (const c of alvo) {
+          for (const c of alvo.length ? alvo : [{ id: '' }]) {
+            if (ctx._modoBusca === 'materia' && c !== alvo[0] && alvo.length) continue;   // busca de matérias não filtra por categoria: uma por ano basta
             await buscaLegislacao(ctx, { ano, categoria: c.id }, async (l) => {
-              if (!ehConcessaoDiaria(l.categoria, l.ementa)) return;
+              if (vistos.has(l.id)) return; vistos.add(l.id);
+              // Busca de matérias (Câmara): a lista corta a ementa ("Conceder a NOME – CPF…"): confere na página do item.
+              if (!(l.categoria ? ehConcessaoDiaria(l.categoria, l.ementa) : /^conceder\b/i.test(l.ementa) || ehConcessaoDiaria('Portaria', l.ementa))) return;
               const url = ctx.origem + '/legislacao/detalhe/' + l.id + '/x/';
               if (ctx.jaFeito && await ctx.jaFeito(url)) return;
               let p; try { p = await ctx.ler(url); } catch (e) { ctx.log('diária ' + l.id + ': ' + e.message); return; }
@@ -1219,6 +1238,7 @@
               const { m } = doc(p.html);
               const cc = campos(m);
               const ementa = limpar(pega(cc, 'ementa')) || l.ementa;
+              if (!l.categoria && !ehConcessaoDiaria(tituloSecao(m).replace(/^Legisla[cç][aã]o\s*-\s*/i, ''), ementa)) return;
               const numero = limpar(pega(cc, 'numero')) || (l.numero.split('/')[0] || '');
               const dataAto = data(pega(cc, 'data')) || l.data;
               const anoA = Number(pega(cc, 'ano')) || anoDe(dataAto) || ano;
