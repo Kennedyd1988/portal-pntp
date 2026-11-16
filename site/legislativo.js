@@ -97,7 +97,7 @@
     const ano = new Date().getFullYear();
     const [{ data: com }, { data: ativ }, { data: props }, { data: votos }, { data: verba }, { data: diar }, { data: emen }] = await Promise.all([
       sb.from('comissoes_membros').select('funcao, comissoes(nome, ativa)').eq('parlamentar_id', id),
-      sb.rpc('atividade_parlamentar', { p_orgao: org(), p_ano: ano }),
+      sb.rpc('atividade_parlamentar', { p_orgao: org(), p_ano: null }),   // script 45: todos os anos
       sb.from('proposicoes_autores').select('papel, proposicoes(id, tipo, numero, ano, ementa, andamento, data_apresentacao)').eq('parlamentar_id', id).limit(300),
       sb.from('votacoes_votos').select('voto, votacoes(descricao, resultado, sessoes(id, tipo, numero, data))').eq('parlamentar_id', id).limit(300),
       sb.rpc('verba_publica', { p_orgao: org(), p_ano: ano }),
@@ -120,7 +120,7 @@
         p.email ? el('p', null, 'E-mail: ', el('a', { href: 'mailto:' + p.email }, p.email)) : null, p.telefone ? el('p', null, 'Telefone: ' + p.telefone) : null)),
       p.biografia ? el('section', { class: 'cartao mt-2' }, el('h2', null, 'Biografia'), el('p', { class: 'pre' }, p.biografia)) : null,
       (com || []).length ? el('section', { class: 'mt-2' }, el('h2', null, 'Comissões'), el('ul', null, com.filter((c) => c.comissoes).map((c) => el('li', null, c.comissoes.nome + ' — ' + (FUNCOES[c.funcao] || c.funcao) + (c.comissoes.ativa ? '' : ' (encerrada)'))))) : null,
-      a ? el('section', { class: 'mt-2' }, el('h2', null, 'Atividade em ' + ano), el('ul', { class: 'numeros-atividade' },
+      a ? el('section', { class: 'mt-2' }, el('h2', null, 'Atividade do vereador'), el('p', { class: 'meta' }, 'Todos os anos.'), el('ul', { class: 'numeros-atividade' },
         el('li', null, el('strong', null, String(a.autorias)), ' proposições de autoria'), el('li', null, el('strong', null, String(a.relatorias)), ' relatorias'),
         el('li', null, el('strong', null, a.presencas + ' de ' + a.sessoes), ' presenças em sessões'), el('li', null, el('strong', null, String(a.votos)), ' votos registrados'),
         a.diarias !== undefined ? el('li', null, el('strong', null, String(a.diarias)), ' diárias recebidas' + (Number(a.diarias) ? ' (' + U.moedaBR(Number(a.diarias_valor)) + ')' : '')) : null,
@@ -146,7 +146,7 @@
     projeto_resolucao: 'Projetos de resolução', projeto_decreto_legislativo: 'Projetos de decreto legislativo', requerimento: 'Requerimentos', indicacao: 'Indicações',
     mocao: 'Moções', veto: 'Vetos', emenda: 'Emendas', outro: 'Outras' };
   function secaoProposicoes(lista) {
-    const sec = el('section', { class: 'mt-2' }, el('h2', null, 'Proposições'), el('p', { class: 'meta' }, 'Todas as proposições do vereador, de todos os anos.'));
+    const sec = el('section', { class: 'mt-2' }, el('h2', null, 'Proposições'));
     if (!lista.length) { sec.append(el('p', { class: 'vazio' }, 'Nenhuma proposição registrada.')); return sec; }
     const autoria = lista.filter((x) => x.papel !== 'relator'), relatorias = lista.filter((x) => x.papel === 'relator');
     const tipos = Object.keys(PLURAL_PROP).filter((t) => autoria.some((x) => x.proposicoes.tipo === t));

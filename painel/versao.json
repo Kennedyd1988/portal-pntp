@@ -1,7 +1,9 @@
 {
-  "versao": "0.42.0",
+  "versao": "0.42.1",
   "data": "2026-11-16",
   "notas": [
+    "Site (Câmara): no perfil do vereador, o quadro passa a se chamar \"Atividade do vereador\" e conta todos os anos (proposições de autoria, relatorias, presenças, votos, diárias e emendas), batendo com a lista de proposições logo abaixo. Rode o script 45 na Supabase.",
+    "Migração (Plataforma A): com \"Todos os anos\", a busca da Legislação da Prefeitura trazia, nos anos sem nenhum ato, a lista \"últimas publicadas\" do site no lugar do resultado; agora esses anos ficam vazios como devem, e a busca vai até 1990 sem parar em ano vazio (há leis antigas espalhadas).",
     "Migração do site antigo (Plataforma A · King) revisada nos sites da Prefeitura e da Câmara de Riacho da Cruz. Agora serve também para Câmaras desse modelo.",
     "Câmara (Plataforma A): novas seções — Vereadores (pelas legislaturas, com partido, e-mail, biografia e foto), Mesa Diretora vigente, Comissões (competências, presidente e composição), Sessões plenárias e Reuniões das comissões (o modelo guarda as sessões como atas: vem a ata de cada uma, ligada à comissão quando for reunião) e Proposições (projetos de lei e de resolução, do Executivo, moções, indicações e requerimentos, com autor, apoio como coautoria, situação, movimentação e o arquivo).",
     "Plataforma A: Legislação da Câmara corrigida — a busca por ano dava erro no site da Câmara e nada vinha; agora usa a busca de matérias. Lei Orgânica e Regimento Interno vêm sempre (de qualquer ano); decretos legislativos, atos da presidência e Regimento Interno com o tipo certo.",

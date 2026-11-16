@@ -112,12 +112,7 @@
         const sempre = cats.filter((c) => /lei organica|regimento interno/.test(sem(c.nome)) && !/emenda/.test(sem(c.nome)));
         const vistos = new Set();
         let diarias = 0, props = 0;
-        const buscas = [];
-        for (let ano = new Date().getFullYear(); ano >= ctx.de; ano--) buscas.push({ ano, categoria: '' });
-        for (const c of sempre) buscas.push({ ano: '', categoria: c.id, ementa: /regimento/.test(sem(c.nome)) ? 'Regimento' : 'Lei Org', semPeriodo: true });
-        for (const b of buscas) {
-          if (ctx.parar()) break;
-          await buscaLegislacao(ctx, b, async (lin) => {
+        const buscar = (b) => buscaLegislacao(ctx, b, async (lin) => {
             if (vistos.has(lin.id)) return;
             if (ehConcessaoDiaria(lin.categoria, lin.ementa)) { vistos.add(lin.id); diarias++; return; }
             if (/requerimento|indicac|mocao/.test(sem(lin.categoria))) { vistos.add(lin.id); props++; return; }
@@ -135,7 +130,8 @@
             if (b.semPeriodo) x.semPeriodo = true;
             await ctx.emitir(url, x);
           });
-        }
+        await porAnoLegislacao(ctx, (ano) => buscar({ ano, categoria: '' }));
+        for (const c of sempre) if (!ctx.parar()) await buscar({ ano: '', categoria: c.id, ementa: /regimento/.test(sem(c.nome)) ? 'Regimento' : 'Lei Org', semPeriodo: true });
         if (diarias) ctx.log(diarias + ' portaria(s) de concessão de diárias deixada(s) de fora daqui: vêm pela seção "Diárias concedidas".');
         if (props) ctx.log(props + ' proposição(ões) (requerimentos, indicações, moções) deixada(s) de fora daqui: vêm pela seção "Proposições".');
         return [];
@@ -671,7 +667,7 @@
   // (categoria vem vazia: quem chama confere na página do item). b.ementa: texto a procurar (só na busca de matérias).
   async function buscaLegislacao(ctx, b, cada) {
     if (ctx._csrf === undefined) await categoriasLegislacao(ctx);
-    let renovou = false;
+    let renovou = false, linhas = 0;
     for (let pag = 1, total = 1; pag <= total && !ctx.parar(); pag++) {
       const materia = ctx._modoBusca === 'materia';
       const u = materia
@@ -684,20 +680,33 @@
       const d = new DOMParser().parseFromString(r.html, 'text/html');
       // A primeira tabela com itens é o resultado (na Prefeitura, a segunda, quando há, é "últimas publicadas").
       const tabela = [...d.querySelectorAll('table')].find((t) => (materia || /categoria/i.test(t.textContent)) && t.querySelector('a[href*="/legislacao/detalhe/"]'));
-      // Sem resultado na 1ª página (Prefeitura): o código de segurança da busca (csrf) pode ter vencido — pega outro e tenta de novo, uma vez.
-      if (!tabela && !materia && pag === 1 && !renovou) { renovou = true; ctx._cats = null; await categoriasLegislacao(ctx); pag = 0; continue; }
+      // Sem nenhuma tabela na 1ª página (Prefeitura): o código de segurança da busca (csrf) pode ter vencido — pega outro e tenta de novo, uma vez.
+      if (!d.querySelector('table a[href*="/legislacao/detalhe/"]') && !materia && pag === 1 && !renovou) { renovou = true; ctx._cats = null; await categoriasLegislacao(ctx); pag = 0; continue; }
       if (!tabela) break;
+      let doAno = 0;
       for (const tr of tabela.querySelectorAll('tr')) {
         const a = tr.querySelector('a[href*="/legislacao/detalhe/"]');
         if (!a) continue;
         const td = [...tr.querySelectorAll('td')].map((x) => limpar(x.textContent));
+        // Ano sem nada: o site mostra no lugar a tabela "últimas publicadas" (de outros anos) — essas linhas não valem.
+        if (b.ano && !materia && !new RegExp('/' + b.ano + '$').test(td[0] || '')) continue;
+        doAno++;
         const id = Number((a.getAttribute('href').match(/\/detalhe\/(\d+)/) || [])[1]);
         if (!id) continue;
+        linhas++;
         if (materia) await cada({ id, numero: td[0] || '', categoria: '', ementa: td[1] || '', data: data(td[2] || '') });
         else await cada({ id, numero: td[0] || '', categoria: td[1] || '', ementa: td[2] || '', data: data(td[3] || '') });
       }
+      if (b.ano && !materia && !doAno) break;   // a página não tinha nada do ano pedido
     }
+    return linhas;
   }
+  // Anos a procurar na Legislação, do atual até o início do período (com "Todos os anos", até 1990: há leis antigas
+  // espalhadas, ex.: 1995 e 2018 com anos vazios no meio — então não para em ano vazio).
+  async function porAnoLegislacao(ctx, cada) {
+    for (let a = ANO_LEG; a >= Math.max(ctx.de, 1950) && !ctx.parar(); a--) await cada(a);
+  }
+  const ANO_LEG = new Date().getFullYear();
   const ehConcessaoDiaria = (cat, ementa) => /^di[aá]rias?$/i.test(limpar(cat)) || (/portaria|ato/i.test(cat || '') && /conceder.{0,250}di[aá]ria|di[aá]rias?.{0,40}conced/i.test(ementa || ''));
 
   // ---------------- páginas do site (/pagina/N), com subpáginas por ano ----------------
@@ -1305,10 +1314,11 @@
         const cats = await categoriasLegislacao(ctx);
         const alvo = cats.filter((c) => /^diarias?$/.test(sem(c.nome)) || /portaria|atos? d/.test(sem(c.nome)));
         const vistos = new Set();
-        for (let ano = ANO_ATUAL; ano >= ctx.de && !ctx.parar(); ano--) {
+        await porAnoLegislacao(ctx, async (ano) => {
+          let n = 0;
           for (const c of alvo.length ? alvo : [{ id: '' }]) {
             if (ctx._modoBusca === 'materia' && c !== alvo[0] && alvo.length) continue;   // busca de matérias não filtra por categoria: uma por ano basta
-            await buscaLegislacao(ctx, { ano, categoria: c.id }, async (l) => {
+            n += await buscaLegislacao(ctx, { ano, categoria: c.id }, async (l) => {
               if (vistos.has(l.id)) return; vistos.add(l.id);
               // Busca de matérias (Câmara): a lista corta a ementa ("Conceder a NOME – CPF…"): confere na página do item.
               if (!(l.categoria ? ehConcessaoDiaria(l.categoria, l.ementa) : /^conceder\b/i.test(l.ementa) || ehConcessaoDiaria('Portaria', l.ementa))) return;
@@ -1331,7 +1341,8 @@
                 arquivos: pdf ? [{ url: pdf, campo: 'ato_url' }] : [], lerTexto: (texto, valores) => lerConcessao(texto, base, valores) });
             });
           }
-        }
+          return n;
+        });
         return [];
       }
     },

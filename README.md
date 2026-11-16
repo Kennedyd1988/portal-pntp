@@ -452,6 +452,12 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.42.1 — 16/11/2026 — Atividade do vereador em todos os anos; "Todos os anos" na Legislação (Plataforma A)**
+- Script 45: `atividade_parlamentar(p_orgao, p_ano)` aceita `p_ano` nulo (todos os anos). Perfil do vereador usa nulo e o
+  quadro passa a "Atividade do vereador" (todos os anos).
+- Plataforma A: na busca da Legislação (Prefeitura), ano sem resultado mostra a tabela "últimas publicadas"; as linhas
+  de outro ano são descartadas (o número vem como N/ANO). Com "Todos os anos", percorre até 1990.
+
 **0.42.0 — 16/11/2026 — Migração: Plataforma A (King) revisada na Prefeitura e na Câmara de Riacho da Cruz**
 - `painel/migracao-plataforma-a.js`: serve também para Câmaras do modelo. Novas seções: `vereador` (legislaturas + perfil),
   `mesa` (Mesa vigente), `comissao` (competências, presidente, composição), `sessao` e `reuniao` (o modelo guarda as sessões
