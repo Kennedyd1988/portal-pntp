@@ -826,16 +826,23 @@
     const cs = sem(t);
     // Beneficiário: depois de "Conceder (,) a (o) (Sr./Sra./Vereador)" até o CPF ou a primeira vírgula
     let nome = null, cargo = null, unidade = null;
-    const mn = t.match(/conceder\s*,?\s*(?:a|à|ao|aos|às)\s+(?:(?:o|a)\s+)?(?:excelent[ií]ssim[oa]\s+)?(?:(?:senhora?|sr\.?\s*a?|sra\.?)\s+)?(?:(?:vereador[a]?|servidor[a]?)\s+)?(.+?)\s*(?:[,–—]|\s-\s)\s*/i);
-    if (mn) nome = limpar(mn[1]).replace(/^(sr\.?a?|sra\.?)\s+/i, '');
+    const mn = t.match(/conceder\s*,?\s*(?:a|à|ao|aos|às)\s+(?:(?:o|a)\s+)?(?:excelent[ií]ssim[oa]\s+)?(?:(?:senhora?|sr\.?\s*a?|sra\.?)\s+)?(?:(?:vereador[a]?|servidor[a]?)\s+)?/i);
+    let resto = '';
+    if (mn) {
+      const seg = t.slice(t.indexOf(mn[0]) + mn[0].length);
+      const iC = seg.search(/\bCPF\b/i), iV = seg.indexOf(',');
+      // "NOME – CPF", "NOME- CPF", "NOME CPF:", "NOME, CPF nº" ou só "NOME, cargo"
+      const fim = iC >= 0 && (iV < 0 || iC < iV + 3) ? iC : iV;
+      nome = limpar((fim >= 0 ? seg.slice(0, fim) : seg.slice(0, 80)).replace(/[\s,–—-]+$/, '')).replace(/^(sr\.?a?|sra\.?)\s+/i, '');
+      resto = fim >= 0 ? seg.slice(fim) : '';
+    }
     if (nome && (nome.length < 5 || /\d/.test(nome))) nome = null;
-    // Cargo: o trecho depois do CPF (ou do nome) até a próxima vírgula / quantidade
-    const iCpf = t.search(/\bCPF\b/i);
-    let resto = iCpf >= 0 ? t.slice(iCpf).replace(/^CPF[^,]*,\s*/i, '') : (mn ? t.slice(t.indexOf(mn[0]) + mn[0].length) : '');
+    // Cargo: o trecho depois do CPF até a próxima vírgula / quantidade
+    resto = resto.replace(/^,\s*/, '').replace(/^CPF\s*(?:n[ºo°.]*\s*)?:?\s*[\d.*\-]+[\s-]*,?\s*/i, '');
     const mu = resto.match(/lotad[oa]\s+n[ao]\s+(.+?)(?:,|\s+0?\d+\s*\()/i);
     if (mu) unidade = limpar(mu[1]).slice(0, 200);
     const mc = resto.match(/^(.+?)(?:,|\s+lotad|\s+0?\d+\s*\(|\s+(?:meia|uma|duas|tr[eê]s)\s+di[aá]ria)/i);
-    if (mc) cargo = limpar(mc[1]).replace(/\s+d[ao]\s+c[aâ]mara municipal.*$/i, '').replace(/\s+d[ao]\s+prefeitura municipal.*$/i, '');
+    if (mc) cargo = limpar(mc[1]).replace(/\s+d[ao]\s+c[aâ]mara municipal.*$/i, '').replace(/\s+d[ao]\s+prefeitura municipal.*$/i, '').replace(/\s*\((?:a|as|os|o)\)/gi, '');
     if (!cargo || cargo.length < 2 || /di[aá]ria|^\d/.test(cargo)) { cargo = /vereador/i.test(t) ? 'Vereador(a)' : 'Não informado no ato'; if (cargo === 'Não informado no ato') avisos.push('Cargo não informado no ato'); }
     else cargo = cargo.charAt(0).toUpperCase() + cargo.slice(1).toLowerCase();
     if (!nome) { nome = 'Não informado no ato'; avisos.push('Beneficiário não lido: confira'); }
@@ -848,9 +855,17 @@
     // Destino
     const LUGAR = "([A-ZÀ-Ú][\\wÀ-ú'.]*(?:\\s+(?:d[aeo]s?\\s+)?[A-ZÀ-Ú][\\wÀ-ú'.]*){0,4})";
     let destino = null;
-    let md = t.match(new RegExp('(?:cidade|munic[ií]pio|capital)\\s+(?:de\\s+)?' + LUGAR + '\\s*(?:[/–—-]\\s*|\\s+)(' + UFS + ')\\b'));
+    let md = t.match(new RegExp('(?:cidade|munic[ií]pio|capital)\\s+(?:d[eoa]\\s+)?' + LUGAR + '\\s*(?:[/–—-]\\s*|\\s+)(' + UFS + ')\\b'));
     if (md) destino = limpar(md[1]) + '/' + md[2];
-    else { md = t.match(new RegExp('(?:cidade|munic[ií]pio|capital)\\s+(?:de\\s+)?' + LUGAR)); if (md) destino = limpar(md[1]); }
+    else {
+      md = t.match(new RegExp('(?:cidade|munic[ií]pio|capital)\\s+(?:d[eoa]\\s+)?' + LUGAR)) || t.match(new RegExp('\\bat[eé]\\s+(?:a\\s+)?' + LUGAR));
+      if (md) {
+        destino = limpar(md[1]);
+        // "até Foz do Iguaçu, … PR" — o estado aparece mais adiante
+        const uf = t.match(new RegExp(destino.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s,./–—-]+(' + UFS + ')\\b'));
+        if (uf) destino += '/' + uf[1];
+      }
+    }
     const ufOrgao = String(((window.PNTP || {}).estado || {}).orgao && window.PNTP.estado.orgao.uf || 'RN').toUpperCase();
     let abrangencia = null;
     if (destino) { const uf = (destino.match(/\/([A-Z]{2})$/) || [])[1]; abrangencia = uf && uf !== ufOrgao ? 'fora_estado' : 'estado'; if (!uf) avisos.push('Estado do destino não informado: entrou como dentro do Estado'); }
@@ -866,6 +881,18 @@
       let ano = mdias[3] ? Number(mdias[3]) : (mdias[5] ? Number(mdias[5].length === 2 ? '20' + mdias[5] : mdias[5]) : aA);
       if (!mdias[3] && !mdias[5] && mes < mA - 6) ano = aA + 1;
       if (dias.length && mes >= 1 && mes <= 12) { const f = (d) => ano + '-' + String(mes).padStart(2, '0') + '-' + String(d).padStart(2, '0'); dIni = f(Math.min(...dias)); dFim = f(Math.max(...dias)); }
+    }
+    const fmt = (a, mm, dd) => a + '-' + String(mm).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
+    if (!dIni) {   // "de 24 a 27 de fevereiro de 2025"
+      const m2 = cs.match(/\bde\s+(\d{1,2})\s+(?:a|ate)\s+(\d{1,2})\s+de\s+([a-z]+)(?:\s+de\s+(\d{4}))?/);
+      if (m2 && MESES[m2[3]]) { const a = m2[4] ? Number(m2[4]) : aA; dIni = fmt(a, MESES[m2[3]], Number(m2[1])); dFim = fmt(a, MESES[m2[3]], Number(m2[2])); }
+    }
+    // "com deslocamento no dia 23 e retornando dia 29 de março"
+    const mr = cs.match(/retornando\s+(?:no\s+)?dia\s+(\d{1,2})(?:\s+de\s+([a-z]+))?(?:\s+de\s+(\d{4}))?/);
+    if (dIni && mr) { const mm = mr[2] && MESES[mr[2]] ? MESES[mr[2]] : Number(dIni.slice(5, 7)); const f = fmt(mr[3] ? Number(mr[3]) : Number(dIni.slice(0, 4)), mm, Number(mr[1])); if (f >= dIni) dFim = f; }
+    if (dIni && dFim === dIni && qtd > 1) {   // só a data de saída: o retorno pela quantidade de diárias
+      const f = new Date(dIni + 'T12:00:00'); f.setDate(f.getDate() + Math.ceil(qtd) - 1); dFim = f.toISOString().slice(0, 10);
+      avisos.push('Data de retorno não informada: calculada pela quantidade de diárias');
     }
     const longe = (d) => Math.abs((new Date(d) - new Date(atoD)) / 864e5) > 150;
     if (!dIni || !dFim || dFim < dIni || longe(dIni) || isNaN(new Date(dIni))) {
