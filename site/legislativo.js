@@ -340,17 +340,43 @@
   R.comissoes = async function (main, partes, params) {
     if (!so(main)) return;
     S.titulo('Comissões'); trilha(['Comissões']);
-    const { data } = await sb.from('comissoes').select('id, nome, tipo, competencias, inicio, fim, ativa, comissoes_membros(funcao, parlamentares(id, nome, nome_parlamentar, partido))')
-      .eq('orgao_id', org()).order('ativa', { ascending: false }).order('nome');
+    const [{ data }, { data: reus }] = await Promise.all([
+      sb.from('comissoes').select('id, nome, tipo, competencias, inicio, fim, ativa, comissoes_membros(funcao, parlamentares(id, nome, nome_parlamentar, partido, foto_url))')
+        .eq('orgao_id', org()).order('ativa', { ascending: false }).order('nome'),
+      sb.from('sessoes').select('comissao_id, data').eq('orgao_id', org()).not('comissao_id', 'is', null).order('data', { ascending: false }).limit(5000)
+    ]);
+    // Reuniões por comissão: quantidade e a mais recente
+    const porCom = {};
+    for (const r of reus || []) { const x = porCom[r.comissao_id] = porCom[r.comissao_id] || { n: 0, ultima: r.data }; x.n++; }
     const conteudo = el('div', { class: 'painel-guia', role: 'tabpanel' }, el('p', { class: 'carregando' }, 'Carregando…'));
     const ordemF = ['presidente', 'vice_presidente', 'relator', 'membro', 'suplente'];
+    const periodo = (c) => c.inicio && c.fim ? 'De ' + dataBR(c.inicio) + ' a ' + dataBR(c.fim) : c.inicio ? 'Desde ' + dataBR(c.inicio) : c.fim ? 'Até ' + dataBR(c.fim) : null;
+    const membro = (m) => {
+      const p = m.parlamentares, nome = nomeParl(p);
+      return el('li', { class: 'com-membro' + (m.funcao === 'presidente' ? ' com-presidente' : '') },
+        p.foto_url ? el('img', { src: p.foto_url, alt: '', loading: 'lazy' }) : el('span', { class: 'com-sem-foto', 'aria-hidden': 'true' }, nome.slice(0, 1)),
+        el('span', { class: 'com-nome' }, el('a', { href: '#/parlamentar/' + p.id }, nome), p.partido ? el('span', { class: 'meta' }, p.partido) : null),
+        el('span', { class: 'etiqueta' + (m.funcao === 'presidente' ? ' etiqueta-verde' : '') }, FUNCOES[m.funcao] || m.funcao));
+    };
+    const cartao = (c) => {
+      const membros = (c.comissoes_membros || []).filter((m) => m.parlamentares).sort((a, b) => ordemF.indexOf(a.funcao) - ordemF.indexOf(b.funcao) || nomeParl(a.parlamentares).localeCompare(nomeParl(b.parlamentares), 'pt-BR'));
+      const r = porCom[c.id];
+      return el('section', { class: 'cartao com-cartao', 'aria-labelledby': 'com-' + c.id },
+        el('div', { class: 'com-topo' },
+          el('h3', { id: 'com-' + c.id }, c.nome),
+          el('div', { class: 'pub-etiquetas' }, el('span', { class: 'etiqueta' }, TIPOS_COMISSAO[c.tipo] || c.tipo),
+            el('span', { class: 'etiqueta ' + (c.ativa ? 'etiqueta-verde' : 'etiqueta-ambar') }, c.ativa ? 'Em funcionamento' : 'Encerrada')),
+          periodo(c) ? el('span', { class: 'meta' }, periodo(c)) : null),
+        membros.length ? el('ul', { class: 'com-membros', 'aria-label': 'Membros' }, membros.map(membro)) : el('p', { class: 'vazio' }, 'Composição em atualização.'),
+        c.competencias ? el('details', { class: 'com-competencias' }, el('summary', null, 'Competências'), el('p', null, c.competencias)) : null,
+        el('p', { class: 'com-rodape meta' }, r ? r.n + (r.n === 1 ? ' reunião publicada' : ' reuniões publicadas') + ' · a última em ' + dataBR(r.ultima) : 'Nenhuma reunião publicada'));
+    };
+    const ativas = (data || []).filter((c) => c.ativa), encerradas = (data || []).filter((c) => !c.ativa);
     pagina(main, el('h1', null, 'Comissões'), el('p', { class: 'sub' }, 'Comissões permanentes e temporárias, seus membros e a pauta de cada reunião.'),
-      (data || []).length ? el('div', { class: 'grade g2' }, data.map((c) => el('section', { class: 'cartao' },
-        el('h2', { class: 'mt-0' }, c.nome), el('p', { class: 'meta' }, (TIPOS_COMISSAO[c.tipo] || c.tipo) + (c.ativa ? '' : ' · encerrada')),
-        c.competencias ? el('p', null, c.competencias) : null,
-        (c.comissoes_membros || []).length ? el('ul', null, c.comissoes_membros.filter((m) => m.parlamentares).sort((a, b) => ordemF.indexOf(a.funcao) - ordemF.indexOf(b.funcao))
-          .map((m) => el('li', null, el('a', { href: '#/parlamentar/' + m.parlamentares.id }, nomeParl(m.parlamentares)), ' — ' + (FUNCOES[m.funcao] || m.funcao)))) : null)))
-        : el('p', { class: 'vazio' }, 'Comissões em atualização.'),
+      (data || []).length ? [
+        ativas.length ? el('div', { class: 'com-grade' }, ativas.map(cartao)) : el('p', { class: 'vazio' }, 'Nenhuma comissão em funcionamento no momento.'),
+        encerradas.length ? el('details', { class: 'com-encerradas mt-2' }, el('summary', null, 'Comissões encerradas (' + encerradas.length + ')'), el('div', { class: 'com-grade mt-1' }, encerradas.map(cartao))) : null
+      ] : el('p', { class: 'vazio' }, 'Comissões em atualização.'),
       el('h2', { class: 'mt-3' }, 'Reuniões e pautas'), conteudo);
     return listaSessoes(conteudo, params, '#/comissoes', true);
   };

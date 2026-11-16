@@ -684,6 +684,23 @@ html.contraste .campo-atend input, html.contraste .campo-atend select, html.cont
 .cartao-vereador { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; text-decoration: none; color: var(--texto); transition: box-shadow .15s; }
 .cartao-vereador:hover, .cartao-vereador:focus-visible { box-shadow: var(--sombra); }
 .cartao-vereador strong { color: var(--cor); }
+/* Comissões (0.41.4) */
+.com-grade { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+.com-cartao { display: flex; flex-direction: column; gap: 12px; }
+.com-topo h3 { margin: 0 0 6px; font-size: 1.1rem; color: var(--cor); }
+.com-topo .meta { display: block; margin-top: 4px; }
+.com-membros { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.com-membro { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; background: var(--fundo); }
+.com-membro.com-presidente { background: var(--cor-clara); }
+.com-membro img, .com-sem-foto { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--cor-clara); }
+.com-sem-foto { display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--cor-escura); }
+.com-nome { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.com-nome a { font-weight: 600; text-decoration: none; }
+.com-nome a:hover { text-decoration: underline; }
+.com-competencias summary, .com-encerradas > summary { cursor: pointer; font-weight: 600; color: var(--cor); }
+.com-competencias p { margin: 6px 0 0; white-space: pre-line; color: var(--texto-suave); font-size: .92rem; }
+.com-rodape { margin: auto 0 0; padding-top: 8px; border-top: 1px solid var(--linha); }
+@media (max-width: 420px) { .com-grade { grid-template-columns: 1fr; } }
 .foto-vereador { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; background: var(--cor-clara); }
 .foto-vazia { display: flex; align-items: center; justify-content: center; font-size: 2.4rem; font-weight: 700; color: var(--cor); }
 .perfil-vereador { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
