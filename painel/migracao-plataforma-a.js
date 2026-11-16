@@ -648,6 +648,7 @@
   // Uma busca (ano e/ou categoria), página a página. "cada" recebe { id, numero, categoria, ementa, data }.
   async function buscaLegislacao(ctx, b, cada) {
     if (ctx._csrf === undefined) await categoriasLegislacao(ctx);
+    let renovou = false;
     for (let pag = 1, total = 1; pag <= total && !ctx.parar(); pag++) {
       const r = await ctx.ler(ctx.origem + '/legislacao/index/categoria/page/' + pag + '/busca?csrf=' + encodeURIComponent(ctx._csrf || '') +
         '&descricao=&numero=&ano=' + (b.ano || '') + '&dataInicio=&dataFinal=&categoria=' + (b.categoria || ''));
@@ -655,6 +656,8 @@
       const d = new DOMParser().parseFromString(r.html, 'text/html');
       // A primeira tabela com "Categoria" é o resultado (a segunda, quando há, é "últimas publicadas").
       const tabela = [...d.querySelectorAll('table')].find((t) => /categoria/i.test(t.textContent) && t.querySelector('a[href*="/legislacao/detalhe/"]'));
+      // Sem resultado na 1ª página: o código de segurança da busca (csrf) pode ter vencido — pega outro e tenta de novo, uma vez.
+      if (!tabela && pag === 1 && !renovou && !/nenhum/i.test(d.body ? d.body.textContent : '')) { renovou = true; ctx._cats = null; await categoriasLegislacao(ctx); pag = 0; continue; }
       if (!tabela) break;
       for (const tr of tabela.querySelectorAll('tr')) {
         const a = tr.querySelector('a[href*="/legislacao/detalhe/"]');
