@@ -452,6 +452,12 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.42.2 — 16/11/2026 — Migração: documentos sem data**
+- `modulo-migracao.js`: `licitacoes_documentos.data`, `concursos_documentos.data`, `licitacoes.data_publicacao`,
+  `publicacoes.data_publicacao` e `documentos_contas.data_publicacao` não aceitam nulo; o gravador mandava nulo quando o site
+  antigo não dava a data (anexos da IntGest) e o documento era recusado depois da cópia. Agora usa a data do processo
+  (ou 1º de janeiro do ano). Licitação já existente sem nenhum documento recebe os documentos ao rodar de novo.
+
 **0.42.1 — 16/11/2026 — Atividade do vereador em todos os anos; "Todos os anos" na Legislação (Plataforma A)**
 - Script 45: `atividade_parlamentar(p_orgao, p_ano)` aceita `p_ano` nulo (todos os anos). Perfil do vereador usa nulo e o
   quadro passa a "Atividade do vereador" (todos os anos).

@@ -1,7 +1,9 @@
 {
-  "versao": "0.42.1",
+  "versao": "0.42.2",
   "data": "2026-11-16",
   "notas": [
+    "Migração (correção): documentos de licitações e concursos sem data no site antigo (ex.: anexos da IntGest) eram recusados pelo banco e ficavam de fora, mesmo com o arquivo já copiado. Agora entram com a data do processo. O mesmo para licitações, leis e contas sem data (entram com a data de abertura ou 1º de janeiro do ano, com aviso para conferir).",
+    "Migração: rodar de novo a importação de Licitações completa os documentos das licitações que já tinham entrado sem eles.",
     "Site (Câmara): no perfil do vereador, o quadro passa a se chamar \"Atividade do vereador\" e conta todos os anos (proposições de autoria, relatorias, presenças, votos, diárias e emendas), batendo com a lista de proposições logo abaixo. Rode o script 45 na Supabase.",
     "Migração (Plataforma A): com \"Todos os anos\", a busca da Legislação da Prefeitura trazia, nos anos sem nenhum ato, a lista \"últimas publicadas\" do site no lugar do resultado; agora esses anos ficam vazios como devem, e a busca vai até 1990 sem parar em ano vazio (há leis antigas espalhadas).",
     "Migração do site antigo (Plataforma A · King) revisada nos sites da Prefeitura e da Câmara de Riacho da Cruz. Agora serve também para Câmaras desse modelo.",

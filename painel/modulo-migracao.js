@@ -385,9 +385,16 @@
     return data && data[0] ? data[0].id : null;
   }
 
+  // Datas obrigatórias no banco que o site antigo às vezes não mostra (ex.: anexos da IntGest não têm data):
+  // usa a do processo/ano, para o documento não ser recusado (antes ficava de fora, com o arquivo já copiado).
+  const dataOu = (...l) => l.find((d) => /^\d{4}-\d{2}-\d{2}/.test(String(d || ''))) || new Date().toISOString().slice(0, 10);
+  const inicioAno = (a) => (a ? a + '-01-01' : null);
   const GRAVAR = {
     async legislacao(x, s) {
       const r = Object.assign({}, x.registro);
+      const semData = !r.data_publicacao;
+      r.data_publicacao = dataOu(r.data_publicacao, inicioAno(r.ano));
+      if (semData) x._avisoData = 'Sem data no site antigo: entrou ' + r.data_publicacao.split('-').reverse().join('/') + ' (confira)';
       // Tipo que não é fixo do portal (ex.: Regimento Interno): criado em Publicações › Tipos na primeira vez.
       if (x.tipoNovo) r.tipo = await tipoPublicacao(x.tipoNovo.codigo, x.tipoNovo.nome);
       const jaId = (r.numero || x.tipoNovo) && await existente('publicacoes', { tipo: r.tipo, numero: r.numero, ano: r.ano });
@@ -405,23 +412,37 @@
         const { error: e2 } = await sb.from('publicacoes_anexos').insert({ publicacao_id: data.id, orgao_id: org(), titulo: an.titulo.length >= 2 ? an.titulo : 'Anexo', arquivo_url: c.url, ordem: ordem++ });
         if (e2) falhas++;
       }
-      return { situacao: 'importado', id: data.id, tabela: 'publicacoes', bytes, aviso: [a.erro, falhas ? falhas + ' anexo(s) não copiado(s)' : ''].filter(Boolean).join(' · ') || null };
+      return { situacao: 'importado', id: data.id, tabela: 'publicacoes', bytes, aviso: [a.erro, falhas ? falhas + ' anexo(s) não copiado(s)' : '', x._avisoData].filter(Boolean).join(' · ') || null };
     },
     async licitacao(x, s) {
-      const r = x.registro;
-      if (r.numero && await existente('licitacoes', { modalidade: r.modalidade, numero: r.numero, ano: r.ano })) return { situacao: 'ja_existia' };
-      const { data, error } = await sb.from('licitacoes').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r)).select('id').single();
-      if (error) throw error;
-      let bytes = 0, falhas = 0, ordem = 0;
+      const r = Object.assign({}, x.registro);
+      const semData = !r.data_publicacao;
+      r.data_publicacao = dataOu(r.data_publicacao, r.data_abertura && String(r.data_abertura).slice(0, 10), inicioAno(r.ano));
+      const jaId = r.numero && await existente('licitacoes', { modalidade: r.modalidade, numero: r.numero, ano: r.ano });
+      let id = jaId;
+      if (jaId) {
+        // Já existe: se ficou sem documentos (importação anterior recusou os anexos), completa agora.
+        const { count } = await sb.from('licitacoes_documentos').select('id', { count: 'exact', head: true }).eq('licitacao_id', jaId);
+        if (count || !(x.documentos || []).length) return { situacao: 'ja_existia' };
+      } else {
+        const { data, error } = await sb.from('licitacoes').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r)).select('id').single();
+        if (error) throw error;
+        id = data.id;
+      }
+      let bytes = 0, falhas = 0, ordem = 0, novos = 0;
+      const motivos = new Set();
       for (const d of x.documentos || []) {
         const a = await copiar(d.url, s.pasta);
-        if (!a.url) { falhas++; continue; }
+        if (!a.url) { falhas++; motivos.add(a.erro); continue; }
         bytes += a.bytes || 0;
-        const { error: e2 } = await sb.from('licitacoes_documentos').insert({ licitacao_id: data.id, orgao_id: org(), origem: 'portal', tipo: d.tipo,
-          titulo: d.titulo.length >= 2 ? d.titulo : 'Documento', data: d.data, arquivo_url: a.url, ordem: ordem++ });
-        if (e2) falhas++;
+        const { error: e2 } = await sb.from('licitacoes_documentos').insert({ licitacao_id: id, orgao_id: org(), origem: 'portal', tipo: d.tipo,
+          titulo: d.titulo.length >= 2 ? d.titulo : 'Documento', data: dataOu(d.data, r.data_publicacao), arquivo_url: a.url, ordem: ordem++ });
+        if (e2) { falhas++; motivos.add(e2.message); } else novos++;
       }
-      return { situacao: 'importado', id: data.id, tabela: 'licitacoes', bytes, aviso: falhas ? falhas + ' documento(s) não copiado(s)' : null };
+      const avisos = [jaId ? 'Já existia sem documentos: ' + novos + ' documento(s) incluído(s) agora' : '',
+        falhas ? falhas + ' documento(s) não copiado(s) (' + [...motivos].slice(0, 2).join('; ') + ')' : '',
+        semData ? 'Sem data no site antigo: entrou ' + r.data_publicacao.split('-').reverse().join('/') + ' (confira)' : ''].filter(Boolean);
+      return { situacao: 'importado', id, tabela: 'licitacoes', bytes, aviso: avisos.join(' · ') || null };
     },
     async contrato(x, s) {
       const r = x.registro;
@@ -458,7 +479,7 @@
         if (!a.url) { falhas++; continue; }
         bytes += a.bytes || 0;
         const { error: e2 } = await sb.from('concursos_documentos').insert({ concurso_id: data.id, orgao_id: org(), tipo: d.tipo,
-          titulo: d.titulo.length >= 2 ? d.titulo : 'Documento', data: d.data, arquivo_url: a.url });
+          titulo: d.titulo.length >= 2 ? d.titulo : 'Documento', data: dataOu(d.data, r.inscricoes_inicio, inicioAno(r.ano)), arquivo_url: a.url });
         if (e2) falhas++;
       }
       const pub = await sb.from('concursos').update({ situacao: 'publicado' }).eq('id', data.id).select('id');
@@ -471,7 +492,8 @@
       if (await existente('documentos_contas', { tipo: r.tipo, exercicio: r.exercicio, periodo: r.periodo })) return { situacao: 'ja_existia' };
       const a = x.arquivos[0] ? await copiar(x.arquivos[0].url, s.pasta) : {};
       if (!a.url) return { situacao: 'erro', aviso: 'Sem arquivo: ' + (a.erro || 'o site antigo não tem o documento') };
-      const { data, error } = await sb.from('documentos_contas').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r, { arquivo_url: a.url })).select('id').single();
+      const { data, error } = await sb.from('documentos_contas').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r,
+        { arquivo_url: a.url, data_publicacao: dataOu(r.data_publicacao, inicioAno(r.exercicio)) })).select('id').single();
       if (error) throw error;
       return { situacao: 'importado', id: data.id, tabela: 'documentos_contas', bytes: a.bytes };
     },
