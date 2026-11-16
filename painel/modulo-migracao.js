@@ -782,6 +782,16 @@
         const { error: e1 } = await sb.from('proposicoes_autores').insert({ orgao_id: org(), proposicao_id: data.id, parlamentar_id: autor.id, papel: 'autor' });
         if (e1) avisos.push('Autor não ligado: ' + (e1.message || ''));
       }
+      // Plataforma A: vereadores que apoiaram (coautoria)
+      const semCo = [];
+      for (const nm of x.apoio || []) {
+        const p = await acharVereador(nm);
+        if (!p) { semCo.push(nm); continue; }
+        if (autor && p.id === autor.id) continue;
+        const { error: e3 } = await sb.from('proposicoes_autores').insert({ orgao_id: org(), proposicao_id: data.id, parlamentar_id: p.id, papel: 'coautor' });
+        if (e3 && !/duplicate|unique/i.test(e3.message || '')) semCo.push(nm);
+      }
+      if (semCo.length) avisos.push('Apoio (coautoria) não ligado — vereador não achado: ' + semCo.join(', '));
       // Tramitação + anexos (o anexo vai no trâmite da mesma data, ou vira um trâmite "Anexo")
       const tramites = (x.tramites || []).map((t) => ({ orgao_id: org(), proposicao_id: data.id, data: t.data, descricao: t.descricao, arquivo_url: null }));
       for (const d of x.documentos || []) {
@@ -839,8 +849,11 @@
       if (x.pdf) {
         const c = await copiar(x.pdf, s.pasta);
         if (c.url) { urlPdf = c.url; bytes = c.bytes || 0; } else avisos.push('PDF da portaria não copiado (' + c.erro + ')');
-        try { const t = await window.MIGRACAO_OCR.textoPdf(urlPdf || x.pdf); texto = t.texto; ocr = t.ocr; }
-        catch (e) { avisos.push('PDF da portaria não lido (' + (e.message || e) + '): só a ementa foi usada'); }
+        // Plataforma A: a ementa já é o ato inteiro (lerPdf falso): o PDF só é guardado, não precisa ser lido.
+        if (x.lerPdf !== false) {
+          try { const t = await window.MIGRACAO_OCR.textoPdf(urlPdf || x.pdf); texto = t.texto; ocr = t.ocr; }
+          catch (e) { avisos.push('PDF da portaria não lido (' + (e.message || e) + '): só a ementa foi usada'); }
+        }
       } else avisos.push('Sem o PDF da portaria no site antigo: só a ementa foi usada');
       const { data: valores } = await sb.from('diarias_valores').select('grupo, abrangencia, valor').eq('orgao_id', org());
       const r = x.lerTexto(texto, valores || []);
@@ -862,12 +875,13 @@
       // O site antigo não tem título nem data: vêm do YouTube (data, quando está no título: "Sessão Ordinária … 28/08/2026").
       let titulo = null;
       try { const o = await (await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent(r.url))).json(); titulo = String(o.title || '').trim() || null; } catch (_) { /* sem título */ }
+      if (!titulo && x.tituloSite && x.tituloSite.length >= 3) titulo = x.tituloSite;
       const m = (titulo || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
       const reg = { orgao_id: org(), titulo: (titulo && titulo.length >= 3 ? titulo : 'Vídeo da TV Câmara').slice(0, 200), url: r.url, situacao: titulo ? 'publicado' : 'rascunho' };
-      if (m) reg.data = m[3] + '-' + m[2] + '-' + m[1];
+      if (x.data) reg.data = x.data; else if (m) reg.data = m[3] + '-' + m[2] + '-' + m[1];
       const { data, error } = await sb.from('videos').insert(reg).select('id').single();
       if (error) throw error;
-      return { situacao: 'importado', id: data.id, tabela: 'videos', aviso: titulo ? (m ? null : 'Sem data no título do vídeo: entrou com a data de hoje, ajuste em Notícias › Vídeos')
+      return { situacao: 'importado', id: data.id, tabela: 'videos', aviso: titulo ? (m || x.data ? null : 'Sem data no título do vídeo: entrou com a data de hoje, ajuste em Notícias › Vídeos')
         : 'Vídeo sem título (o YouTube não respondeu): entrou como rascunho em Notícias › Vídeos' };
     },
     async servico(x) {
@@ -894,11 +908,71 @@
       if (d.numero) q = q.eq('numero', d.numero);
       const { data: ja } = await q;
       if (ja && ja[0]) return { situacao: 'ja_existia', id: ja[0].id, tabela: 'declaracoes_inexistencia' };
+      // Plataforma A: o texto vem do próprio site antigo; Plataforma B: o texto fica num PDF assinado, então vai o sugerido pelo portal.
+      const doSite = x.texto && x.texto.length >= 10 ? x.texto.slice(0, 500) : null;
       const sugerido = window.textoDeclaracaoPNTP ? window.textoDeclaracaoPNTP(x.secao, d) : '';
-      const texto = (sugerido && sugerido.length >= 10 ? sugerido : 'Não houve registros a divulgar ' + (window.periodoFrasePNTP ? window.periodoFrasePNTP(d) : '') + '.').slice(0, 500);
+      const texto = doSite || (sugerido && sugerido.length >= 10 ? sugerido : 'Não houve registros a divulgar ' + (window.periodoFrasePNTP ? window.periodoFrasePNTP(d) : '') + '.').slice(0, 500);
       const { data, error } = await sb.from('declaracoes_inexistencia').insert(Object.assign({ orgao_id: org(), secao: x.secao, texto }, d)).select('id').single();
       if (error) throw error;
-      return { situacao: 'importado', id: data.id, tabela: 'declaracoes_inexistencia', aviso: 'Texto sugerido pelo portal (o do site antigo fica num PDF assinado que não abre fora dele): confira' };
+      return { situacao: 'importado', id: data.id, tabela: 'declaracoes_inexistencia',
+        aviso: doSite ? (x.pagina ? 'Texto do site antigo (' + x.pagina + ')' : null) : 'Texto sugerido pelo portal (o do site antigo fica num PDF assinado que não abre fora dele): confira' };
+    }
+  });
+
+  // Plataforma A (0.42.0): tabela de valores das diárias (lida do PDF da norma), PCA, fiscais de contratos (Publicações),
+  // planos e relatórios de Saúde/Educação, e Diárias/Declarações/Acordos das páginas "por ano" do modelo King.
+  Object.assign(GRAVAR, {
+    async diaria_tabela(x, s) {
+      const avisos = [];
+      const c = await copiar(x.pdf, s.pasta);
+      if (!c.url) return { situacao: 'erro', aviso: 'PDF da norma não copiado: ' + c.erro };
+      let texto = '';
+      try { texto = (await window.MIGRACAO_OCR.textoPdf(c.url, 4, (t) => /dentro do est|fora do est|legenda/i.test(t))).texto; }
+      catch (e) { return { situacao: 'erro', aviso: 'PDF da norma não lido: ' + (e.message || e) }; }
+      const t = x.lerTabela(texto);
+      if (!t.linhas.length) return { situacao: 'erro', bytes: c.bytes, aviso: 'Não achei a tabela de valores no PDF (' + x.norma + '): cadastre em Diárias › Valores das diárias' };
+      // Norma já migrada em "Leis, decretos e portarias": usa o PDF dela
+      let normaUrl = c.url;
+      if (x.normaUrl) { const n = await jaMigrado(x.normaUrl); if (n && n.registro_id && n.tabela === 'publicacoes') { const { data: p } = await sb.from('publicacoes').select('arquivo_url').eq('id', n.registro_id).maybeSingle(); if (p && p.arquivo_url) normaUrl = p.arquivo_url; } }
+      const norma = (t.norma || x.norma || 'Norma do site antigo').slice(0, 300);
+      let novos = 0, ordem = 10;
+      for (const l of t.linhas) {
+        const grupo = l.grupo.slice(0, 200);
+        if (await existente('diarias_valores', { grupo, abrangencia: l.abrangencia, norma })) { ordem += 10; continue; }
+        const { error } = await sb.from('diarias_valores').insert({ orgao_id: org(), grupo, abrangencia: l.abrangencia, valor: l.valor, moeda: 'BRL', norma, norma_url: normaUrl, ordem });
+        if (error) throw error;
+        novos++; ordem += 10;
+      }
+      if (!novos) return { situacao: 'ja_existia', bytes: c.bytes };
+      return { situacao: 'importado', tabela: 'diarias_valores', bytes: c.bytes, aviso: novos + ' valor(es) lido(s) do PDF (' + norma + '): confira em Diárias › Valores das diárias' + (avisos.length ? ' · ' + avisos.join(' · ') : '') };
+    },
+    async pca(x, s) {
+      const r = x.registro;
+      if (await existente('pca', { ano: r.ano, tipo: 'plano' })) return { situacao: 'ja_existia' };
+      const a = await copiar(x.arquivos[0].url, s.pasta);
+      const { data, error } = await sb.from('pca').insert(Object.assign({ orgao_id: org() }, r, { arquivo_url: a.url || null, situacao: a.url ? 'publicado' : 'rascunho' })).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'pca', bytes: a.bytes, aviso: a.url ? null : 'Documento não copiado (' + a.erro + '): entrou como rascunho' };
+    },
+    async fiscal(x, s) {
+      const tipo = await tipoPublicacao('x_fiscais_contratos', 'Fiscais e gestores de contratos');
+      const r = x.registro;
+      if (await existente('publicacoes', { tipo, ementa: r.ementa, ano: r.ano })) return { situacao: 'ja_existia' };
+      const a = await copiar(x.arquivos[0].url, s.pasta);
+      if (!a.url) return { situacao: 'erro', aviso: 'Documento não copiado: ' + a.erro };
+      const { data, error } = await sb.from('publicacoes').insert({ orgao_id: org(), origem: 'importacao', tipo, numero: null, ano: r.ano, data_publicacao: r.data_publicacao,
+        ementa: r.ementa, arquivo_url: a.url, situacao: 'publicado', vigencia: 'vigente' }).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'publicacoes', bytes: a.bytes, aviso: 'Em Publicações, tipo "Fiscais e gestores de contratos": ligue os fiscais a cada contrato em Contratos, se quiser' };
+    },
+    async setorial(x, s) {
+      const r = x.registro;
+      if (await existente('documentos_setoriais', { area: r.area, titulo: r.titulo, exercicio: r.exercicio })) return { situacao: 'ja_existia' };
+      const a = await copiar(x.arquivos[0].url, s.pasta);
+      const { data, error } = await sb.from('documentos_setoriais').insert(Object.assign({ orgao_id: org() }, r, { arquivo_url: a.url || null, situacao: a.url ? 'publicado' : 'rascunho' })).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'documentos_setoriais', bytes: a.bytes,
+        aviso: [r.tipo === 'outro' ? 'Tipo não reconhecido pelo título: entrou como "Outro"' : '', a.url ? '' : 'Documento não copiado (' + a.erro + '): entrou como rascunho'].filter(Boolean).join(' · ') || null };
     }
   });
 

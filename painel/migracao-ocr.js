@@ -1,6 +1,6 @@
 // =====================================================================
 // Migração do site antigo — leitura do texto de PDFs (0.40.0)
-// Usado pelas diárias da Plataforma B: as portarias de concessão são PDFs
+// Usado pelas diárias (Plataforma B; e a tabela de valores da Plataforma A): as portarias de concessão são PDFs
 // escaneados (só o cabeçalho do Diário Oficial vem como texto). Primeiro
 // tenta o texto do próprio PDF; se não tiver o corpo do ato, lê a imagem
 // das páginas com OCR (Tesseract, português), tudo no navegador.
@@ -36,7 +36,8 @@
   const temCorpo = (t) => /resolve|art\.?\s*1|conceder/i.test(t) && t.replace(/\s+/g, ' ').length > 300;
 
   // Texto do PDF (url pública, com CORS). paginas: quantas ler no máximo.
-  async function textoPdf(url, paginas) {
+  // aceita: o texto já serve? (padrão: tem o corpo de um ato). Se não servir, lê a imagem das páginas (OCR).
+  async function textoPdf(url, paginas, aceita) {
     const lib = await carregarPdf();
     const r = await fetch(url);
     if (!r.ok) throw new Error('PDF não abriu (' + r.status + ')');
@@ -47,7 +48,7 @@
       const c = await (await pdf.getPage(p)).getTextContent();
       texto += c.items.map((x) => x.str + (x.hasEOL ? '\n' : ' ')).join('') + '\n';
     }
-    if (temCorpo(texto)) return { texto, ocr: false };
+    if ((aceita || temCorpo)(texto)) return { texto, ocr: false };
     // Escaneado: uma leitura por vez (o OCR usa bastante memória).
     const ler = async () => {
       const w = await carregarOcr();
