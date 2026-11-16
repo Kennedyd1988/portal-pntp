@@ -1,7 +1,9 @@
 {
-  "versao": "0.42.2",
+  "versao": "0.42.3",
   "data": "2026-11-16",
   "notas": [
+    "Site: na página LGPD (#/lgpd), nova seção fixa \"Cookies e armazenamento no navegador\", igual para todos os órgãos: explica que o portal não usa cookies de rastreamento, publicidade ou estatística de terceiros (por isso não há aviso de consentimento), o que fica guardado no navegador (preferências de acessibilidade, avisos fechados, notícias já vistas na aba) e os serviços de terceiros usados (hospedagem, Google Fonts, VLibras, YouTube sem cookies).",
+    "Painel: o modelo da Política de Privacidade (LGPD e Governo Digital) traz o novo texto sobre cookies. Políticas já gravadas não mudam; a seção fixa do site aparece para todos.",
     "Migração (correção): documentos de licitações e concursos sem data no site antigo (ex.: anexos da IntGest) eram recusados pelo banco e ficavam de fora, mesmo com o arquivo já copiado. Agora entram com a data do processo. O mesmo para licitações, leis e contas sem data (entram com a data de abertura ou 1º de janeiro do ano, com aviso para conferir).",
     "Migração: rodar de novo a importação de Licitações completa os documentos das licitações que já tinham entrado sem eles.",
     "Site (Câmara): no perfil do vereador, o quadro passa a se chamar \"Atividade do vereador\" e conta todos os anos (proposições de autoria, relatorias, presenças, votos, diárias e emendas), batendo com a lista de proposições logo abaixo. Rode o script 45 na Supabase.",

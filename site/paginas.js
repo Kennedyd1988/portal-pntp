@@ -1132,12 +1132,27 @@
         l.politica_url ? el('p', null, el('a', { href: l.politica_url, target: '_blank', rel: 'noopener' }, 'Política de privacidade em PDF')) : null,
         !l.politica_texto && !l.politica_url ? el('p', { class: 'vazio' }, 'Em elaboração.') : null,
         l.politica_atualizada_em ? el('p', { class: 'meta' }, 'Última atualização: ' + dataBR(l.politica_atualizada_em) + '.') : null),
+      cookiesDoPortal(),
       el('section', { class: 'cartao' }, el('h2', null, 'Governo Digital (Lei 14.129/2021)'),
         norma ? el('p', null, 'Regulamentada por ', normaDoc ? el('a', { href: normaDoc, target: '_blank', rel: 'noopener' }, ato(norma)) : el('strong', null, ato(norma)), ' — ' + norma.ementa)
           : l.gov_digital_texto || l.gov_digital_url ? el('p', null, 'Regulamentada por ', l.gov_digital_url ? el('a', { href: l.gov_digital_url, target: '_blank', rel: 'noopener' }, l.gov_digital_texto || 'norma do órgão') : l.gov_digital_texto, '.')
             : el('p', null, 'Regulamentação em elaboração.'),
         el('p', null, 'Serviços que podem ser pedidos pela internet estão na ', el('a', { href: '#/servicos' }, 'Carta de Serviços'), '. Regras de uso dos dados em ', el('a', { href: '#/dados-abertos' }, 'Dados abertos'), '.')));
   };
+
+  // Cookies e armazenamento no navegador: igual para todos os órgãos (descreve como o portal funciona), por isso fixo
+  // aqui e não no texto da política de cada órgão. Se o portal passar a usar estatística ou publicidade de terceiros,
+  // isto muda e entra o aviso de consentimento (banner) — hoje ele não é necessário (LGPD, art. 7º; guia de cookies da ANPD).
+  function cookiesDoPortal() {
+    return el('section', { class: 'cartao', style: 'margin:18px 0' }, el('h2', null, 'Cookies e armazenamento no navegador'),
+      el('p', null, 'Este site não usa cookies de rastreamento, de publicidade nem de estatística de terceiros (como Google Analytics ou pixel de redes sociais). Por isso não pedimos consentimento para cookies.'),
+      el('p', null, 'O que fica guardado no seu navegador, só para o site funcionar como você escolheu:'),
+      el('ul', null,
+        el('li', null, 'suas preferências de acessibilidade (tamanho da fonte e alto contraste) e os avisos que você fechou;'),
+        el('li', null, 'enquanto a aba estiver aberta, a marcação das notícias que você já abriu, para a visualização não ser contada duas vezes.')),
+      el('p', null, 'Esses dados ficam no seu aparelho, não identificam você e não são enviados a terceiros. Você pode apagá-los quando quiser nas configurações do navegador.'),
+      el('p', null, 'Serviços de outros que o site usa para funcionar: a hospedagem e o banco de dados do portal, as fontes de letra (Google Fonts), o tradutor de Libras do governo federal (VLibras), quando ativado, e os vídeos do YouTube, exibidos pelo endereço do YouTube que não grava cookies (youtube-nocookie.com). Ao acessar o site, esses serviços recebem os dados técnicos da conexão, como o endereço IP, necessários para entregar o conteúdo.'));
+  }
 
   // Catálogo de dados abertos: download completo (CSV/JSON) e endereço para acesso automatizado.
   R['dados-abertos'] = async function (main) {

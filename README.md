@@ -452,6 +452,11 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.42.3 — 16/11/2026 — Cookies na página LGPD**
+- Site (`paginas.js`, rota `#/lgpd`): seção fixa "Cookies e armazenamento no navegador" (`cookiesDoPortal`). O portal não usa
+  cookies não essenciais, por isso não tem banner de consentimento; se um dia usar estatística/publicidade de terceiros,
+  o banner passa a ser necessário. Painel: modelo da política com o texto novo de cookies.
+
 **0.42.2 — 16/11/2026 — Migração: documentos sem data**
 - `modulo-migracao.js`: `licitacoes_documentos.data`, `concursos_documentos.data`, `licitacoes.data_publicacao`,
   `publicacoes.data_publicacao` e `documentos_contas.data_publicacao` não aceitam nulo; o gravador mandava nulo quando o site

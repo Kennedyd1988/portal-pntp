@@ -40,7 +40,7 @@
       '- Saber com quem seus dados foram compartilhados.',
       'Para exercer esses direitos, fale com o encarregado pelos contatos acima.', '',
       '## Cookies',
-      'Este site usa apenas cookies essenciais ao seu funcionamento.', '',
+      'Este site não usa cookies de rastreamento, de publicidade nem de estatística de terceiros. Guarda no seu navegador apenas preferências de acessibilidade e de navegação, que não identificam você. Os detalhes estão na seção "Cookies e armazenamento no navegador", logo abaixo desta política.', '',
       '## Atualizações',
       'Esta política pode ser atualizada. A data da última atualização aparece no fim da página.'
     ].join('\n');
