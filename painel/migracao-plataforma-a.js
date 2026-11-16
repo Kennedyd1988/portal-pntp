@@ -983,7 +983,7 @@
         const rl = await ctx.ler(ctx.origem + '/legislatura');
         for (const id of [...new Set([...rl.html.matchAll(/\/legislatura\/detalhe\/(\d+)\//g)].map((x) => x[1]))]) {
           let r; try { r = await ctx.ler(ctx.origem + '/legislatura/detalhe/' + id + '/'); } catch (_) { continue; }
-          const anos = (r.html.match(/\((\d{4})\s*-\s*(\d{4})\)/) || []);
+          const anos = (limpar((doc(r.html).m.querySelector('h1') || {}).textContent).match(/\((\d{4})\s*-\s*(\d{4})\)/) || []);
           if (!anos[1]) continue;
           const ini = Number(anos[1]), fim = Number(anos[2]);
           for (const v of new Set([...r.html.matchAll(/\/vereadores\/(\d+)\//g)].map((x) => x[1]))) {
@@ -1009,7 +1009,7 @@
           if (!nome || nome.length < 3) continue;
           const bioT = [...m.querySelectorAll('td')].find((td) => /^biografia$/i.test(limpar(td.textContent)));
           const bioTr = bioT && bioT.closest('tr') && bioT.closest('tr').nextElementSibling;
-          const bio = bioTr ? [...bioTr.querySelectorAll('p')].map((x) => limpar(x.textContent)).filter(Boolean).join('\n') || limpar(bioTr.textContent) : '';
+          const bio = bioTr ? [...bioTr.querySelectorAll('p, li')].map((x) => limpar(x.textContent)).filter(Boolean).join('\n') || limpar(bioTr.textContent) : '';
           const foto = m.querySelector('img[src*="/vereador/"]');
           const email = (c['e-mail'] || c.email || '').toLowerCase();
           const atual = l.atual || (l.ini && l.ini <= ANO_ATUAL && l.fim >= ANO_ATUAL);
@@ -1044,7 +1044,7 @@
           const nome = limpar(n ? (n.tagName === 'H2' ? n.textContent : n.querySelector('h2').textContent) : '');
           const cargo = limpar(h3.textContent).replace(/\s*atual$/i, '');
           if (!nome || !cargo || /mesa diretora/i.test(cargo)) continue;
-          const c = cargo.charAt(0).toUpperCase() + cargo.slice(1).toLowerCase().replace(/(\d+)º/, '$1º');
+          const c = cargo === cargo.toUpperCase() ? cargo.charAt(0) + cargo.slice(1).toLowerCase().replace(/(^|[\s-])(\S)/g, (x, a, b) => a + b.toUpperCase()) : cargo;
           itens.push({ url: atual.url + '#' + encodeURIComponent(sem(nome)), x: { ano: null, chave: { nome }, registro: { nome_parlamentar: nomeProprio(nome), cargo_mesa: c.slice(0, 80) }, sessao: limpar(sessao) } });
         }
         return itens;
@@ -1066,7 +1066,7 @@
           let p; try { p = await ctx.ler(url); } catch (e) { ctx.log('comissão ' + id + ': ' + e.message); continue; }
           const { m } = doc(p.html);
           const b = blocos(m);
-          const nome = bt(b, 'nome') || limpar((m.querySelector('h1') || {}).textContent).replace(/^comiss[aã]o\s*-\s*/i, '');
+          const nome = limpar((bel(b, 'nome')[0] || {}).textContent) || limpar((m.querySelector('h1') || {}).textContent).replace(/^comiss[aã]o\s*-\s*/i, '');
           if (!nome) continue;
           const membros = [];
           const hp = [...m.querySelectorAll('h3')].find((h) => /presidente/i.test(h.textContent));
@@ -1454,7 +1454,7 @@
           if (comissoes) {
             const com = comissaoParecida(ident + ' ' + (it.td[1] || ''), nomesCom);
             await ctx.emitir(url, { ano: anoDe(dt), data: dt, comissao: com, chave: { comissao: com, data: dt, numero },
-              registro: { tipo: 'reuniao', numero, data: dt, local: null, pauta: (it.td[1] || '').slice(0, 20000) || null, andamento: 'realizada' },
+              registro: { tipo: 'reuniao', numero, data: dt, local: null, pauta: /^ementa n[aã]o inclu/i.test(it.td[1] || '') ? null : (it.td[1] || '').slice(0, 20000) || null, andamento: 'realizada' },
               arquivos: arq ? [{ url: arq, campo: 'ata_url' }] : [], ...(com ? {} : { ignorar: 'Comissão não identificada no título da ata: "' + ident + '" (cadastre a reunião à mão)' }) });
           } else {
             const tipo = /extraord/.test(tp) ? 'extraordinaria' : /solene|posse/.test(tp) ? 'solene' : /especial|secreta/.test(tp) ? 'especial' : /audiencia/.test(tp) ? 'audiencia_publica' : 'ordinaria';
