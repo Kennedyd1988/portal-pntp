@@ -146,7 +146,7 @@
     projeto_resolucao: 'Projetos de resolução', projeto_decreto_legislativo: 'Projetos de decreto legislativo', requerimento: 'Requerimentos', indicacao: 'Indicações',
     mocao: 'Moções', veto: 'Vetos', emenda: 'Emendas', outro: 'Outras' };
   function secaoProposicoes(lista) {
-    const sec = el('section', { class: 'mt-2' }, el('h2', null, 'Proposições'));
+    const sec = el('section', { class: 'mt-2' }, el('h2', null, 'Proposições'), el('p', { class: 'meta' }, 'Todas as proposições do vereador, de todos os anos.'));
     if (!lista.length) { sec.append(el('p', { class: 'vazio' }, 'Nenhuma proposição registrada.')); return sec; }
     const autoria = lista.filter((x) => x.papel !== 'relator'), relatorias = lista.filter((x) => x.papel === 'relator');
     const tipos = Object.keys(PLURAL_PROP).filter((t) => autoria.some((x) => x.proposicoes.tipo === t));
