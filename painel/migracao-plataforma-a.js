@@ -326,7 +326,12 @@
       ler(html, url) {
         const { d, m } = doc(html);
         const cab = [...m.querySelectorAll('h2')].map((x) => limpar(x.textContent)).find((x) => /\d{4}$/.test(x) && / - /.test(x));
-        const titulo = limpar((d.querySelector('meta[property="og:title"]') || {}).content || '');
+        let titulo = limpar((d.querySelector('meta[property="og:title"]') || {}).content || '');
+        // O og:title do modelo corta títulos longos ("… comemoração ..."): o título inteiro está no <title> da página
+        if (/(\.\.\.|…)$/.test(titulo)) {
+          const pg = limpar(d.title).replace(/^not[ií]cia\s*-\s*/i, '').replace(/\s+-\s+(prefeitura|c[aâ]mara) municipal.*$/i, '');
+          if (pg.length > titulo.length - 3) titulo = pg;
+        }
         const corpo = m.querySelector('.noticia-interna-conteudo');
         if (!cab || !titulo || !corpo) return { vazio: true };
         const dt = dataExtenso(cab);

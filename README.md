@@ -452,6 +452,29 @@ supabase/functions/atendimento-emails/index.ts → envio da fila de e-mails do a
 
 ## Histórico de mudanças
 
+**0.42.0 — 16/11/2026 — Migração: Plataforma A (King) revisada na Prefeitura e na Câmara de Riacho da Cruz**
+- `painel/migracao-plataforma-a.js`: serve também para Câmaras do modelo. Novas seções: `vereador` (legislaturas + perfil),
+  `mesa` (Mesa vigente), `comissao` (competências, presidente, composição), `sessao` e `reuniao` (o modelo guarda as sessões
+  como atas: /atas → modalidade → ano → ata em PDF; reunião ligada à comissão pelo nome), `proposicao` (projetos por
+  modalidade, do Executivo, moções, indicações, representações, requerimentos; autor, apoio → coautoria, situação,
+  movimentação e arquivo), `diaria_tabela` (tabela de valores lida do PDF da norma: colunas por cargo com legenda em
+  algarismos romanos, ou linhas por cargo), `diaria_concessao` (portarias da categoria "Diária" ou "Conceder … diária":
+  a ementa é o ato inteiro; valor pela tabela do cargo), `pca`, `declaracao` (texto "não houve" das páginas por ano e
+  concursos "a UG não realizou" → declaração do ano com o texto do site), `fiscal` (Publicações, tipo próprio "Fiscais e
+  gestores de contratos"), `convenio` (acordo de cooperação → sem repasse), `setorial` (planos e relatórios de
+  Saúde/Educação), `video` (/galeria-videos) e `servico` (Carta de Serviços, rascunho).
+- Legislação: a busca por ano do modelo dá erro nas Câmaras — usa a busca de matérias (`/busca/busca-materia/page/N/`,
+  `tipoMateria=10`) e confere a categoria na página do item; Lei Orgânica e Regimento Interno sempre; csrf renovado
+  quando vence. Diárias e proposições ficam fora de Publicações.
+- Páginas `/pagina/N`: leitura única (guardada 15 min) usada por várias seções; cada bloco por ano é classificado
+  (declaração, PCA, planos, fiscais, acordo ou página); a seção "Páginas" leva só o que sobra (rascunho), mais as páginas
+  fixas do modelo (história, hino, símbolos, galeria de prefeitos, links e telefones úteis, organograma). Endereços de
+  arquivo escritos como texto viram documentos.
+- `modulo-migracao.js`: gravadores `diaria_tabela`, `pca`, `fiscal`, `setorial`; declaração usa o texto do site quando
+  vem; vídeo usa a data do site; diária não relê o PDF quando a ementa já é o ato (`lerPdf: false`).
+  `migracao-ocr.js`: `textoPdf(url, paginas, aceita)`.
+- Site: perfil do vereador avisa que a lista de proposições é de todos os anos.
+
 **0.29.1 — 14/11/2026 — Correção**
 - Consórcio público e Atividade legislativa: some o "null" que aparecia no alto da tela.
 
