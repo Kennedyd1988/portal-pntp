@@ -1154,7 +1154,7 @@
       listas: [],
       async listar(ctx) {
         const PAGS = [['/institucional/estrutura-organizacional/', 'Estrutura organizacional'], ['/parlamentares/galeria-presidentes/', 'Galeria de presidentes'],
-          ['/institucional/entenda/', 'Entenda o Legislativo'], ['/institucional/agenda/', 'Agenda'],
+          ['/institucional/entenda/', 'Entenda o Legislativo'],
           ['/transparencia/participacao-controle-social/links-uteis', 'Links úteis'], ['/lei-governo-digital/', 'Lei de Governo Digital']];
         const itens = [];
         for (const [cam, tituloPadrao] of PAGS) {
@@ -1197,6 +1197,57 @@
           if (conteudo.replace(/[#\s]/g, '').length < 80 || /^nenhum .*cadastrad/i.test(conteudo)) { itens.push({ url, x: { ignorar: tituloPadrao + ': vazia no site antigo', ano: null } }); continue; }
           const slug = sem(tituloPadrao).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70);
           itens.push({ url, x: { ano: null, chave: { slug }, registro: { titulo: (tit.length >= 3 ? nomeProprio(tit) : tituloPadrao).slice(0, 160), slug, conteudo: conteudo.slice(0, 100000) }, arquivosTexto: arquivos } });
+        }
+        return itens;
+      }
+    },
+    // ---------------------------------------------------------------
+    // Agenda (/institucional/agenda/) → Agenda do portal (0.41.0).
+    // O modelo mostra só 10 por vez (lê-se mês a mês), SEM o ano (só "Jun 01 · Quinta-feira, às 09:00") e com título e
+    // local cortados ("31ª Sessão Ordinária do 5º Perí..."). O ano sai do dia da semana (o ano mais recente em que
+    // aquela data cai naquele dia); compromisso com título cortado entra como rascunho, para completar.
+    agenda: {
+      nome: 'Agenda (compromissos e eventos)', destino: 'Notícias, banners e avisos › Agenda', pntp: false, pasta: 'agenda',
+      listas: [],
+      async listar(ctx) {
+        const MES = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
+        const SEMANA = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+        const cortado = (t) => /(\.\.\.|…)$/.test(t);
+        const tirarCorte = (t) => limpar(t).replace(/\s*(\.\.\.|…)$/, '');
+        const itens = [], vistos = new Set();
+        for (const q of [''].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => '?mes=' + m))) {
+          if (ctx.parar()) break;
+          let r; try { r = await ctx.ler(ctx.origem + '/institucional/agenda/' + q); } catch (e) { ctx.log('agenda ' + q + ': ' + e.message); continue; }
+          if (r.status !== 200) { if (!q) return []; continue; }
+          const { m } = doc(r.html);
+          for (const it of m.querySelectorAll('.accordion-item')) {
+            const bt = it.querySelector('button'); if (!bt) continue;
+            const sp = [...bt.querySelectorAll('span')].map((s) => limpar(s.textContent)).filter(Boolean);
+            // [mês, dia, local, título, "Quinta-feira, às 09:00"] (local pode faltar)
+            const mes = MES[sem(sp[0] || '').slice(0, 3)], dia = Number(sp[1]);
+            const quando = sp.find((s) => /-feira|s[aá]bado|domingo/i.test(s)) || '';
+            const resto = sp.slice(2).filter((s) => s !== quando);
+            const tituloT = resto[resto.length - 1] || '', localT = resto.length > 1 ? resto[0] : '';
+            if (!mes || !dia || tituloT.length < 3) continue;
+            const ds = SEMANA.findIndex((w) => sem(quando).startsWith(w));
+            let ano = null;
+            for (let a = ANO + 1; a >= ANO - 8; a--) { const dt = new Date(a, mes - 1, dia); if (dt.getMonth() === mes - 1 && (ds < 0 || dt.getDay() === ds)) { ano = a; if (dt <= new Date(ANO + 1, 0, 1)) break; } }
+            if (!ano) continue;
+            const h = hora(quando);
+            const dataS = ano + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+            const corpo = it.querySelector('.accordion-collapse, .item-dropdown-content, [id^="collapse_"]');
+            const desc = corpo ? limpar([...corpo.querySelectorAll('span, p, li')].filter((n) => !n.querySelector('span, p, li')).map((n) => limpar(n.textContent)).join('\n')) : '';
+            const chave = dataS + '|' + (h || '') + '|' + sem(tituloT);
+            if (vistos.has(chave)) continue; vistos.add(chave);
+            const titulo = tirarCorte(tituloT);
+            const cortes = [cortado(tituloT) && 'título', cortado(localT) && 'local'].filter(Boolean);
+            itens.push({ url: ctx.origem + '/institucional/agenda/#' + encodeURIComponent(chave),
+              x: { ano, data: dataS, chave: { titulo, data: dataS, hora: h },
+                registro: { titulo: (cortado(tituloT) ? titulo + '…' : titulo).slice(0, 200), categoria: /sess[aã]o/i.test(titulo) ? 'Sessão' : /reuni[aã]o/i.test(titulo) ? 'Reunião' : /audi[eê]ncia/i.test(titulo) ? 'Audiência pública' : null,
+                  inicio: new Date(dataS + 'T' + (h || '00:00') + ':00-03:00').toISOString(), dia_inteiro: !h, local: localT ? tirarCorte(localT).replace(/^[a-z]\.?\s/, (x) => x.toUpperCase()).slice(0, 300) : null,
+                  descricao: desc && !vazio(desc) ? desc.slice(0, 4000) : null, andamento: dataS < HOJE() ? 'realizada' : 'prevista', situacao: cortes.length ? 'rascunho' : 'publicado' },
+                cortes, anoDeduzido: true } });
+          }
         }
         return itens;
       }

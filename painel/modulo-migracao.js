@@ -877,6 +877,15 @@
       if (error) throw error;
       return { situacao: 'importado', id: data.id, tabela: 'servicos', aviso: 'Entrou como rascunho na Carta de Serviços: complete requisitos, etapas e prazo e publique' };
     },
+    async agenda(x) {
+      const r = x.registro;
+      if (await existente('agenda', { titulo: r.titulo, inicio: r.inicio })) return { situacao: 'ja_existia' };
+      const { data, error } = await sb.from('agenda').insert(Object.assign({ orgao_id: org() }, r)).select('id').single();
+      if (error) throw error;
+      const avisos = ['Ano deduzido pelo dia da semana (o site antigo não mostra o ano): confira'];
+      if (x.cortes && x.cortes.length) avisos.unshift('O site antigo corta o ' + x.cortes.join(' e o ') + ': entrou como rascunho em Notícias › Agenda para completar');
+      return { situacao: 'importado', id: data.id, tabela: 'agenda', aviso: avisos.join(' · ') };
+    },
     async declaracao(x) {
       if (window.aplicavelPNTP && !window.aplicavelPNTP(x.secao)) return { situacao: 'ignorado', aviso: 'Item do PNTP que não vale para este tipo de órgão' };
       const d = x.declaracao;
@@ -935,10 +944,10 @@
   // O que entrou como rascunho (lei sem arquivo, página avulsa, vídeo sem título, atalho de serviço…)
   // pode ser publicado de uma vez, por seção ou tudo. Quem não pode ir ao ar (ex.: lei sem documento)
   // continua em rascunho e é contado à parte.
-  const TABELAS_PUBLICAVEIS = ['publicacoes', 'licitacoes', 'contratos', 'concursos', 'documentos_contas', 'noticias', 'obras', 'paginas', 'videos', 'servicos',
+  const TABELAS_PUBLICAVEIS = ['publicacoes', 'licitacoes', 'contratos', 'concursos', 'documentos_contas', 'noticias', 'obras', 'paginas', 'videos', 'servicos', 'agenda',
     'parlamentares', 'comissoes', 'proposicoes', 'sessoes', 'convenios'];
   const ONDE = { publicacoes: 'Publicações', licitacoes: 'Licitações', contratos: 'Contratos', concursos: 'Concursos e seletivos', documentos_contas: 'Planejamento e contas',
-    noticias: 'Notícias', obras: 'Obras', paginas: 'Páginas', videos: 'Notícias › Vídeos', servicos: 'Carta de Serviços',
+    noticias: 'Notícias', obras: 'Obras', paginas: 'Páginas', videos: 'Notícias › Vídeos', servicos: 'Carta de Serviços', agenda: 'Notícias › Agenda',
     parlamentares: 'Vereadores', comissoes: 'Comissões', proposicoes: 'Proposições', sessoes: 'Sessões', convenios: 'Convênios' };
   let caixaRascunhos = null, rascunhosPorSecao = null;
   const fatias = (l, n) => { const r = []; for (let i = 0; i < l.length; i += n) r.push(l.slice(i, i + n)); return r; };
