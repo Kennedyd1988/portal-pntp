@@ -838,7 +838,7 @@
     }
     if (nome && (nome.length < 5 || /\d/.test(nome))) nome = null;
     // Cargo: o trecho depois do CPF até a próxima vírgula / quantidade
-    resto = resto.replace(/^,\s*/, '').replace(/^CPF\s*(?:n[ºo°.]*\s*)?:?\s*[\d.*\-]+[\s-]*,?\s*/i, '');
+    for (let k = 0; k < 3 && /^[,\s]*CPF/i.test(resto); k++) resto = resto.replace(/^[,\s]*CPF\s*(?:n[ºo°.]*\s*)?:?\s*[\d.*\-]+[\s-]*,?\s*/i, '');
     const mu = resto.match(/lotad[oa]\s+n[ao]\s+(.+?)(?:,|\s+0?\d+\s*\()/i);
     if (mu) unidade = limpar(mu[1]).slice(0, 200);
     const mc = resto.match(/^(.+?)(?:,|\s+lotad|\s+0?\d+\s*\(|\s+(?:meia|uma|duas|tr[eê]s)\s+di[aá]ria)/i);
@@ -888,7 +888,7 @@
       if (m2 && MESES[m2[3]]) { const a = m2[4] ? Number(m2[4]) : aA; dIni = fmt(a, MESES[m2[3]], Number(m2[1])); dFim = fmt(a, MESES[m2[3]], Number(m2[2])); }
     }
     // "com deslocamento no dia 23 e retornando dia 29 de março"
-    const mr = cs.match(/retornando\s+(?:no\s+)?dia\s+(\d{1,2})(?:\s+de\s+([a-z]+))?(?:\s+de\s+(\d{4}))?/);
+    const mr = cs.match(/retorn\w*\s+(?:n?o\s+)?dia\s+(\d{1,2})(?:\s+de\s+([a-z]+))?(?:\s+de\s+(\d{4}))?/);
     if (dIni && mr) { const mm = mr[2] && MESES[mr[2]] ? MESES[mr[2]] : Number(dIni.slice(5, 7)); const f = fmt(mr[3] ? Number(mr[3]) : Number(dIni.slice(0, 4)), mm, Number(mr[1])); if (f >= dIni) dFim = f; }
     if (dIni && dFim === dIni && qtd > 1) {   // só a data de saída: o retorno pela quantidade de diárias
       const f = new Date(dIni + 'T12:00:00'); f.setDate(f.getDate() + Math.ceil(qtd) - 1); dFim = f.toISOString().slice(0, 10);
@@ -903,14 +903,14 @@
     }
     // Motivo: o último "para …" (que não seja "para que o mesmo possa se deslocar")
     let motivo = null;
-    const partes = t.split(/,\s*para\s+(?!que\b)/i);
+    const partes = t.split(/[,.]\s*para\s+(?!que\b)/i);
     if (partes.length > 1) motivo = limpar(partes.slice(1).join(', para ')).replace(/[.;,\s]+$/, '');
     if (!motivo || motivo.length < 3) { motivo = 'Custeio de despesas de deslocamento, alimentação e hospedagem'; avisos.push('Motivo não lido no ato: texto padrão'); }
     motivo = motivo.charAt(0).toUpperCase() + motivo.slice(1);
     // Valor: no PDF (quando houver) ou pela tabela de valores do cargo
     let valor_unitario = null, valor_total = null;
-    const vU = (pdf.match(/valor\s+unit[aá]rio\s*(?:de\s*)?(?:R\s*\$|RS)\s*([\d.]+,\d{2})/i) || [])[1];
-    const vT = (pdf.match(/(?:totaliza\w*|valor\s+total)\s*(?:o\s*)?(?:valor\s*)?(?:de\s*)?(?:R\s*\$|RS)\s*([\d.]+,\d{2})/i) || [])[1];
+    const vU = ((pdf + ' ' + t).match(/(?:valor\s+unit[aá]rio|di[aá]rias?\s+no\s+valor(?:\s+unit[aá]rio)?)\s*(?:de\s*)?(?:R\s*\$|RS)\s*([\d.]+,\d{2})/i) || [])[1];
+    const vT = ((pdf + ' ' + t).match(/(?:totaliza\w*|valor\s+total)\s*(?:o\s*)?(?:valor\s*)?(?:de\s*)?(?:R\s*\$|RS)\s*([\d.]+,\d{2})/i) || [])[1];
     if (vU) valor_unitario = valor(vU);
     if (vT) valor_total = valor(vT);
     if (valor_total == null && valor_unitario != null) valor_total = Math.round(valor_unitario * qtd * 100) / 100;
