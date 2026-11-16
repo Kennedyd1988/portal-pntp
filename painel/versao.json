@@ -1,8 +1,9 @@
 {
-  "versao": "0.41.2",
+  "versao": "0.41.3",
   "data": "2026-11-16",
   "notas": [
-    "Câmara: na página inicial, o bloco \"Gestão\" dá lugar ao bloco \"Vereadores\" (mesmo carrossel automático de 4): foto, nome parlamentar, partido e cargo na Mesa — Presidente primeiro, os demais da Mesa em seguida e depois os outros. Só vereadores em exercício; cada foto leva à página do vereador. Os gestores da Câmara continuam na página Gestores.",
+    "Câmara: na página inicial, bloco \"Vereadores\" (carrossel automático de 4: foto, nome parlamentar, partido e cargo na Mesa — Presidente primeiro, os demais da Mesa em seguida e depois os outros; só em exercício; cada foto leva à página do vereador) seguido do bloco \"Gestão\" (quando há gestores cadastrados).",
+    "Câmara: cartão \"Mesa Diretora\" nos acessos rápidos da página inicial; no Menu do site, as telas da Câmara (Vereadores, Mesa Diretora, Comissões, Proposições, Sessões, Votações, Atividade dos vereadores) ficam na lista de telas, e o menu padrão das Câmaras ganha o grupo \"Câmara\" com elas e a Agenda.",
     "Câmara: Mesa Diretora no site — página própria (#/mesa-diretora, com Presidente, vice-presidentes, secretários e tesoureiro, nessa ordem) e destaque no topo da página Vereadores. Vem do \"Cargo na Mesa\" de cada vereador em exercício (Atividade legislativa › Vereadores). Para pôr no menu: Menu do site › tela \"Mesa Diretora\".",
     "Migração (Plataforma B): agenda do site antigo → Agenda. O modelo da IntGest não mostra o ano (deduzido pelo dia da semana) e corta título e local: esses compromissos entram como rascunho para completar.",
     "Novo módulo Agenda (para todos os órgãos): compromissos e eventos — sessões, reuniões, audiências, solenidades, agenda do gestor. Cadastro em Notícias, banners e avisos › Agenda (mesmas permissões das notícias), com tipo, data e hora (ou dia inteiro), término, local, link de transmissão ou inscrição, descrição e andamento (previsto, realizado, adiado, cancelado). Rode o script 44 na Supabase.",

@@ -294,6 +294,7 @@
     // Câmara: os acessos da atividade legislativa vêm primeiro (PNTP 20.x).
     if (S.orgao.tipo === 'camara') acessos.splice(1, 0,
       ['servicos', 'Vereadores', 'Composição e biografias', 'parlamentares'],
+      ['servicos', 'Mesa Diretora', 'Presidente, vice e secretários', null, '#/mesa-diretora'],
       ['publicacoes', 'Projetos e proposições', 'Ementa, autoria e tramitação', 'proposicoes'],
       ['diario', 'Sessões', 'Pautas, atas, presenças e vídeos', 'sessoes'],
       ['licitacao', 'Votações', 'Voto de cada vereador', 'votacoes']);
@@ -343,7 +344,7 @@
     }
 
     if (pubs.some((g) => g.itens.length)) blocos.push(secaoPublicacoes(pubs));
-    // Câmara: no lugar do bloco "Gestão", os vereadores em exercício (Presidente, demais da Mesa e os outros).
+    // Câmara: bloco dos vereadores em exercício (Presidente, demais da Mesa e os outros), antes do bloco "Gestão".
     if (S.orgao.tipo === 'camara') {
       const { data: vs } = await sb.from('parlamentares').select('id, nome, nome_parlamentar, partido, cargo_mesa, foto_url, ordem')
         .eq('orgao_id', org()).eq('em_exercicio', true).order('ordem').order('nome').limit(60);
@@ -351,7 +352,8 @@
       if (vereadores.length) blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-vereadores' }, el('div', { class: 'limite' },
         el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-vereadores' }, 'Vereadores'), el('a', { href: '#/parlamentares' }, 'Todos os vereadores →')),
         carrosselGestores(vereadores, cartaoVereadorInicio, 'Vereadores'))));
-    } else if (gestores.length) {
+    }
+    if (gestores.length) {
       await S.carregarUnidades();
       blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-gestao' }, el('div', { class: 'limite' },
         el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-gestao' }, 'Gestão'), el('a', { href: '#/gestores' }, 'Todos os gestores →')),

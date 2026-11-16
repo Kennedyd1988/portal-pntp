@@ -22,7 +22,8 @@
   const ROTAS_CONSORCIO = [['/entes', 'Entes consorciados'], ['/documentos-consorcio', 'Documentos constitutivos do consórcio'], ['/rateio', 'Contratos de rateio'],
     ['/programa', 'Contratos de programa'], ['/dirigentes-atas', 'Dirigentes e atas da assembleia'], ['/orcamento-consorcio', 'Orçamento do consórcio']];
   // Câmara: telas da atividade legislativa que não estão nos destinos do PNTP.
-  const ROTAS_CAMARA = [['/mesa-diretora', 'Mesa Diretora']];
+  const ROTAS_CAMARA = [['/parlamentares', 'Vereadores'], ['/mesa-diretora', 'Mesa Diretora'], ['/comissoes', 'Comissões'], ['/proposicoes', 'Proposições'],
+    ['/sessoes', 'Sessões plenárias'], ['/votacoes', 'Votações'], ['/atividade-parlamentar', 'Atividade dos vereadores']];
   const rotas = () => P.estado.orgao && P.estado.orgao.tipo === 'consorcio' ? ROTAS.concat(ROTAS_CONSORCIO) : P.estado.orgao && P.estado.orgao.tipo === 'camara' ? ROTAS.concat(ROTAS_CAMARA) : ROTAS;
   const nomeRota = (r) => (rotas().find((x) => x[0] === r) || [r, r])[1];
 
@@ -39,6 +40,11 @@
     ['Serviços', '/servicos', [['Carta de Serviços ao Usuário', '/servicos'], ['Serviços on-line', '/servicos-online']]],
     ['Atendimento', '/contato', [['Ouvidoria', '/ouvidoria'], ['e-SIC', '/esic'], ['Contato', '/contato']]]
   ];
+
+  // Câmara: menu padrão com o grupo "Câmara" (atividade legislativa) logo depois do Início.
+  const MENU_CAMARA = ['Câmara', '/parlamentares', [['Vereadores', '/parlamentares'], ['Mesa Diretora', '/mesa-diretora'], ['Comissões', '/comissoes'],
+    ['Proposições', '/proposicoes'], ['Sessões plenárias', '/sessoes'], ['Votações', '/votacoes'], ['Agenda', '/agenda']]];
+  const menuPadrao = () => P.estado.orgao && P.estado.orgao.tipo === 'camara' ? [MENU_PADRAO[0], MENU_CAMARA].concat(MENU_PADRAO.slice(1)) : MENU_PADRAO;
 
   let perm = {};
   let conteiner = null;
@@ -164,11 +170,12 @@
         const r1 = await sb.from('menu_itens').delete().eq('orgao_id', org);
         if (r1.error) throw r1.error;
       }
-      const prin = MENU_PADRAO.map(([rotulo, destino], k) => ({ orgao_id: org, rotulo, tipo: 'interno', destino, ordem: (k + 1) * 10 }));
+      const padrao = menuPadrao();
+      const prin = padrao.map(([rotulo, destino], k) => ({ orgao_id: org, rotulo, tipo: 'interno', destino, ordem: (k + 1) * 10 }));
       const { data, error } = await sb.from('menu_itens').insert(prin).select('id, rotulo');
       if (error) throw error;
       const sub = [];
-      MENU_PADRAO.forEach(([rotulo, , filhosPadrao]) => {
+      padrao.forEach(([rotulo, , filhosPadrao]) => {
         if (!filhosPadrao) return;
         const pai = data.find((d) => d.rotulo === rotulo);
         filhosPadrao.forEach(([r, d], k) => sub.push({ orgao_id: org, pai_id: pai.id, rotulo: r, tipo: 'interno', destino: d, ordem: (k + 1) * 10 }));
