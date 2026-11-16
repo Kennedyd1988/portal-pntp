@@ -530,12 +530,18 @@
           const texto = p.subs.length ? p.linhas.filter((l) => l.startsWith('- [')) : (p.regra && anos.length ? p.linhas.filter((l) => !anos.some((b) => b.linhas.includes(l.replace(/^#+\s*/, ''))) && !/^(19|20)\d\d$/.test(l)) : p.linhas);
           if (texto.length) blocos.push(texto.join('\n\n'));
           for (const a of p.arquivos) if (texto.some((l) => l.includes('(' + a.url + ')'))) arquivos.push(a);
+          // Saúde/Educação: os planos e relatórios vão para o módulo (seção "Planos e relatórios"); o resto fica aqui.
+          const setorial = p.regra && (p.regra.doc === 'saude' || p.regra.doc === 'educacao');
+          const levado = (a) => setorial && tipoSetorial(p.regra.doc, a.titulo);
           for (const b of ficam) {
             if (b.ano && b.ano < ctx.de) continue;   // ano fora do período
-            if (!b.linhas.length) continue;
-            blocos.push('## ' + b.titulo + '\n\n' + b.linhas.join('\n\n'));
-            for (const a of b.arquivos) if (!arquivos.some((x) => x.url === a.url)) arquivos.push(a);
+            const fora = b.arquivos.filter(levado).map((a) => '(' + a.url + ')');
+            const linhas = b.linhas.filter((l) => !fora.some((f) => l.includes(f)));
+            if (!linhas.length || !linhas.some((l) => l.trim())) continue;
+            blocos.push('## ' + b.titulo + '\n\n' + linhas.join('\n\n'));
+            for (const a of b.arquivos) if (!levado(a) && !arquivos.some((x) => x.url === a.url)) arquivos.push(a);
           }
+          if (setorial && blocos.length) blocos[0] = blocos[0].split('\n\n').filter((l) => !p.arquivos.some((a) => levado(a) && l.includes('(' + a.url + ')'))).join('\n\n');
           const conteudo = blocos.filter((x) => x.trim()).join('\n\n');
           if (!conteudo.trim() || conteudo.replace(/[#\s]/g, '').length < 20) {
             itens.push({ url: p.url, x: { ignorar: foraDaqui.length ? 'Conteúdo levado para os módulos (declarações, PCA, planos, fiscais, acordos)' : 'Página vazia no site antigo', ano: null } });
@@ -791,13 +797,22 @@
     const texto = b.linhas.join(' ');
     const docs = b.arquivos;
     const soDeclaracao = docs.length && docs.every((d) => /declara/i.test(d.titulo));
-    if (r.secoes && NEGA.test(texto) && (!docs.length || soDeclaracao)) return 'declaracao';
+    // "A última transferência … ocorreu em 12/05/2026": houve no ano — não é declaração de inexistência do ano inteiro.
+    const houve = /ocorreu em \d|ocorreram em \d|recebid[oa]s? em \d/i.test(texto);
+    if (r.secoes && NEGA.test(texto) && !houve && (!docs.length || soDeclaracao)) return 'declaracao';
     if (r.doc === 'pca' && docs.length && !NEGA.test(texto)) return 'pca';
-    if ((r.doc === 'saude' || r.doc === 'educacao') && docs.length) return 'setorial';
+    if ((r.doc === 'saude' || r.doc === 'educacao') && docs.length && docs.every((d) => tipoSetorial(r.doc, d.titulo))) return 'setorial';
     if (r.doc === 'fiscal' && docs.length) return 'fiscal';
     if (r.doc === 'acordo' && docs.length && /coopera|parceria/i.test(texto)) return 'acordo';
     if (!docs.length && !texto.trim()) return 'vazio';
     return 'pagina';
+  }
+  // Plano/relatório de Saúde ou Educação pelo título; null = outro documento (ex.: estoque de medicamentos), que fica na página.
+  function tipoSetorial(area, titulo) {
+    const s = sem(titulo);
+    if (area === 'saude') return /relatorio anual de gest|\brag\b/.test(s) ? 'relatorio_gestao' : /quadrimestr|rdqa/.test(s) ? 'relatorio_quadrimestral'
+      : /programacao anual|\bpas\b/.test(s) ? 'programacao_anual' : /plano (municipal|anual)? ?de saude|\bpms\b/.test(s) ? 'plano_saude' : null;
+    return /plano (municipal|decenal|anual)? ?de educacao|\bpme\b/.test(s) ? 'plano_educacao' : /relatorio.*(educacao|monitoramento)/.test(s) ? 'relatorio_educacao' : null;
   }
   const textoDeclaracao = (b) => limpar(b.linhas.filter((l) => !/^- \[/.test(l) && NEGA.test(l)).join(' ') || b.linhas.join(' ')).replace(/^#+\s*/, '');
 
@@ -939,7 +954,7 @@
     const leg = t.match(/legendas?\s*:?\s*(.+)$/i);
     if (leg) {
       const nomes = {};
-      for (const x of leg[1].matchAll(/\b(I{1,3}|IV|V|VI{0,3})\s*[-–—]\s*([^;]+?)(?=;|\s+\b(?:I{1,3}|IV|V|VI{0,3})\s*[-–—]|\.\s|$)/g)) nomes[x[1]] = limpar(x[2]).replace(/\.$/, '');
+      for (const x of leg[1].matchAll(/\b(I{1,3}|IV|V|VI{0,3})\s*[-–—]\s*(.+?)(?=[;\s]+\b(?:I{1,3}|IV|V|VI{0,3})\s*[-–—]\s|$)/g)) nomes[x[1]] = limpar(x[2]).replace(/[.;\s]+$/, '');
       const cols = (t.match(/localidade\s+((?:\b(?:I{1,3}|IV|V|VI{0,3})\b\s*)+)/i) || [])[1];
       const ordem = cols ? cols.trim().split(/\s+/) : Object.keys(nomes);
       for (const [abr, re] of [['estado', /dentro do estado[^\d]*/i], ['fora_estado', /fora do estado[^\d]*/i]]) {
@@ -953,7 +968,7 @@
       if (i >= 0 && j >= 0) {
         const depois = t.slice(Math.max(i, j)).replace(/^fora do est\s?ado[^A-Za-zÀ-ú]*|^dentro do est\s?ado[^A-Za-zÀ-ú]*/i, '');
         for (const x of depois.matchAll(new RegExp("([A-Za-zÀ-ú][A-Za-zÀ-ú()/ ]{2,60}?)\\s+(?:R\\$\\s*)?" + V + "\\s+(?:R\\$\\s*)?" + V, 'g'))) {
-          const g = limpar(x[1]).replace(/^(e|de|do|da)\s+/i, '');
+          const g = limpar(x[1]).replace(new RegExp('^(?:d[oae]\\s+)?(?:' + UFS + ')\\s+'), '').replace(/^(e|de|do|da)\s+/i, '');
           if (/^art\b|^par[aá]grafo/i.test(g)) break;
           linhas.push({ grupo: g, abrangencia: i < j ? 'estado' : 'fora_estado', valor: valor(x[2]) });
           linhas.push({ grupo: g, abrangencia: i < j ? 'fora_estado' : 'estado', valor: valor(x[3]) });
@@ -1329,7 +1344,11 @@
             if (!x || !x.ignorar || !/inexist/.test(x.ignorar)) continue;
             const { m } = doc(p.html);
             const c = campos(m);
-            add(url, 'concursos', x.ano, limpar(pega(c, 'resumo') || pega(c, 'objeto')), 'Concursos');
+            const txt = limpar(pega(c, 'resumo') || pega(c, 'objeto'));
+            // "nos exercícios de 2020 a 2026, não foram realizados concursos": uma declaração por ano da faixa
+            const fx = sem(txt).match(/exercicios? de (\d{4}) (?:a|ate) (\d{4})/);
+            if (fx) for (let a = Math.max(Number(fx[1]), ctx.de); a <= Math.min(Number(fx[2]), ANO_ATUAL); a++) add(url + '#' + a, 'concursos', a, txt, 'Concursos');
+            else add(url, 'concursos', x.ano, txt, 'Concursos');
           }
         }
         return itens;
@@ -1392,12 +1411,10 @@
           const blocosA = anosDaPagina(p).concat(p.arquivos.length ? [{ url: p.url, titulo: p.titulo, ano: null, linhas: p.linhas, arquivos: p.arquivos }] : []);
           for (const b of blocosA) {
             for (const d of b.arquivos) {
-              const s = sem(d.titulo);
+              const tipo = tipoSetorial(area, d.titulo);
+              if (!tipo) continue;   // outros documentos (estoque de medicamentos…) ficam na página
               const ano = anoNoTexto(d.titulo) || b.ano || anoDe(d.data);
               if (!ano) continue;
-              const tipo = area === 'saude'
-                ? (/relatorio anual de gest|\brag\b/.test(s) ? 'relatorio_gestao' : /quadrimestr|rdqa/.test(s) ? 'relatorio_quadrimestral' : /programacao anual|\bpas\b/.test(s) ? 'programacao_anual' : /plano/.test(s) ? 'plano_saude' : 'outro')
-                : (/plano/.test(s) ? 'plano_educacao' : /relatorio/.test(s) ? 'relatorio_educacao' : 'outro');
               itens.push({ url: d.url, x: { ano, data: d.data, chave: { url: d.url },
                 registro: { area, tipo, titulo: (d.titulo.length >= 3 ? d.titulo : nomeProprio(p.titulo) + ' ' + ano).slice(0, 300), exercicio: ano, data_publicacao: d.data },
                 arquivos: [{ url: d.url, campo: 'arquivo_url' }] } });
