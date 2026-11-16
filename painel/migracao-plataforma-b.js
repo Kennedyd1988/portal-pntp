@@ -1128,7 +1128,8 @@
             const dTd = dsc ? dsc.querySelector('td[data-label^="Descri"]') : null;
             const linhas = dTd ? [...dTd.querySelectorAll('div, p, li')].filter((n) => !n.querySelector('div, p, li')).map((n) => limpar(n.textContent)).filter((t) => t.length > 1) : [];
             const descricao = (linhas.length ? linhas.join('\n') : limpar(dTd ? dTd.textContent : '')).slice(0, 4000);
-            const link = dTd ? [...dTd.querySelectorAll('a[href]')].map((a) => (a.getAttribute('href') || '').trim()).find((h) => /^https?:\/\/[^/]+\.[a-z]{2,}/i.test(h) && !/^https?:\/\/https?:/i.test(h) && !/\.gov\.br\.com/i.test(h)) : null;
+            // Os links da descrição no site antigo nem sempre batem com o serviço: vão para o texto, para conferir (não viram "serviço on-line").
+            const links = dTd ? [...new Set([...dTd.querySelectorAll('a[href]')].map((a) => (a.getAttribute('href') || '').trim()).filter((h) => /^https?:\/\/[^/]+\.[a-z]{2,}/i.test(h) && !/^https?:\/\/https?:/i.test(h) && !/\.gov\.br\.com/i.test(h)))] : [];
             let nome = nomeProprio(limpar(nomeTd.textContent)).slice(0, 200);
             if (nome.length < 3) nome = grupo;
             if ((nomes.has(sem(nome)) || !/\s/.test(nome)) && grupo && sem(grupo) !== sem(nome)) nome = (nome + ' (' + grupo + ')').slice(0, 200);
@@ -1136,9 +1137,10 @@
             nomes.add(sem(nome));
             const quem = td('Quem pode acessar'), hor = td('Horário de Atendimento'), local = td('Localização');
             itens.push({ url: url + '#' + encodeURIComponent(sem(nome).slice(0, 80)),
-              x: { ano: null, chave: { nome }, registro: { nome, categoria: grupo.slice(0, 100) || null, descricao: descricao || null, publico_alvo: util(quem) ? quem.slice(0, 500) : null,
+              x: { ano: null, chave: { nome }, registro: { nome, categoria: grupo.slice(0, 100) || null,
+                descricao: ([descricao].concat(links.length ? ['Links no site antigo (confira): ' + links.join(' · ')] : []).filter(Boolean).join('\n\n')).slice(0, 4000) || null, publico_alvo: util(quem) ? quem.slice(0, 500) : null,
                 horario: util(hor) && !/acesso permanente/i.test(hor) ? hor.slice(0, 200) : null, local_atendimento: util(local) ? local.slice(0, 300) : null,
-                forma_prestacao: link ? 'presencial_digital' : 'presencial', link_digital: link || null, situacao: 'rascunho' } } });
+                forma_prestacao: 'presencial', link_digital: null, situacao: 'rascunho' } } });
           }
         }
         return itens;
@@ -1146,12 +1148,13 @@
     },
     // ---------------------------------------------------------------
     // Páginas institucionais sem módulo próprio no portal → Páginas institucionais, como RASCUNHO para revisar.
+    // A "Cronologia" do modelo não vem: é um texto padrão da IntGest (história do Brasil), igual em todas as Câmaras.
     pagina: {
       nome: 'Páginas institucionais (estrutura, presidentes, cronologia…)', destino: 'Páginas institucionais (rascunho para revisar)', semPeriodo: true, pasta: 'paginas',
       listas: [],
       async listar(ctx) {
         const PAGS = [['/institucional/estrutura-organizacional/', 'Estrutura organizacional'], ['/parlamentares/galeria-presidentes/', 'Galeria de presidentes'],
-          ['/institucional/cronologia/', 'Cronologia'], ['/institucional/entenda/', 'Entenda o Legislativo'], ['/institucional/agenda/', 'Agenda'],
+          ['/institucional/entenda/', 'Entenda o Legislativo'], ['/institucional/agenda/', 'Agenda'],
           ['/transparencia/participacao-controle-social/links-uteis', 'Links úteis'], ['/lei-governo-digital/', 'Lei de Governo Digital']];
         const itens = [];
         for (const [cam, tituloPadrao] of PAGS) {
@@ -1273,13 +1276,13 @@
     // Beneficiário e cargo pela ementa: "… à Secretária EDUARDA CRISTINA SILVA MOREIRA."
     const mNome = em.match(/(?:^|\s)(?:ao|à|a|aos|às)\s+(.*?)\s*([A-ZÀ-Ú][A-ZÀ-Ú'´`.\s-]{5,}[A-ZÀ-Ú])\.?\s*$/);
     let nome = mNome ? limpar(mNome[2]) : null;
-    let cargo = mNome ? limpar(mNome[1].replace(/excelent[ií]ssim[oa]|senhora?|sr\.?a?|sra\.?|servidora?|\bdo\b|\bda\b/gi, ' ')) : null;
+    let cargo = mNome ? limpar(mNome[1].replace(/excelent[ií]ssim[oa]|senhora?|sr\.?a?|sra\.?|\bdo\b|\bda\b/gi, ' ').replace(/servidora?/i, 'Servidor(a)')) : null;
     if (!nome) {   // corpo: "Conceder ao Excelentíssimo Senhor Vereador NOME, …"
       const c2 = corpo.match(/conceder\s+(?:a|à|ao)\s+(.*?)[,;]\s*(?:\d|uma|um|duas|dois|tr[eê]s|quatro|meia)/i);
       if (c2) { const pal = c2[1].split(/\s+/); const i = pal.findIndex((p, k) => k > 0 && /^[A-ZÀ-Ú]/.test(p) && !/^(Senhora?|Excelent|Vereador|Presidente|Secret|Tesoureir|Servidor)/i.test(p)); nome = i >= 0 ? pal.slice(i).join(' ') : null; cargo = i > 0 ? pal.slice(0, i).join(' ').replace(/excelent[ií]ssim[oa]|senhora?|servidora?/gi, ' ') : null; }
     }
     cargo = limpar(cargo || '');
-    if (cargo.length < 2) { cargo = /vereador/i.test(em + corpo) ? 'Vereador(a)' : 'Não informado no ato'; if (cargo !== 'Vereador(a)') avisos.push('Cargo não informado no ato'); }
+    if (cargo.length < 2) { cargo = /vereador/i.test(em + corpo) ? 'Vereador(a)' : /servidora?\b/i.test(corpo) ? 'Servidor(a)' : 'Não informado no ato'; if (cargo === 'Não informado no ato') avisos.push('Cargo não informado no ato'); }
     else cargo = cargo.charAt(0).toUpperCase() + cargo.slice(1).toLowerCase().replace(/\bpresidente\b/, 'Presidente');
     if (!nome) { nome = 'Não informado no ato'; avisos.push('Beneficiário não lido: confira'); }
     // Valores
@@ -1294,8 +1297,10 @@
     let md = corpo.match(new RegExp('(?:cidade|munic[ií]pio|capital)\\s+(?:de\\s+)?' + NOME_LUGAR + '(?:\\s*[/-]\\s*|\\s+)?(' + UFS + ')?\\b'));
     if (!md) md = corpo.match(new RegExp('\\bem\\s+' + NOME_LUGAR + '\\s*[/-]?\\s*(' + UFS + ')\\b'));
     if (md) destino = limpar(md[1].replace(/\s+(nos?|nas?|dias?|para|com|em)$/i, '')) + (md[2] ? '/' + md[2] : '');
-    if (destino) destino = destino.replace(new RegExp('\\s+(' + UFS + ')$'), '/$1');
+    if (destino) destino = destino.replace(new RegExp('\\s*[-\\s]\\s*(' + UFS + ')$'), '/$1');
     const ufOrgao = String(((window.PNTP || {}).estado || {}).orgao && window.PNTP.estado.orgao.uf || 'RN').toUpperCase();
+    // Sem cidade no ato, mas com órgão da capital (FECAM, Assembleia, TCE): Natal/RN, com aviso (só para órgãos do RN).
+    if (!destino && ufOrgao === 'RN' && /fecam|assembleia legislativa|tribunal de contas do estado|\btce\b|natal/i.test(corpo)) { destino = 'Natal/RN'; avisos.push('Destino deduzido do ato (FECAM/Assembleia/TCE ficam em Natal): confira'); }
     let abrangencia = null;
     if (destino) { const uf = (destino.match(/\/([A-Z]{2})$/) || [])[1]; abrangencia = uf && uf !== ufOrgao ? 'fora_estado' : 'estado'; }
     else { destino = 'Não informado no ato'; avisos.push('Destino não informado no ato'); }
