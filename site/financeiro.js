@@ -554,7 +554,7 @@
   const ABR_DIARIA = { estado: 'No estado', fora_estado: 'Fora do estado', exterior: 'Exterior' };
   const ABR_TABELA = { estado: 'Dentro do estado', capital: 'Capital do estado', fora_estado: 'Fora do estado', brasilia: 'Brasília/DF', exterior: 'Exterior', outra: 'Outra' };
   function concedidas(caixa, prm) {
-    const CAMPOS = 'id, nome, cargo, unidade, destino, abrangencia, motivo, data_inicio, data_fim, exercicio, quantidade, valor_unitario, valor_total, data_pagamento, empenho_numero, ato_concessao, atualizado_em';
+    const CAMPOS = 'id, nome, cargo, unidade, destino, abrangencia, motivo, data_inicio, data_fim, exercicio, quantidade, valor_unitario, valor_total, data_pagamento, empenho_numero, ato_concessao, ato_url, atualizado_em';
     return U.listaAnual(caixa, prm, {
       base: '#/diarias/concedidas', declaracao: 'diarias_concedidas', abrirRecente: true, titulo: 'Diárias concedidas', rotuloAno: 'Exercício', nome: 'diarias', unidade: ['concessão', 'concessões'],
       vazio: 'Não há diárias publicadas até esta data.', anos: anosRpc('diarias'), ordem: 'data_inicio', crescente: false,
@@ -586,7 +586,8 @@
         ['empenho_numero', 'Empenho'], ['ato_concessao', 'Ato de concessão']],
       linha: (d) => el('tr', null, td('Beneficiário', [el('strong', null, d.nome), meta([d.cargo, d.unidade].filter(Boolean).join(' · '))], 'lic-obj'),
         td('Destino e motivo', [d.destino + (d.abrangencia ? ' (' + ABR_DIARIA[d.abrangencia].toLowerCase() + ')' : ''), meta(d.motivo)]),
-        td('Período', [dataBR(d.data_inicio) + (d.data_fim !== d.data_inicio ? ' a ' + dataBR(d.data_fim) : ''), meta(d.ato_concessao)], 'num'),
+        td('Período', [dataBR(d.data_inicio) + (d.data_fim !== d.data_inicio ? ' a ' + dataBR(d.data_fim) : ''),
+          d.ato_url ? el('a', { class: 'meta', href: d.ato_url, target: '_blank', rel: 'noopener' }, d.ato_concessao || 'Ato de concessão') : meta(d.ato_concessao)], 'num'),
         td('Diárias', numBR(d.quantidade), 'num'), td('Valor total', [moeda(d.valor_total), meta(d.valor_unitario !== null ? moeda(d.valor_unitario) + ' cada' : null)], 'num'), fimTd())
     });
   }

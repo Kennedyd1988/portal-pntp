@@ -1,10 +1,10 @@
 {
-  "versao": "0.39.0",
+  "versao": "0.40.0",
   "data": "2026-11-16",
   "notas": [
-    "Migração do site antigo: novo modelo \"Plataforma B (IntGest)\", reconhecido sozinho em sites de Câmara feitos pela IntGest (ex.: cmjosedapenha.rn.gov.br). Traz vereadores (com foto, biografia, partido e legislaturas), a Mesa Diretora atual, comissões com membros, reuniões das comissões (pauta e ata), proposições (texto, anexos, autor e tramitação), sessões plenárias (ata e vídeo), normas jurídicas (com a certidão de publicação como anexo; Lei Orgânica e Regimento Interno sempre), licitações com anexos, contratos (ligados à licitação já migrada), PPA/LDO/LOA/RGF, a tabela de valores das diárias, convênios e transferências, obras e perguntas frequentes.",
-    "Migração: respeita o período escolhido (vereadores: os com mandato no período). As portarias de concessão de diárias não vêm (Diárias segue no sistema de pessoal); a resolução que regulamenta as diárias vem e o PDF dela vira o link da norma na tabela de valores.",
-    "Migração: importe na ordem da tela (Vereadores antes da Mesa, das Comissões e das Proposições; Comissões antes das Reuniões; Normas antes das Diárias; Licitações antes dos Contratos) para as ligações saírem completas. O que faltar aparece nos avisos e é completado ao rodar de novo.",
-    "Migração: o modelo antigo passa a se chamar \"Plataforma A (King)\". A função migrar-site e o Coletor SOFT+ passam a copiar os arquivos que a IntGest guarda fora do domínio do órgão (republique a função migrar-site na Supabase)."
+    "Migração do site antigo (Plataforma B · IntGest): as portarias de concessão de diárias agora vêm para o módulo Diárias (não para Publicações). A ementa dá o beneficiário, o cargo e a quantidade; o PDF da portaria (escaneado) é lido no próprio navegador (OCR) para tirar valor, destino, datas e motivo. Vereador beneficiário fica ligado ao vereador. O que o ato não informa: destino \"Não informado no ato\"; datas = data da portaria + quantidade de diárias; valor (se o OCR não ler) pela tabela de valores do cargo — tudo com aviso para conferir.",
+    "Diárias: novo campo \"Link do ato\" (PDF da portaria), mostrado no site junto do número do ato. Rode o script 43 na Supabase.",
+    "Migração (Plataforma B): novas seções — Atos administrativos (portarias, decretos legislativos e editais → Publicações, sem as diárias), TV Câmara (vídeos do YouTube com o título do próprio YouTube), Notícias, Página inicial (brasão, contatos, redes sociais, Diário Oficial e banners), Organograma (setores, horário, e-mail e responsável → Estrutura), Carta de Serviços (rascunho), Páginas institucionais (galeria de presidentes, cronologia, Entenda o Legislativo, Lei de Governo Digital… como rascunho) e Declarações de inexistência (aba \"Declarações\" de cada página → declaração no item PNTP, por período).",
+    "Migração (Plataforma B): sessões plenárias passam a trazer a pauta (matérias do Expediente e da Ordem do Dia) e o arquivo da pauta, quando houver; rodar de novo completa a pauta das sessões já trazidas."
   ]
 }

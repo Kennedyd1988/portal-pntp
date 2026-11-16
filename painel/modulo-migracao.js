@@ -745,15 +745,21 @@
       const r = x.registro, avisos = [];
       const jaId = await existente('sessoes', { comissao_id: null, data: r.data, tipo: r.tipo, numero: r.numero });
       if (jaId) {
-        // Já existe: só completa a ata, se agora o site antigo tem e o portal não.
-        const ata = (x.arquivos || []).find((a) => a.campo === 'ata_url');
-        if (!ata) return { situacao: 'ja_existia' };
-        const { data: atual } = await sb.from('sessoes').select('ata_url').eq('id', jaId).maybeSingle();
-        if (atual && atual.ata_url) return { situacao: 'ja_existia' };
-        const f = await arquivoDe(ata, s, avisos);
-        if (!f.url) return { situacao: 'ja_existia', aviso: avisos.join(' · ') };
-        await sb.from('sessoes').update({ ata_url: f.url }).eq('id', jaId);
-        return { situacao: 'importado', id: jaId, tabela: 'sessoes', bytes: f.bytes, aviso: 'Ata completada' };
+        // Já existe: só completa o que falta (ata, arquivo da pauta e a pauta), se agora o site antigo tem e o portal não.
+        const { data: atual } = await sb.from('sessoes').select('ata_url, pauta_url, pauta').eq('id', jaId).maybeSingle();
+        if (!atual) return { situacao: 'ja_existia' };
+        const mud = {}, feitos = [];
+        let bytes = 0;
+        for (const a of x.arquivos || []) {
+          if (atual[a.campo]) continue;
+          const f = await arquivoDe(a, s, avisos);
+          if (f.url) { mud[a.campo] = f.url; bytes += f.bytes; feitos.push(a.campo === 'ata_url' ? 'ata' : 'arquivo da pauta'); }
+        }
+        if (!atual.pauta && r.pauta) { mud.pauta = r.pauta; feitos.push('pauta'); }
+        if (!feitos.length) return { situacao: 'ja_existia', aviso: avisos.join(' · ') || null };
+        const { error: eu } = await sb.from('sessoes').update(mud).eq('id', jaId);
+        if (eu) throw eu;
+        return { situacao: 'importado', id: jaId, tabela: 'sessoes', bytes, aviso: ['Completado(s): ' + feitos.join(', ')].concat(avisos).join(' · ') };
       }
       const reg = Object.assign({ orgao_id: org(), situacao: 'publicado' }, r);
       let bytes = 0;
@@ -817,6 +823,73 @@
       if (error) throw error;
       if (!f.url) avisos.push('Sem o inteiro teor no site antigo: entrou como rascunho');
       return { situacao: 'importado', id: data.id, tabela: 'convenios', bytes: f.bytes, aviso: avisos.join(' · ') || null };
+    }
+  });
+
+  // Plataforma B (0.40.0): diárias concedidas (portarias lidas por OCR), atos, vídeos da TV Câmara, Carta de Serviços,
+  // declarações de inexistência e a pauta das sessões.
+  Object.assign(GRAVAR, {
+    // Atos administrativos: mesmo caminho das normas (Publicações oficiais).
+    ato: (x, s) => GRAVAR.legislacao(x, s),
+    async diaria_concessao(x, s) {
+      const jaId = await existente('diarias', { ato_concessao: x.base.ato });
+      if (jaId) return { situacao: 'ja_existia', id: jaId, tabela: 'diarias' };
+      const avisos = [];
+      let urlPdf = null, bytes = 0, texto = '', ocr = false;
+      if (x.pdf) {
+        const c = await copiar(x.pdf, s.pasta);
+        if (c.url) { urlPdf = c.url; bytes = c.bytes || 0; } else avisos.push('PDF da portaria não copiado (' + c.erro + ')');
+        try { const t = await window.MIGRACAO_OCR.textoPdf(urlPdf || x.pdf); texto = t.texto; ocr = t.ocr; }
+        catch (e) { avisos.push('PDF da portaria não lido (' + (e.message || e) + '): só a ementa foi usada'); }
+      } else avisos.push('Sem o PDF da portaria no site antigo: só a ementa foi usada');
+      const { data: valores } = await sb.from('diarias_valores').select('grupo, abrangencia, valor').eq('orgao_id', org());
+      const r = x.lerTexto(texto, valores || []);
+      avisos.push(...r.avisos);
+      if (r.registro.valor_total == null) return { situacao: 'erro', aviso: avisos.join(' · ') + ' — cadastre esta diária à mão em Diárias' };
+      const reg = Object.assign({ orgao_id: org() }, r.registro, { ato_url: urlPdf || x.pdf || null });
+      if (r.nomeVereador) {
+        const p = (await acharVereador(r.registro.nome)) || (await acharVereador(r.nomeVereador));
+        if (p) reg.parlamentar_id = p.id; else avisos.push('Beneficiário parece vereador, mas não foi achado entre os vereadores do portal: ligue depois em Diárias');
+      }
+      const { data, error } = await sb.from('diarias').insert(reg).select('id').single();
+      if (error) throw error;
+      if (ocr) avisos.unshift('Lido por OCR: confira');
+      return { situacao: 'importado', id: data.id, tabela: 'diarias', bytes, aviso: avisos.join(' · ') || null };
+    },
+    async video(x) {
+      const r = x.registro;
+      if (await existente('videos', { url: r.url })) return { situacao: 'ja_existia' };
+      // O site antigo não tem título nem data: vêm do YouTube (data, quando está no título: "Sessão Ordinária … 28/08/2026").
+      let titulo = null;
+      try { const o = await (await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent(r.url))).json(); titulo = String(o.title || '').trim() || null; } catch (_) { /* sem título */ }
+      const m = (titulo || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      const reg = { orgao_id: org(), titulo: (titulo && titulo.length >= 3 ? titulo : 'Vídeo da TV Câmara').slice(0, 200), url: r.url, situacao: titulo ? 'publicado' : 'rascunho' };
+      if (m) reg.data = m[3] + '-' + m[2] + '-' + m[1];
+      const { data, error } = await sb.from('videos').insert(reg).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'videos', aviso: titulo ? (m ? null : 'Sem data no título do vídeo: entrou com a data de hoje, ajuste em Notícias › Vídeos')
+        : 'Vídeo sem título (o YouTube não respondeu): entrou como rascunho em Notícias › Vídeos' };
+    },
+    async servico(x) {
+      const r = x.registro;
+      if (await existente('servicos', { nome: r.nome })) return { situacao: 'ja_existia' };
+      const { data, error } = await sb.from('servicos').insert(Object.assign({ orgao_id: org() }, r)).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'servicos', aviso: 'Entrou como rascunho na Carta de Serviços: complete requisitos, etapas e prazo e publique' };
+    },
+    async declaracao(x) {
+      if (window.aplicavelPNTP && !window.aplicavelPNTP(x.secao)) return { situacao: 'ignorado', aviso: 'Item do PNTP que não vale para este tipo de órgão' };
+      const d = x.declaracao;
+      let q = sb.from('declaracoes_inexistencia').select('id').eq('orgao_id', org()).eq('secao', x.secao).eq('abrangencia', d.abrangencia).limit(1);
+      q = d.abrangencia === 'periodo' ? q.eq('data_inicio', d.data_inicio).eq('data_fim', d.data_fim) : q.eq('exercicio', d.exercicio);
+      if (d.numero) q = q.eq('numero', d.numero);
+      const { data: ja } = await q;
+      if (ja && ja[0]) return { situacao: 'ja_existia', id: ja[0].id, tabela: 'declaracoes_inexistencia' };
+      const sugerido = window.textoDeclaracaoPNTP ? window.textoDeclaracaoPNTP(x.secao, d) : '';
+      const texto = (sugerido && sugerido.length >= 10 ? sugerido : 'Não houve registros a divulgar ' + (window.periodoFrasePNTP ? window.periodoFrasePNTP(d) : '') + '.').slice(0, 500);
+      const { data, error } = await sb.from('declaracoes_inexistencia').insert(Object.assign({ orgao_id: org(), secao: x.secao, texto }, d)).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'declaracoes_inexistencia', aviso: 'Texto sugerido pelo portal (o do site antigo fica num PDF assinado que não abre fora dele): confira' };
     }
   });
 

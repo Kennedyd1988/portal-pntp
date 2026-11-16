@@ -232,7 +232,8 @@
         [{ k: 'data_inicio', r: 'Saída', t: 'data', ob: true }, { k: 'data_fim', r: 'Retorno', t: 'data', ob: true }, { k: 'quantidade', r: 'Nº de diárias', t: 'num', ob: true, ph: 'Ex.: 2,5' }],
         [{ k: 'valor_unitario', r: 'Valor da diária (R$)', t: 'num' }, { k: 'valor_total', r: 'Valor total (R$)', t: 'num', aj: 'Em branco: nº de diárias × valor da diária.' },
           { k: 'data_pagamento', r: 'Pago em', t: 'data' }],
-        [{ k: 'empenho_numero', r: 'Empenho', t: 'text', max: 30 }, { k: 'ato_concessao', r: 'Ato de concessão', t: 'text', max: 120, ph: 'Ex.: Portaria nº 98/2026' }]]]],
+        [{ k: 'empenho_numero', r: 'Empenho', t: 'text', max: 30 }, { k: 'ato_concessao', r: 'Ato de concessão', t: 'text', max: 120, ph: 'Ex.: Portaria nº 98/2026' }],
+        { k: 'ato_url', r: 'Link do ato (PDF da portaria)', t: 'url' }]]],
       validar: (d) => {
         const e = datasOk(d, 'data_inicio', 'data_fim', 'O retorno não pode ser antes da saída.'); if (e) return e;
         if (!(d.quantidade > 0)) return ['quantidade', 'Informe o número de diárias.'];

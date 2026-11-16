@@ -1,5 +1,5 @@
 // =====================================================================
-// Migração do site antigo — adaptador "Plataforma B (IntGest)" (0.39.0)
+// Migração do site antigo — adaptador "Plataforma B (IntGest)" (0.39.0; completado na 0.40.0)
 // Sites de Câmara Municipal feitos pela IntGest (rodapé "© IntGest",
 // arquivos em intellgest-sigl-media.s3.amazonaws.com), ex.: cmjosedapenha.rn.gov.br.
 //
@@ -12,7 +12,11 @@
 //   /transparencia/transparencia-administrativa/licitacoes/?exercicio=   → Licitações + anexos
 //   /transparencia/transparencia-administrativa/contratos/?ano=          → Contratos
 //   /transparencia/transparencia-administrativa/{ppa,ldo,loa,rgf}/export/?format=json&exercicio=
-//   /transparencia/transparencia-administrativa/diarias/     → só a tabela de valores (as portarias de concessão ficam de fora)
+//   /transparencia/transparencia-administrativa/diarias/     → tabela de valores + portarias de concessão (lidas por OCR) → Diárias
+//   /transparencia/transparencia-administrativa/atos/        → Atos administrativos → Publicações (sem as concessões de diária)
+//   /tv-camara/ · /listagem_noticias/ · página inicial        → Vídeos, Notícias, Aparência e contatos, Banners
+//   /institucional/organograma/ · /institucional/cartas-servicos/ · páginas institucionais → Estrutura, Carta de Serviços, Páginas
+//   aba "Declarações" das páginas da transparência          → Declarações de inexistência do portal (por período)
 //   /transparencia/convenios/{recebidos,transferencias-realizadas,acordos-sem-transferencia}/ e /convenios-arquivo/
 //   /institucional/obras-publicas/ · /institucional/faq/
 //
@@ -481,11 +485,33 @@
               const pa = await ctx.ler(it.url.replace(/resumo\/?$/, 'ata/'));
               if (pa.status === 200) ata = [...doc(pa.html).m.querySelectorAll('a[href]')].map((a) => abs(a.getAttribute('href'), it.url)).find(ehArquivo) || null;
             } catch (_) { /* sem ata */ }
+            // Pauta: as matérias da sessão (Expediente e Ordem do Dia), pela exportação JSON da aba "Proposições";
+            // e o arquivo da pauta, quando a aba "Pauta" tem um.
+            const base = it.url.replace(/resumo\/?$/, '');
+            let pauta = null, pautaUrl = null;
+            try {
+              const pj = await ctx.ler(base + 'proposicoes/export/?format=json');
+              const lista = pj.status === 200 ? JSON.parse(pj.html) : [];
+              if (Array.isArray(lista) && lista.length) {
+                const grupos = {};
+                for (const l of lista.sort((a, b) => (Number(a['Nº Ordem']) || 0) - (Number(b['Nº Ordem']) || 0))) {
+                  const g = limpar(l['Fluxo da sessão'] || l['Fluxo da sessao']) || 'Matérias';
+                  const autor = limpar(l['Autor principal']);
+                  (grupos[g] = grupos[g] || []).push((l['Nº Ordem'] ? l['Nº Ordem'] + '. ' : '') + limpar(l['Tipo']) + ' nº ' + limpar(l['Número']) + '/' + limpar(l['Ano']) +
+                    (autor ? ' (' + nomeProprio(autor) + ')' : '') + ' — ' + limpar(l['Ementa']));
+                }
+                pauta = Object.entries(grupos).map(([g, ls]) => g + ':\n' + ls.join('\n')).join('\n\n').slice(0, 20000);
+              }
+            } catch (_) { /* sem pauta */ }
+            try {
+              const pp = await ctx.ler(base + 'pauta/1/');
+              if (pp.status === 200) pautaUrl = [...doc(pp.html).m.querySelectorAll('a[href]')].map((a) => abs(a.getAttribute('href'), it.url)).find(ehArquivo) || null;
+            } catch (_) { /* sem arquivo de pauta */ }
             return { ano: anoDe(dt), data: dt, chave: { data: dt, tipo, numero },
-              registro: { tipo, numero, data: dt, hora: hora(ab) || it.hora, video_url: yt ? 'https://www.youtube.com/watch?v=' + yt : null,
+              registro: { tipo, numero, data: dt, hora: hora(ab) || it.hora, video_url: yt ? 'https://www.youtube.com/watch?v=' + yt : null, pauta,
                 andamento: /cancel/.test(st) ? 'cancelada' : /adiad/.test(st) ? 'adiada' : /nao iniciada/.test(st) && dt >= HOJE() ? 'prevista' : 'realizada',
                 local: null },
-              titulo: t, arquivos: ata ? [{ url: ata, campo: 'ata_url' }] : [] };
+              titulo: t, arquivos: [ata && { url: ata, campo: 'ata_url' }, pautaUrl && { url: pautaUrl, campo: 'pauta_url' }].filter(Boolean) };
           }, 'sessão ' + it.url.replace(ctx.origem, ''));
         }
         return [];
@@ -494,8 +520,8 @@
     // ---------------------------------------------------------------
     // 20.2 Normas jurídicas municipais (leis, resoluções, decretos legislativos…) → Publicações oficiais.
     // Lei Orgânica e Regimento Interno vêm sempre (estão em vigor, de qualquer ano).
-    // Portarias de concessão de diárias ficam de fora (Diárias segue no sistema de pessoal); a resolução que
-    // regulamenta as diárias vem (é a norma da tabela de valores, PNTP 7.2).
+    // Portarias de concessão de diárias ficam de fora daqui (vêm para o módulo Diárias, seção "diaria_concessao");
+    // a resolução que regulamenta as diárias vem (é a norma da tabela de valores, PNTP 7.2).
     legislacao: {
       nome: 'Normas jurídicas (leis, resoluções, Lei Orgânica, Regimento…)', destino: 'Publicações oficiais', pntp: true, pasta: 'publicacoes',
       listas: [],
@@ -544,7 +570,7 @@
             }, 'norma ' + url.replace(ctx.origem, ''));
           }
         }
-        if (diarias) ctx.log(diarias + ' portaria(s) de diárias deixada(s) de fora (Diárias segue no sistema de pessoal).');
+        if (diarias) ctx.log(diarias + ' portaria(s) de diárias deixada(s) de fora daqui: vêm pela seção "Diárias concedidas".');
         return [];
       }
     },
@@ -689,9 +715,9 @@
       }
     },
     // ---------------------------------------------------------------
-    // 7.2 Diárias: só a tabela de valores (por nível/cargo e destino) com a norma. As portarias de concessão não vêm.
+    // 7.2 Diárias: a tabela de valores (por nível/cargo e destino) com a norma. As portarias de concessão vêm na seção "diaria_concessao".
     diaria: {
-      nome: 'Diárias — tabela de valores (sem as portarias)', destino: 'Diárias › Valores das diárias', semPeriodo: true, pasta: 'diarias',
+      nome: 'Diárias — tabela de valores', destino: 'Diárias › Valores das diárias', semPeriodo: true, pasta: 'diarias',
       listas: [],
       async listar(ctx) {
         const url = ctx.origem + '/transparencia/transparencia-administrativa/diarias/';
@@ -719,7 +745,7 @@
           ordem += 10;
         }
         const total = (m.textContent.match(/Total de\s*(\d+)\s*registros/i) || [])[1];
-        if (total) ctx.log(total + ' portaria(s) de concessão de diárias deixada(s) de fora (Diárias segue no sistema de pessoal).');
+        if (total) ctx.log(total + ' portaria(s) de concessão de diárias: vêm pela seção "Diárias concedidas".');
         return itens;
       }
     },
@@ -850,8 +876,462 @@
         }
         return itens;
       }
+    },
+    // ---------------------------------------------------------------
+    // 7.1 Diárias concedidas: as portarias de concessão (lista da página Diárias) → módulo Diárias.
+    // A ementa traz beneficiário, cargo e quantidade; o PDF (escaneado) traz valor, destino, datas e motivo:
+    // ele é lido na importação (texto do PDF ou OCR) — veja lerPortariaDiaria e GRAVAR.diaria_concessao.
+    diaria_concessao: {
+      nome: 'Diárias concedidas (portarias de concessão)', destino: 'Diárias › Diárias concedidas', pntp: true, pasta: 'diarias',
+      listas: [],
+      async listar(ctx) {
+        const caminho = '/transparencia/transparencia-administrativa/diarias/';
+        await paginas(ctx, caminho, {}, async (m) => {
+          const t = m.querySelector('table.table-listagem-conteudo-interno');
+          let novas = 0, noPeriodo = 0;
+          for (const tr of t ? t.querySelectorAll('tbody tr') : []) {
+            const td = (l) => limpar((tr.querySelector('td[data-label="' + l + '"]') || {}).textContent);
+            const numero = td('Número'), ementa = td('Ementa');
+            const dataAto = data(td('Data')), dataPub = data(td('Data Publicação'));
+            const a = tr.querySelector('a[href]');
+            if (!numero || !ementa) continue;
+            novas++;
+            const ano = anoDe(dataAto || dataPub);
+            if (ano && ano < ctx.de) continue;
+            noPeriodo++;
+            const pdf = a ? abs(a.getAttribute('href'), ctx.origem) : null;
+            const url = pdf || ctx.origem + caminho + '#' + encodeURIComponent(numero + '-' + ano);
+            if (ctx.jaFeito && await ctx.jaFeito(url)) continue;
+            const ato = 'Portaria nº ' + numero + '/' + ano;
+            await ctx.emitir(url, { ano, data: dataAto, chave: { ato_concessao: ato },
+              base: { numero, ano, ementa, dataAto: dataAto || dataPub, ato }, pdf: pdf && /\.pdf(\?|$)/i.test(pdf) ? pdf : null,
+              arquivos: pdf && /\.pdf(\?|$)/i.test(pdf) ? [{ url: pdf, campo: 'ato_url' }] : [],
+              lerTexto: (texto, valores) => lerPortariaDiaria(texto, { numero, ano, ementa, dataAto: dataAto || dataPub, ato }, valores) });
+          }
+          return novas > 0 && noPeriodo > 0;   // do mais novo para o mais antigo: para quando sai do período
+        });
+        return [];
+      }
+    },
+    // ---------------------------------------------------------------
+    // Atos administrativos (portarias, decretos legislativos, editais…) → Publicações oficiais.
+    // As concessões de diária ficam de fora daqui (vão para Diárias, na seção acima).
+    ato: {
+      nome: 'Atos administrativos (portarias, decretos, editais)', destino: 'Publicações oficiais', pntp: true, pasta: 'publicacoes',
+      listas: [],
+      async listar(ctx) {
+        const caminho = '/transparencia/transparencia-administrativa/atos/';
+        let diarias = 0;
+        const links = [];
+        await paginas(ctx, caminho, {}, (m) => {
+          let novas = 0, noPeriodo = 0;
+          for (const tr of m.querySelectorAll('table.table-listagem-conteudo-interno tbody tr')) {
+            const td = (l) => limpar((tr.querySelector('td[data-label="' + l + '"]') || {}).textContent);
+            const a = tr.querySelector('a[href*="/detalhes/"]'); if (!a) continue;
+            novas++;
+            const dt = data(td('Número / Data'));
+            if (dt && anoDe(dt) < ctx.de) continue;
+            noPeriodo++;
+            if (/di[aá]ria/i.test(td('Tipo') + ' ' + td('Classificação'))) { diarias++; continue; }
+            const u = abs(a.getAttribute('href'), ctx.origem); if (!links.includes(u)) links.push(u);
+          }
+          return novas > 0 && noPeriodo > 0;
+        });
+        for (const url of links) {
+          await detalhe(ctx, url, async (html) => {
+            const { m } = doc(html);
+            const c = kv(m);
+            const tipoT = pega(c, 'tipo do ato') || titulo(m).replace(/\s*n[ºo°].*$/i, '');
+            if (!tipoT) return { vazio: true };
+            const texto = limpar(pega(c, 'texto', 'ementa'));
+            if (/di[aá]ria/i.test(tipoT) || /^concess[aã]o de .*di[aá]ria/i.test(texto)) return { ignorar: 'Concessão de diária: vai para Diárias', ano: Number(pega(c, 'ano')) || null };
+            const s = sem(tipoT);
+            const tipo = /decreto legislativo/.test(s) ? 'decreto_legislativo' : /portaria/.test(s) ? 'portaria' : /edital/.test(s) ? 'edital'
+              : /resolucao/.test(s) ? 'resolucao' : /decreto/.test(s) ? 'decreto' : /instrucao normativa/.test(s) ? 'instrucao_normativa' : 'ato';
+            const numero = (pega(c, 'numero') || (titulo(m).match(/n[ºo°]\s*(\S+)/i) || [])[1] || '').slice(0, 30) || null;
+            const dt = data(pega(c, 'data publicacao')) || data(pega(c, 'data'));
+            const ano = Number(pega(c, 'ano')) || anoDe(dt);
+            // Anexo: abre no visualizador do site (o arquivo real está dentro dele)
+            let arq = null;
+            for (const a of m.querySelectorAll('a[href]')) {
+              const u = await resolver(ctx, abs(a.getAttribute('href'), url));
+              if (u && ehArquivo(u)) { arq = u; break; }
+            }
+            return { ano, data: dt, chave: { tipo, numero, ano },
+              registro: { tipo, numero, ano, data_publicacao: dt || (ano + '-01-01'), ementa: texto.length >= 5 ? texto.slice(0, 4000) : (tipoT + ' ' + (numero || '') + '/' + ano).trim(),
+                vigencia: 'vigente', observacao: tipo === 'ato' || tipo === 'edital' ? 'Tipo no site antigo: ' + tipoT : null },
+              arquivos: arq ? [{ url: arq, campo: 'arquivo_url' }] : [], anexos: [] };
+          }, 'ato ' + url.replace(ctx.origem, ''));
+        }
+        if (diarias) ctx.log(diarias + ' concessão(ões) de diária deixada(s) de fora daqui: vêm pela seção "Diárias concedidas".');
+        return [];
+      }
+    },
+    // ---------------------------------------------------------------
+    // TV Câmara: vídeos do YouTube (página /tv-camara/, paginada; inclui os da página inicial).
+    // O site antigo não dá título nem data: o título vem do YouTube na importação (e a data, quando está no título).
+    video: {
+      nome: 'TV Câmara (vídeos do YouTube)', destino: 'Notícias › Vídeos', semPeriodo: true, pasta: 'videos',
+      listas: [],
+      async listar(ctx) {
+        const ids = [];
+        const pegar = (html) => { for (const x of html.matchAll(/(?:youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?v=|live\/|shorts\/)|youtu\.be\/)([\w-]{11})/g)) if (!ids.includes(x[1])) ids.push(x[1]); };
+        await paginas(ctx, '/tv-camara/', {}, (m, pag, d) => { const antes = ids.length; pegar(d.documentElement.innerHTML); return ids.length > antes || pag === 1; });
+        try { pegar((await ctx.ler(ctx.origem + '/')).html); } catch (_) { /* só a TV Câmara */ }
+        return ids.map((id, i) => ({ url: ctx.origem + '/tv-camara/#' + id,
+          x: { ano: null, chave: { video: id }, registro: { url: 'https://www.youtube.com/watch?v=' + id }, ordem: i } }));
+      }
+    },
+    // ---------------------------------------------------------------
+    // Notícias (/listagem_noticias/). Lê a lista e cada notícia (título, data, texto e imagem de capa).
+    noticia: {
+      nome: 'Notícias', destino: 'Notícias', pntp: false, pasta: 'noticias',
+      listas: [],
+      async listar(ctx) {
+        const links = [];
+        for (const cam of ['/listagem_noticias/', '/noticias/']) {
+          await paginas(ctx, cam, {}, (m) => {
+            const l = linksDe(m, /noticia/i, ctx.origem).filter((u) => u && !/listagem_noticias\/?(\?|$)|\/noticias\/?(\?|$)|page=/.test(u) && u.startsWith(ctx.origem) && !links.includes(u));
+            links.push(...l); return l.length > 0;
+          });
+          if (links.length) break;
+        }
+        if (!links.length) { ctx.log('O site antigo não tem notícias publicadas.'); return []; }
+        for (const url of links) {
+          await detalhe(ctx, url, (html) => {
+            const { d, m } = doc(html);
+            const tit = limpar((d.querySelector('meta[property="og:title"]') || {}).content || '') || titulo(m);
+            const ps = [...m.querySelectorAll('p, li')].filter((p) => !p.closest('nav, form, aside, footer')).map((p) => limpar(p.textContent)).filter((t) => t.length > 2);
+            const texto = ps.join('\n\n').slice(0, 20000);
+            const dt = data(m.textContent) || dataExtenso(m.textContent);
+            if (!tit || tit.length < 5 || texto.length < 20 || !dt) return { vazio: true };
+            const capa = (d.querySelector('meta[property="og:image"]') || {}).content || ((m.querySelector('img[src*="/media/"]') || {}).getAttribute ? m.querySelector('img[src*="/media/"]').getAttribute('src') : null);
+            const capaUrl = capa ? abs(capa, url) : null;
+            return { ano: anoDe(dt), data: dt, chave: { titulo: tit.slice(0, 200), data: dt },
+              registro: { titulo: tit.slice(0, 200), resumo: texto.slice(0, 280) + (texto.length > 280 ? '…' : ''), conteudo: texto, categoria: null, publicado_em: dt + 'T09:00:00-03:00' },
+              arquivos: capaUrl && /^https?:/.test(capaUrl) && !/novo_portal_static|appconfig/.test(capaUrl) ? [{ url: capaUrl, campo: 'capa_url' }] : [] };
+          }, 'notícia ' + url.replace(ctx.origem, ''));
+        }
+        return [];
+      }
+    },
+    // ---------------------------------------------------------------
+    // Página inicial: brasão, contatos e redes sociais (rodapé), link do Diário Oficial e banners (se houver).
+    inicio: {
+      nome: 'Página inicial (brasão, contatos, redes sociais, banners)', destino: 'Aparência e contatos, Banners', semPeriodo: true, pasta: 'inicio',
+      listas: [],
+      async listar(ctx) {
+        const r = await ctx.ler(ctx.origem + '/');
+        const d = new DOMParser().parseFromString(r.html, 'text/html');
+        d.querySelectorAll('script,style,noscript').forEach((x) => x.remove());
+        const itens = [];
+        const chaveUrl = (tipo, u) => ctx.origem + '/#inicio-' + tipo + ':' + u;
+        // Banners: imagens de carrossel guardadas na pasta de arquivos do site (não fotos de vereadores nem ícones fixos)
+        let ordem = 10; const vistos = new Set();
+        for (const c of d.querySelectorAll('.swiper, .carousel, .slick-slider, .owl-carousel, [class*="banner"], [id*="banner"], [class*="slide"], [id*="carousel"]')) {
+          if (c.closest('footer')) continue;
+          for (const img of c.querySelectorAll('img[src]')) {
+            const u = abs(img.getAttribute('data-src') || img.getAttribute('src'), ctx.origem);
+            if (!u || vistos.has(u) || !/intellgest-sigl-media\.s3\.amazonaws\.com\/media\//.test(u) || /\/(parlamentar|autor|appconfig|logotipo)\//.test(u) || /novo_portal_static/.test(u)) continue;
+            vistos.add(u);
+            const a = img.closest('a[href]');
+            let link = a ? abs(a.getAttribute('href'), ctx.origem) : null;
+            if (link === ctx.origem + '/' || (link && /^javascript:|#$/.test(link))) link = null;
+            const alt = limpar(img.getAttribute('alt') || img.getAttribute('title') || '');
+            itens.push({ url: chaveUrl('banner', u), x: { ano: null, tipo: 'banner', chave: { imagem: u },
+              registro: { titulo: (alt.length >= 3 ? alt : 'Destaque ' + vistos.size).slice(0, 160), link_url: link, ordem, ativo: true }, arquivos: [{ url: u, campo: 'imagem_url' }] } });
+            ordem += 10;
+          }
+        }
+        // Contatos (bloco "Fale conosco" do rodapé)
+        const rod = d.querySelector('footer') || d.body;
+        const pedacos = []; const tw = d.createTreeWalker(rod, 4); while (tw.nextNode()) { const t = limpar(tw.currentNode.nodeValue); if (t) pedacos.push(t); }
+        const ct = {};
+        const mail = rod.querySelector('a[href^="mailto:"]');
+        if (mail) ct.email = limpar(mail.getAttribute('href').replace(/^mailto:/i, '').split('?')[0]).toLowerCase();
+        const tel = rod.querySelector('a[href^="tel:"]');
+        const telT = tel ? limpar(tel.textContent) : (pedacos.find((t) => /\(?\d{2}\)?\s?\d{4,5}-?\d{4}/.test(t)) || '');
+        if (telT && !/n[aã]o informad/i.test(telT)) ct.telefone = (telT.match(/\(?\d{2}\)?\s?\d{4,5}-?\d{4}/) || [telT])[0];
+        const end = pedacos.find((t) => /^(rua|r\.|av\.?|avenida|pra[cç]a|travessa|tv\.|rodovia|estrada)\b/i.test(t));
+        if (end) ct.endereco = nomeProprio(end).slice(0, 300);
+        const cep = pedacos.join(' ').match(/CEP:?\s*(\d{2}\.?\d{3}-?\d{3})/i);
+        if (cep) ct.cep = cep[1].replace('.', '');
+        const ih = pedacos.findIndex((t) => /hor[aá]rio de funcionamento|hor[aá]rio de atendimento/i.test(t));
+        if (ih >= 0 && pedacos[ih + 1] && /\d/.test(pedacos[ih + 1])) ct.horario = pedacos[ih + 1].slice(0, 200);
+        const REDES = [['facebook', /facebook\.com|fb\.com/i], ['instagram', /instagram\.com/i], ['youtube', /youtube\.com\/(?:@|c\/|channel\/|user\/)/i], ['whatsapp', /wa\.me|whatsapp\.com/i]];
+        for (const a of d.querySelectorAll('a[href]')) {
+          const h = (a.getAttribute('href') || '').trim();
+          for (const [k, re] of REDES) if (!ct[k] && re.test(h) && !/sharer|share|intent|plugins|intgest/i.test(h)) ct[k] = h;
+        }
+        const diario = [...d.querySelectorAll('a[href]')].find((a) => /di[aá]rio oficial/i.test(limpar(a.textContent + ' ' + (a.getAttribute('title') || ''))));
+        if (diario) { const u = abs(diario.getAttribute('href'), ctx.origem); if (u && !u.startsWith(ctx.origem)) ct.diario_oficial_url = u; }
+        const logo = [...d.querySelectorAll('img[src]')].find((i) => /\/appconfig\//.test(i.getAttribute('src') || '') || /logo_camara|bras[aã]o/i.test(i.getAttribute('alt') || ''));
+        const logoUrl = logo ? abs(logo.getAttribute('src'), ctx.origem) : null;
+        if (Object.keys(ct).length || logoUrl) itens.push({ url: chaveUrl('contatos', 'rodape'), x: { ano: null, tipo: 'contatos', chave: { contatos: true }, registro: ct,
+          arquivos: logoUrl ? [{ url: logoUrl, campo: 'brasao_url' }] : [] } });
+        return itens;
+      }
+    },
+    // ---------------------------------------------------------------
+    // Organograma: setores com horário, e-mail, atribuições e responsável → Estrutura (unidades e responsáveis).
+    secretaria: {
+      nome: 'Organograma (setores e responsáveis)', destino: 'Institucional › Estrutura organizacional', semPeriodo: true, pasta: 'institucional',
+      listas: [],
+      async listar(ctx) {
+        const r = await ctx.ler(ctx.origem + '/institucional/organograma/');
+        if (r.status !== 200) return [];
+        const { m } = doc(r.html);
+        const itens = [];
+        for (const li of m.querySelectorAll('#organograma li')) {
+          if (li.querySelector('ul li')) continue;   // só os setores (folhas)
+          const caixa = li.querySelector('span');
+          if (!caixa) continue;
+          const nome = limpar([...caixa.childNodes].filter((n) => n.nodeType === 3).map((n) => n.nodeValue).join(' '));
+          if (nome.length < 3) continue;
+          const reg = { nome: nomeProprio(nome).slice(0, 200) };
+          let resp = null;
+          const corpo = caixa.parentElement && caixa.parentElement.querySelector('div[style*="overflow"]');
+          for (const b of corpo ? corpo.children : []) {
+            const t = limpar(b.textContent);
+            if (b.querySelector('[role="img"]')) resp = util(t.replace(/foto de .*?indispon[ií]vel/i, ''));
+            else if (/^atendimento/i.test(t)) reg.horario_atendimento = util(t.replace(/^atendimento\s*/i, '')) ? t.replace(/^atendimento\s*/i, '').slice(0, 200) : null;
+            else if (/^atribui/i.test(t)) { const v = t.replace(/^atribui[cç][oõ]es\s*/i, ''); if (v.length > 3) reg.competencias = v.slice(0, 4000); }
+            else if (/^e-?mail/i.test(t)) { const a = b.querySelector('a[href^="mailto:"]'); if (a) reg.email = a.getAttribute('href').replace(/^mailto:/i, '').toLowerCase(); }
+          }
+          itens.push({ url: ctx.origem + '/institucional/organograma/#' + encodeURIComponent(sem(nome)),
+            x: { ano: null, chave: { nome }, registro: reg, gestor: resp && !/n[aã]o informad/i.test(resp) ? { nome: nomeProprio(resp).slice(0, 200), cargo: ('Responsável — ' + reg.nome).slice(0, 150) } : null, arquivos: [] } });
+        }
+        return itens;
+      }
+    },
+    // ---------------------------------------------------------------
+    // Carta de Serviços: cada serviço (com o grupo, público, horário, local e descrição) → Carta de Serviços, como RASCUNHO.
+    servico: {
+      nome: 'Carta de Serviços', destino: 'Carta de Serviços (rascunho para revisar)', semPeriodo: true, pasta: 'servicos',
+      listas: [],
+      async listar(ctx) {
+        const url = ctx.origem + '/institucional/cartas-servicos/';
+        const r = await ctx.ler(url);
+        if (r.status !== 200) return [];
+        const { m } = doc(r.html);
+        const itens = [], nomes = new Set();
+        for (const sec of m.querySelectorAll('[id^="servico_"]')) {
+          const grupo = nomeProprio(limpar((sec.querySelector('.titulo-base') || {}).textContent));
+          for (const tr of sec.querySelectorAll('tr')) {
+            const nomeTd = tr.querySelector('td[data-label="Serviço"]');
+            if (!nomeTd) continue;
+            const td = (l) => limpar((tr.querySelector('td[data-label="' + l + '"]') || {}).textContent);
+            // A descrição fica na linha seguinte à do cabeçalho "Descrição / Procedimento"
+            let dsc = tr.nextElementSibling; while (dsc && !dsc.querySelector('td[data-label^="Descri"]')) { if (dsc.querySelector('td[data-label="Serviço"]')) { dsc = null; break; } dsc = dsc.nextElementSibling; }
+            const dTd = dsc ? dsc.querySelector('td[data-label^="Descri"]') : null;
+            const linhas = dTd ? [...dTd.querySelectorAll('div, p, li')].filter((n) => !n.querySelector('div, p, li')).map((n) => limpar(n.textContent)).filter((t) => t.length > 1) : [];
+            const descricao = (linhas.length ? linhas.join('\n') : limpar(dTd ? dTd.textContent : '')).slice(0, 4000);
+            const link = dTd ? [...dTd.querySelectorAll('a[href]')].map((a) => (a.getAttribute('href') || '').trim()).find((h) => /^https?:\/\/[^/]+\.[a-z]{2,}/i.test(h) && !/^https?:\/\/https?:/i.test(h) && !/\.gov\.br\.com/i.test(h)) : null;
+            let nome = nomeProprio(limpar(nomeTd.textContent)).slice(0, 200);
+            if (nome.length < 3) nome = grupo;
+            if (nomes.has(sem(nome))) nome = (nome + ' (' + grupo + ')').slice(0, 200);
+            if (nomes.has(sem(nome))) continue;
+            nomes.add(sem(nome));
+            const quem = td('Quem pode acessar'), hor = td('Horário de Atendimento'), local = td('Localização');
+            itens.push({ url: url + '#' + encodeURIComponent(sem(nome).slice(0, 80)),
+              x: { ano: null, chave: { nome }, registro: { nome, categoria: grupo.slice(0, 100) || null, descricao: descricao || null, publico_alvo: util(quem) ? quem.slice(0, 500) : null,
+                horario: util(hor) && !/acesso permanente/i.test(hor) ? hor.slice(0, 200) : null, local_atendimento: util(local) ? local.slice(0, 300) : null,
+                forma_prestacao: link ? 'presencial_digital' : 'presencial', link_digital: link || null, situacao: 'rascunho' } } });
+          }
+        }
+        return itens;
+      }
+    },
+    // ---------------------------------------------------------------
+    // Páginas institucionais sem módulo próprio no portal → Páginas institucionais, como RASCUNHO para revisar.
+    pagina: {
+      nome: 'Páginas institucionais (estrutura, presidentes, cronologia…)', destino: 'Páginas institucionais (rascunho para revisar)', semPeriodo: true, pasta: 'paginas',
+      listas: [],
+      async listar(ctx) {
+        const PAGS = [['/institucional/estrutura-organizacional/', 'Estrutura organizacional'], ['/parlamentares/galeria-presidentes/', 'Galeria de presidentes'],
+          ['/institucional/cronologia/', 'Cronologia'], ['/institucional/entenda/', 'Entenda o Legislativo'], ['/institucional/agenda/', 'Agenda'],
+          ['/transparencia/participacao-controle-social/links-uteis', 'Links úteis'], ['/lei-governo-digital/', 'Lei de Governo Digital']];
+        const itens = [];
+        for (const [cam, tituloPadrao] of PAGS) {
+          if (ctx.parar()) break;
+          const url = ctx.origem + cam;
+          let r; try { r = await ctx.ler(url); } catch (e) { ctx.log(cam + ': ' + e.message); continue; }
+          if (r.status !== 200) continue;
+          const { m } = doc(r.html);
+          m.querySelectorAll('form, select, button, input, nav, [role="tablist"], .sigl-terceiro').forEach((x) => x.remove());
+          const tit = titulo(m) || tituloPadrao;
+          const linhas = [], arquivos = [];
+          for (const n of m.querySelectorAll('h1, h2, h3, h4, h5, p, li, dt, dd, a[href]')) {
+            if (n.tagName === 'A') {
+              const u = abs(n.getAttribute('href'), url);
+              if (!ehArquivo(u) || arquivos.some((a) => a.url === u)) continue;
+              const t = limpar(n.textContent) || 'Documento';
+              arquivos.push({ url: u, titulo: t.slice(0, 150) }); linhas.push('- [' + t.replace(/[[\]]/g, '') + '](' + u + ')');
+              continue;
+            }
+            if (n.closest('a') || [...n.children].some((c) => /^(P|LI|H\d|DD|DT)$/.test(c.tagName))) continue;
+            const t = limpar(n.textContent);
+            if (!t || t === tit || vazio(t) || /^[-:]+$/.test(t)) continue;
+            const l = /^H\d$/.test(n.tagName) ? '## ' + t : t;
+            if (linhas[linhas.length - 1] !== l) linhas.push(l);
+          }
+          const conteudo = linhas.join('\n\n');
+          if (conteudo.replace(/[#\s]/g, '').length < 80 || /^nenhum .*cadastrad/i.test(conteudo)) { itens.push({ url, x: { ignorar: tituloPadrao + ': vazia no site antigo', ano: null } }); continue; }
+          const slug = sem(tituloPadrao).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70);
+          itens.push({ url, x: { ano: null, chave: { slug }, registro: { titulo: (tit.length >= 3 ? nomeProprio(tit) : tituloPadrao).slice(0, 160), slug, conteudo: conteudo.slice(0, 100000) }, arquivosTexto: arquivos } });
+        }
+        return itens;
+      }
+    },
+    // ---------------------------------------------------------------
+    // Declarações de inexistência (aba "Declarações" de cada página) → Declarações do portal, no item PNTP de cada página.
+    // O site antigo mostra só o período (o texto fica num PDF assinado que não abre fora dele): o texto é o sugerido pelo portal.
+    declaracao: {
+      nome: 'Declarações de inexistência (por página e período)', destino: 'Declarações de cada página do PNTP', pntp: true, pasta: 'declaracoes',
+      listas: [],
+      async listar(ctx) {
+        const T = '/transparencia/transparencia-administrativa/';
+        const PAGS = [[T + 'transparencia-selecao-publica/', 'concursos'], [T + 'transparencia-estagiarios/', 'pessoal_estagiarios'],
+          [T + 'transparencia-licitantes-sancionados/', 'sancionados'], ['/transparencia/transparencia/pca/', 'pca'], [T + 'licitacoes/', 'licitacoes_licitacoes'],
+          [T + 'contratos/', 'contratos'], [T + 'diarias/', 'diarias_concedidas'], [T + 'rgf/', 'planejamento_rgf'], [T + 'loa/', 'planejamento_loa'],
+          [T + 'ldo/', 'planejamento_ldo'], [T + 'ppa/', 'planejamento_ppa'], [T + 'extra/folha/', 'pessoal_remuneracao'], [T + 'extra/ordem/', 'ordem_cronologica'],
+          ['/transparencia/convenios/recebidos/', 'convenios_recebidas'], ['/transparencia/convenios/transferencias-realizadas/', 'convenios_realizadas'],
+          ['/transparencia/convenios/acordos-sem-transferencia/', 'convenios_acordos'], ['/institucional/obras-publicas/', 'obras'],
+          ['/institucional/obras-publicas/paralisadas/', 'obras_paralisadas'], ['/transparencia/portal-transparencia-receitas/', 'receitas_arrecadacao'],
+          ['/transparencia/portal-transparencia-despesas/', 'despesas_empenhos'], ['/atividade-legislativa/comissoes/', 'legislativo_comissoes'],
+          [T + 'prestacao-de-contas/', 'planejamento_relatorio_gestao']];
+        const itens = [];
+        for (const [cam, secao] of PAGS) {
+          if (ctx.parar()) break;
+          let r; try { r = await ctx.ler(ctx.origem + cam); } catch (e) { ctx.log(cam + ': ' + e.message); continue; }
+          if (r.status !== 200 || !/Periodo:/i.test(r.html)) continue;
+          const { m } = doc(r.html);
+          const vistos = new Set();
+          for (const p of m.querySelectorAll('p')) {
+            const per = limpar(p.textContent).match(/^Periodo:\s*(\d{2}\/\d{2}\/\d{4})\s*(?:à|a|-)\s*(\d{2}\/\d{2}\/\d{4})/i);
+            if (!per) continue;
+            const ini = data(per[1]), fim = data(per[2]);
+            if (!ini || !fim || fim < ini) continue;
+            const k = secao + ini + fim; if (vistos.has(k)) continue; vistos.add(k);
+            const d = periodoDeclaracao(ini, fim);
+            itens.push({ url: ctx.origem + cam + '#declaracao-' + ini + '-' + fim, x: { ano: anoDe(ini), chave: { secao, ini, fim }, secao, declaracao: d, pagina: cam } });
+          }
+        }
+        return itens;
+      }
     }
   };
+
+  // Período de uma declaração: mês, bimestre, trimestre, quadrimestre, semestre ou ano quando bate certinho; senão "período".
+  function periodoDeclaracao(ini, fim) {
+    const [ai, mi, di] = ini.split('-').map(Number), [af, mf, df] = fim.split('-').map(Number);
+    const ultimo = new Date(af, mf, 0).getDate();
+    if (ai === af && di === 1 && df === ultimo) {
+      const n = mf - mi + 1;
+      const tam = { 1: ['mes', 1], 2: ['bimestre', 2], 3: ['trimestre', 3], 4: ['quadrimestre', 4], 6: ['semestre', 6], 12: ['ano', 12] }[n];
+      if (tam && (mi - 1) % tam[1] === 0) return tam[0] === 'ano' ? { abrangencia: 'ano', exercicio: ai } : { abrangencia: tam[0], exercicio: ai, numero: (mi - 1) / tam[1] + 1 };
+    }
+    return { abrangencia: 'periodo', data_inicio: ini, data_fim: fim, exercicio: ai };
+  }
+
+  // ---------------- portaria de concessão de diária ----------------
+  // base: { numero, ano, ementa, dataAto, ato }; texto: do PDF (ou OCR); valores: tabela de valores do portal (para o valor que faltar).
+  // Devolve { registro, avisos, nomeVereador }.
+  const NUM_EXT = { meia: 0.5, uma: 1, um: 1, duas: 2, dois: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10 };
+  const UFS = 'AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO';
+  function lerPortariaDiaria(textoBruto, base, valores) {
+    const avisos = [];
+    const em = limpar(base.ementa);
+    // Corpo do ato: do "Art. 1º"/"RESOLVE" até o "PUBLIQUE-SE"
+    const tudo = limpar(String(textoBruto || '').replace(/-\n/g, ''));
+    const ini = tudo.search(/art\.?\s*1|resolve/i);
+    let corpo = ini >= 0 ? tudo.slice(ini) : '';
+    const fimC = corpo.search(/publique-se|cumpra-se|registre-se/i); if (fimC > 0) corpo = corpo.slice(0, fimC);
+    corpo = corpo.replace(/^resolve\s*:?\s*/i, '').trim();
+    const cs = sem(corpo);
+    // Quantidade: "Concessão de 2 (duas) diárias" (ementa) ou "02 (duas) diárias"/"uma diária" (corpo)
+    let qtd = null;
+    const qn = (em.match(/(\d+(?:[.,]\d+)?)\s*(?:\([^)]*\)\s*)?(?:e meia\s*)?di[aá]rias?/i) || corpo.match(/(\d+(?:[.,]\d+)?)\s*(?:\([^)]*\)\s*)?di[aá]rias?/i) || [])[1];
+    if (qn) qtd = Number(qn.replace(',', '.')) + (/\d\s*(?:\([^)]*\)\s*)?e meia/i.test(em) ? 0.5 : 0);
+    if (!qtd) { const w = (sem(em + ' ' + corpo).match(/\b(meia|uma|um|duas|dois|tres|quatro|cinco|seis|sete|oito|nove|dez)\s+(?:e meia\s+)?diarias?\b/) || [])[1]; if (w) qtd = NUM_EXT[w]; }
+    if (!qtd) { qtd = 1; avisos.push('Quantidade não informada: entrou 1 diária'); }
+    // Beneficiário e cargo pela ementa: "… à Secretária EDUARDA CRISTINA SILVA MOREIRA."
+    const mNome = em.match(/(?:^|\s)(?:ao|à|a|aos|às)\s+(.*?)\s*([A-ZÀ-Ú][A-ZÀ-Ú'´`.\s-]{5,}[A-ZÀ-Ú])\.?\s*$/);
+    let nome = mNome ? limpar(mNome[2]) : null;
+    let cargo = mNome ? limpar(mNome[1].replace(/excelent[ií]ssim[oa]|senhora?|sr\.?a?|sra\.?|servidora?|\bdo\b|\bda\b/gi, ' ')) : null;
+    if (!nome) {   // corpo: "Conceder ao Excelentíssimo Senhor Vereador NOME, …"
+      const c2 = corpo.match(/conceder\s+(?:a|à|ao)\s+(.*?)[,;]\s*(?:\d|uma|um|duas|dois|tr[eê]s|quatro|meia)/i);
+      if (c2) { const pal = c2[1].split(/\s+/); const i = pal.findIndex((p, k) => k > 0 && /^[A-ZÀ-Ú]/.test(p) && !/^(Senhora?|Excelent|Vereador|Presidente|Secret|Tesoureir|Servidor)/i.test(p)); nome = i >= 0 ? pal.slice(i).join(' ') : null; cargo = i > 0 ? pal.slice(0, i).join(' ').replace(/excelent[ií]ssim[oa]|senhora?|servidora?/gi, ' ') : null; }
+    }
+    cargo = limpar(cargo || '');
+    if (cargo.length < 2) { cargo = /vereador/i.test(em + corpo) ? 'Vereador(a)' : 'Não informado no ato'; if (cargo !== 'Vereador(a)') avisos.push('Cargo não informado no ato'); }
+    else cargo = cargo.charAt(0).toUpperCase() + cargo.slice(1).toLowerCase().replace(/\bpresidente\b/, 'Presidente');
+    if (!nome) { nome = 'Não informado no ato'; avisos.push('Beneficiário não lido: confira'); }
+    // Valores
+    const vU = (corpo.match(/valor\s+unit[aá]rio\s*(?:de\s*)?(?:R\s*\$|RS)\s*([\d.]+,\d{2})/i) || [])[1];
+    const vT = (corpo.match(/totaliza\w*\s*(?:o\s*)?(?:valor\s*)?(?:de\s*)?(?:R\s*\$|RS)\s*([\d.]+,\d{2})/i) || corpo.match(/valor\s+total\s*(?:de\s*)?(?:R\s*\$|RS)\s*([\d.]+,\d{2})/i) || [])[1];
+    let valor_unitario = vU ? valor(vU) : null, valor_total = vT ? valor(vT) : null;
+    if (valor_total == null && valor_unitario != null) valor_total = Math.round(valor_unitario * qtd * 100) / 100;
+    if (valor_unitario == null && valor_total != null) valor_unitario = Math.round(valor_total / qtd * 100) / 100;
+    // Destino: "na cidade de Natal/RN", "a cidade de Portalegre RN", "em Natal RN"
+    const NOME_LUGAR = "([A-ZÀ-Ú][\\wÀ-ú'.-]*(?:\\s+(?:d[aeo]s?\\s+)?[A-ZÀ-Ú][\\wÀ-ú'.-]*){0,4})";
+    let destino = null;
+    let md = corpo.match(new RegExp('(?:cidade|munic[ií]pio|capital)\\s+(?:de\\s+)?' + NOME_LUGAR + '(?:\\s*[/-]\\s*|\\s+)?(' + UFS + ')?\\b'));
+    if (!md) md = corpo.match(new RegExp('\\bem\\s+' + NOME_LUGAR + '\\s*[/-]?\\s*(' + UFS + ')\\b'));
+    if (md) destino = limpar(md[1].replace(/\s+(nos?|nas?|dias?|para|com|em)$/i, '')) + (md[2] ? '/' + md[2] : '');
+    if (destino) destino = destino.replace(new RegExp('\\s+(' + UFS + ')$'), '/$1');
+    const ufOrgao = String(((window.PNTP || {}).estado || {}).orgao && window.PNTP.estado.orgao.uf || 'RN').toUpperCase();
+    let abrangencia = null;
+    if (destino) { const uf = (destino.match(/\/([A-Z]{2})$/) || [])[1]; abrangencia = uf && uf !== ufOrgao ? 'fora_estado' : 'estado'; }
+    else { destino = 'Não informado no ato'; avisos.push('Destino não informado no ato'); }
+    // Valor que faltou: pela tabela de valores do cargo (no Estado ou fora, conforme o destino)
+    if (valor_total == null) {
+      const abr = abrangencia || 'estado';
+      const linha = (valores || []).filter((v) => v.abrangencia === abr).find((v) => sem(v.grupo).split(/[^a-z]+/).some((p) => p.length > 3 && sem(cargo).includes(p)));
+      if (linha) { valor_unitario = Number(linha.valor); valor_total = Math.round(valor_unitario * qtd * 100) / 100; avisos.push('Valor não lido no PDF: calculado pela tabela de valores (' + linha.grupo + '), confira'); }
+      else { valor_total = null; avisos.push('Valor não lido no PDF e sem valor na tabela para o cargo'); }
+    }
+    // Datas da viagem: "nos dias 07 e 08 de abril de 2026", "no dia 24 de abril", "nos dias 19 a 20/06/2024", "nos dias 04 e 05"
+    const atoD = base.dataAto || (base.ano + '-01-01');
+    const [aA, mA] = atoD.split('-').map(Number);
+    let dIni = null, dFim = null;
+    const mdias = cs.match(/\bn?[oa]s?\s+dias?\s+((?:\d{1,2}\s*(?:,|\be\b|\ba\b|\bate\b|-)\s*)*\d{1,2})(?:\s*(?:de\s+)?([a-z]+)(?:\s+de\s+(\d{4}))?|\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{2,4}))?)?/);
+    if (mdias) {
+      const dias = mdias[1].match(/\d{1,2}/g).map(Number).filter((x) => x >= 1 && x <= 31);
+      let mes = mdias[2] && MESES[mdias[2]] ? MESES[mdias[2]] : (mdias[4] ? Number(mdias[4]) : mA);
+      let ano = mdias[3] ? Number(mdias[3]) : (mdias[5] ? Number(mdias[5].length === 2 ? '20' + mdias[5] : mdias[5]) : aA);
+      if (!mdias[3] && !mdias[5] && mes < mA - 6) ano = aA + 1;   // dezembro → janeiro
+      if (dias.length && mes >= 1 && mes <= 12) {
+        const f = (d) => ano + '-' + String(mes).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        dIni = f(Math.min(...dias)); dFim = f(Math.max(...dias));
+      }
+    }
+    if (!dIni) {   // "de 19/06/2024 a 20/06/2024"
+      const ds = (corpo.match(/\d{2}\/\d{2}\/\d{4}/g) || []).map(data).filter(Boolean).sort();
+      if (ds.length) { dIni = ds[0]; dFim = ds[ds.length - 1]; }
+    }
+    const longe = (d) => Math.abs((new Date(d) - new Date(atoD)) / 864e5) > 150;
+    if (!dIni || !dFim || dFim < dIni || longe(dIni) || isNaN(new Date(dIni)) || isNaN(new Date(dFim))) {
+      dIni = atoD;
+      const f = new Date(atoD + 'T12:00:00'); f.setDate(f.getDate() + Math.max(0, Math.ceil(qtd) - 1));
+      dFim = f.toISOString().slice(0, 10);
+      avisos.push('Datas da viagem não informadas no ato: saída na data da portaria e retorno pela quantidade de diárias');
+    }
+    // Motivo: a finalidade ("para participar…", "com propósito de…"); senão o artigo inteiro
+    let motivo = null;
+    const mm = corpo.match(/(?:com\s+(?:o\s+)?prop[oó]sito\s+(?:de\s+)?|para\s+)((?:participa|tratar|ir\b|pegar|utilizar|acompanhar|resolver|realizar|reuni|assistir|comparecer|entregar|buscar|representar|visitar|audi[eê]ncia|capacita|curso|encontro|semin)[^]*?)(?:\.\s|$)/i);
+    if (mm && mm[1].length >= 8) motivo = limpar(mm[1]).replace(/[.;,\s]+$/, '');
+    if (!motivo && corpo.length > 20) motivo = corpo.replace(/^art\.?\s*1[ºo°]?\s*[-–—.:]?\s*/i, '');
+    if (!motivo || motivo.length < 3) { motivo = 'Custeio de despesas de deslocamento, alimentação e hospedagem'; avisos.push('Motivo não lido no ato: texto padrão'); }
+    motivo = motivo.charAt(0).toUpperCase() + motivo.slice(1);
+    const vereador = /vereador|presidente/i.test(cargo + ' ' + em);
+    return {
+      avisos, nomeVereador: vereador ? nome : null, faltouCorpo: !corpo,
+      registro: { nome: nomeProprio(nome).slice(0, 200), cargo: cargo.slice(0, 150), destino: destino.slice(0, 200), abrangencia, motivo: motivo.slice(0, 1000),
+        data_inicio: dIni, data_fim: dFim, quantidade: qtd, valor_unitario, valor_total, ato_concessao: base.ato.slice(0, 120) }
+    };
+  }
+
 
   window.MIGRACAO_ADAPTADORES = window.MIGRACAO_ADAPTADORES || {};
   window.MIGRACAO_ADAPTADORES.plataforma_b = {
@@ -862,6 +1342,6 @@
     hostsArquivos: ['intellgest-sigl-media.s3.amazonaws.com'],
     secoes: SECOES,
     maiorId: () => 0,
-    util: { data, dataExtenso, valor, kv, limpar }
+    util: { data, dataExtenso, valor, kv, limpar, lerPortariaDiaria, periodoDeclaracao }
   };
 })();
