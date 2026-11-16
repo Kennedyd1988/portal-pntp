@@ -752,6 +752,14 @@
         linhas.push(/^H[34]$/.test(n.tagName) ? '### ' + t : t);
       }
     }
+    // Endereços soltos fora de parágrafos (texto direto na página)
+    for (const su of (f.textContent.match(/https?:\/\/[^\s"'<>]+\.(?:pdf|docx?|xlsx?|odt|ods|zip)\b/gi) || [])) {
+      const u = abs(su, base);
+      if (!u || arquivos.some((a) => a.url === u)) continue;
+      const tt = decodeURIComponent(u.split('/').pop()).replace(/\.\w+$/, '').replace(/[_+]/g, ' ').slice(0, 150) || 'Documento';
+      arquivos.push({ url: u, titulo: tt, data: null });
+      linhas.push('- [' + tt.replace(/[[\]]/g, '') + '](' + u + ')');
+    }
     return { linhas: [...new Set(linhas)], arquivos };
   }
   // Lê /pagina/1…N (e as subpáginas). Guardado por alguns minutos: várias seções usam a mesma leitura.
