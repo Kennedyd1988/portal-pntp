@@ -14,7 +14,7 @@
 (function () {
   'use strict';
   const S = window.SITE;
-  const { sb, el, dataBR } = S;
+  const { sb, el, dataBR, normalizar } = S;
   const R = S.rotas;
   const U = S.util;
   const org = () => S.orgao.id;
@@ -53,14 +53,38 @@
   const cartaoVereador = (p) => el('a', { class: 'cartao cartao-vereador', href: '#/parlamentar/' + p.id },
     p.foto_url ? el('img', { src: p.foto_url, alt: 'Foto de ' + nomeParl(p), loading: 'lazy', class: 'foto-vereador' }) : el('span', { class: 'foto-vereador foto-vazia', 'aria-hidden': 'true' }, nomeParl(p).slice(0, 1)),
     el('strong', null, nomeParl(p)), el('span', { class: 'meta' }, [p.partido, p.cargo_mesa].filter(Boolean).join(' · ')));
+  // Mesa Diretora (0.41.0): vereadores em exercício com cargo na Mesa, na ordem dos cargos
+  // (Presidente, vice-presidentes, secretários, tesoureiro, demais).
+  function ordemMesa(c) {
+    const s = normalizar(c || ''), n = Number((s.match(/(\d)/) || [])[1]) || 1;
+    return /vice/.test(s) ? 10 + n : /presiden/.test(s) ? 1 : /secretari/.test(s) ? 20 + n : /tesoureir/.test(s) ? 30 + n : /suplent/.test(s) ? 50 + n : 40;
+  }
+  async function mesaAtual() {
+    return (await parlamentares()).filter((p) => p.em_exercicio && p.cargo_mesa).sort((a, b) => ordemMesa(a.cargo_mesa) - ordemMesa(b.cargo_mesa) || (a.ordem || 0) - (b.ordem || 0));
+  }
+  const cartaoMesa = (p) => el('a', { class: 'cartao cartao-vereador', href: '#/parlamentar/' + p.id },
+    p.foto_url ? el('img', { src: p.foto_url, alt: 'Foto de ' + nomeParl(p), loading: 'lazy', class: 'foto-vereador' }) : el('span', { class: 'foto-vereador foto-vazia', 'aria-hidden': 'true' }, nomeParl(p).slice(0, 1)),
+    el('span', { class: 'etiqueta' }, p.cargo_mesa), el('strong', null, nomeParl(p)), p.partido ? el('span', { class: 'meta' }, p.partido) : null);
+  R['mesa-diretora'] = async function (main) {
+    if (!so(main)) return;
+    S.titulo('Mesa Diretora'); trilha(['Mesa Diretora']);
+    const mesa = await mesaAtual();
+    pagina(main, el('h1', null, 'Mesa Diretora'),
+      el('p', { class: 'sub' }, 'Vereadores que dirigem os trabalhos da Câmara na sessão legislativa atual.'),
+      mesa.length ? el('div', { class: 'grade-vereadores' }, mesa.map(cartaoMesa)) : el('p', { class: 'vazio' }, 'Composição da Mesa Diretora em atualização.'),
+      el('p', { class: 'mt-2' }, el('a', { href: '#/parlamentares' }, 'Todos os vereadores →')));
+  };
   R.parlamentares = async function (main) {
     if (!so(main)) return;
     S.titulo('Vereadores'); trilha(['Vereadores']);
     const lista = await parlamentares();
+    const mesa = await mesaAtual();
     const atuais = lista.filter((p) => p.em_exercicio), outros = lista.filter((p) => !p.em_exercicio);
     const leg = atuais.find((p) => p.legislatura_inicio);
     pagina(main, el('h1', null, 'Vereadores'),
       el('p', { class: 'sub' }, 'Composição da Câmara' + (leg ? ' na legislatura ' + leg.legislatura_inicio + (leg.legislatura_fim ? '–' + leg.legislatura_fim : '') : '') + ', com partido, cargo na Mesa Diretora e biografia de cada vereador.'),
+      mesa.length ? el('section', { class: 'mb-3', 'aria-labelledby': 'tit-mesa' }, el('h2', { id: 'tit-mesa' }, 'Mesa Diretora'), el('div', { class: 'grade-vereadores' }, mesa.map(cartaoMesa))) : null,
+      mesa.length ? el('h2', null, 'Vereadores em exercício') : null,
       atuais.length ? el('div', { class: 'grade-vereadores' }, atuais.map(cartaoVereador)) : el('p', { class: 'vazio' }, 'Composição em atualização.'),
       el('p', { class: 'mt-2' }, S.linkDestino('atividade_parlamentar', 'Atividade de cada vereador (autoria, relatoria, presenças, diárias e emendas) →')),
       outros.length ? el('section', { class: 'mt-3' }, el('h2', null, 'Fora de exercício e legislaturas anteriores'), el('div', { class: 'grade-vereadores' }, outros.map(cartaoVereador))) : null);

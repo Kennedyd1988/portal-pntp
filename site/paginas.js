@@ -1253,6 +1253,7 @@
       ['Portal da Transparência', null, '#/transparencia', 'transparencia'],
       ['Obras paralisadas', null, '#/obras/paralisadas', ''], ['Proteção de dados (LGPD)', null, '#/lgpd', 'privacidade encarregado'],
       ['Dados abertos', null, '#/dados-abertos', 'api csv json'], ['Vídeos', null, '#/videos', 'galeria multimidia youtube'], ['Agenda', null, '#/agenda', 'eventos compromissos calendario reunioes audiencias'], ['Conselhos municipais', null, '#/conselhos', 'conselho fundeb saude assistencia social atas'], ['Acessibilidade', null, '#/acessibilidade', 'libras contraste'], ['Contato', null, '#/contato', 'telefone email endereco']];
+    if (S.orgao.tipo === 'camara') fixas.push(['Mesa Diretora', null, '#/mesa-diretora', 'presidente vice secretario camara vereadores']);
     const cat = window.DESTINOS_PNTP.filter((d) => S.destino(d[0])).map((d) => [d[1], d[0], null, '']);
     return cat.concat(fixas.filter((f) => !S.oculta(f[2]))).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
   }

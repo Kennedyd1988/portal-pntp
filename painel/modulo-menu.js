@@ -21,7 +21,9 @@
   // Consórcio público (script 39): páginas que só existem no site do consórcio.
   const ROTAS_CONSORCIO = [['/entes', 'Entes consorciados'], ['/documentos-consorcio', 'Documentos constitutivos do consórcio'], ['/rateio', 'Contratos de rateio'],
     ['/programa', 'Contratos de programa'], ['/dirigentes-atas', 'Dirigentes e atas da assembleia'], ['/orcamento-consorcio', 'Orçamento do consórcio']];
-  const rotas = () => P.estado.orgao && P.estado.orgao.tipo === 'consorcio' ? ROTAS.concat(ROTAS_CONSORCIO) : ROTAS;
+  // Câmara: telas da atividade legislativa que não estão nos destinos do PNTP.
+  const ROTAS_CAMARA = [['/mesa-diretora', 'Mesa Diretora']];
+  const rotas = () => P.estado.orgao && P.estado.orgao.tipo === 'consorcio' ? ROTAS.concat(ROTAS_CONSORCIO) : P.estado.orgao && P.estado.orgao.tipo === 'camara' ? ROTAS.concat(ROTAS_CAMARA) : ROTAS;
   const nomeRota = (r) => (rotas().find((x) => x[0] === r) || [r, r])[1];
 
   // Menu sugerido para começar (o órgão ajusta depois).
