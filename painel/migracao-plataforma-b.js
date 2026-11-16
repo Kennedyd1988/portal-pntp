@@ -943,7 +943,8 @@
             const c = kv(m);
             const tipoT = pega(c, 'tipo do ato') || titulo(m).replace(/\s*n[ºo°].*$/i, '');
             if (!tipoT) return { vazio: true };
-            const texto = limpar(pega(c, 'texto', 'ementa'));
+            // CPF que aparece no texto do ato fica mascarado (LGPD): 070.531.844-39 → ***.531.844-**
+            const texto = limpar(pega(c, 'texto', 'ementa')).replace(/\b\d{3}\.(\d{3})\.(\d{3})-\d{2}\b/g, '***.$1.$2-**');
             if (/di[aá]ria/i.test(tipoT) || /^concess[aã]o de .*di[aá]ria/i.test(texto)) return { ignorar: 'Concessão de diária: vai para Diárias', ano: Number(pega(c, 'ano')) || null };
             const s = sem(tipoT);
             const tipo = /decreto legislativo/.test(s) ? 'decreto_legislativo' : /portaria/.test(s) ? 'portaria' : /edital/.test(s) ? 'edital'
@@ -1056,8 +1057,9 @@
         if (end) ct.endereco = nomeProprio(end).slice(0, 300);
         const cep = pedacos.join(' ').match(/CEP:?\s*(\d{2}\.?\d{3}-?\d{3})/i);
         if (cep) ct.cep = cep[1].replace('.', '');
-        const ih = pedacos.findIndex((t) => /hor[aá]rio de funcionamento|hor[aá]rio de atendimento/i.test(t));
-        if (ih >= 0 && pedacos[ih + 1] && /\d/.test(pedacos[ih + 1])) ct.horario = pedacos[ih + 1].slice(0, 200);
+        const rotH = [...rod.querySelectorAll('p, span, strong, h3, h4, h5, div')].find((n) => !n.children.length && /^hor[aá]rio de (funcionamento|atendimento)$/i.test(limpar(n.textContent)));
+        const valH = rotH && rotH.nextElementSibling ? limpar(rotH.nextElementSibling.textContent) : '';
+        if (/\d/.test(valH)) ct.horario = valH.slice(0, 200);
         const REDES = [['facebook', /facebook\.com|fb\.com/i], ['instagram', /instagram\.com/i], ['youtube', /youtube\.com\/(?:@|c\/|channel\/|user\/)/i], ['whatsapp', /wa\.me|whatsapp\.com/i]];
         for (const a of d.querySelectorAll('a[href]')) {
           const h = (a.getAttribute('href') || '').trim();
@@ -1129,7 +1131,7 @@
             const link = dTd ? [...dTd.querySelectorAll('a[href]')].map((a) => (a.getAttribute('href') || '').trim()).find((h) => /^https?:\/\/[^/]+\.[a-z]{2,}/i.test(h) && !/^https?:\/\/https?:/i.test(h) && !/\.gov\.br\.com/i.test(h)) : null;
             let nome = nomeProprio(limpar(nomeTd.textContent)).slice(0, 200);
             if (nome.length < 3) nome = grupo;
-            if (nomes.has(sem(nome))) nome = (nome + ' (' + grupo + ')').slice(0, 200);
+            if ((nomes.has(sem(nome)) || !/\s/.test(nome)) && grupo && sem(grupo) !== sem(nome)) nome = (nome + ' (' + grupo + ')').slice(0, 200);
             if (nomes.has(sem(nome))) continue;
             nomes.add(sem(nome));
             const quem = td('Quem pode acessar'), hor = td('Horário de Atendimento'), local = td('Localização');
@@ -1160,19 +1162,32 @@
           const { m } = doc(r.html);
           m.querySelectorAll('form, select, button, input, nav, [role="tablist"], .sigl-terceiro').forEach((x) => x.remove());
           const tit = titulo(m) || tituloPadrao;
-          const linhas = [], arquivos = [];
-          for (const n of m.querySelectorAll('h1, h2, h3, h4, h5, p, li, dt, dd, a[href]')) {
+          const linhas = [], arquivos = [], brutas = [];
+          // Blocos de texto "folha" (sem outro bloco dentro): cada um vira uma linha; rótulo "E-mail:" junta com o valor seguinte.
+          const BLOCO = /^(P|LI|H\d|DIV|DD|DT|TD|TH|UL|OL|TABLE|SECTION|ARTICLE|FIGURE|HEADER)$/;
+          for (const n of m.querySelectorAll('h1, h2, h3, h4, h5, p, li, dt, dd, td, div, span, a[href]')) {
             if (n.tagName === 'A') {
               const u = abs(n.getAttribute('href'), url);
               if (!ehArquivo(u) || arquivos.some((a) => a.url === u)) continue;
               const t = limpar(n.textContent) || 'Documento';
-              arquivos.push({ url: u, titulo: t.slice(0, 150) }); linhas.push('- [' + t.replace(/[[\]]/g, '') + '](' + u + ')');
+              arquivos.push({ url: u, titulo: t.slice(0, 150) }); brutas.push({ t: '- [' + t.replace(/[[\]]/g, '') + '](' + u + ')' });
               continue;
             }
-            if (n.closest('a') || [...n.children].some((c) => /^(P|LI|H\d|DD|DT)$/.test(c.tagName))) continue;
+            if (n.closest('a') || [...n.querySelectorAll('*')].some((c) => BLOCO.test(c.tagName))) continue;
+            if (n.tagName === 'SPAN' && n.parentElement && n.parentElement.closest('p, li, dt, dd, td, h1, h2, h3, h4, h5') ) continue;
             const t = limpar(n.textContent);
-            if (!t || t === tit || vazio(t) || /^[-:]+$/.test(t)) continue;
-            const l = /^H\d$/.test(n.tagName) ? '## ' + t : t;
+            if (!t || t === tit || /^[-:]+$/.test(t)) continue;
+            brutas.push({ t, h: /^H\d$/.test(n.tagName), vazio: vazio(t) });
+          }
+          for (let k = 0; k < brutas.length; k++) {
+            const b = brutas[k];
+            if (b.vazio) continue;
+            if (/:$/.test(b.t) && b.t.length < 40) {   // rótulo: junta com o valor seguinte (ou some, se o valor está vazio)
+              const prox = brutas[k + 1];
+              if (prox && !/:$/.test(prox.t) && !prox.h) { k++; if (!prox.vazio) linhas.push(b.t + ' ' + prox.t); }
+              continue;
+            }
+            const l = b.h ? '## ' + b.t : b.t;
             if (linhas[linhas.length - 1] !== l) linhas.push(l);
           }
           const conteudo = linhas.join('\n\n');
