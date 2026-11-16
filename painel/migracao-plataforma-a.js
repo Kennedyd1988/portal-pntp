@@ -543,7 +543,9 @@
           }
           if (setorial && blocos.length) blocos[0] = blocos[0].split('\n\n').filter((l) => !p.arquivos.some((a) => levado(a) && l.includes('(' + a.url + ')'))).join('\n\n');
           const conteudo = blocos.filter((x) => x.trim()).join('\n\n');
-          if (!conteudo.trim() || conteudo.replace(/[#\s]/g, '').length < 20) {
+          // Página "por ano" cujo conteúdo foi para os módulos: sobra só a introdução — não vale uma página.
+          const curta = conteudo.replace(/[#\s]/g, '').length < (foraDaqui.length && !arquivos.length ? 150 : 20);
+          if (!conteudo.trim() || curta) {
             itens.push({ url: p.url, x: { ignorar: foraDaqui.length ? 'Conteúdo levado para os módulos (declarações, PCA, planos, fiscais, acordos)' : 'Página vazia no site antigo', ano: null } });
             continue;
           }
@@ -722,7 +724,7 @@
     for (const n of f.querySelectorAll('p, li, h1, h3, h4, a[href]')) {
       if (n.tagName === 'A') {
         const h = n.getAttribute('href') || '';
-        if (!ehDocumento(h) || /sub-pagina\/\d+\/$/.test(h)) continue;
+        if (!ehDocumento(h) || /(^|[^-])sub-pagina\/\d+\/$/.test(h)) continue;   // link para outra subpágina (não "download-sub-pagina")
         const u = abs(h, base);
         if (!u || arquivos.some((a) => a.url === u)) continue;
         const t0 = limpar(n.getAttribute('title') || n.textContent);
@@ -731,6 +733,20 @@
         linhas.push('- [' + t.replace(/[[\]]/g, '') + '](' + u + ')');
       } else if (!n.closest('a')) {
         const t = limpar(n.textContent);
+        // Endereço de arquivo escrito como texto (sem link), comum no modelo: vira documento
+        const soltos = t.match(/https?:\/\/[^\s"'<>]+\.(?:pdf|docx?|xlsx?|odt|ods|zip)\b/gi);
+        if (soltos && !n.querySelector('a[href]')) {
+          for (const su of soltos) {
+            const u = abs(su, base);
+            if (!u || arquivos.some((a) => a.url === u)) continue;
+            const tt = decodeURIComponent(u.split('/').pop()).replace(/\.\w+$/, '').replace(/[_+]/g, ' ').slice(0, 150) || 'Documento';
+            arquivos.push({ url: u, titulo: tt, data: null });
+            linhas.push('- [' + tt.replace(/[[\]]/g, '') + '](' + u + ')');
+          }
+          const resto = limpar(soltos.reduce((x, su) => x.replace(su, ''), t));
+          if (resto.length < 3) continue;
+          linhas.push(resto); continue;
+        }
         if (!t || /^(data de cria|última atualiza|ultima atualiza|acessar página|documentos anexados|informações atualizadas|página|documentos|nenhum arquivo cadastrado|p[aá]gina sem conte[uú]do)/i.test(t)) continue;
         if (n.tagName === 'H1' && n.closest('.container-titulo')) continue;
         linhas.push(/^H[34]$/.test(n.tagName) ? '### ' + t : t);
@@ -812,7 +828,8 @@
     const s = sem(titulo);
     if (area === 'saude') return /relatorio anual de gest|\brag\b/.test(s) ? 'relatorio_gestao' : /quadrimestr|rdqa/.test(s) ? 'relatorio_quadrimestral'
       : /programacao anual|\bpas\b/.test(s) ? 'programacao_anual' : /plano (municipal|anual)? ?de saude|\bpms\b/.test(s) ? 'plano_saude' : null;
-    return /plano (municipal|decenal|anual)? ?de educacao|\bpme\b/.test(s) ? 'plano_educacao' : /relatorio.*(educacao|monitoramento)/.test(s) ? 'relatorio_educacao' : null;
+    if (/portaria|decreto|comissao|nomeia|institui/.test(s)) return null;
+    return /relatorio|monitoramento/.test(s) ? 'relatorio_educacao' : /plano (municipal|decenal|anual)? ?de educacao|\bpme\b/.test(s) ? 'plano_educacao' : null;
   }
   const textoDeclaracao = (b) => limpar(b.linhas.filter((l) => !/^- \[/.test(l) && NEGA.test(l)).join(' ') || b.linhas.join(' ')).replace(/^#+\s*/, '');
 
@@ -1256,7 +1273,7 @@
         // Câmara: PDFs da página "Diárias" (resolução com a tabela)
         if (!itens.length) {
           for (const p of await paginasDoSite(ctx)) {
-            if (!/^diarias?$/.test(sem(p.titulo))) continue;
+            if (!/diaria/.test(sem(p.titulo))) continue;
             for (const a of p.arquivos) itens.push({ url: a.url, x: { ano: null, chave: { norma: a.url }, pdf: a.url, norma: a.titulo, lerTabela: lerTabelaDiarias } });
           }
         }
@@ -1423,8 +1440,11 @@
               if (!tipo) continue;   // outros documentos (estoque de medicamentos…) ficam na página
               const ano = anoNoTexto(d.titulo) || b.ano || anoDe(d.data);
               if (!ano) continue;
-              itens.push({ url: d.url, x: { ano, data: d.data, chave: { url: d.url },
-                registro: { area, tipo, titulo: (d.titulo.length >= 3 ? d.titulo : nomeProprio(p.titulo) + ' ' + ano).slice(0, 300), exercicio: ano, data_publicacao: d.data },
+              // "PMS 2022-2025", "Plano 2015-2025": vale até o último ano (é por ele que entra no período)
+              const fx = d.titulo.match(/\b((?:19|20)\d\d)\s*[-–a]+\s*((?:19|20)\d\d)\b/);
+              const fim = fx && Number(fx[2]) > Number(fx[1]) ? Number(fx[2]) : null;
+              itens.push({ url: d.url, x: { ano: fim || ano, data: d.data, chave: { url: d.url },
+                registro: { area, tipo, titulo: (d.titulo.length >= 3 ? d.titulo : nomeProprio(p.titulo) + ' ' + ano).slice(0, 300), exercicio: fx ? Number(fx[1]) : ano, exercicio_fim: fim, data_publicacao: d.data },
                 arquivos: [{ url: d.url, campo: 'arquivo_url' }] } });
             }
           }
