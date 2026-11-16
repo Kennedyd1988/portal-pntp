@@ -38,6 +38,8 @@ const CHAVE_SECRETA = chave('SUPABASE_SECRET_KEYS', 'SUPABASE_SERVICE_ROLE_KEY')
 const CHAVE_PUBLICA = chave('SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY');
 const NAVEGADOR = 'Mozilla/5.0 (compatible; SOFT+ Migracao PNTP)';
 const LIMITE = 50 * 1024 * 1024;   // 50 MB por arquivo (limite do bucket, script 31)
+// Armazenamentos de arquivos de modelos de site conhecidos (fora do domínio do órgão). 0.39.0: Plataforma B (IntGest).
+const HOSTS_ARQUIVOS = ['intellgest-sigl-media.s3.amazonaws.com'];
 
 const TIPOS: Record<string, string> = {
   'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
@@ -116,6 +118,12 @@ Deno.serve(async (req) => {
     const permitido = (u: string) => {
       try { const x = new URL(u); return /^https?:$/.test(x.protocol) && x.host.replace(/^www\./, '') === hostOrigem; } catch (_) { return false; }
     };
+    // Arquivos (PDF, imagens) que o modelo do site guarda num armazenamento de fora do domínio do órgão.
+    // Lista fixa aqui no servidor (não vem do pedido): Plataforma B (IntGest) usa o S3 abaixo.
+    const permitidoArquivo = (u: string) => {
+      if (permitido(u)) return true;
+      try { const x = new URL(u); return x.protocol === 'https:' && HOSTS_ARQUIVOS.includes(x.host.toLowerCase()); } catch (_) { return false; }
+    };
 
     const acao = String(corpo.acao ?? '');
     // ------------------------------------------------------------------
@@ -132,7 +140,7 @@ Deno.serve(async (req) => {
     }
     // ------------------------------------------------------------------
     if (acao === 'medir') {
-      const urls = (Array.isArray(corpo.urls) ? corpo.urls : []).map(String).filter(permitido).slice(0, 40);
+      const urls = (Array.isArray(corpo.urls) ? corpo.urls : []).map(String).filter(permitidoArquivo).slice(0, 40);
       const tamanhos = await Promise.all(urls.map(async (url: string) => {
         try {
           let r = await buscar(url, { method: 'HEAD' });
@@ -151,7 +159,7 @@ Deno.serve(async (req) => {
     // ------------------------------------------------------------------
     if (acao === 'copiar') {
       const url = String(corpo.url ?? '');
-      if (!permitido(url)) return falha('Endereço fora do site de origem.');
+      if (!permitidoArquivo(url)) return falha('Endereço fora do site de origem.');
       const pasta = String(corpo.pasta ?? 'geral').replace(/[^a-z0-9_-]/gi, '').slice(0, 30) || 'geral';
       const base = orgao + '/migracao/' + pasta + '/' + (await sha1(url.replace(/^https?:\/\/(www\.)?/, '')));
       // Já copiado antes? (qualquer extensão)

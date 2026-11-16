@@ -10,7 +10,8 @@
 // servidores (nuvem); pelo navegador de quem usa, a leitura sempre funciona.
 //
 // Segurança: só atende o painel (origem de onde este arquivo foi carregado),
-// só a janela que abriu esta aba, e só endereços do próprio site antigo.
+// só a janela que abriu esta aba, e só endereços do próprio site antigo (e, para
+// arquivos, os armazenamentos fixos de HOSTS_ARQUIVOS).
 // Não lê nem envia senhas, cookies ou dados da pessoa: só páginas públicas.
 // =====================================================================
 (function () {
@@ -51,6 +52,12 @@
     u.protocol = location.protocol; u.host = location.host;
     return u;
   }
+  // Arquivos de modelos de site que guardam PDFs e imagens fora do domínio do órgão (Plataforma B: IntGest).
+  // Lista fixa (não vem do pedido); esses arquivos são lidos sem cookies.
+  const HOSTS_ARQUIVOS = ['intellgest-sigl-media.s3.amazonaws.com'];
+  function arquivoExterno(url) {
+    try { const u = new URL(url); return u.protocol === 'https:' && HOSTS_ARQUIVOS.includes(u.host.toLowerCase()) ? u : null; } catch (_) { return null; }
+  }
   async function liberar(u) {
     const m = u.pathname.match(/^\/(licitacao|concurso)\//);
     if (!m || liberados.has(m[1])) return;
@@ -59,11 +66,13 @@
   }
   async function tamanho(url) {
     try {
-      const u = local(url);
-      let r = await fetch(u.href, { method: 'HEAD', credentials: 'include', signal: AbortSignal.timeout(45000) });
+      const ext = arquivoExterno(url);
+      const u = ext || local(url);
+      const cred = ext ? 'omit' : 'include';
+      let r = await fetch(u.href, { method: 'HEAD', credentials: cred, signal: AbortSignal.timeout(45000) });
       let n = Number(r.headers.get('content-length') || 0);
       if (!n) {
-        r = await fetch(u.href, { headers: { Range: 'bytes=0-0' }, credentials: 'include', signal: AbortSignal.timeout(45000) });
+        r = await fetch(u.href, { headers: { Range: 'bytes=0-0' }, credentials: cred, signal: AbortSignal.timeout(45000) });
         const cr = r.headers.get('content-range') || '';
         n = Number(cr.split('/')[1] || 0) || Number(r.headers.get('content-length') || 0);
         try { await r.body.cancel(); } catch (_) { /* ok */ }
@@ -85,8 +94,10 @@
       return { tamanhos: await Promise.all((d.urls || []).slice(0, 40).map(tamanho)) };
     }
     if (d.acao === 'arquivo') {
-      const u = local(d.url); await liberar(u);
-      const r = await fetch(u.href, { credentials: 'include', signal: AbortSignal.timeout(45000) });
+      const ext = arquivoExterno(d.url);
+      const u = ext || local(d.url);
+      if (!ext) await liberar(u);
+      const r = await fetch(u.href, { credentials: ext ? 'omit' : 'include', signal: AbortSignal.timeout(45000) });
       if (!r.ok) throw new Error('O site antigo respondeu ' + r.status + ' para o arquivo.');
       const nome = ((r.headers.get('content-disposition') || '').match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i) || [])[1] || new URL(r.url).pathname;
       const blob = await r.blob();

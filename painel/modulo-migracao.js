@@ -1,7 +1,9 @@
 // =====================================================================
 // Módulo "Migração do site antigo" (0.23.0; leitura pelo navegador 0.23.3) — Suporte SOFT+
 // Traz para o portal o conteúdo do site que o órgão já tinha: leis e decretos,
-// licitações com documentos, contratos, concursos, contas públicas e notícias.
+// licitações com documentos, contratos, concursos, contas públicas e notícias;
+// nas Câmaras (Plataforma B, 0.39.0), também vereadores, Mesa, comissões,
+// proposições, sessões, diárias (tabela de valores) e convênios.
 // Período: 3 anos (exercício atual e os 2 anteriores) no que pontua no PNTP e
 // 2 anos no restante. Os arquivos são copiados para o portal (o site antigo sai
 // do ar quando o domínio muda). Rodar de novo não duplica (migracao_itens).
@@ -209,7 +211,7 @@
     const p = await pagina(cfg.migracao.origem + '/');
     const qual = Object.entries(window.MIGRACAO_ADAPTADORES).find(([, a]) => a.reconhece(p.html));
     cfg = await P.mesclarConfiguracoes({ migracao: Object.assign({}, cfg.migracao, { plataforma: qual ? qual[0] : null, reconhecido_em: new Date().toISOString() }) });
-    if (avisar || qual) toast(qual ? 'Site antigo reconhecido: ' + qual[1].nome.split(' (')[0] + '.' : 'O site respondeu, mas o modelo dele ainda não é conhecido pela ferramenta.', !qual);
+    if (avisar || qual) toast(qual ? 'Site antigo reconhecido: ' + qual[1].nome + '.' : 'O site respondeu, mas o modelo dele ainda não é conhecido pela ferramenta.', !qual);
     return qual;
   }
 
@@ -226,7 +228,7 @@
       const emCurso = new Set();
       const entregar = async (url, x) => {
         if (st.parar || !x || x.vazio || x.foraPeriodo) return;
-        if (!s.semPeriodo && (!x.ano || x.ano < de) && !x.ignorar) return;
+        if (!s.semPeriodo && !x.semPeriodo && (!x.ano || x.ano < de) && !x.ignorar) return;
         while (emCurso.size >= 3) await Promise.race(emCurso);
         const p = Promise.resolve(aoItem(url, x)).catch((e) => { st.log.unshift(url.replace(origem, '') + ': ' + e.message); }).finally(() => emCurso.delete(p));
         emCurso.add(p);
@@ -281,7 +283,7 @@
     try {
       await varrer(chave, s, async (url, x) => {
         st.itens.push({ url, x });
-        for (const a of [].concat(x.arquivos || [], x.documentos || [], x.medicoes || [], x.arquivosTexto || [])) st.arquivos.push(a.url);
+        for (const a of [].concat(x.arquivos || [], x.documentos || [], x.medicoes || [], x.arquivosTexto || [], x.anexos || [])) st.arquivos.push(a.url);
         st.texto = st.itens.length + ' itens encontrados até agora (' + st.arquivos.length + ' arquivos)…';
       });
       st.texto = 'Medindo o tamanho dos arquivos…'; atualizarCartao(chave);
@@ -315,7 +317,7 @@
 
   // ---------------- importação ----------------
   async function jaMigrado(url) {
-    const { data } = await sb.from('migracao_itens').select('situacao, detalhe').eq('orgao_id', org()).eq('origem_url', url).maybeSingle();
+    const { data } = await sb.from('migracao_itens').select('situacao, detalhe, tabela, registro_id').eq('orgao_id', org()).eq('origem_url', url).maybeSingle();
     return data;
   }
   async function marcar(url, chave, tabela, id, x, situacao, detalhe, bytes) {
@@ -385,14 +387,25 @@
 
   const GRAVAR = {
     async legislacao(x, s) {
-      const r = x.registro;
-      const jaId = r.numero && await existente('publicacoes', { tipo: r.tipo, numero: r.numero, ano: r.ano });
+      const r = Object.assign({}, x.registro);
+      // Tipo que não é fixo do portal (ex.: Regimento Interno): criado em Publicações › Tipos na primeira vez.
+      if (x.tipoNovo) r.tipo = await tipoPublicacao(x.tipoNovo.codigo, x.tipoNovo.nome);
+      const jaId = (r.numero || x.tipoNovo) && await existente('publicacoes', { tipo: r.tipo, numero: r.numero, ano: r.ano });
       if (jaId) return completarArquivo('publicacoes', jaId, x, s, true);
       const a = x.arquivos[0] ? await copiar(x.arquivos[0].url, s.pasta) : {};
       const reg = Object.assign({ orgao_id: org(), origem: 'importacao' }, r, { arquivo_url: a.url || null, situacao: a.url ? 'publicado' : 'rascunho' });
       const { data, error } = await sb.from('publicacoes').insert(reg).select('id').single();
       if (error) throw error;
-      return { situacao: 'importado', id: data.id, tabela: 'publicacoes', bytes: a.bytes, aviso: a.erro };
+      // Anexos (ex.: certidão de publicação) — script 42
+      let bytes = a.bytes || 0, falhas = 0, ordem = 0;
+      for (const an of x.anexos || []) {
+        const c = await copiar(an.url, s.pasta);
+        if (!c.url) { falhas++; continue; }
+        bytes += c.bytes || 0;
+        const { error: e2 } = await sb.from('publicacoes_anexos').insert({ publicacao_id: data.id, orgao_id: org(), titulo: an.titulo.length >= 2 ? an.titulo : 'Anexo', arquivo_url: c.url, ordem: ordem++ });
+        if (e2) falhas++;
+      }
+      return { situacao: 'importado', id: data.id, tabela: 'publicacoes', bytes, aviso: [a.erro, falhas ? falhas + ' anexo(s) não copiado(s)' : ''].filter(Boolean).join(' · ') || null };
     },
     async licitacao(x, s) {
       const r = x.registro;
@@ -415,9 +428,14 @@
       const jaId = r.numero && await existente('contratos', { numero: r.numero, ano: r.ano });
       if (jaId) return completarArquivo('contratos', jaId, x, s, false);
       const a = x.arquivos[0] ? await copiar(x.arquivos[0].url, s.pasta) : {};
-      const { data, error } = await sb.from('contratos').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r, { arquivo_url: a.url || null })).select('id').single();
+      // Plataforma B: o contrato aponta a licitação do site antigo; se ela já foi migrada, fica ligada.
+      let licitacao_id = null;
+      if (x.licitacaoUrl) { const l = await jaMigrado(x.licitacaoUrl); licitacao_id = l && l.registro_id && l.tabela === 'licitacoes' ? l.registro_id : null; }
+      const { data, error } = await sb.from('contratos').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r, { arquivo_url: a.url || null }, licitacao_id ? { licitacao_id } : {})).select('id').single();
       if (error) throw error;
-      return { situacao: 'importado', id: data.id, tabela: 'contratos', bytes: a.bytes, aviso: a.erro };
+      const sobra = (x.extras || []).map((d) => d.titulo).filter(Boolean);
+      return { situacao: 'importado', id: data.id, tabela: 'contratos', bytes: a.bytes,
+        aviso: [a.erro, x.licitacaoUrl && !licitacao_id ? 'Licitação ainda não migrada: ligue o contrato à licitação depois' : '', sobra.length ? 'Outros anexos no site antigo (não trazidos): ' + sobra.join('; ') : ''].filter(Boolean).join(' · ') || null };
     },
     async concurso(x, s) {
       const r = x.registro;
@@ -628,6 +646,180 @@
     }
   });
 
+  // Câmara (Plataforma B): vereadores, Mesa, comissões, reuniões, proposições, sessões; e diárias (valores) e convênios.
+  // Vereadores são achados pelo nome (sem acento, caixa ou pontuação), civil ou parlamentar.
+  const chaveNome = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  let cacheVereadores = null;
+  async function vereadores(recarregar) {
+    if (cacheVereadores && !recarregar) return cacheVereadores;
+    const { data, error } = await sb.from('parlamentares').select('id, nome, nome_parlamentar, partido, cargo_mesa, foto_url, biografia, email, telefone, legislatura_inicio, legislatura_fim').eq('orgao_id', org());
+    if (error) throw error;
+    cacheVereadores = data || [];
+    return cacheVereadores;
+  }
+  async function acharVereador(nome) {
+    const k = chaveNome(nome);
+    if (!k) return null;
+    const l = await vereadores();
+    const iguais = l.filter((p) => chaveNome(p.nome_parlamentar) === k || chaveNome(p.nome) === k);
+    return iguais.length === 1 ? iguais[0] : null;
+  }
+  async function acharComissao(nome) {
+    const { data } = await sb.from('comissoes').select('id, nome').eq('orgao_id', org());
+    return (data || []).find((c) => chaveNome(c.nome) === chaveNome(nome)) || null;
+  }
+  // Copia o arquivo e devolve a url (ou guarda o erro na lista de avisos).
+  async function arquivoDe(a, s, avisos) {
+    if (!a) return { url: null, bytes: 0 };
+    const c = await copiar(a.url, s.pasta);
+    if (!c.url) avisos.push('Arquivo não copiado: ' + c.erro);
+    return { url: c.url || null, bytes: c.bytes || 0 };
+  }
+  Object.assign(GRAVAR, {
+    async vereador(x, s) {
+      const r = x.registro, avisos = [];
+      const ja = (await acharVereador(r.nome_parlamentar)) || (await acharVereador(r.nome));
+      const foto = (x.arquivos || []).find((a) => a.campo === 'foto_url');
+      if (ja) {
+        const completar = {};
+        for (const k of ['partido', 'biografia', 'email', 'telefone', 'legislatura_inicio', 'legislatura_fim']) if (ja[k] == null && r[k] != null) completar[k] = r[k];
+        if (!ja.foto_url && foto) { const f = await arquivoDe(foto, s, avisos); if (f.url) completar.foto_url = f.url; }
+        if (!Object.keys(completar).length) return { situacao: 'ja_existia', id: ja.id, tabela: 'parlamentares' };
+        const { error } = await sb.from('parlamentares').update(completar).eq('id', ja.id);
+        if (error) throw error;
+        cacheVereadores = null;
+        return { situacao: 'importado', id: ja.id, tabela: 'parlamentares', aviso: 'Já existia: completados ' + Object.keys(completar).join(', ') };
+      }
+      const f = await arquivoDe(foto, s, avisos);
+      const { data, error } = await sb.from('parlamentares').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r, { foto_url: f.url })).select('id').single();
+      if (error) throw error;
+      cacheVereadores = null;
+      return { situacao: 'importado', id: data.id, tabela: 'parlamentares', bytes: f.bytes, aviso: avisos.join(' · ') || null };
+    },
+    async mesa(x) {
+      const p = await acharVereador(x.registro.nome_parlamentar);
+      if (!p) return { situacao: 'erro', aviso: 'Vereador "' + x.registro.nome_parlamentar + '" não encontrado: importe antes a seção Vereadores' };
+      if ((p.cargo_mesa || '') === x.registro.cargo_mesa) return { situacao: 'ja_existia', id: p.id, tabela: 'parlamentares' };
+      const { error } = await sb.from('parlamentares').update({ cargo_mesa: x.registro.cargo_mesa }).eq('id', p.id);
+      if (error) throw error;
+      cacheVereadores = null;
+      return { situacao: 'importado', id: p.id, tabela: 'parlamentares', aviso: x.sessao ? 'Mesa da ' + x.sessao : null };
+    },
+    async comissao(x) {
+      const r = x.registro;
+      let c = await acharComissao(r.nome), novo = false;
+      if (!c) {
+        const { data, error } = await sb.from('comissoes').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r)).select('id').single();
+        if (error) throw error;
+        c = data; novo = true;
+      }
+      const { data: atuais } = await sb.from('comissoes_membros').select('parlamentar_id').eq('comissao_id', c.id);
+      const tem = new Set((atuais || []).map((m) => m.parlamentar_id));
+      const faltam = [];
+      let membros = 0;
+      for (const m of x.membros || []) {
+        const p = await acharVereador(m.nome);
+        if (!p) { faltam.push(m.nome); continue; }
+        if (tem.has(p.id)) continue;
+        const { error } = await sb.from('comissoes_membros').insert({ orgao_id: org(), comissao_id: c.id, parlamentar_id: p.id, funcao: m.funcao });
+        if (error && !/duplicate|unique/i.test(error.message || '')) throw error;
+        tem.add(p.id); membros++;
+      }
+      if (!novo && !membros) return { situacao: 'ja_existia', id: c.id, tabela: 'comissoes', aviso: faltam.length ? 'Membros não encontrados entre os vereadores: ' + faltam.join(', ') : null };
+      return { situacao: 'importado', id: c.id, tabela: 'comissoes',
+        aviso: faltam.length ? 'Membros não encontrados entre os vereadores (importe antes os Vereadores e rode de novo): ' + faltam.join(', ') : null };
+    },
+    async reuniao(x, s) {
+      const c = await acharComissao(x.comissao);
+      if (!c) return { situacao: 'erro', aviso: 'Comissão "' + x.comissao + '" não encontrada: importe antes a seção Comissões' };
+      const r = x.registro, avisos = [];
+      if (await existente('sessoes', { comissao_id: c.id, data: r.data, numero: r.numero })) return { situacao: 'ja_existia' };
+      const reg = Object.assign({ orgao_id: org(), comissao_id: c.id, situacao: 'publicado' }, r);
+      let bytes = 0;
+      for (const a of x.arquivos || []) { const f = await arquivoDe(a, s, avisos); if (f.url) { reg[a.campo] = f.url; bytes += f.bytes; } }
+      const { data, error } = await sb.from('sessoes').insert(reg).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'sessoes', bytes, aviso: avisos.join(' · ') || null };
+    },
+    async sessao(x, s) {
+      const r = x.registro, avisos = [];
+      const jaId = await existente('sessoes', { comissao_id: null, data: r.data, tipo: r.tipo, numero: r.numero });
+      if (jaId) {
+        // Já existe: só completa a ata, se agora o site antigo tem e o portal não.
+        const ata = (x.arquivos || []).find((a) => a.campo === 'ata_url');
+        if (!ata) return { situacao: 'ja_existia' };
+        const { data: atual } = await sb.from('sessoes').select('ata_url').eq('id', jaId).maybeSingle();
+        if (atual && atual.ata_url) return { situacao: 'ja_existia' };
+        const f = await arquivoDe(ata, s, avisos);
+        if (!f.url) return { situacao: 'ja_existia', aviso: avisos.join(' · ') };
+        await sb.from('sessoes').update({ ata_url: f.url }).eq('id', jaId);
+        return { situacao: 'importado', id: jaId, tabela: 'sessoes', bytes: f.bytes, aviso: 'Ata completada' };
+      }
+      const reg = Object.assign({ orgao_id: org(), situacao: 'publicado' }, r);
+      let bytes = 0;
+      for (const a of x.arquivos || []) { const f = await arquivoDe(a, s, avisos); if (f.url) { reg[a.campo] = f.url; bytes += f.bytes; } }
+      const { data, error } = await sb.from('sessoes').insert(reg).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'sessoes', bytes, aviso: avisos.join(' · ') || null };
+    },
+    async proposicao(x, s) {
+      const r = Object.assign({}, x.registro), avisos = [];
+      const jaId = await existente('proposicoes', { tipo: r.tipo, numero: r.numero, ano: r.ano });
+      if (jaId) return completarArquivo('proposicoes', jaId, x, s, false);
+      const autor = x.autor ? await acharVereador(x.autor.nome) : null;
+      if (x.autor && !autor) r.autoria_externa = x.autor.completo.slice(0, 200);
+      const f = await arquivoDe((x.arquivos || [])[0], s, avisos);
+      const { data, error } = await sb.from('proposicoes').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r, { arquivo_url: f.url })).select('id').single();
+      if (error) throw error;
+      let bytes = f.bytes;
+      if (autor) {
+        const { error: e1 } = await sb.from('proposicoes_autores').insert({ orgao_id: org(), proposicao_id: data.id, parlamentar_id: autor.id, papel: 'autor' });
+        if (e1) avisos.push('Autor não ligado: ' + (e1.message || ''));
+      }
+      // Tramitação + anexos (o anexo vai no trâmite da mesma data, ou vira um trâmite "Anexo")
+      const tramites = (x.tramites || []).map((t) => ({ orgao_id: org(), proposicao_id: data.id, data: t.data, descricao: t.descricao, arquivo_url: null }));
+      for (const d of x.documentos || []) {
+        const c = await arquivoDe(d, s, avisos);
+        if (!c.url) continue;
+        bytes += c.bytes;
+        const t = tramites.find((y) => y.data === d.data && !y.arquivo_url && /tramita/i.test(d.titulo));
+        if (t) t.arquivo_url = c.url;
+        else tramites.push({ orgao_id: org(), proposicao_id: data.id, data: d.data || r.data_apresentacao, descricao: ('Anexo: ' + d.titulo).slice(0, 1000), arquivo_url: c.url });
+      }
+      if (tramites.length) {
+        const { error: e2 } = await sb.from('proposicoes_tramites').insert(tramites);
+        if (e2) avisos.push('Tramitação não gravada: ' + (e2.message || ''));
+      }
+      if (x.andamentoEstimado) avisos.push('Situação no site antigo: "' + x.andamentoEstimado + '", sem o resultado: entrou como Arquivada (confira)');
+      if (r.tipo === 'outro' && x.tipoOriginal) avisos.push('Tipo no site antigo: ' + x.tipoOriginal + ' (entrou como "Outro")');
+      return { situacao: 'importado', id: data.id, tabela: 'proposicoes', bytes, aviso: avisos.join(' · ') || null };
+    },
+    async diaria(x) {
+      const r = Object.assign({}, x.registro);
+      if (await existente('diarias_valores', { grupo: r.grupo, abrangencia: r.abrangencia, norma: r.norma })) return { situacao: 'ja_existia' };
+      // A norma (resolução) migrada em "Normas jurídicas": usa o PDF dela já copiado para o portal.
+      if (x.normaUrl) {
+        const n = await jaMigrado(x.normaUrl);
+        if (n && n.registro_id && n.tabela === 'publicacoes') {
+          const { data: p } = await sb.from('publicacoes').select('arquivo_url').eq('id', n.registro_id).maybeSingle();
+          if (p && p.arquivo_url) r.norma_url = p.arquivo_url;
+        }
+      }
+      const { data, error } = await sb.from('diarias_valores').insert(Object.assign({ orgao_id: org() }, r)).select('id').single();
+      if (error) throw error;
+      return { situacao: 'importado', id: data.id, tabela: 'diarias_valores', aviso: r.norma_url ? null : 'Sem o PDF da norma: importe antes as Normas jurídicas e rode de novo, ou ponha o link em Diárias › Valores' };
+    },
+    async convenio(x, s) {
+      const r = x.registro, avisos = [];
+      if (await existente('convenios', { tipo: r.tipo, numero: r.numero, objeto: r.objeto })) return { situacao: 'ja_existia' };
+      const f = await arquivoDe((x.arquivos || [])[0], s, avisos);
+      const { data, error } = await sb.from('convenios').insert(Object.assign({ orgao_id: org(), ano: x.ano || ANO }, r, { arquivo_url: f.url, situacao: f.url ? 'publicado' : 'rascunho' })).select('id').single();
+      if (error) throw error;
+      if (!f.url) avisos.push('Sem o inteiro teor no site antigo: entrou como rascunho');
+      return { situacao: 'importado', id: data.id, tabela: 'convenios', bytes: f.bytes, aviso: avisos.join(' · ') || null };
+    }
+  });
+
   async function importar(chave) {
     const s = adaptador.secoes[chave];
     const st = estado[chave] = Object.assign(estado[chave] || {}, { rodando: 'importacao', parar: false, log: [], feitos: 0, novos: 0, existentes: 0, erros: 0, bytesCopiados: 0 });
@@ -670,9 +862,11 @@
   // O que entrou como rascunho (lei sem arquivo, página avulsa, vídeo sem título, atalho de serviço…)
   // pode ser publicado de uma vez, por seção ou tudo. Quem não pode ir ao ar (ex.: lei sem documento)
   // continua em rascunho e é contado à parte.
-  const TABELAS_PUBLICAVEIS = ['publicacoes', 'licitacoes', 'contratos', 'concursos', 'documentos_contas', 'noticias', 'obras', 'paginas', 'videos', 'servicos'];
+  const TABELAS_PUBLICAVEIS = ['publicacoes', 'licitacoes', 'contratos', 'concursos', 'documentos_contas', 'noticias', 'obras', 'paginas', 'videos', 'servicos',
+    'parlamentares', 'comissoes', 'proposicoes', 'sessoes', 'convenios'];
   const ONDE = { publicacoes: 'Publicações', licitacoes: 'Licitações', contratos: 'Contratos', concursos: 'Concursos e seletivos', documentos_contas: 'Planejamento e contas',
-    noticias: 'Notícias', obras: 'Obras', paginas: 'Páginas', videos: 'Notícias › Vídeos', servicos: 'Carta de Serviços' };
+    noticias: 'Notícias', obras: 'Obras', paginas: 'Páginas', videos: 'Notícias › Vídeos', servicos: 'Carta de Serviços',
+    parlamentares: 'Vereadores', comissoes: 'Comissões', proposicoes: 'Proposições', sessoes: 'Sessões', convenios: 'Convênios' };
   let caixaRascunhos = null, rascunhosPorSecao = null;
   const fatias = (l, n) => { const r = []; for (let i = 0; i < l.length; i += n) r.push(l.slice(i, i + n)); return r; };
   async function levantarRascunhos() {
@@ -774,9 +968,9 @@
     selP.addEventListener('change', salvar); selO.addEventListener('change', salvar);
     return el('section', { class: 'cartao' }, el('h2', { class: 'm-0' }, 'Período da migração'),
       el('div', { class: 'grade grade-2 mt-1' },
-        el('div', { class: 'campo' }, el('label', { for: 'mig-per-pntp' }, 'O que pontua no PNTP (leis, contas, concursos, obras, atas, audiências…)'), selP),
+        el('div', { class: 'campo' }, el('label', { for: 'mig-per-pntp' }, 'O que pontua no PNTP (leis, contas, licitações, contratos, concursos, obras, proposições, sessões…)'), selP),
         el('div', { class: 'campo' }, el('label', { for: 'mig-per-outros' }, 'O restante (notícias)'), selO)),
-      el('p', { class: 'ajuda mt-05' }, 'O PNTP cobra o exercício atual e os 2 anteriores. Secretarias, perguntas frequentes, páginas avulsas e página inicial vêm sempre inteiras. ',
+      el('p', { class: 'ajuda mt-05' }, 'O PNTP cobra o exercício atual e os 2 anteriores. Secretarias, perguntas frequentes, páginas avulsas, página inicial, Mesa Diretora, comissões, Lei Orgânica e Regimento Interno vêm sempre inteiros; vereadores, os com mandato no período. ',
         'Mudar o período não apaga o que já foi trazido: ampliar traz os anos que faltam ao importar de novo.'));
   }
 
@@ -829,7 +1023,7 @@
     const btnTrocar = el('button', { type: 'button', class: 'link', onclick: () => { editandoOrigem = true; desenhar(); } }, 'Trocar endereço');
     const linhaOrigem = ok && !editandoOrigem
       ? el('p', { class: 'mt-05' }, el('a', { href: cfg.migracao.origem, target: '_blank', rel: 'noopener' }, cfg.migracao.origem), ' · ',
-        reconhecido ? 'modelo ' + adaptador.nome.split(' (')[0] : cfg.migracao.reconhecido_em ? 'modelo não reconhecido pela ferramenta' : 'modelo ainda não conferido (é conferido sozinho ao ligar o coletor)', ' · ', btnTrocar)
+        reconhecido ? 'modelo ' + adaptador.nome : cfg.migracao.reconhecido_em ? 'modelo não reconhecido pela ferramenta' : 'modelo ainda não conferido (é conferido sozinho ao ligar o coletor)', ' · ', btnTrocar)
       : el('div', { class: 'linha-botoes mt-1' }, origem, btnO);
     conteiner.replaceChildren(...[
       el('div', { class: 'cabecalho-modulo' }, el('div', null, el('h1', null, 'Migração do site antigo'),

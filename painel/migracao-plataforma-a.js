@@ -1,5 +1,5 @@
 // =====================================================================
-// Migração do site antigo — adaptador "Plataforma A"
+// Migração do site antigo — adaptador "Plataforma A (King)"
 // Sites de prefeitura com endereços /legislacao/detalhe/N, /licitacao/detalhe/N,
 // /contrato/detalhe/N, /concurso/detalhe/N, /conta-publica/detalhe/N e
 // /noticia/N (modelo usado por muitos municípios do RN, ex.: Riacho da Cruz).
@@ -685,8 +685,9 @@
 
   window.MIGRACAO_ADAPTADORES = window.MIGRACAO_ADAPTADORES || {};
   window.MIGRACAO_ADAPTADORES.plataforma_a = {
-    nome: 'Plataforma A (/legislacao, /licitacao, /contrato, /concurso, /conta-publica, /noticia, /ata-registro-preco, /obra, /pagina…)',
-    reconhece: (html) => /\/legislacao\/|\/licitacao\/|\/conta-publica/.test(html) && /container-conteudo|_v2/.test(html),
+    nome: 'Plataforma A (King)',
+    descricao: 'Sites de prefeitura com /legislacao, /licitacao, /contrato, /concurso, /conta-publica, /noticia, /ata-registro-preco, /obra, /pagina…',
+    reconhece: (html) => /\/legislacao\/|\/licitacao\/|\/conta-publica/.test(html) && /container-conteudo|_v2/.test(html) && !/intgest\.com\.br|intellgest-sigl-media/i.test(html),
     secoes: SECOES,
     maiorId: maiorIdDe,
     util: { data, dataExtenso, valor, campos, documentos, limpar }

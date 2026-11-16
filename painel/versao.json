@@ -1,14 +1,10 @@
 {
-  "versao": "0.38.0",
-  "data": "2026-11-15",
+  "versao": "0.39.0",
+  "data": "2026-11-16",
   "notas": [
-    "Novo nome e ícone do app: SOFT+ GOV (transparência pública, gestão e conformidade). O ícone muda na tela inicial do celular e do computador, na aba do navegador, no login e no menu do painel. Quem já instalou o app pode precisar reinstalar para ver o ícone novo.",
-    "Site: o item extra da Transparência que leva a um tipo de publicação abre uma página própria, com o título do cartão e abas por ano (como Planejamento e Contratos); em cada ano, os documentos com competência, PDF, anexos, páginas e exportação.",
-    "Publicações: qualquer tipo (inclusive os criados pelo órgão em \"Outros atos\") ganha o campo Competência (ex.: Outubro/2026, 1º bimestre/2026) e Anexos (outros arquivos além do documento principal, cada um com título: PDF, planilha, documento ou imagem). No site, a competência aparece abaixo da ementa e os anexos abaixo do botão PDF. Rodar o script 42.",
-    "Aparência › Destinos das páginas: novos \"Itens extras no Portal da Transparência\" — o órgão acrescenta cartões à página da Transparência, num grupo existente ou num grupo novo, com ícone à escolha, levando a um link externo, a uma página institucional ou às publicações de um tipo. Não contam no PNTP (aparecem sem número de critério).",
-    "Site: botão \"Entrar no painel\" na barra do topo (ao lado do Mapa do site) e \"Área restrita\" no rodapé, levando ao login do painel.",
-    "Site: em páginas com várias seções nas abas (Contratos | Fiscais; Licitações | PCA | Sancionados), a seção que está em outro sistema (Aparência › Destinos das páginas) aparece com ↗ no nome da aba e, ao abrir, mostra onde os dados estão e o botão para acessar — em vez da lista vazia e da frase \"não foram celebrados contratos\". Seção marcada para não aparecer no site some da faixa de abas.",
-    "Migração do site antigo: novo quadro \"Período da migração\" para escolher de que ano em diante trazer — um período para o que pontua no PNTP (padrão: exercício atual e os 2 anteriores) e outro para o restante (notícias; padrão: todos os anos). Mudar o período não apaga o que já veio. Ao retomar a importação das leis e notícias, o que já veio é pulado sem reler o site antigo.",
-    "Site (Transparência): título de cada grupo centralizado e em caixa alta; nos cartões, o número do critério fica embaixo do ícone. Os cartões ficam centralizados dentro do grupo (a última linha, incompleta, fica no meio)."
+    "Migração do site antigo: novo modelo \"Plataforma B (IntGest)\", reconhecido sozinho em sites de Câmara feitos pela IntGest (ex.: cmjosedapenha.rn.gov.br). Traz vereadores (com foto, biografia, partido e legislaturas), a Mesa Diretora atual, comissões com membros, reuniões das comissões (pauta e ata), proposições (texto, anexos, autor e tramitação), sessões plenárias (ata e vídeo), normas jurídicas (com a certidão de publicação como anexo; Lei Orgânica e Regimento Interno sempre), licitações com anexos, contratos (ligados à licitação já migrada), PPA/LDO/LOA/RGF, a tabela de valores das diárias, convênios e transferências, obras e perguntas frequentes.",
+    "Migração: respeita o período escolhido (vereadores: os com mandato no período). As portarias de concessão de diárias não vêm (Diárias segue no sistema de pessoal); a resolução que regulamenta as diárias vem e o PDF dela vira o link da norma na tabela de valores.",
+    "Migração: importe na ordem da tela (Vereadores antes da Mesa, das Comissões e das Proposições; Comissões antes das Reuniões; Normas antes das Diárias; Licitações antes dos Contratos) para as ligações saírem completas. O que faltar aparece nos avisos e é completado ao rodar de novo.",
+    "Migração: o modelo antigo passa a se chamar \"Plataforma A (King)\". A função migrar-site e o Coletor SOFT+ passam a copiar os arquivos que a IntGest guarda fora do domínio do órgão (republique a função migrar-site na Supabase)."
   ]
 }
