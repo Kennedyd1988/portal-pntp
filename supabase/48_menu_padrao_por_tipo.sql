@@ -8,6 +8,7 @@
 -- Usado ao cadastrar um órgão (criar_orgao) e pelo botão "Criar/Recriar menu padrão"
 -- do painel (Menu do site), que agora chama esta mesma função: o menu padrão fica
 -- num lugar só. Menus já existentes não mudam (use "Recriar menu padrão" no painel).
+-- Publicações com o nome do que cada tipo publica (Câmara: leis, resoluções e portarias).
 -- Pode rodar mais de uma vez.
 -- =====================================================================
 create or replace function public.criar_menu_padrao(p_orgao uuid)
@@ -19,6 +20,9 @@ declare
   noticias    jsonb := '["Notícias", "/noticias", [["Notícias", "/noticias"], ["Vídeos", "/videos"], ["Agenda", "/agenda"]]]';
   servicos    jsonb := '["Serviços", "/servicos", [["Carta de Serviços ao Usuário", "/servicos"], ["Serviços on-line", "/servicos-online"]]]';
   atendimento jsonb := '["Atendimento", "/contato", [["Ouvidoria", "/ouvidoria"], ["e-SIC", "/esic"], ["Perguntas frequentes", "/faq"], ["Contato", "/contato"]]]';
+  -- Publicações: o nome segue o que cada tipo de órgão publica (a Câmara não edita decretos do Executivo).
+  pub_camara  jsonb := '["Publicações", "/publicacoes", [["Leis, resoluções e portarias", "/publicacoes"], ["Diário Oficial", "/diario-oficial"]]]';
+  pub_outros  jsonb := '["Publicações", "/publicacoes", [["Resoluções, portarias e atos", "/publicacoes"], ["Diário Oficial", "/diario-oficial"]]]';
   m jsonb;
   i int; j int; pai uuid; n int := 0;
 begin
@@ -33,7 +37,7 @@ begin
         ["Ordem cronológica de pagamentos", "/ordem-cronologica"], ["Pessoal", "/pessoal"], ["Diárias", "/diarias"], ["Verba indenizatória", "/verba-indenizatoria"],
         ["Concursos e seleções", "/concursos"], ["Planejamento e contas", "/planejamento"], ["Licitações", "/licitacoes"], ["Contratos", "/contratos"],
         ["Obras", "/obras"], ["Convênios e transferências", "/convenios"]]]'::jsonb,
-      publicacoes, noticias, servicos, atendimento);
+      pub_camara, noticias, servicos, atendimento);
   elsif v_tipo = 'consorcio' then
     m := jsonb_build_array(
       '["Início", "/"]'::jsonb,
@@ -43,7 +47,7 @@ begin
         ["Ordem cronológica de pagamentos", "/ordem-cronologica"], ["Pessoal", "/pessoal"], ["Diárias", "/diarias"], ["Concursos e seleções", "/concursos"],
         ["Planejamento e contas", "/planejamento"], ["Orçamento do consórcio", "/orcamento-consorcio"], ["Licitações", "/licitacoes"], ["Contratos", "/contratos"],
         ["Contratos de rateio", "/rateio"], ["Contratos de programa", "/programa"], ["Obras", "/obras"], ["Convênios e transferências", "/convenios"]]]'::jsonb,
-      publicacoes, noticias, servicos, atendimento);
+      pub_outros, noticias, servicos, atendimento);
   elsif v_tipo = 'prefeitura' then
     m := jsonb_build_array(
       '["Início", "/"]'::jsonb,
@@ -62,7 +66,7 @@ begin
         ["Ordem cronológica de pagamentos", "/ordem-cronologica"], ["Pessoal", "/pessoal"], ["Diárias", "/diarias"], ["Concursos e seleções", "/concursos"],
         ["Planejamento e contas", "/planejamento"], ["Licitações", "/licitacoes"], ["Contratos", "/contratos"], ["Obras", "/obras"],
         ["Convênios e transferências", "/convenios"]]]'::jsonb,
-      publicacoes, noticias, servicos, atendimento);
+      pub_outros, noticias, servicos, atendimento);
   end if;
   -- Quem está no SQL Editor (fora da API) também pode criar o menu (scripts de teste e de implantação).
   if not (public.e_suporte_softplus() or public.tem_permissao(p_orgao, 'menu', 'editar') or session_user not in ('authenticator', 'anon', 'authenticated')) then
