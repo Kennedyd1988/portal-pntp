@@ -587,7 +587,12 @@
         const ano = ds.map((d) => d.exercicio).filter(Boolean).sort().pop();
         if (ano) rota = p.r + '?ano=' + ano;
       }
-      juntar(rota, x.codigo, (p.m || []).filter((m) => typeof m !== 'string' || p.letras.includes(m) || m === 'D'));
+      // Só marca o que atende: print de página vazia não é evidência. Item sem nada que atenda fica sem print.
+      const resp = respostas(x);
+      const atendeD = resp.D === 'Atende' || ds.length > 0;
+      const marcas = atendeD ? (p.m || []).filter((m) => typeof m !== 'string' ? true : m === 'D' ? true : p.letras.includes(m) && resp[m] === 'Atende') : [];
+      juntar(rota, x.codigo, marcas);
+      if (!atendeD) continue;
       if (p.det && DETALHES[p.det]) {
         progresso('Procurando o registro de exemplo do item ' + x.codigo + '…');
         if (!(p.det in cache)) { try { cache[p.det] = await DETALHES[p.det](); } catch (_) { cache[p.det] = null; } }

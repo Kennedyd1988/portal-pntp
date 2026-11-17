@@ -1,7 +1,8 @@
 {
-  "versao": "0.45.1",
+  "versao": "0.45.2",
   "data": "2026-11-17",
   "notas": [
+    "Kit de evidências: o print marca só os critérios que atendem, e item sem nada publicado fica sem print (página vazia não é evidência). As etiquetas não cobrem mais o carimbo, e o botão do VLibras não aparece no print.",
     "Kit de evidências: item que não atende deixa de ser descrito como publicado no esclarecimento (diz o que falta); saiu um \"null\" que aparecia abaixo dos links.",
     "Novo módulo Kit de evidências PNTP (Avalia), no grupo Controle interno — por enquanto só para Câmaras (Prefeitura e Consórcio depois). Rode o script 51 na Supabase.",
     "Uma linha por item da matriz que vale para o órgão, na ordem e com a numeração do questionário, com a resposta sugerida para Disponibilidade, Atualidade, Série Histórica, Relatórios e Filtros (Atende / Não atende / N/A, calculada pela autoavaliação com os dados publicados).",

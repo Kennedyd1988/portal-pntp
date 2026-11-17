@@ -26,7 +26,7 @@
 
   // Estilo do modo evidência: sem o tradutor de Libras flutuante, sem animações; marcas e carimbo.
   const css = document.createElement('style');
-  css.textContent = '[vw], .vw-plugin-wrapper { display: none !important; } *, *::before, *::after { animation: none !important; transition: none !important; }'
+  css.textContent = '[vw], [vw-access-button], [vw-plugin-wrapper], .vw-plugin-wrapper, [class*="vw-"], [class*="vpw-"] { display: none !important; } *, *::before, *::after { animation: none !important; transition: none !important; }'
     + '#evid-carimbo { background: #fff4f4; border-bottom: 3px solid #c40000; color: #7a0000; font: 600 14px/1.35 system-ui, Arial, sans-serif; padding: 8px 16px; display: flex; gap: 18px; flex-wrap: wrap; }'
     + '#evid-carimbo strong { color: #c40000; } #evid-carimbo span { word-break: break-all; }'
     + '#evid-camada { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 2147483000; pointer-events: none; }'
@@ -178,6 +178,7 @@
     const caixa = S.el('div', { id: 'evid-camada', 'aria-hidden': 'true' });
     document.body.append(caixa);
     let fundo = 0;
+    const topoLivre = carimbo.getBoundingClientRect().bottom + scrollY + 2;   // etiqueta não cobre o carimbo
     const ocupados = [];
     const ordem = (n) => { const k = ORDEM.findIndex((l) => n.startsWith(NOMES[l])); return k < 0 ? 9 : k; };
     for (const g of grupos) {
@@ -186,7 +187,7 @@
       const w = Math.min(document.documentElement.scrollWidth - x - 2, r.right - r.left + 8), h = r.bottom - r.top + 8;
       caixa.append(S.el('div', { class: 'evid-caixa', style: 'left:' + x + 'px;top:' + y + 'px;width:' + w + 'px;height:' + h + 'px' }));
       // Etiqueta acima da caixa (ou dentro, se não couber); desce se já houver outra no mesmo lugar.
-      let ty = y - 22 < 0 ? y + 3 : y - 22;
+      let ty = y - 22 < topoLivre ? y + 3 : y - 22;
       while (ocupados.some((o) => Math.abs(o.y - ty) < 20 && Math.abs(o.x - x) < 260)) ty += 22;
       ocupados.push({ x, y: ty });
       g.nomes.sort((a, b) => ordem(a) - ordem(b));
