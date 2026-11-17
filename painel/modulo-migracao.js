@@ -418,7 +418,8 @@
     }
     return false;
   }
-  const FALTOU_ARQUIVO = /Failed to fetch|não copiad|Sem arquivo|não respondeu|timed out|tempo/i;
+  // "maior que 50 MB": arquivos recusados antes da 0.44.0 (limite subiu para 200 MB) — tenta de novo.
+  const FALTOU_ARQUIVO = /Failed to fetch|não copiad|Sem arquivo|não respondeu|timed out|tempo|maior que 50 MB|fica só o link/i;
   // Registro que já existe mas ficou sem o arquivo (cópia falhou antes): copia agora e completa.
   async function completarArquivo(tabela, id, x, s, publicar) {
     const { data: r } = await sb.from(tabela).select('arquivo_url, situacao').eq('id', id).maybeSingle();
