@@ -956,3 +956,4 @@ html.contraste .hero-faixa, html.contraste .secao-acessos > .limite, html.contra
 html.contraste .cartao.gestor .gestor-unidade, html.contraste .acessos .icone, html.contraste .secao-publicacoes .aba-guia { background: #000 !important; color: #fff !important; border-color: #fff !important; }
 html.contraste .btn-transparencia { background: #000 !important; }
 @media print { .barra-redes, .selos-cabecalho { display: none !important; } .revelar { opacity: 1 !important; transform: none !important; } }
+.cartao.gestor .gestor-contato-texto { margin-top: 6px; }

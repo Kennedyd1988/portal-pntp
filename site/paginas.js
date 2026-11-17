@@ -461,7 +461,7 @@
   // Carrossel automático de 4 (gestores; nas Câmaras, os vereadores). cartao: como desenhar cada um.
   function carrosselGestores(lista, cartao, rotulo) {
     const n = lista.length;
-    const trilho = el('div', { class: 'gest-trilho' }, lista.map((g) => el('div', { class: 'gest-item' }, (cartao || cartaoGestor)(g))));
+    const trilho = el('div', { class: 'gest-trilho' }, lista.map((g) => el('div', { class: 'gest-item' }, (cartao || ((x) => cartaoGestor(x, true)))(g))));
     let pos = 0, timer = null, clones = 0, pausado = matchMedia('(prefers-reduced-motion: reduce)').matches;
     // Quantos por vez pela largura da janela. Sem largura (bloco ainda fora da página: a página inicial monta
     // tudo antes de mostrar) mantém o último valor, senão o cálculo dava 1 por vez e os cartões ficavam enormes.
@@ -919,15 +919,19 @@
       : '<path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/>';
     return sv;
   }
-  function cartaoGestor(g) {
+  // compacto (carrossel da página inicial): e-mail e telefone em botões redondos. Na página de
+  // Gestores e na da unidade continuam escritos por extenso (PNTP 2.3: contato visível, inclusive no print).
+  function cartaoGestor(g, compacto) {
     const ini = (g.nome || '?').split(' ').filter(Boolean).map((p) => p[0]).slice(0, 2).join('');
     return el('div', { class: 'cartao gestor' },
       g.foto_url ? el('img', { src: g.foto_url, alt: 'Foto de ' + g.nome, loading: 'lazy' }) : el('span', { class: 'sem-foto', 'aria-hidden': 'true' }, ini),
       el('strong', { class: 'bloco' }, g.nome),
       el('span', { class: 'bloco meta gestor-cargo' }, g.cargo),
       g.unidade_id && S.nomeUnidade(g.unidade_id) ? el('a', { class: 'bloco gestor-unidade', href: '#/unidade/' + g.unidade_id }, S.nomeUnidade(g.unidade_id)) : null,
-      // E-mail e telefone em botões redondos (o texto completo vai no título e para o leitor de tela).
-      g.email || g.telefone ? el('div', { class: 'gestor-contatos' },
+      !compacto && g.email ? el('a', { class: 'bloco menor gestor-contato-texto', href: 'mailto:' + g.email }, g.email) : null,
+      !compacto && g.telefone ? el('span', { class: 'bloco meta gestor-contato-texto' }, g.telefone) : null,
+      // Compacto: e-mail e telefone em botões redondos (o texto completo vai no título e para o leitor de tela).
+      compacto && (g.email || g.telefone) ? el('div', { class: 'gestor-contatos' },
         g.email ? el('a', { href: 'mailto:' + g.email, title: 'E-mail: ' + g.email }, iconeContato('email'), el('span', { class: 'sr' }, 'E-mail: ' + g.email)) : null,
         g.telefone ? el('a', { href: 'tel:' + String(g.telefone).replace(/\D/g, ''), title: 'Telefone: ' + g.telefone }, iconeContato('telefone'), el('span', { class: 'sr' }, 'Telefone: ' + g.telefone)) : null) : null,
       g.curriculo_url ? el('a', { class: 'botao botao-claro botao-p botao-bloco', href: g.curriculo_url, target: '_blank', rel: 'noopener' }, 'Currículo (PDF)') : null);
