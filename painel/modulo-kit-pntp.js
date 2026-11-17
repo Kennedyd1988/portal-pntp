@@ -373,12 +373,16 @@
       onclick: () => { aba = id; desenhar(); } }, rotulo);
     const btnGerar = el('button', { type: 'button', class: 'btn btn-primario' }, 'Gerar kit (ZIP)');
     btnGerar.addEventListener('click', () => preDiagnostico(btnGerar));
+    const btnXlsx = el('button', { type: 'button', class: 'btn btn-claro' }, 'Tabela (Excel)');
+    const btnDocx = el('button', { type: 'button', class: 'btn btn-claro' }, 'Tabela (Word)');
+    btnXlsx.addEventListener('click', () => baixarTabela('xlsx', btnXlsx));
+    btnDocx.addEventListener('click', () => baixarTabela('docx', btnDocx));
     area.replaceChildren(
       el('div', { class: 'cabecalho-modulo' },
         el('div', null, el('h1', null, 'Kit de evidências PNTP (Avalia)'),
           el('p', { class: 'sub' }, 'Respostas, links, esclarecimentos e prints de cada item do questionário do PNTP 2026 · ' + (orgaoDados.nome || ''))),
-        el('div', { class: 'botoes-cabecalho' }, btnGerar)),
-      el('p', { class: 'ajuda' }, 'Tudo aqui é calculado com o que está publicado no portal agora. O módulo não preenche nem envia nada ao Avalia (avalia.atricon.org.br): copie, cole e anexe em cada item. A resposta sugerida segue a autoavaliação automática; confira antes de lançar.'),
+        el('div', { class: 'botoes-cabecalho' }, btnXlsx, btnDocx, btnGerar)),
+      el('p', { class: 'ajuda' }, 'Tudo aqui é calculado com o que está publicado no portal agora. O módulo não preenche nem envia nada ao Avalia (avalia.atricon.org.br): copie, cole e anexe em cada item. "Tabela (Excel)" e "Tabela (Word)" trazem todos os itens, respostas, links e textos numa tabela só; o ZIP traz essa tabela e uma pasta de prints por item. A resposta sugerida segue a autoavaliação automática; confira antes de lançar.'),
       avisoPendencias(),
       el('div', { class: 'abas', role: 'tablist' }, botaoAba('itens', 'Itens do questionário (' + linhas.length + ')'), botaoAba('historico', 'Histórico de gerações')),
       el('div', { class: 'painel-guia' }, aba === 'itens' ? telaItens() : telaHistorico()));
@@ -689,8 +693,7 @@
           p.publico = urlArquivo(p.caminho);
         }
       }
-      const itensKit = linhas.map((x) => { const t = montarTextos(x); return { c: x.codigo, titulo: x.titulo, classificacao: x.classificacao, situacao: x.situacao,
-        respostas: respostas(x), links: t.links, curto: t.curto, completo: t.completo, prints: printsDo(x.codigo).map((p) => p.hash || p.nome) }; });
+      const itensKit = itensDoKit();
       const resumo = { itens: linhas.length, atende: linhas.filter((x) => x.situacao === 'atende').length, parcial: linhas.filter((x) => x.situacao === 'parcial').length,
         nao_atende: linhas.filter((x) => x.situacao === 'nao_atende').length, prints: prints.length, falhas: falhas.length,
         marcas_faltando: prints.reduce((s, p) => s + (p.faltou || []).length, 0), tipo: orgaoDados.tipo };
@@ -719,50 +722,83 @@
     }
   }
 
-  // ZIP: uma pasta por item ("08.1 Relação das licitações…") com os prints que ele usa (o compartilhado vai,
-  // com o mesmo nome, em cada pasta) e o esclarecimento.txt; na raiz, LEIA-ME.txt com o resumo e o pré-diagnóstico.
+  // Dados de cada item para a tabela e o histórico (o que vai ser copiado e colado no Avalia).
+  function itensDoKit() {
+    return linhas.map((x) => { const t = montarTextos(x); return { c: x.codigo, titulo: x.titulo, classificacao: x.classificacao, situacao: x.situacao,
+      respostas: respostas(x), links: t.links, curto: t.curto, completo: t.completo, falta: x.falta || [], prints: printsDo(x.codigo).map((p) => p.hash || p.nome) }; });
+  }
+
+  // ---------- Tabela única (Excel e Word) ----------
+  // Uma linha por item: código, título, classificação, autoavaliação, resposta de cada critério,
+  // links, esclarecimento curto e completo, o que falta e os prints que comprovam (nomes dos arquivos).
+  const CAB_TABELA = ['Item', 'Título', 'Classificação', 'Autoavaliação', 'Disponibilidade', 'Atualidade', 'Série Histórica', 'Relatórios', 'Filtros',
+    'Links', 'Esclarecimento (curto)', 'Esclarecimento (completo)', 'O que falta', 'Prints'];
+  function linhasTabela(itensKit, lista) {
+    const porNome = Object.fromEntries((lista || []).map((p) => [p.hash || p.nome, p]));
+    return itensKit.map((it) => [it.c, it.titulo, CLASSIF[it.classificacao] || it.classificacao, (SITUACAO[it.situacao] || [it.situacao])[0],
+      ...CRITERIOS.map(([l]) => (it.respostas || {})[l] || ''),
+      (it.links || []).map((l) => l.url).join('\n'), it.curto || '', it.completo || '', (it.falta || []).join('\n'),
+      (it.prints || []).map((h) => (porNome[h] || {}).nome).filter(Boolean).join('\n')]);
+  }
+  async function tabelaXlsx(itensKit, lista, quando) {
+    await carregarScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+    const X = window.XLSX;
+    const ws = X.utils.aoa_to_sheet([CAB_TABELA].concat(linhasTabela(itensKit, lista)));
+    ws['!cols'] = [8, 40, 13, 13, 14, 12, 14, 12, 10, 50, 60, 90, 45, 45].map((w) => ({ wch: w }));
+    ws['!autofilter'] = { ref: 'A1:N' + (itensKit.length + 1) };
+    ws['!freeze'] = { xSplit: 2, ySplit: 1 };
+    const wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, ws, 'Itens do PNTP');
+    wb.Props = { Title: 'Kit de evidências PNTP 2026 — ' + orgaoDados.nome, CreatedDate: quando };
+    return new Blob([X.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+  async function tabelaDocx(itensKit, lista, quando) {
+    await carregarScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js');
+    const D = window.docx;
+    const par = (texto, negrito) => String(texto || '').split('\n').map((t) => new D.Paragraph({ children: [new D.TextRun({ text: t, bold: !!negrito, size: 16 })] }));
+    // No Word, os 5 critérios vão numa célula só (a tabela fica legível na folha deitada).
+    const cab = ['Item', 'Resposta sugerida', 'Links', 'Esclarecimento (curto)', 'Esclarecimento (completo)', 'Prints'];
+    const larg = [12, 13, 17, 20, 26, 12];
+    const celula = (conteudo, i, cabecalho) => new D.TableCell({ children: conteudo, width: { size: larg[i], type: D.WidthType.PERCENTAGE },
+      shading: cabecalho ? { fill: 'D9E2F3', type: D.ShadingType.CLEAR, color: 'auto' } : undefined });
+    const linhas = linhasTabela(itensKit, lista).map((l) => new D.TableRow({ cantSplit: false, children: [
+      celula([].concat(par(l[0], true), par(l[1]), par(l[2] + ' · Autoavaliação: ' + l[3])), 0),
+      celula(CRITERIOS.flatMap(([, , n], k) => par(n + ': ' + l[4 + k])), 1),
+      celula(par(l[9]), 2), celula(par(l[10]), 3), celula(par(l[11] + (l[12] ? '\nO que falta: ' + l[12] : '')), 4), celula(par(l[13] || '(sem print)'), 5)] }));
+    const doc = new D.Document({ creator: 'SOFT+ GOV', title: 'Kit de evidências PNTP 2026', sections: [{
+      properties: { page: { size: { orientation: D.PageOrientation.LANDSCAPE }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } },
+      children: [
+        new D.Paragraph({ heading: D.HeadingLevel.HEADING_1, children: [new D.TextRun('Kit de evidências PNTP 2026 — ' + orgaoDados.nome)] }),
+        new D.Paragraph({ children: [new D.TextRun({ text: 'Gerado em ' + dataHora(quando) + ' pelo painel SOFT+ GOV, com o que estava publicado no portal. Respostas sugeridas pela autoavaliação: confira antes de lançar no Avalia. Os prints estão nas pastas do ZIP, com os nomes da coluna Prints.', size: 18 })] }),
+        new D.Table({ width: { size: 100, type: D.WidthType.PERCENTAGE },
+          rows: [new D.TableRow({ tableHeader: true, children: cab.map((t, i) => celula(par(t, true), i, true)) })].concat(linhas) })] }] });
+    return D.Packer.toBlob(doc);
+  }
+  const nomeTabela = (quando) => 'Respostas PNTP ' + limparNome(orgaoDados.nome) + ' ' + new Date(quando).toISOString().slice(0, 10);
+  async function baixarTabela(tipo, btn) {
+    ocupado(btn, 'Montando…');
+    try {
+      const itens = itensDoKit(), agora = new Date();
+      const blob = tipo === 'xlsx' ? await tabelaXlsx(itens, prints, agora) : await tabelaDocx(itens, prints, agora);
+      baixar(blob, nomeTabela(agora) + '.' + tipo);
+    } catch (e) { toast(P.erroGravacao(e), true); }
+    finally { ocupado(btn); }
+  }
+
+  // ZIP: na raiz, a tabela única (Excel e Word) com itens, respostas, links e textos; uma pasta por item
+  // ("08.1 Relação das licitações…") só com os prints que o comprovam (o compartilhado vai, com o mesmo
+  // nome, em cada pasta). Item sem print não ganha pasta.
   async function montarZip(itensKit, lista, resumo, falhas, quando) {
     await carregarScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
     const zip = new window.JSZip();
     const porNome = Object.fromEntries(lista.map((p) => [p.hash || p.nome, p]));
-    const pend = itensPendentes();
-    zip.file('LEIA-ME.txt', [
-      'KIT DE EVIDÊNCIAS PNTP 2026 — ' + orgaoDados.nome,
-      'Gerado em ' + dataHora(quando) + ' pelo painel SOFT+ GOV, com o que estava publicado no portal nesse momento.',
-      '',
-      'Cada pasta é um item do questionário do Avalia (avalia.atricon.org.br), com o código e o título do item.',
-      'Em cada pasta: os prints que comprovam o item (marcações em vermelho com o nome do critério e o código; endereço, data e hora no alto)',
-      'e o arquivo esclarecimento.txt, com a resposta sugerida por critério, os links e o texto de esclarecimento (versão curta e completa).',
-      'Um mesmo print pode comprovar vários itens: ele aparece, com o mesmo nome, na pasta de cada item.',
-      'Nada foi lançado no Avalia: copie, cole e anexe em cada item. Confira a resposta sugerida antes de lançar.',
-      '',
-      'Resumo: ' + resumo.itens + ' itens · ' + resumo.atende + ' atendem · ' + resumo.parcial + ' parciais · ' + resumo.nao_atende + ' não atendem · ' + resumo.prints + ' prints.',
-      pend.length ? '\nPRÉ-DIAGNÓSTICO — itens que vão sair "Não atende" ou incompletos:\n' + pend.map((x) => '  ' + x.codigo + ' ' + x.titulo + (x.falta && x.falta.length ? '\n     · ' + x.falta.join('\n     · ') : '')).join('\n') : '\nPré-diagnóstico: nenhum item pendente na autoavaliação.',
-      falhas.length ? '\nPáginas que não puderam ser fotografadas: ' + falhas.map((p) => p.url + ' (' + p.erro + ')').join('; ') : ''
-    ].join('\n'));
+    zip.file(nomeTabela(quando) + '.xlsx', await tabelaXlsx(itensKit, lista, quando));
+    zip.file(nomeTabela(quando) + '.docx', await tabelaDocx(itensKit, lista, quando));
     for (const it of itensKit) {
+      const ps = (it.prints || []).map((h) => porNome[h]).filter(Boolean);
+      if (!ps.length) continue;
       const pasta = zip.folder(codigoPasta(it.c) + ' ' + tituloCurto(it.titulo));
-      const ps = it.prints.map((h) => porNome[h]).filter(Boolean);
       for (const p of ps) pasta.file(p.nome, await blobDoPrint(p));
-      pasta.file('esclarecimento.txt', [
-        it.c + ' — ' + it.titulo,
-        'Classificação: ' + (CLASSIF[it.classificacao] || it.classificacao) + ' · Autoavaliação: ' + ((SITUACAO[it.situacao] || [it.situacao])[0]),
-        '',
-        'RESPOSTA SUGERIDA',
-        CRITERIOS.map(([l, , n]) => '  ' + n + ': ' + it.respostas[l]).join('\n'),
-        '',
-        'LINKS',
-        it.links.map((l) => '  ' + l.rotulo + ': ' + l.url).join('\n'),
-        '',
-        'ESCLARECIMENTO (VERSÃO CURTA)',
-        it.curto,
-        '',
-        'ESCLARECIMENTO (VERSÃO COMPLETA)',
-        it.completo,
-        '',
-        'PRINTS',
-        ps.length ? ps.map((p) => '  ' + p.nome + ' — ' + p.url + (p.itens.length > 1 ? ' (comprova também: ' + p.itens.map((i) => i.c).filter((c) => c !== it.c).join(', ') + ')' : '')).join('\n') : '  (sem print)'
-      ].join('\n'));
     }
     return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
   }
