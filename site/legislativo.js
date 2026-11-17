@@ -293,9 +293,9 @@
         el('td', { 'data-rotulo': 'Data', class: 'num' }, dataBR(s.data) + (s.hora ? ' ' + s.hora.slice(0, 5) : '')),
         el('td', { 'data-rotulo': 'Sessão', class: 'lic-obj' }, el('a', { href: '#/sessao/' + s.id }, el('strong', null, (TIPOS_SESSAO[s.tipo] || 'Sessão') + (s.numero ? ' nº ' + s.numero : ''))),
           el('span', { class: 'meta' }, (s.comissoes ? s.comissoes.nome : 'Plenário') + ' · ' + (AND_SESSAO[s.andamento] || [''])[0])),
-        el('td', { 'data-rotulo': 'Pauta' }, s.pauta_url ? linkExt(s.pauta_url, 'Pauta') : s.pauta ? el('a', { href: '#/sessao/' + s.id }, 'Ver pauta') : '—'),
-        el('td', { 'data-rotulo': 'Ata' }, s.ata_url ? linkExt(s.ata_url, 'Ata') : '—'),
-        el('td', { 'data-rotulo': 'Vídeo' }, s.video_url ? linkExt(s.video_url, 'Assistir') : '—'),
+        el('td', { 'data-rotulo': 'Pauta' }, s.pauta_url ? linkExt(s.pauta_url, 'Pauta', 'botao botao-claro botao-p') : s.pauta ? el('a', { class: 'botao botao-claro botao-p', href: '#/sessao/' + s.id }, 'Ver pauta') : '—'),
+        el('td', { 'data-rotulo': 'Ata' }, s.ata_url ? linkExt(s.ata_url, 'Ata', 'botao botao-claro botao-p') : '—'),
+        el('td', { 'data-rotulo': 'Vídeo' }, s.video_url ? linkExt(s.video_url, 'Assistir', 'botao botao-claro botao-p') : '—'),
         el('td', { 'data-rotulo': '' }, el('a', { href: '#/sessao/' + s.id, class: 'botao botao-claro botao-p' }, 'Detalhes', el('span', { class: 'sr' }, ' de ' + nomeSessao(s)))))
     });
   }
@@ -451,7 +451,7 @@
           el('thead', null, el('tr', null, ['Data', 'Vereador', 'Descrição', 'Recebedor', 'Valor', 'Comprovante'].map((t) => el('th', { scope: 'col' }, t)))),
           el('tbody', null, linhas.map((x) => el('tr', null, el('td', { 'data-rotulo': 'Data', class: 'num' }, dataBR(x.data)), el('td', { 'data-rotulo': 'Vereador' }, x.parlamentar),
             el('td', { 'data-rotulo': 'Descrição' }, x.descricao), el('td', { 'data-rotulo': 'Recebedor' }, [x.beneficiario_nome, /^\d{14}$/.test(x.beneficiario_doc || '') ? x.beneficiario_doc.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : x.beneficiario_doc].filter(Boolean).join(' · ') || '—'),
-            el('td', { 'data-rotulo': 'Valor', class: 'num' }, U.moedaBR(x.valor)), el('td', { 'data-rotulo': 'Comprovante' }, x.documento_url ? linkExt(x.documento_url, 'Abrir') : '—'))))))
+            el('td', { 'data-rotulo': 'Valor', class: 'num' }, U.moedaBR(x.valor)), el('td', { 'data-rotulo': 'Comprovante' }, x.documento_url ? linkExt(x.documento_url, 'Abrir', 'botao botao-claro botao-p') : '—'))))))
           : S.decl.doAno(decl, ano).length ? '' : el('p', { class: 'vazio' }, 'Nenhum pagamento publicado em ' + ano + '.'));
     }
     desenhar();

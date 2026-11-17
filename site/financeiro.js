@@ -245,7 +245,7 @@
         td('Credor e objeto', [el('strong', null, d.credor_nome), meta(d.credor_doc_publico), el('span', { style: 'display:block;margin-top:2px' }, d.objeto), meta(procedimento(d))], 'lic-obj'),
         td('Classificação', [d.unidade_nome || d.unidade_codigo || '—', meta([d.natureza_codigo, d.natureza_nome].filter(Boolean).join(' · ')), meta(d.fonte_codigo ? 'Fonte ' + d.fonte_codigo + (d.fonte_nome ? ' · ' + d.fonte_nome : '') : null)]),
         td('Empenhado', moeda(d.total_empenhado), 'num'), td('Liquidado', moeda(d.total_liquidado), 'num'), td('Pago', moeda(d.total_pago), 'num'),
-        el('td', { 'data-rotulo': '' }, el('a', { href: '#/despesa/' + d.id }, 'Detalhes', el('span', { class: 'sr' }, ' do empenho ' + d.numero))))
+        el('td', { 'data-rotulo': '' }, el('a', { class: 'botao botao-claro botao-p', href: '#/despesa/' + d.id }, 'Detalhes', el('span', { class: 'sr' }, ' do empenho ' + d.numero))))
     });
   }
 
@@ -320,7 +320,7 @@
       cartoes([['Empenhado', moeda(d.total_empenhado), d.total_empenhado !== d.valor_empenhado ? 'Valor original: ' + moeda(d.valor_empenhado) : null], ['Liquidado', moeda(d.total_liquidado)], ['Pago', moeda(d.total_pago)]]),
       el('section', { class: 'cartao' }, el('h2', { class: 'mt-0' }, 'Credor e objeto'),
         el('dl', { class: 'ficha-lic' }, linha('Credor', d.credor_nome), linha('CPF/CNPJ', d.credor_doc_publico), linha('Bem ou serviço', d.objeto),
-          linha('Procedimento de origem', proc), linha('Processo', d.processo), linha('Contrato', d.contrato_id ? el('a', { href: '#/contrato/' + d.contrato_id }, 'Ver o contrato') : null))),
+          linha('Procedimento de origem', proc), linha('Processo', d.processo), linha('Contrato', d.contrato_id ? el('a', { class: 'botao botao-claro botao-p', href: '#/contrato/' + d.contrato_id }, 'Ver o contrato') : null))),
       el('section', { class: 'mt-2 cartao' }, el('h2', { class: 'mt-0' }, 'Classificação orçamentária'),
         el('dl', { class: 'ficha-lic' }, linha('Unidade orçamentária', cod(d.unidade_codigo, d.unidade_nome)), linha('Função', cod(d.funcao_codigo, C.funcoes[d.funcao_codigo])),
           linha('Subfunção', cod(d.subfuncao_codigo, d.subfuncao_nome)), linha('Programa', cod(d.programa_codigo, d.programa_nome)), linha('Ação', cod(d.acao_codigo, d.acao_nome)),

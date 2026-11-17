@@ -1,7 +1,8 @@
 {
-  "versao": "0.43.3",
+  "versao": "0.43.4",
   "data": "2026-11-17",
   "notas": [
+    "Site: links de ação viraram botões — nas sessões (Pauta, Ver pauta, Ata, Assistir), nas últimas publicações da página inicial (Ver documento / Ver na lista), comprovantes da verba indenizatória, documentos dos conselhos e planos setoriais (PDF/Acessar/Abrir), aditivos de contratos, boletins de obras, Detalhes e Ver o contrato nas despesas, Currículo dos gestores, Ver no mapa e Política de privacidade em PDF. Continuam como link de texto: nomes de leis e normas, títulos de documentos em listas, menus, \"Todos os… →\" e links no meio de frases.",
     "Site (correção): na página inicial das Câmaras, o carrossel de Vereadores podia abrir com um cartão por vez, enorme e cortado, porque calculava a largura antes de o bloco entrar na página. Agora calcula quando o bloco aparece e recalcula sempre que a largura muda (o carrossel de Gestão também).",
     "Migração: cada seção mostra uma barra de progresso enquanto analisa ou importa, com \"X de Y (Z%)\". O total vai crescendo enquanto a seção acha os itens (ano a ano, página a página), então a porcentagem pode recuar um pouco no começo; antes de achar os primeiros itens a barra fica em movimento.",
     "Migração (Plataforma B · IntGest): o site antigo limita os pedidos e respondia \"429/403 — muitos pedidos\" no meio da leitura; a resposta seguia como página vazia e a listagem parava sem aviso. Por isso faltavam diárias (60 de 131 em José da Penha), anexos das licitações, LDO/LOA/RGF de vários anos e licitações de 2022–2024. Agora a leitura vai uma por vez, mais devagar, espera e tenta de novo sozinha quando o site pede; se o bloqueio continuar, a seção para com o aviso e, rodando de novo, continua de onde parou.",

@@ -360,8 +360,7 @@ html.contraste .noticia-h, html.contraste .noticia-h-topo, html.contraste .notic
 .pub-etiquetas { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
 .pub-texto h3 { font-size: 1rem; margin: 0 0 4px; }
 .pub-texto p { margin: 0 0 8px; color: var(--texto-suave); font-size: .92rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.pub-ver { margin-top: auto; font-weight: 600; text-decoration: none; font-size: .92rem; }
-.pub-ver:hover { text-decoration: underline; }
+.pub-ver { margin-top: auto; align-self: flex-start; }
 /* Agenda: mesmo cartão das publicações, com a descrição inteira na página da agenda */
 .agenda-cartao .pub-texto h3 a { color: inherit; text-decoration: none; }
 .agenda-cartao .pub-texto h3 a:hover { text-decoration: underline; }
@@ -513,6 +512,8 @@ ul.partes-contas.cartao { padding: 4px 18px; }
 .tabela-lic .lic-num { font-weight: 800; }
 .tabela-lic .lic-obj { min-width: 260px; line-height: 1.45; }
 .botao.botao-p { padding: 6px 12px; font-size: .85rem; white-space: nowrap; }
+.botao.botao-bloco { display: flex; width: fit-content; margin-top: 6px; }
+td .botao.botao-p + .botao.botao-p { margin-left: 6px; }
 @media (max-width: 760px) {
   .tabela-rolagem { border: 0; background: transparent; }
   .tabela-dados thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

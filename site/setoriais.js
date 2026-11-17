@@ -16,7 +16,7 @@
   const numBR = (v) => v === null || v === undefined ? '—' : Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
   const novaAba = el.bind(null, 'span', { class: 'sr' }, ' (abre em nova aba)');
   const linkDoc = (d, rot) => d.arquivo_url || d.link_externo
-    ? el('a', { href: d.arquivo_url || d.link_externo, target: '_blank', rel: 'noopener' }, rot || (d.arquivo_url ? 'PDF' : 'Acessar'), novaAba()) : '—';
+    ? el('a', { class: 'botao botao-claro botao-p', href: d.arquivo_url || d.link_externo, target: '_blank', rel: 'noopener' }, rot || (d.arquivo_url ? 'PDF' : 'Acessar'), novaAba()) : '—';
 
   // ---------- seções (secoes_setoriais) ----------
   let secoes = null;
@@ -144,7 +144,7 @@
       el('dl', { class: 'ficha-lic' }, linha('Criação', c.norma_criacao ? (c.norma_url ? el('a', { href: c.norma_url, target: '_blank', rel: 'noopener' }, c.norma_criacao, novaAba()) : c.norma_criacao) : null),
         linha('Mandato atual', c.mandato_inicio || c.mandato_fim ? U.periodoBR(c.mandato_inicio, c.mandato_fim) : null), linha('Reuniões', c.periodicidade), linha('Local das reuniões', c.local_reunioes),
         linha('Telefone', c.telefone), linha('E-mail', c.email ? el('a', { href: 'mailto:' + c.email }, c.email) : null),
-        linha('Regimento interno', c.regimento_url ? el('a', { href: c.regimento_url, target: '_blank', rel: 'noopener' }, 'Abrir', novaAba()) : null)),
+        linha('Regimento interno', c.regimento_url ? el('a', { class: 'botao botao-claro botao-p', href: c.regimento_url, target: '_blank', rel: 'noopener' }, 'Abrir', novaAba()) : null)),
       el('section', { class: 'mt-3' }, el('div', { class: 'secao-titulo' }, el('h3', { class: 'm-0' }, 'Composição'),
         S.botoesExportar('composicao-' + (c.sigla || c.tipo), [['nome', 'Nome'], ['funcao', 'Função', (v) => FUNCOES[v]], ['condicao', 'Titular/suplente'], ['segmento', 'Segmento'],
           ['entidade', 'Entidade'], ['mandato_inicio', 'Mandato: início'], ['mandato_fim', 'Mandato: fim'], ['ato', 'Ato de nomeação']], async (de) => de ? [] : lista)),

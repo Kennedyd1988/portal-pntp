@@ -395,9 +395,9 @@
         el('h3', null, ato(p)),
         el('span', { class: 'sr' }, 'Publicado em ' + dataBR(p.data_publicacao) + '. '),
         el('p', null, p.ementa),
-        doc ? el('a', { class: 'pub-ver', href: doc, target: '_blank', rel: 'noopener' }, 'Ver documento',
+        doc ? el('a', { class: 'pub-ver botao botao-claro botao-p', href: doc, target: '_blank', rel: 'noopener' }, 'Ver documento',
           el('span', { class: 'sr' }, ' de ' + ato(p) + ' (abre em nova aba)'), el('span', { 'aria-hidden': 'true' }, ' →'))
-          : el('a', { class: 'pub-ver', href: '#/publicacoes?q=' + encodeURIComponent((p.numero || '') + ' ' + p.ano) }, 'Ver na lista →')));
+          : el('a', { class: 'pub-ver botao botao-claro botao-p', href: '#/publicacoes?q=' + encodeURIComponent((p.numero || '') + ' ' + p.ano) }, 'Ver na lista →')));
   }
   // Ícone genérico de gráfico (pizza) da faixa do Radar.
   function iconeRadar() {
@@ -876,7 +876,7 @@
       g.unidade_id && S.nomeUnidade(g.unidade_id) ? el('a', { class: 'bloco menor', href: '#/unidade/' + g.unidade_id }, S.nomeUnidade(g.unidade_id)) : null,
       g.email ? el('a', { class: 'bloco menor', href: 'mailto:' + g.email }, g.email) : null,
       g.telefone ? el('span', { class: 'bloco meta' }, g.telefone) : null,
-      g.curriculo_url ? el('a', { class: 'bloco menor', href: g.curriculo_url, target: '_blank', rel: 'noopener' }, 'Currículo (PDF)') : null);
+      g.curriculo_url ? el('a', { class: 'botao botao-claro botao-p botao-bloco', href: g.curriculo_url, target: '_blank', rel: 'noopener' }, 'Currículo (PDF)') : null);
   }
 
   R.estrutura = async function (main) {
@@ -1140,7 +1140,7 @@
           : el('p', null, 'Encarregado em designação.')),
       el('section', { style: 'margin:28px 0' }, el('h2', null, 'Política de privacidade e proteção de dados'),
         l.politica_texto ? texto(l.politica_texto) : null,
-        l.politica_url ? el('p', null, el('a', { href: l.politica_url, target: '_blank', rel: 'noopener' }, 'Política de privacidade em PDF')) : null,
+        l.politica_url ? el('p', null, el('a', { class: 'botao botao-claro', href: l.politica_url, target: '_blank', rel: 'noopener' }, 'Política de privacidade em PDF', el('span', { class: 'sr' }, ' (abre em nova aba)'))) : null,
         !l.politica_texto && !l.politica_url ? el('p', { class: 'vazio' }, 'Em elaboração.') : null,
         l.politica_atualizada_em ? el('p', { class: 'meta' }, 'Última atualização: ' + dataBR(l.politica_atualizada_em) + '.') : null),
       cookiesDoPortal(),
@@ -1258,7 +1258,7 @@
         el('div', { class: 'cartao' }, el('h2', null, S.conf.nome_exibicao || S.orgao.nome),
           el('dl', { class: 'dados' },
             el('dt', null, 'Endereço'), el('dd', null, c.endereco || '—', c.cep ? ' · CEP ' + c.cep : '',
-              c.endereco ? el('a', { class: 'bloco', href: 'https://www.google.com/maps/search/' + encodeURIComponent(c.endereco + (c.cep ? ' ' + c.cep : '')), target: '_blank', rel: 'noopener' }, 'Ver no mapa') : null),
+              c.endereco ? el('a', { class: 'botao botao-claro botao-p botao-bloco', href: 'https://www.google.com/maps/search/' + encodeURIComponent(c.endereco + (c.cep ? ' ' + c.cep : '')), target: '_blank', rel: 'noopener' }, 'Ver no mapa') : null),
             el('dt', null, 'Telefone'), el('dd', null, c.telefone ? el('a', { href: 'tel:' + c.telefone.replace(/\D/g, '') }, c.telefone) : '—'),
             el('dt', null, 'E-mail'), el('dd', null, c.email ? el('a', { href: 'mailto:' + c.email }, c.email) : '—'),
             el('dt', null, 'Horário'), el('dd', null, c.horario || '—'),
@@ -2275,7 +2275,7 @@
             el('td', { 'data-rotulo': 'Assinatura', class: 'num' }, dataBR(a.data_assinatura)),
             el('td', { 'data-rotulo': 'Valor', class: 'num' }, a.valor !== null ? moedaBR(a.valor) : '—'),
             el('td', { 'data-rotulo': 'Nova vigência', class: 'num' }, a.nova_vigencia_fim ? dataBR(a.nova_vigencia_fim) : '—'),
-            el('td', { 'data-rotulo': 'Inteiro teor' }, a.arquivo_url || a.link_externo ? el('a', { href: a.arquivo_url || a.link_externo, target: '_blank', rel: 'noopener' }, a.arquivo_url ? 'PDF' : 'Link', el('span', { class: 'sr' }, ' (abre em nova aba)')) : '—'))))))
+            el('td', { 'data-rotulo': 'Inteiro teor' }, a.arquivo_url || a.link_externo ? el('a', { class: 'botao botao-claro botao-p', href: a.arquivo_url || a.link_externo, target: '_blank', rel: 'noopener' }, a.arquivo_url ? 'PDF' : 'Link', el('span', { class: 'sr' }, ' (abre em nova aba)')) : '—'))))))
           : el('p', { class: 'vazio' }, 'Este contrato não tem aditivos.')),
       el('section', { class: 'mt-3' }, el('h2', null, 'Fiscais e gestor'),
         (fi || []).length ? el('ul', { class: 'partes-contas cartao' }, fi.map((x) => el('li', null, el('strong', null, x.nome),
@@ -2999,7 +2999,7 @@
             el('td', { 'data-rotulo': 'Valor medido', class: 'num' }, m.valor_medido != null ? moedaBR(m.valor_medido) : '—'),
             el('td', { 'data-rotulo': 'Valor pago', class: 'num' }, m.valor_pago != null ? moedaBR(m.valor_pago) : '—', m.data_pagamento ? el('span', { class: 'meta' }, 'em ' + dataBR(m.data_pagamento)) : null),
             el('td', { 'data-rotulo': '% acumulado', class: 'num' }, m.percentual_acumulado != null ? pctBR(m.percentual_acumulado) : '—'),
-            el('td', { 'data-rotulo': 'Boletim' }, m.arquivo_url || m.link_externo ? el('a', { href: m.arquivo_url || m.link_externo, target: '_blank', rel: 'noopener' }, m.arquivo_url ? 'PDF' : 'Link', el('span', { class: 'sr' }, ' da ' + m.numero + 'ª medição (abre em nova aba)')) : '—'))))))
+            el('td', { 'data-rotulo': 'Boletim' }, m.arquivo_url || m.link_externo ? el('a', { class: 'botao botao-claro botao-p', href: m.arquivo_url || m.link_externo, target: '_blank', rel: 'noopener' }, m.arquivo_url ? 'PDF' : 'Link', el('span', { class: 'sr' }, ' da ' + m.numero + 'ª medição (abre em nova aba)')) : '—'))))))
           : el('p', { class: 'vazio' }, 'Nenhuma medição registrada.')),
       el('section', { class: 'mt-3' }, el('h2', null, 'Paralisações'),
         pars.length ? el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' },
