@@ -853,7 +853,10 @@
       sb.from('lgpd').select('*').eq('orgao_id', o.id).maybeSingle()
     ]);
     // Itens do menu que levam a uma página oculta saem (e o grupo que ficar sem subitens também).
-    const visivel = (i) => !(i.tipo === 'interno' && S.oculta('#' + String(i.destino || '').replace(/^#/, '')));
+    // Também saem as páginas que não valem para o tipo de órgão (ex.: na Câmara, Renúncias, Saúde e Educação,
+    // que são da matriz do Executivo), mesmo que o menu do órgão tenha sido criado com elas.
+    const naoAplica = (i) => { const k = i.tipo === 'interno' && window.chaveDaRotaPNTP(i.destino); return !!k && !window.aplicavelPNTP(k); };
+    const visivel = (i) => !(i.tipo === 'interno' && (S.oculta('#' + String(i.destino || '').replace(/^#/, '')) || naoAplica(i)));
     const itensMenu = (menu.data || []).filter(visivel);
     const ocultos = new Set((menu.data || []).filter((i) => !visivel(i)).map((i) => i.id));
     S.menu = itensMenu.filter((i) => !(ocultos.size && (menu.data || []).some((f) => f.pai_id === i.id) && !itensMenu.some((f) => f.pai_id === i.id)));

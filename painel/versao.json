@@ -1,7 +1,8 @@
 {
-  "versao": "0.43.4",
+  "versao": "0.43.5",
   "data": "2026-11-17",
   "notas": [
+    "Site: o menu esconde sozinho as páginas que não valem para o tipo de órgão, mesmo que estejam cadastradas no menu. Na Câmara saem Renúncias de receita, Saúde, Educação e assistência social e Emendas parlamentares (itens só do Executivo no PNTP); na Prefeitura, as páginas só da Câmara (vereadores, proposições, sessões, votações, verba indenizatória). O grupo que ficar vazio também some.",
     "Site: links de ação viraram botões — nas sessões (Pauta, Ver pauta, Ata, Assistir), nas últimas publicações da página inicial (Ver documento / Ver na lista), comprovantes da verba indenizatória, documentos dos conselhos e planos setoriais (PDF/Acessar/Abrir), aditivos de contratos, boletins de obras, Detalhes e Ver o contrato nas despesas, Currículo dos gestores, Ver no mapa e Política de privacidade em PDF. Continuam como link de texto: nomes de leis e normas, títulos de documentos em listas, menus, \"Todos os… →\" e links no meio de frases.",
     "Site (correção): na página inicial das Câmaras, o carrossel de Vereadores podia abrir com um cartão por vez, enorme e cortado, porque calculava a largura antes de o bloco entrar na página. Agora calcula quando o bloco aparece e recalcula sempre que a largura muda (o carrossel de Gestão também).",
     "Migração: cada seção mostra uma barra de progresso enquanto analisa ou importa, com \"X de Y (Z%)\". O total vai crescendo enquanto a seção acha os itens (ano a ano, página a página), então a porcentagem pode recuar um pouco no começo; antes de achar os primeiros itens a barra fica em movimento.",
