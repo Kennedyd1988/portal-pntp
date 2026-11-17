@@ -101,7 +101,7 @@
     const usaLink = x.link_externo && !x.arquivo_url;
     const rPdf = el('input', { type: 'radio', name: 'pb-doc', value: 'pdf', checked: !usaLink });
     const rLink = el('input', { type: 'radio', name: 'pb-doc', value: 'link', checked: !!usaLink });
-    const blocoPdf = el('div', null, campo('pb-pdf', 'Arquivo PDF', f.pdf, x.arquivo_url ? null : 'Até 10 MB.'),
+    const blocoPdf = el('div', null, campo('pb-pdf', 'Arquivo PDF', f.pdf, x.arquivo_url ? null : 'Até 200 MB.'),
       x.arquivo_url ? el('a', { href: x.arquivo_url, target: '_blank', rel: 'noopener', class: 'ajuda' }, 'Ver PDF atual') : null);
     const blocoLink = el('div', null, campo('pb-link', 'Link do documento', f.link,
       'Ex.: a página da edição no ' + (cfg.diario_oficial_nome || 'Diário Oficial') + '.'));
@@ -113,7 +113,7 @@
       ...anexos.atuais.map((a) => el('li', null, el('a', { href: a.arquivo_url, target: '_blank', rel: 'noopener' }, a.titulo),
         el('button', { type: 'button', class: 'link perigo', onclick: () => { anexos.atuais = anexos.atuais.filter((y) => y !== a); anexos.removidos.push(a); desenharAnexos(); } }, 'Remover'))),
       ...anexos.novos.map((n, i) => el('li', null, el('div', { class: 'grade-campos' },
-        campo('pb-anx-t-' + i, 'Título do anexo', n.titulo), campo('pb-anx-a-' + i, 'Arquivo', n.arquivo, 'PDF, planilha, documento ou imagem, até 20 MB.')),
+        campo('pb-anx-t-' + i, 'Título do anexo', n.titulo), campo('pb-anx-a-' + i, 'Arquivo', n.arquivo, 'PDF, planilha, documento ou imagem, até 200 MB.')),
         el('button', { type: 'button', class: 'link perigo', onclick: () => { anexos.novos.splice(i, 1); desenharAnexos(); } }, 'Remover'))));
     const btnAnexo = el('button', { type: 'button', class: 'btn btn-claro btn-p' }, '+ Adicionar anexo');
     btnAnexo.addEventListener('click', () => {
@@ -177,7 +177,7 @@
       for (let i = 0; i < anexos.novos.length; i++) {
         const n = anexos.novos[i], arq = n.arquivo.files[0];
         if (!erroCampo('pb-anx-t-' + i, n.titulo.value.trim().length >= 2 ? '' : 'Dê um título ao anexo (ou remova a linha).')) return;
-        if (!erroCampo('pb-anx-a-' + i, !arq ? 'Escolha o arquivo.' : arq.size > 20 * 1024 * 1024 ? 'O arquivo passa de 20 MB.' : '')) return;
+        if (!erroCampo('pb-anx-a-' + i, !arq ? 'Escolha o arquivo.' : arq.size > 200 * 1024 * 1024 ? 'O arquivo passa de 200 MB.' : '')) return;
       }
       ocupado(btn, situacao === 'publicado' ? 'Publicando…' : 'Salvando…');
       try {

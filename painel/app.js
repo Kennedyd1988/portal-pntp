@@ -1479,7 +1479,7 @@
   function validarPdf(arquivo) {
     if (!arquivo) return null;
     if (arquivo.type !== 'application/pdf') throw amigavel('Escolha um arquivo PDF.');
-    if (arquivo.size > 10 * 1024 * 1024) throw amigavel('O PDF passa de 10 MB. Reduza o arquivo antes de enviar.');
+    if (arquivo.size > 200 * 1024 * 1024) throw amigavel('O PDF passa de 200 MB. Reduza o arquivo antes de enviar.');
     return arquivo;
   }
 

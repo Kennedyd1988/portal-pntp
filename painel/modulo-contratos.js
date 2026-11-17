@@ -11,7 +11,7 @@
   const P = window.PNTP;
   const { sb, el, toast, ocupado, erroCampo, campo } = P;
   const LOTE = 50;
-  const LIMITE_MB = 50;
+  const LIMITE_MB = 200;
 
   const TIPOS = { contrato: 'Contrato', ata_registro_precos: 'Ata de registro de preços', empenho: 'Nota de empenho (substitui contrato)', carta_contrato: 'Carta-contrato', outro: 'Outro instrumento' };
   const TIPOS_ADITIVO = { prazo: 'Prazo', valor: 'Valor (acréscimo/supressão)', prazo_valor: 'Prazo e valor', qualitativo: 'Alteração qualitativa', apostilamento: 'Apostilamento (reajuste)', rescisao: 'Rescisão', outro: 'Outro' };

@@ -37,7 +37,8 @@ const URL_PROJETO = Deno.env.get('SUPABASE_URL')!;
 const CHAVE_SECRETA = chave('SUPABASE_SECRET_KEYS', 'SUPABASE_SERVICE_ROLE_KEY');
 const CHAVE_PUBLICA = chave('SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY');
 const NAVEGADOR = 'Mozilla/5.0 (compatible; SOFT+ Migracao PNTP)';
-const LIMITE = 50 * 1024 * 1024;   // 50 MB por arquivo (limite do bucket, script 31)
+const LIMITE = 200 * 1024 * 1024;  // 200 MB por arquivo (limite do bucket, script 47; plano Pro)
+const NA_MEMORIA = 40 * 1024 * 1024; // até aqui o arquivo é lido inteiro; acima, vai em fluxo (a função tem pouca memória)
 // Armazenamentos de arquivos de modelos de site conhecidos (fora do domínio do órgão). 0.39.0: Plataforma B (IntGest).
 const HOSTS_ARQUIVOS = ['intellgest-sigl-media.s3.amazonaws.com'];
 
@@ -63,7 +64,7 @@ async function buscar(url: string, extra: RequestInit = {}) {
   const u = new URL(url);
   const r = await fetch(url, { ...extra, redirect: 'follow',
     headers: { 'User-Agent': NAVEGADOR, 'Cookie': cookies.get(u.host) ?? '', ...(extra.headers ?? {}) },
-    signal: AbortSignal.timeout(45000) });
+    signal: extra.signal ?? AbortSignal.timeout(45000) });
   guardarCookies(u.host, r);
   return r;
 }
@@ -78,6 +79,42 @@ async function liberarSecao(url: URL) {
 async function sha1(t: string) {
   const b = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(t));
   return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
+// Arquivo grande (acima de NA_MEMORIA): passa do site antigo para o Storage em fluxo, sem guardar tudo na memória.
+// O tipo sai do cabeçalho, da extensão ou do início do arquivo (PDF começa com "%PDF").
+async function copiarEmFluxo(r: Response, base: string, tamanho: number) {
+  const leitor = r.body!.getReader();
+  const primeiro = await leitor.read();
+  const ini = primeiro.value ?? new Uint8Array();
+  if (!ini.byteLength) return falha('Arquivo vazio no site antigo.');
+  let tipo = (r.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+  const nomeFinal = (r.headers.get('content-disposition') ?? '').match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i)?.[1] ?? new URL(r.url).pathname;
+  let ext = TIPOS[tipo] ?? (nomeFinal.match(/\.([a-z0-9]{2,4})$/i)?.[1] ?? '').toLowerCase();
+  if (!TIPOS[tipo] && EXT_TIPO[ext]) tipo = EXT_TIPO[ext];
+  if (ini[0] === 0x25 && ini[1] === 0x50 && ini[2] === 0x44 && ini[3] === 0x46) { tipo = 'application/pdf'; ext = 'pdf'; }
+  if (!EXT_TIPO[ext]) { try { await leitor.cancel(); } catch (_) { /* ok */ } return falha('Tipo de arquivo não aceito (' + (tipo || ext || 'desconhecido') + ').'); }
+  let total = ini.byteLength;
+  const fluxo = new ReadableStream<Uint8Array>({
+    start(c) { c.enqueue(ini); },
+    async pull(c) {
+      const { done, value } = await leitor.read();
+      if (done) { c.close(); return; }
+      total += value.byteLength;
+      if (total > LIMITE) { try { await leitor.cancel(); } catch (_) { /* ok */ } c.error(new Error('Arquivo maior que 200 MB: não copiado.')); return; }
+      c.enqueue(value);
+    },
+    cancel() { return leitor.cancel(); },
+  });
+  const caminho = base + '.' + ext;
+  // Envio direto à API do Storage com o corpo em fluxo (Content-Length do original, quando informado).
+  // Mesmos cabeçalhos que a biblioteca da Supabase usa (apikey + Bearer com a chave secreta).
+  const cab: Record<string, string> = { 'apikey': CHAVE_SECRETA, 'Authorization': 'Bearer ' + CHAVE_SECRETA, 'Content-Type': tipo, 'x-upsert': 'true', 'cache-control': 'max-age=3600' };
+  if (tamanho) cab['Content-Length'] = String(tamanho);
+  const up = await fetch(URL_PROJETO + '/storage/v1/object/arquivos/' + caminho.split('/').map(encodeURIComponent).join('/'),
+    { method: 'POST', headers: cab, body: fluxo, duplex: 'half', signal: AbortSignal.timeout(300000) } as RequestInit);
+  if (!up.ok) return falha('Não foi possível gravar o arquivo grande: ' + up.status + ' ' + (await up.text()).slice(0, 200));
+  return json({ ok: true, existia: false, url_publica: URL_PROJETO + '/storage/v1/object/public/arquivos/' + caminho, bytes: total });
 }
 
 Deno.serve(async (req) => {
@@ -168,12 +205,14 @@ Deno.serve(async (req) => {
         const caminho = orgao + '/migracao/' + pasta + '/' + ja[0].name;
         return json({ ok: true, existia: true, url_publica: admin.storage.from('arquivos').getPublicUrl(caminho).data.publicUrl, bytes: ja[0].metadata?.size ?? null });
       }
-      const r = await buscar(url);
+      // Arquivo grande demora: até 5 minutos para baixar e gravar.
+      const r = await buscar(url, { signal: AbortSignal.timeout(300000) });
       if (!r.ok) return falha('O site antigo respondeu ' + r.status + ' para o arquivo.');
       const tamanho = Number(r.headers.get('content-length') ?? 0);
-      if (tamanho > LIMITE) { try { await r.body?.cancel(); } catch (_) { /* ok */ } return falha('Arquivo maior que 50 MB: fica só o link.'); }
+      if (tamanho > LIMITE) { try { await r.body?.cancel(); } catch (_) { /* ok */ } return falha('Arquivo maior que 200 MB: não copiado.'); }
+      if (tamanho > NA_MEMORIA && r.body) return await copiarEmFluxo(r, base, tamanho);
       const dados = new Uint8Array(await r.arrayBuffer());
-      if (dados.byteLength > LIMITE) return falha('Arquivo maior que 50 MB: fica só o link.');
+      if (dados.byteLength > LIMITE) return falha('Arquivo maior que 200 MB: não copiado.');
       if (!dados.byteLength) return falha('Arquivo vazio no site antigo.');
       let tipo = (r.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
       const nomeFinal = (r.headers.get('content-disposition') ?? '').match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i)?.[1] ?? new URL(r.url).pathname;

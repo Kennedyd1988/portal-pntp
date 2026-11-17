@@ -10,7 +10,7 @@
   'use strict';
   const P = window.PNTP;
   const { sb, el, toast, ocupado, erroCampo, campo } = P;
-  const LOTE = 50, LIMITE_MB = 50;
+  const LOTE = 50, LIMITE_MB = 200;
   const TIPOS = { concurso: 'Concurso público', processo_seletivo: 'Processo seletivo simplificado', estagio: 'Seleção de estágio',
     chamamento: 'Chamamento público', credenciamento: 'Credenciamento', outro: 'Outra seleção' };
   const ANDAMENTOS = { previsto: 'Previsto', inscricoes_abertas: 'Inscrições abertas', em_andamento: 'Em andamento', resultado: 'Resultado divulgado',

@@ -14,7 +14,7 @@
   'use strict';
   const P = window.PNTP;
   const { sb, el, toast, ocupado, erroCampo, campo } = P;
-  const LIMITE_MB = 50;
+  const LIMITE_MB = 200;
   const TIPOS_PROP = { projeto_lei: 'Projeto de Lei', projeto_lei_complementar: 'Projeto de Lei Complementar', projeto_emenda_lei_organica: 'Proposta de Emenda à Lei Orgânica',
     projeto_resolucao: 'Projeto de Resolução', projeto_decreto_legislativo: 'Projeto de Decreto Legislativo', requerimento: 'Requerimento', indicacao: 'Indicação',
     mocao: 'Moção', veto: 'Veto', emenda: 'Emenda', outro: 'Outra proposição' };

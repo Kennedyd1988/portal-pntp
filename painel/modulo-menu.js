@@ -23,28 +23,12 @@
     ['/programa', 'Contratos de programa'], ['/dirigentes-atas', 'Dirigentes e atas da assembleia'], ['/orcamento-consorcio', 'Orçamento do consórcio']];
   // Câmara: telas da atividade legislativa que não estão nos destinos do PNTP.
   const ROTAS_CAMARA = [['/parlamentares', 'Vereadores'], ['/mesa-diretora', 'Mesa Diretora'], ['/comissoes', 'Comissões'], ['/proposicoes', 'Proposições'],
-    ['/sessoes', 'Sessões plenárias'], ['/votacoes', 'Votações'], ['/atividade-parlamentar', 'Atividade dos vereadores']];
+    ['/sessoes', 'Sessões plenárias'], ['/votacoes', 'Votações'], ['/atividade-parlamentar', 'Atividade dos vereadores'], ['/verba-indenizatoria', 'Verba indenizatória']];
   const rotas = () => P.estado.orgao && P.estado.orgao.tipo === 'consorcio' ? ROTAS.concat(ROTAS_CONSORCIO) : P.estado.orgao && P.estado.orgao.tipo === 'camara' ? ROTAS.concat(ROTAS_CAMARA) : ROTAS;
   const nomeRota = (r) => (rotas().find((x) => x[0] === r) || [r, r])[1];
 
-  // Menu sugerido para começar (o órgão ajusta depois).
-  const MENU_PADRAO = [
-    ['Início', '/'],
-    ['Institucional', '/estrutura', [['Estrutura organizacional', '/estrutura'], ['Gestores', '/gestores'], ['Perguntas frequentes', '/faq']]],
-    ['Transparência', '/transparencia', [['Portal da Transparência', '/transparencia'], ['Receitas', '/receitas'], ['Despesas', '/despesas'], ['Pessoal', '/pessoal'], ['Diárias', '/diarias'],
-      ['Planejamento e contas', '/planejamento'], ['Licitações', '/licitacoes'],
-      ['Contratos', '/contratos'], ['Obras', '/obras'], ['Convênios e transferências', '/convenios'], ['Emendas parlamentares', '/emendas'],
-      ['Renúncias de receita', '/renuncias'], ['Saúde', '/saude'], ['Educação e assistência social', '/educacao'], ['Conselhos municipais', '/conselhos']]],
-    ['Publicações', '/publicacoes', [['Leis, decretos e portarias', '/publicacoes'], ['Diário Oficial', '/diario-oficial']]],
-    ['Notícias', '/noticias'],
-    ['Serviços', '/servicos', [['Carta de Serviços ao Usuário', '/servicos'], ['Serviços on-line', '/servicos-online']]],
-    ['Atendimento', '/contato', [['Ouvidoria', '/ouvidoria'], ['e-SIC', '/esic'], ['Contato', '/contato']]]
-  ];
-
-  // Câmara: menu padrão com o grupo "Câmara" (atividade legislativa) logo depois do Início.
-  const MENU_CAMARA = ['Câmara', '/parlamentares', [['Vereadores', '/parlamentares'], ['Mesa Diretora', '/mesa-diretora'], ['Comissões', '/comissoes'],
-    ['Proposições', '/proposicoes'], ['Sessões plenárias', '/sessoes'], ['Votações', '/votacoes'], ['Agenda', '/agenda']]];
-  const menuPadrao = () => P.estado.orgao && P.estado.orgao.tipo === 'camara' ? [MENU_PADRAO[0], MENU_CAMARA].concat(MENU_PADRAO.slice(1)) : MENU_PADRAO;
+  // Menu padrão: um por tipo de órgão (Prefeitura, Câmara, Consórcio, demais), só com as páginas que valem
+  // para ele no PNTP. Fica num lugar só, no banco (criar_menu_padrao, script 48), usado também ao cadastrar o órgão.
 
   let perm = {};
   let conteiner = null;
@@ -170,18 +154,8 @@
         const r1 = await sb.from('menu_itens').delete().eq('orgao_id', org);
         if (r1.error) throw r1.error;
       }
-      const padrao = menuPadrao();
-      const prin = padrao.map(([rotulo, destino], k) => ({ orgao_id: org, rotulo, tipo: 'interno', destino, ordem: (k + 1) * 10 }));
-      const { data, error } = await sb.from('menu_itens').insert(prin).select('id, rotulo');
+      const { error } = await sb.rpc('criar_menu_padrao', { p_orgao: org });
       if (error) throw error;
-      const sub = [];
-      padrao.forEach(([rotulo, , filhosPadrao]) => {
-        if (!filhosPadrao) return;
-        const pai = data.find((d) => d.rotulo === rotulo);
-        filhosPadrao.forEach(([r, d], k) => sub.push({ orgao_id: org, pai_id: pai.id, rotulo: r, tipo: 'interno', destino: d, ordem: (k + 1) * 10 }));
-      });
-      const r2 = await sb.from('menu_itens').insert(sub);
-      if (r2.error) throw r2.error;
       toast('Menu padrão criado. Ajuste à vontade.');
       await recarregar();
     } catch (e) { mostrarErro(e); ocupado(btn); }
@@ -238,7 +212,7 @@
           el('tbody', null, linhas)))
         : el('div', { class: 'vazio' },
           el('p', null, 'O menu ainda está vazio.'),
-          podeGravar() ? el('p', null, 'Comece pelo menu padrão (Início, Institucional, Transparência, Publicações, Notícias, Serviços, Atendimento) e ajuste depois.') : null,
+          podeGravar() ? el('p', null, 'Comece pelo menu padrão do tipo de órgão (Prefeitura, Câmara ou Consórcio, só com as páginas que valem para ele no PNTP) e ajuste depois.') : null,
           podeGravar() ? el('div', { class: 'botoes-cabecalho', style: 'justify-content:center' }, btnPadrao,
             el('button', { type: 'button', class: 'btn btn-claro', onclick: () => form() }, 'Começar do zero')) : null)
     ].filter(Boolean));

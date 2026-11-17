@@ -382,7 +382,7 @@
     const r = await ritmoDoArquivo(url, () => viaPonteRepetindo('arquivo', { url }));
     const blob = r.blob;
     if (!blob || !blob.size) throw new Error('Arquivo vazio no site antigo.');
-    if (blob.size > 50 * 1048576) throw new Error('Arquivo maior que 50 MB: fica só o link.');
+    if (blob.size > 200 * 1048576) throw new Error('Arquivo maior que 200 MB: não copiado.');
     let tipo = r.tipo || '';
     let ext = TIPOS[tipo] || ((String(r.nome || '').match(/\.([a-z0-9]{2,4})$/i) || [])[1] || '').toLowerCase();
     if (!TIPOS[tipo] && EXT_TIPO[ext]) tipo = EXT_TIPO[ext];

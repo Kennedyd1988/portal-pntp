@@ -12,7 +12,7 @@
   const P = window.PNTP;
   const { sb, el, toast, ocupado, erroCampo, campo } = P;
   const LOTE = 50;
-  const LIMITE_MB = 50;
+  const LIMITE_MB = 200;
 
   const SITUACOES = { nao_iniciada: 'Não iniciada', em_andamento: 'Em andamento', paralisada: 'Paralisada', concluida: 'Concluída', cancelada: 'Cancelada' };
   const COR = { nao_iniciada: 'rascunho', em_andamento: 'agendado', paralisada: 'desativado', concluida: 'publicado', cancelada: 'inativo' };

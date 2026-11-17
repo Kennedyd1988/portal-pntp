@@ -13,7 +13,7 @@
   const P = window.PNTP;
   const { sb, el, toast, ocupado, erroCampo, campo } = P;
   const LOTE = 50;
-  const LIMITE_MB = 50;
+  const LIMITE_MB = 200;
 
   // [nome, critério PNTP, classificação]
   const TIPOS = {

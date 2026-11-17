@@ -15,7 +15,7 @@
   const P = window.PNTP;
   const { sb, el, toast, ocupado, erroCampo, campo } = P;
   const LOTE = 50;
-  const LIMITE_MB = 50;
+  const LIMITE_MB = 200;
 
   const MODALIDADES = {
     pregao_eletronico: 'Pregão eletrônico', pregao_presencial: 'Pregão presencial',

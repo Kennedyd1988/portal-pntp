@@ -70,12 +70,12 @@
     return r;
   }
 
-  // Envio de PDF (norma, currículo): até 10 MB.
+  // Envio de PDF (norma, currículo): até 200 MB.
   async function escolherPdf(input) {
     const f = input.files[0];
     if (!f) return null;
     if (f.type !== 'application/pdf') { toast('Escolha um arquivo PDF.', true); input.value = ''; return null; }
-    if (f.size > 10 * 1024 * 1024) { toast('O PDF passa de 10 MB.', true); input.value = ''; return null; }
+    if (f.size > 200 * 1024 * 1024) { toast('O PDF passa de 200 MB.', true); input.value = ''; return null; }
     return f;
   }
 

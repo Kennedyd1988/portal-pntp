@@ -17,7 +17,7 @@
   'use strict';
   const P = window.PNTP;
   const { sb, el, toast, ocupado, erroCampo, campo } = P;
-  const LIMITE_MB = 50;
+  const LIMITE_MB = 200;
   let seq = 0;
 
   const opcoes = (obj, atual, vazio) => [vazio ? el('option', { value: '' }, vazio) : null]
