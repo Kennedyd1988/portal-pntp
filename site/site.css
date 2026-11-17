@@ -976,7 +976,7 @@ html.contraste .btn-transparencia { background: #000 !important; }
 .faixa-topo .redes-topo a { width: 34px; height: 34px; border: 1px solid #dbe4ee; background: #fff; transition: transform .18s, box-shadow .18s, border-color .18s; }
 .faixa-topo .redes-topo a:hover, .faixa-topo .redes-topo a:focus-visible { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(6, 22, 41, .12); border-color: #c8d4e1; }
 .faixa-topo .redes-topo svg { width: 17px; height: 17px; }
-.faixa-topo .selos { align-items: center; gap: 10px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding: 6px 2px; }
+.faixa-topo .selos { align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; overflow: visible; padding: 6px 2px; }
 .faixa-topo .selo-marca { width: 42px; height: 42px; }
 @media (max-width: 760px) { .faixa-topo ul[data-rotulo]::before { display: none; } }
 
@@ -1120,3 +1120,5 @@ a.transp-item:hover .transp-item-icone { background: var(--g); color: #fff; }
 @media (max-width: 600px) { .est-arvore ul { margin-left: 10px; padding-left: 16px; } .est-arvore ul > li::before { left: -16px; width: 12px; } .est-arvore li > .meta { display: block; margin: 4px 0 0 4px; } }
 html.contraste .est-arvore li > a, html.contraste .est-arvore > li > strong, html.contraste .transp-item-icone, html.contraste .transp-icone, html.contraste .chip-est, html.contraste .pag-botao { background: #000 !important; color: #fff !important; border-color: #fff !important; }
 html.contraste .aba-guia[aria-selected="true"] { background: #000 !important; }
+
+.filtros > label:only-child { grid-column: 1 / -1; }

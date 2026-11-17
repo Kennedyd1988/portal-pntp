@@ -420,7 +420,7 @@
     return Promise.all(ABAS_PUB.map(async ([id, rotulo, tipos]) => {
       let q = sb.from('publicacoes').select('id, tipo, numero, ano, data_publicacao, ementa, vigencia, arquivo_url, link_externo').eq('orgao_id', org());
       if (tipos) q = q.in('tipo', tipos);
-      const { data } = await q.order('data_publicacao', { ascending: false }).order('id', { ascending: false }).limit(6);
+      const { data } = await q.order('data_publicacao', { ascending: false }).order('id', { ascending: false }).limit(7);
       return { id, rotulo, itens: data || [] };
     }));
   }
