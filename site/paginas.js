@@ -482,7 +482,8 @@
     let larguraAnterior = -1;
     const aoMudar = () => { const w = janela.clientWidth; if (w > 0 && w !== larguraAnterior) { larguraAnterior = w; ajustar(); } };
     if (window.ResizeObserver) new ResizeObserver(aoMudar).observe(janela);
-    else { addEventListener('resize', aoMudar); requestAnimationFrame(aoMudar); }
+    addEventListener('resize', aoMudar);
+    requestAnimationFrame(aoMudar);
     return caixa;
   }
 
