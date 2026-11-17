@@ -1,7 +1,11 @@
 {
-  "versao": "0.46.2",
+  "versao": "0.46.3",
   "data": "2026-11-17",
   "notas": [
+    "Fotos com aro mais visível (borda branca e anel na cor do órgão) em todo o site: gestores e responsáveis, vereadores, Mesa Diretora, estrutura organizacional e carrosséis da página inicial (também quando não há foto, com as iniciais).",
+    "Vereadores e Mesa Diretora: cartões maiores, partido e cargo em destaque.",
+    "Página de cada vereador: faixa de destaque em azul-marinho com a foto grande, nome, partido, cargo e legislatura em etiquetas, e e-mail e telefone em botões (por extenso). Biografia, comissões (em etiquetas), atividade (indicadores coloridos), votos, emendas, diárias e proposições em cartões.",
+    "Painel: mesmo acabamento do site — traço verde nos títulos e nos cartões, cor por grupo no menu lateral (filete e marcadores), indicadores da autoavaliação PNTP com faixa colorida, foco verde nos campos, cabeçalho de tabela em tom azul e fotos com aro. A lateral continua no azul da SOFT+ GOV e as abas no estilo guia de navegador.",
     "Novo visual do site em todos os órgãos (Prefeitura, Câmara, Consórcio…): página inicial, topo, menu, rodapé e páginas internas.",
     "Topo: a faixa das redes sociais e dos selos continua exclusiva, logo abaixo do cabeçalho, agora redesenhada (fundo suave, rótulos \"Siga-nos\" e \"Selos e certificações\", ícones redondos, sem barra de rolagem: os selos que não couberem passam para a linha de baixo). Brasão maior.",
     "Cores: azul-marinho calculado a partir da cor de cada órgão (topo, menu, rodapé, botões) e verde só nos detalhes. Botão \"Portal da Transparência\" em amarelo-ouro com texto marinho (contraste cerca de 9:1).",

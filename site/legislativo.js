@@ -113,13 +113,20 @@
     const a = (ativ || []).find((x) => x.parlamentar_id === id);
     const lista = (props || []).filter((x) => x.proposicoes).sort((x, y) => String(y.proposicoes.data_apresentacao).localeCompare(String(x.proposicoes.data_apresentacao)));
     S.titulo(nomeParl(p)); trilha(['Vereadores', '#/parlamentares'], [nomeParl(p)]);
+    // Perfil (0.46.3): faixa de destaque com foto, nome, partido/cargo/legislatura em etiquetas e contatos visíveis por extenso.
+    const chips = [p.partido, p.cargo_mesa, p.legislatura_inicio ? 'Legislatura ' + p.legislatura_inicio + (p.legislatura_fim ? '–' + p.legislatura_fim : '') : null].filter(Boolean);
     pagina(main, el('div', { class: 'perfil-vereador' },
-      p.foto_url ? el('img', { src: p.foto_url, alt: 'Foto de ' + nomeParl(p), class: 'foto-vereador foto-grande' }) : null,
-      el('div', null, el('h1', null, nomeParl(p)), p.nome_parlamentar ? el('p', { class: 'meta' }, 'Nome civil: ' + p.nome) : null,
-        el('p', null, [p.partido, p.cargo_mesa, p.legislatura_inicio ? 'Legislatura ' + p.legislatura_inicio + (p.legislatura_fim ? '–' + p.legislatura_fim : '') : null, p.em_exercicio ? null : 'Fora de exercício'].filter(Boolean).join(' · ')),
-        p.email ? el('p', null, 'E-mail: ', el('a', { href: 'mailto:' + p.email }, p.email)) : null, p.telefone ? el('p', null, 'Telefone: ' + p.telefone) : null)),
+      p.foto_url ? el('img', { src: p.foto_url, alt: 'Foto de ' + nomeParl(p), class: 'foto-vereador foto-grande' })
+        : el('span', { class: 'foto-vereador foto-grande foto-vazia', 'aria-hidden': 'true' }, nomeParl(p).slice(0, 1)),
+      el('div', { class: 'perfil-dados' },
+        el('span', { class: 'perfil-rotulo' }, p.em_exercicio ? 'Vereador(a) em exercício' : 'Fora de exercício'),
+        el('h1', null, nomeParl(p)), p.nome_parlamentar ? el('p', { class: 'perfil-civil' }, 'Nome civil: ' + p.nome) : null,
+        chips.length ? el('p', { class: 'perfil-chips' }, chips.map((c) => el('span', null, c))) : null,
+        p.email || p.telefone ? el('p', { class: 'perfil-contatos' },
+          p.email ? el('a', { href: 'mailto:' + p.email }, el('span', { 'aria-hidden': 'true' }, '✉ '), 'E-mail: ' + p.email) : null,
+          p.telefone ? el('a', { href: 'tel:' + String(p.telefone).replace(/\D/g, '') }, el('span', { 'aria-hidden': 'true' }, '☎ '), 'Telefone: ' + p.telefone) : null) : null)),
       p.biografia ? el('section', { class: 'cartao mt-2' }, el('h2', null, 'Biografia'), el('p', { class: 'pre' }, p.biografia)) : null,
-      (com || []).length ? el('section', { class: 'mt-2' }, el('h2', null, 'Comissões'), el('ul', null, com.filter((c) => c.comissoes).map((c) => el('li', null, c.comissoes.nome + ' — ' + (FUNCOES[c.funcao] || c.funcao) + (c.comissoes.ativa ? '' : ' (encerrada)'))))) : null,
+      (com || []).length ? el('section', { class: 'mt-2' }, el('h2', null, 'Comissões'), el('ul', { class: 'lista-comissoes' }, com.filter((c) => c.comissoes).map((c) => el('li', null, c.comissoes.nome + ' — ' + (FUNCOES[c.funcao] || c.funcao) + (c.comissoes.ativa ? '' : ' (encerrada)'))))) : null,
       a ? el('section', { class: 'mt-2' }, el('h2', null, 'Atividade do vereador'), el('p', { class: 'meta' }, 'Todos os anos.'), el('ul', { class: 'numeros-atividade' },
         el('li', null, el('strong', null, String(a.autorias)), ' proposições de autoria'), el('li', null, el('strong', null, String(a.relatorias)), ' relatorias'),
         el('li', null, el('strong', null, a.presencas + ' de ' + a.sessoes), ' presenças em sessões'), el('li', null, el('strong', null, String(a.votos)), ' votos registrados'),

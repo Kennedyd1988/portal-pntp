@@ -1132,3 +1132,56 @@ html.contraste .aba-guia[aria-selected="true"] { background: #000 !important; }
 .painel-guia:not(.abas-guia + .painel-guia) > .abas-guia-interna:first-child .aba-guia-p:hover { background: #fff; color: var(--navy); }
 .painel-guia:not(.abas-guia + .painel-guia) > .abas-guia-interna:first-child .aba-guia-p[aria-selected="true"] { height: 46px; background: var(--navy); border-color: var(--navy); color: #fff; box-shadow: 0 -4px 12px rgba(6, 22, 41, .08); }
 .painel-guia:not(.abas-guia + .painel-guia) > .abas-guia-interna:first-child .aba-guia-p[aria-selected="true"]::after { left: 14px; right: 14px; top: 5px; bottom: auto; height: 3px; border-radius: 99px; background: var(--acento); }
+
+/* =====================================================================
+   0.46.3 — fotos com aro em todo o site e perfil do vereador
+   ===================================================================== */
+/* Aro: borda branca + anel na cor do órgão (mais visível) */
+.cartao.gestor img, .cartao.gestor .sem-foto, .foto-vereador, .est-foto, .avatar-site {
+  border: 3px solid #fff !important; box-shadow: 0 0 0 3px var(--cor), 0 8px 18px rgba(6, 22, 41, .14) !important; }
+.cartao.gestor .sem-foto { width: 104px; height: 104px; border-radius: 50%; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; background: var(--tom); color: var(--navy); font-weight: 800; font-size: 1.6rem; }
+.foto-vazia { background: var(--tom); color: var(--navy); }
+/* Cartões de vereador (Vereadores e Mesa Diretora) */
+.grade-vereadores { gap: 18px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.cartao-vereador { border-radius: 18px !important; padding: 24px 16px 18px; gap: 8px; }
+.cartao-vereador .foto-vereador { width: 112px; height: 112px; margin-bottom: 6px; }
+.cartao-vereador strong { color: var(--navy); font-size: 1.02rem; }
+.cartao-vereador .meta { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--acento-escuro); }
+.cartao-vereador .etiqueta { background: var(--navy); color: #fff; }
+/* Perfil do vereador */
+.perfil-vereador { position: relative; overflow: hidden; gap: 32px; padding: 32px 36px; margin-top: 6px; border-radius: 22px; color: #fff;
+  background: linear-gradient(120deg, var(--navy) 0%, var(--navy-2) 75%, color-mix(in srgb, var(--cor) 70%, #061629) 100%); box-shadow: 0 16px 36px rgba(6, 22, 41, .18); }
+.perfil-vereador::after { content: ""; position: absolute; right: -80px; top: -90px; width: 320px; height: 320px; border-radius: 50%; border: 44px solid rgba(255, 255, 255, .05); pointer-events: none; }
+.perfil-vereador .foto-grande { width: 168px; height: 168px; flex: none; border: 5px solid #fff !important; box-shadow: 0 0 0 4px var(--acento), 0 14px 30px rgba(0, 0, 0, .25) !important; font-size: 3rem; }
+.perfil-dados { position: relative; z-index: 1; flex: 1; min-width: 240px; }
+.perfil-rotulo { display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #8fe3c2; margin-bottom: 6px; }
+#conteudo .perfil-vereador h1 { color: #fff; margin: 0 0 4px; font-size: clamp(1.8rem, 3.4vw, 2.4rem); }
+#conteudo .perfil-vereador h1::before { content: none; }
+.perfil-civil { margin: 0 0 12px; color: rgba(255, 255, 255, .78); }
+.perfil-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.perfil-chips span { padding: 5px 12px; border-radius: 99px; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .22); font-size: .86rem; font-weight: 600; }
+.perfil-contatos { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
+.perfil-contatos a { display: inline-flex; align-items: center; gap: 4px; padding: 9px 16px; border-radius: 10px; background: #fff; color: var(--navy); font-weight: 600; font-size: .9rem; text-decoration: none; }
+.perfil-contatos a:hover { background: linear-gradient(180deg, #ffc94d, #f4b223); color: var(--navy); }
+/* Seções do perfil em cartões */
+#conteudo[data-pagina="parlamentar"] .pagina > section { background: #fff; border: 1px solid #e3eaf1; border-radius: 18px; padding: 22px 24px; margin-top: 20px; box-shadow: 0 8px 22px rgba(12, 38, 64, .05); }
+#conteudo[data-pagina="parlamentar"] .pagina > section > h2 { font-size: 1.25rem; margin: 0 0 12px; }
+#conteudo[data-pagina="parlamentar"] .pagina > section > h2::before { content: ""; display: block; width: 30px; height: 4px; margin: 0 0 10px; border-radius: 99px; background: var(--acento); }
+#conteudo[data-pagina="parlamentar"] .pagina > section.cartao { border-radius: 18px; }
+#conteudo[data-pagina="parlamentar"] .pagina > section ul.partes-contas.cartao { border: 0; box-shadow: none; padding: 0; }
+#conteudo[data-pagina="parlamentar"] .partes-contas li { padding: 10px 0; border-bottom: 1px solid #eef2f6; }
+#conteudo[data-pagina="parlamentar"] .partes-contas li:last-child { border-bottom: 0; }
+.lista-comissoes { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.lista-comissoes li { padding: 8px 14px; border-radius: 12px; background: var(--tom); border: 1px solid color-mix(in srgb, var(--cor) 14%, #fff); color: var(--navy); font-weight: 600; font-size: .9rem; }
+/* Números da atividade como indicadores coloridos */
+.numeros-atividade { gap: 14px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.numeros-atividade li { --k: #1d5fd1; background: #fff; border: 1px solid #e3eaf1; border-top: 4px solid var(--k); border-radius: 14px; padding: 14px 16px; color: var(--texto-suave); font-size: .9rem; box-shadow: 0 6px 16px rgba(12, 38, 64, .04); }
+.numeros-atividade li:nth-child(6n+2) { --k: #6a4fc9; } .numeros-atividade li:nth-child(6n+3) { --k: #0a8a62; }
+.numeros-atividade li:nth-child(6n+4) { --k: #b26d06; } .numeros-atividade li:nth-child(6n+5) { --k: #c2416b; } .numeros-atividade li:nth-child(6n+6) { --k: #4f6378; }
+.numeros-atividade strong { color: var(--k); font-size: 1.7rem; letter-spacing: -.02em; }
+@media (max-width: 600px) {
+  .perfil-vereador { padding: 24px 20px; gap: 18px; justify-content: center; text-align: center; }
+  .perfil-chips, .perfil-contatos { justify-content: center; }
+  .perfil-vereador .foto-grande { width: 132px; height: 132px; }
+}
+html.contraste .perfil-vereador, html.contraste .perfil-contatos a, html.contraste .lista-comissoes li, html.contraste .numeros-atividade li { background: #000 !important; color: #fff !important; border-color: #fff !important; }
