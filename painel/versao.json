@@ -1,7 +1,8 @@
 {
-  "versao": "0.45.6",
+  "versao": "0.45.7",
   "data": "2026-11-17",
   "notas": [
+    "Kit de evidências: concordância do esclarecimento (\"Há na página 4 transferências recebidas (2023 a 2026); registro mais recente de…\").",
     "Kit de evidências: o esclarecimento virou um texto só, objetivo, dizendo o caminho no menu do site até a informação (ex.: Menu › Transparência › Licitações › aba \"Plano de Contratações Anual\") e, em uma frase, o que há publicado. O link de acesso direto fica em coluna própria na tabela (Excel e Word) e na tela.",
     "Kit de evidências: itens, respostas sugeridas, links e esclarecimentos agora saem numa tabela única, para baixar em Excel ou Word (botões \"Tabela (Excel)\" e \"Tabela (Word)\", sem precisar gerar os prints). O ZIP traz essa tabela na raiz, e as pastas dos itens ficam só com os prints (item sem print não ganha pasta).",
     "Site da Câmara (PNTP 20.11): Atividade dos vereadores ganhou barra de filtros (vereador, partido e comissão), além das abas de ano. A contagem e a exportação seguem os filtros.",

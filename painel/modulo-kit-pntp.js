@@ -303,8 +303,8 @@
       partes.push('Ainda não há conteúdo publicado para este item. Local no site: ' + caminho + '.');
     } else {
       partes.push('A informação está acessível no site pelo caminho: ' + caminho + '.');
-      if (f && f.total) partes.push('Estão publicados ' + plural(f.total, p.un) + (anos ? ' (' + (anos.length > 1 ? anos[0] + ' a ' + anos[anos.length - 1] : anos[0]) + ')' : '')
-        + (f.mais_recente ? ', o mais recente de ' + dataBR(f.mais_recente) : '') + '.');
+      if (f && f.total) partes.push('Há na página ' + plural(f.total, p.un) + (anos ? ' (' + (anos.length > 1 ? anos[0] + ' a ' + anos[anos.length - 1] : anos[0]) + ')' : '')
+        + (f.mais_recente ? '; registro mais recente de ' + dataBR(f.mais_recente) : '') + '.');
       if (ds.length) partes.push('Períodos sem ocorrência com declaração de inexistência publicada: ' + ds.slice(0, 4).map((d) => d.periodo).join('; ') + (ds.length > 4 ? ' e outros' : '') + '.');
       const extras = [];
       if (x.itens.includes('F') && resp.F === 'Atende') extras.push('filtros de pesquisa');
