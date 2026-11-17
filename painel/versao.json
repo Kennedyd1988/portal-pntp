@@ -1,22 +1,17 @@
 {
-  "versao": "0.45.7",
+  "versao": "0.46.0",
   "data": "2026-11-17",
   "notas": [
-    "Kit de evidências: concordância do esclarecimento (\"Há na página 4 transferências recebidas (2023 a 2026); registro mais recente de…\").",
-    "Kit de evidências: o esclarecimento virou um texto só, objetivo, dizendo o caminho no menu do site até a informação (ex.: Menu › Transparência › Licitações › aba \"Plano de Contratações Anual\") e, em uma frase, o que há publicado. O link de acesso direto fica em coluna própria na tabela (Excel e Word) e na tela.",
-    "Kit de evidências: itens, respostas sugeridas, links e esclarecimentos agora saem numa tabela única, para baixar em Excel ou Word (botões \"Tabela (Excel)\" e \"Tabela (Word)\", sem precisar gerar os prints). O ZIP traz essa tabela na raiz, e as pastas dos itens ficam só com os prints (item sem print não ganha pasta).",
-    "Site da Câmara (PNTP 20.11): Atividade dos vereadores ganhou barra de filtros (vereador, partido e comissão), além das abas de ano. A contagem e a exportação seguem os filtros.",
-    "Correção importante no site (achada pelo Kit de evidências): na página de cada licitação, os documentos (edital, anexos, atas, homologação…) não apareciam (\"Nenhum documento publicado ainda\") e o edital aparecia como \"Contrato undefined\" em Contratos decorrentes. As duas consultas vinham trocadas. Afeta os itens 8.2 e 8.3 do PNTP em todos os órgãos.",
-    "Kit de evidências: texto mais natural (\"na página: 190 proposições\", \"pesquisa livre (número, ementa, autoria)\"), e o botão do VLibras sai do print.",
-    "Kit de evidências: o print marca só os critérios que atendem, e item sem nada publicado fica sem print (página vazia não é evidência). As etiquetas não cobrem mais o carimbo, e o botão do VLibras não aparece no print.",
-    "Kit de evidências: item que não atende deixa de ser descrito como publicado no esclarecimento (diz o que falta); saiu um \"null\" que aparecia abaixo dos links.",
-    "Novo módulo Kit de evidências PNTP (Avalia), no grupo Controle interno — por enquanto só para Câmaras (Prefeitura e Consórcio depois). Rode o script 51 na Supabase.",
-    "Uma linha por item da matriz que vale para o órgão, na ordem e com a numeração do questionário, com a resposta sugerida para Disponibilidade, Atualidade, Série Histórica, Relatórios e Filtros (Atende / Não atende / N/A, calculada pela autoavaliação com os dados publicados).",
-    "Em cada item: links prontos com botão Copiar (página do portal, página de detalhe de exemplo e os destinos externos de Aparência › Destinos das páginas) e texto de esclarecimento curto e completo, também com Copiar (quantidade de registros, anos, data mais recente e da última atualização, filtros, formatos de exportação, declarações de inexistência por período e links externos explicados).",
-    "Prints marcados gerados no próprio navegador, só das páginas do portal: o site abre numa moldura escondida no modo evidência, que contorna em vermelho o que prova cada critério (lista, data de atualização, abas de ano, botões de exportar, barra de filtros) com a etiqueta do critério e do item, e põe o carimbo com endereço, data e hora. Uma mesma tela que comprova vários critérios ou itens vira um print só, reaproveitado em cada item. Item em sistema externo fica sem print (só link e texto).",
-    "Pré-diagnóstico em amarelo (itens que vão sair Não atende ou incompletos, com o link para corrigir) e confirmação antes de gerar.",
-    "Gerar kit (ZIP): uma pasta por item (ex.: \"08.1 Relação das licitações em ordem sequencial\") com os prints que ele usa (o compartilhado vai em cada pasta com o mesmo nome) e esclarecimento.txt; LEIA-ME.txt na raiz com o resumo e o pré-diagnóstico.",
-    "Controle: marcação \"Lançado no Avalia\" por item (com data e quem marcou), filtros por situação e por lançamento, e histórico de cada geração (data, quem gerou, resumo) com os prints guardados uma vez só no armazenamento do órgão — dá para ver e baixar o kit de qualquer geração.",
-    "Permissão do módulo: Administrador do órgão e Controle interno (ver e gerar); os demais perfis sem acesso; Suporte SOFT+ com tudo."
+    "Novo visual do site, em todos os órgãos (Prefeitura, Câmara, Consórcio…). Topo, menu e rodapé valem para todas as páginas; o restante, por enquanto, na página inicial.",
+    "Topo: a faixa das redes sociais e dos selos saiu (no computador). As redes ficam discretas na barra escura de acessibilidade e os selos no cabeçalho, ao lado do botão da Transparência. Brasão maior. No celular e em telas médias a faixa continua.",
+    "Cores: azul-marinho calculado a partir da cor de cada órgão (topo, menu e rodapé) e verde só nos detalhes. Botão \"Portal da Transparência\" em amarelo-ouro com texto marinho (contraste cerca de 9:1).",
+    "Menu: o item da página atual fica marcado com um sublinhado verde (no submenu, o grupo).",
+    "Página inicial: o banner fica sobre uma faixa de fundo e os acessos rápidos sobem num painel branco, com ícone colorido por grupo (Transparência, contratações, serviços, atos oficiais, atendimento) e seta ao passar o mouse.",
+    "Página inicial: com até 2 serviços pela internet, eles entram numa linha dentro do painel de acessos (\"Também pela internet\"), em vez de um bloco quase vazio.",
+    "Página inicial: faixa do Radar da Transparência sempre desenhada pelo site, nas cores do portal (a imagem enviada em Aparência não é mais usada nela).",
+    "Notícias: na notícia de destaque, o resumo não aparece mais repetido (notícias migradas); saiu o contador de visualizações da página inicial; títulos que vieram em CAIXA ALTA aparecem em formato normal (só na exibição, siglas e o nome do município preservados).",
+    "Últimas publicações: o ato mais recente em cartão de destaque e os demais em lista, com cor por tipo (lei azul, decreto verde, portaria âmbar, edital roxo); abas em formato de aba.",
+    "Gestão e Vereadores: foto com aro na cor do órgão, cargo em destaque, secretaria em etiqueta com ícone, e-mail e telefone em botões redondos.",
+    "Títulos de seção maiores com traço verde, \"Ver todos\" como botão, fundos alternados e entrada suave dos blocos ao rolar (desligada em \"reduzir movimento\" e alto contraste)."
   ]
 }

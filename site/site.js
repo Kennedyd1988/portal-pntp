@@ -337,6 +337,25 @@
         return el('li', null, x.url ? el('a', { class: 'selo', href: x.url, target: '_blank', rel: 'noopener' }, ...conteudo, el('span', { class: 'sr' }, ' (abre em nova aba)'))
           : el('span', { class: 'selo', tabindex: '0' }, ...conteudo));
       })) : null));
+    // Computador (0.46): sem a faixa extra. As redes vão para a barra escura de acessibilidade
+    // e os selos para o cabeçalho, ao lado do botão da Transparência. No celular a faixa continua.
+    const barra = document.querySelector('.barra-acess-int'), cab = document.querySelector('.cabecalho-int');
+    document.querySelectorAll('.barra-redes, .selos-cabecalho').forEach((x) => x.remove());
+    const r = faixa.querySelector('.redes-topo'), s = faixa.querySelector('.selos');
+    if (r && barra) { const d = el('div', { class: 'barra-redes' }, r.cloneNode(true)); barra.insertBefore(d, barra.children[1] || null); }
+    if (s && cab) { const c2 = s.cloneNode(true); c2.classList.add('selos-cabecalho'); cab.insertBefore(c2, $('btn-menu-mobile')); }
+    document.body.classList.add('topo-compacto');
+  }
+
+  // Menu: marca o item da página atual (sublinhado verde); no submenu, marca o grupo.
+  function marcarMenuAtual(partes) {
+    const atual = '#/' + partes.join('/');
+    document.querySelectorAll('#menu-lista > li').forEach((li) => {
+      const links = [...li.querySelectorAll('a')];
+      const ok = links.some((a) => { const h = a.getAttribute('href') || ''; return h === atual || (h.length > 2 && atual.startsWith(h + '/')); });
+      li.classList.toggle('ativo', ok);
+      links.forEach((a) => { if (a.getAttribute('href') === atual) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    });
   }
 
   // ---------- rodapé ----------
@@ -479,6 +498,8 @@
     const { partes, params } = lerRota();
     const nome = partes[0] || '';
     const main = $('conteudo');
+    main.dataset.pagina = nome || 'inicio';
+    marcarMenuAtual(partes);
     // Página inteira em sistema externo: mostra o quadro de endereços (um ou vários).
     const chaveRota = window.chaveDaRotaPNTP(partes.join('/'));
     const chavePagina = chaveRota && (window.paiPNTP(chaveRota) || chaveRota);

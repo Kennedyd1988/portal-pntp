@@ -93,8 +93,26 @@
     return limpo.length > max ? limpo.slice(0, limpo.lastIndexOf(' ', max)) + '…' : limpo;
   }
 
+  // Títulos que vieram todos em CAIXA ALTA (sites antigos) aparecem em formato normal só na
+  // exibição; o dado não muda. Siglas comuns e o nome do órgão/município voltam como estavam.
+  const SIGLAS = new Set(['MEI', 'RN', 'CNPJ', 'CPF', 'SUS', 'ICMS', 'IPTU', 'ISS', 'ITBI', 'PNAE', 'CRAS', 'CREAS', 'CAPS', 'UBS', 'ESF', 'INSS', 'ENEM', 'LDO', 'LOA', 'PPA',
+    'IPVA', 'CNH', 'CAD', 'BPC', 'FUNDEB', 'PSF', 'EJA', 'SEBRAE', 'SENAI', 'SENAC', 'SESC', 'IFRN', 'UFRN', 'UERN', 'TCE', 'MP', 'MPRN', 'PNTP', 'LGPD', 'COVID', 'II', 'III', 'IV']);
+  function semCaixaAlta(t) {
+    t = String(t || '');
+    const letras = t.replace(/[^A-Za-zÀ-ÿ]/g, '');
+    if (letras.length < 4 || letras !== letras.toUpperCase()) return t;
+    let r = t.toLowerCase().replace(/(^|[.!?:]\s+)(\p{Ll})/gu, (m, a, b) => a + b.toUpperCase());
+    r = r.replace(/[\p{L}\d-]+/gu, (w) => SIGLAS.has(w.toUpperCase()) ? w.toUpperCase() : w);
+    // Nome do lugar, tirado do nome do órgão ("Prefeitura Municipal de Riacho da Cruz" → "Riacho da Cruz").
+    const lugar = (String((S.orgao && S.orgao.nome) || '').match(/^.*?\s(?:de|do|da|dos|das)\s(.+)$/i) || [])[1];
+    if (lugar && lugar.length > 3) r = r.replace(new RegExp(lugar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), lugar);
+    return r.charAt(0).toUpperCase() + r.slice(1);
+  }
+  S.semCaixaAlta = semCaixaAlta;
+  const inicioTexto = (x) => normalizar(String(x || '')).replace(/\s+/g, ' ').trim().slice(0, 60);
+
   function cartaoHorizontal(n, vis, grande) {
-    const total = vis[n.id];
+    const total = vis && vis[n.id];
     return el('article', { class: 'noticia-h' + (grande ? ' noticia-h-grande' : '') },
       el('a', { class: 'noticia-h-foto', href: '#/noticia/' + n.id, tabindex: '-1', 'aria-hidden': 'true' },
         n.capa_url ? el('img', { src: n.capa_url, alt: '', loading: grande ? 'eager' : 'lazy' }) : el('span', { class: 'noticia-sem-foto' }, 'Notícia')),
@@ -104,10 +122,12 @@
             el('span', { class: 'sr' }, ' visualizações')) : null,
           el('span', { class: 'noticia-h-meta' }, el('span', null, dataLonga(n.publicado_em)),
             n.categoria ? el('span', { class: 'noticia-h-cat' }, n.categoria) : null)),
-        el(grande ? 'h3' : 'h3', null, el('a', { href: '#/noticia/' + n.id }, n.titulo)),
+        el(grande ? 'h3' : 'h3', null, el('a', { href: '#/noticia/' + n.id }, semCaixaAlta(n.titulo))),
         n.resumo ? el('p', null, n.resumo) : null,
-        // Na notícia grande, um trecho do texto completa o espaço ao lado da foto.
-        grande && n.conteudo ? el('p', { class: 'noticia-h-trecho' }, textoCorrido(n.conteudo, 420)) : null,
+        // Na notícia grande, um trecho do texto completa o espaço ao lado da foto — menos quando o
+        // texto começa repetindo o resumo (comum nas notícias migradas): aí fica só um dos dois.
+        grande && n.conteudo && (!n.resumo || inicioTexto(textoCorrido(n.conteudo, 420)) !== inicioTexto(n.resumo))
+          ? el('p', { class: 'noticia-h-trecho' }, textoCorrido(n.conteudo, 420)) : null,
         el('a', { class: 'noticia-h-mais', href: '#/noticia/' + n.id }, 'Continuar lendo', el('span', { class: 'sr' }, ': ' + n.titulo), el('span', { 'aria-hidden': 'true' }, ' →'))));
   }
 
@@ -275,10 +295,12 @@
     // "Destacar na página inicial", ela ocupa o lugar.
     const destaque = noticias.find((n) => n.destaque) || noticias[0];
     const demais = noticias.filter((n) => n !== destaque).slice(0, 4);
-    const vis = await visualizacoes(noticias.map((n) => n.id));
+    // Página inicial sem o contador de visualizações (número baixo passa impressão ruim).
+    const vis = null;
 
     const blocos = [];
-    if (banners.length) blocos.push(el('div', { class: 'limite banner-limite' }, carrossel(banners)));
+    // O banner fica sobre uma faixa de fundo; o painel dos acessos rápidos sobe sobre ela (sem cobrir a arte).
+    if (banners.length) blocos.push(el('div', { class: 'hero-faixa' }, el('div', { class: 'limite banner-limite' }, carrossel(banners))));
 
     // Acessos rápidos: os que têm chave de destino seguem Aparência › Destinos das páginas.
     const acessos = [
@@ -304,20 +326,26 @@
       ['licitacao', 'Contratos de rateio', 'Por exercício e por ente', 'consorcio_rateio'],
       ['publicacoes', 'Documentos constitutivos', 'Protocolo, contrato e estatuto', 'consorcio_documentos'],
       ['diario', 'Assembleia geral', 'Dirigentes e atas', 'consorcio_atas']);
-    blocos.push(el('section', { class: 'secao', 'aria-labelledby': 'tit-acessos' }, el('div', { class: 'limite' },
+    // Cor do ícone por grupo: Transparência (azul), contratações (roxo), serviços (verde), atos oficiais (âmbar), atendimento (rosa).
+    const GRUPO = { transparencia: 'transparencia', licitacao: 'contratacoes', servicos: 'servicos', publicacoes: 'atos', diario: 'atos', ouvidoria: 'atendimento', esic: 'atendimento', faq: 'atendimento' };
+    // Com até 2 serviços pela internet, eles entram numa linha dentro deste painel (um bloco próprio ficaria vazio).
+    const onlineNaLinha = digitais.length > 0 && digitais.length <= 2;
+    blocos.push(el('section', { class: 'secao secao-acessos' + (banners.length ? ' sobre-banner' : ''), 'aria-labelledby': 'tit-acessos' }, el('div', { class: 'limite' },
       el('h2', { id: 'tit-acessos' }, 'Serviços e acessos rápidos'),
       el('div', { class: 'grade g4 acessos' }, acessos.map(([ic, t, d, chave, h]) => {
         const conteudo = [icone(ic), el('span', null, el('strong', null, t), el('span', { class: 'meta' }, d))];
-        return chave ? S.linkDestino(chave, conteudo, { class: 'cartao' }) : el('a', { class: 'cartao', href: h }, conteudo);
-      })))));
+        const at = { class: 'cartao', 'data-grupo': GRUPO[ic] || 'transparencia' };
+        return chave ? S.linkDestino(chave, conteudo, at) : el('a', Object.assign({ href: h }, at), conteudo);
+      })),
+      onlineNaLinha ? el('div', { class: 'acessos-online' }, el('span', null, 'Também pela internet:'),
+        digitais.map((sv) => el('a', { class: 'chip-online', href: '#/servico/' + sv.id }, sv.nome, el('span', { 'aria-hidden': 'true' }, ' →'))),
+        el('a', { class: 'acessos-online-todos', href: '#/servicos' }, 'Carta de Serviços completa →')) : null)));
 
     // Faixa do Radar da Transparência Pública (PNTP 2.9). Com a imagem oficial enviada em
     // Aparência, a faixa inteira é a imagem; sem ela, faixa nas cores do Radar com o texto.
     blocos.push(el('section', { class: 'pt-0 secao', 'aria-labelledby': 'tit-radar' }, el('div', { class: 'limite' },
-      c.radar_imagem_url
-        ? el('a', { class: 'faixa-radar-img', href: S.radar(), target: '_blank', rel: 'noopener' },
-          el('img', { src: c.radar_imagem_url, alt: 'Radar da Transparência Pública' }), el('h2', { id: 'tit-radar', class: 'sr' }, 'Radar da Transparência Pública (abre em nova aba)'))
-        : el('a', { class: 'faixa-radar', href: S.radar(), target: '_blank', rel: 'noopener' },
+      // 0.46: a faixa é sempre desenhada pelo site (nas cores do portal); a imagem de Aparência não é mais usada aqui.
+      el('a', { class: 'faixa-radar', href: S.radar(), target: '_blank', rel: 'noopener' },
           iconeRadar(),
           el('span', { class: 'faixa-radar-textos' }, el('h2', { id: 'tit-radar' }, 'Radar da Transparência Pública'),
             el('span', null, 'Consulte a avaliação dos portais de transparência de todo o país (Atricon e Tribunais de Contas).')),
@@ -336,7 +364,7 @@
     // Galeria multimídia: vídeo em destaque (ou o mais recente) tocando ali mesmo e os 3 seguintes ao lado.
     if (videos.length) blocos.push(secaoVideos(videos));
 
-    if (digitais.length) {
+    if (digitais.length && !onlineNaLinha) {
       blocos.push(el('section', { class: 'secao', 'aria-labelledby': 'tit-digitais' }, el('div', { class: 'limite' },
         el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-digitais' }, 'Serviços pela internet'), el('a', { href: '#/servicos' }, 'Carta de Serviços completa →')),
         el('div', { class: 'grade g3' }, digitais.map((s) => el('a', { class: 'cartao', href: '#/servico/' + s.id },
@@ -360,8 +388,23 @@
         carrosselGestores(gestores))));
     }
 
+    // Ritmo: depois dos acessos e do Radar, as seções alternam fundo cinza e branco.
+    let cinza = true;
+    blocos.filter((b) => b.tagName === 'SECTION' && !b.classList.contains('secao-acessos') && b.getAttribute('aria-labelledby') !== 'tit-radar')
+      .forEach((b) => { b.classList.toggle('secao-cinza', cinza); cinza = !cinza; });
     main.replaceChildren(...blocos);
+    entradaSuave(main);
   };
+
+  // Blocos aparecem com um leve deslizar ao rolar. Desligado com "reduzir movimento", em alto
+  // contraste, na impressão e sem IntersectionObserver (aí tudo já aparece normalmente).
+  function entradaSuave(main) {
+    if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('contraste') || /[?&]evidencia=/.test(location.search)) return;
+    const alvos = [...main.querySelectorAll(':scope > section:not(.secao-acessos) > .limite')];
+    const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('visto'); io.unobserve(e.target); } }), { threshold: 0.05, rootMargin: '0px 0px -40px 0px' });
+    alvos.forEach((a) => { a.classList.add('revelar'); io.observe(a); });
+    setTimeout(() => alvos.forEach((a) => a.classList.add('visto')), 4000);
+  }
 
   // ---------- ÚLTIMAS PUBLICAÇÕES (abas por tipo de ato) ----------
   // Uma consulta pequena por aba (6 itens), para cada aba trazer os seus mais recentes
@@ -385,7 +428,8 @@
   function cartaoPublicacao(p) {
     const d = new Date(p.data_publicacao + 'T12:00:00');
     const doc = p.arquivo_url || p.link_externo;
-    return el('article', { class: 'pub-cartao' },
+    const grupoTipo = /lei|emenda/.test(p.tipo) ? 'lei' : /decreto/.test(p.tipo) ? 'decreto' : /portaria/.test(p.tipo) ? 'portaria' : /edital/.test(p.tipo) ? 'edital' : 'outro';
+    return el('article', { class: 'pub-cartao', 'data-tipo': grupoTipo },
       el('div', { class: 'pub-data', 'aria-hidden': 'true' },
         el('span', { class: 'pub-dia' }, String(d.getDate()).padStart(2, '0')),
         el('span', { class: 'pub-mes' }, MESES[d.getMonth()]), el('span', { class: 'pub-ano' }, String(d.getFullYear()))),
@@ -508,7 +552,7 @@
     });
     abrir(0);
     const c = S.conf;
-    return el('section', { class: 'secao', 'aria-labelledby': 'tit-pub' }, el('div', { class: 'limite' },
+    return el('section', { class: 'secao secao-publicacoes', 'aria-labelledby': 'tit-pub' }, el('div', { class: 'limite' },
       el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-pub' }, 'Últimas publicações'),
         el('span', { class: 'pub-links' },
           c.diario_oficial_url ? el('a', { class: 'botao botao-claro pub-diario', href: c.diario_oficial_url, target: '_blank', rel: 'noopener' },
@@ -864,18 +908,28 @@
     return el('a', { class: 'cartao gestor', href: '#/parlamentar/' + p.id },
       p.foto_url ? el('img', { src: p.foto_url, alt: 'Foto de ' + nome, loading: 'lazy' }) : el('span', { class: 'sem-foto', 'aria-hidden': 'true' }, ini),
       el('strong', { class: 'bloco' }, nome),
-      p.partido ? el('span', { class: 'bloco meta' }, p.partido) : null,
-      p.cargo_mesa ? el('span', { class: 'bloco menor' }, p.cargo_mesa) : null);
+      p.partido ? el('span', { class: 'bloco meta gestor-cargo' }, p.partido) : null,
+      p.cargo_mesa ? el('span', { class: 'bloco gestor-unidade sem-icone' }, p.cargo_mesa) : null);
+  }
+  function iconeContato(tipo) {
+    const NS = 'http://www.w3.org/2000/svg', sv = document.createElementNS(NS, 'svg');
+    for (const [k, v] of Object.entries({ viewBox: '0 0 24 24', width: 17, height: 17, 'aria-hidden': 'true' })) sv.setAttribute(k, v);
+    sv.innerHTML = tipo === 'email'
+      ? '<path fill="none" stroke="currentColor" stroke-width="2" d="M3 6h18v12H3z"/><path fill="none" stroke="currentColor" stroke-width="2" d="m3 7 9 7 9-7"/>'
+      : '<path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/>';
+    return sv;
   }
   function cartaoGestor(g) {
     const ini = (g.nome || '?').split(' ').filter(Boolean).map((p) => p[0]).slice(0, 2).join('');
     return el('div', { class: 'cartao gestor' },
       g.foto_url ? el('img', { src: g.foto_url, alt: 'Foto de ' + g.nome, loading: 'lazy' }) : el('span', { class: 'sem-foto', 'aria-hidden': 'true' }, ini),
       el('strong', { class: 'bloco' }, g.nome),
-      el('span', { class: 'bloco meta' }, g.cargo),
-      g.unidade_id && S.nomeUnidade(g.unidade_id) ? el('a', { class: 'bloco menor', href: '#/unidade/' + g.unidade_id }, S.nomeUnidade(g.unidade_id)) : null,
-      g.email ? el('a', { class: 'bloco menor', href: 'mailto:' + g.email }, g.email) : null,
-      g.telefone ? el('span', { class: 'bloco meta' }, g.telefone) : null,
+      el('span', { class: 'bloco meta gestor-cargo' }, g.cargo),
+      g.unidade_id && S.nomeUnidade(g.unidade_id) ? el('a', { class: 'bloco gestor-unidade', href: '#/unidade/' + g.unidade_id }, S.nomeUnidade(g.unidade_id)) : null,
+      // E-mail e telefone em botões redondos (o texto completo vai no título e para o leitor de tela).
+      g.email || g.telefone ? el('div', { class: 'gestor-contatos' },
+        g.email ? el('a', { href: 'mailto:' + g.email, title: 'E-mail: ' + g.email }, iconeContato('email'), el('span', { class: 'sr' }, 'E-mail: ' + g.email)) : null,
+        g.telefone ? el('a', { href: 'tel:' + String(g.telefone).replace(/\D/g, ''), title: 'Telefone: ' + g.telefone }, iconeContato('telefone'), el('span', { class: 'sr' }, 'Telefone: ' + g.telefone)) : null) : null,
       g.curriculo_url ? el('a', { class: 'botao botao-claro botao-p botao-bloco', href: g.curriculo_url, target: '_blank', rel: 'noopener' }, 'Currículo (PDF)') : null);
   }
 
