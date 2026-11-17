@@ -327,24 +327,16 @@
     if (!redes.length && !selos.length) { faixa.hidden = true; return; }
     faixa.hidden = false;
     faixa.replaceChildren(el('div', { class: 'limite faixa-topo-int' },
-      redes.length ? el('ul', { class: 'redes-topo', 'aria-label': 'Redes sociais oficiais' }, redes.map(([nome, url]) => el('li', null,
+      redes.length ? el('ul', { class: 'redes-topo', 'aria-label': 'Redes sociais oficiais', 'data-rotulo': 'Siga-nos' }, redes.map(([nome, url]) => el('li', null,
         el('a', { href: url, target: '_blank', rel: 'noopener', title: nome }, logoRede(nome), el('span', { class: 'sr' }, nome + ' (abre em nova aba)'))))) : el('span'),
       // Só os símbolos dos selos; nome e detalhe aparecem num balão ao passar o mouse ou focar.
-      selos.length ? el('ul', { class: 'selos', 'aria-label': 'Selos e certificações' }, selos.map((x) => {
+      selos.length ? el('ul', { class: 'selos', 'aria-label': 'Selos e certificações', 'data-rotulo': 'Selos e certificações' }, selos.map((x) => {
         const conteudo = [
           el('span', { class: 'selo-marca' + (x.imagem_url ? ' com-imagem' : '') }, x.imagem_url ? el('img', { src: x.imagem_url, alt: '' }) : seloIcone()),
           el('span', { class: 'selo-balao', role: 'tooltip' }, el('strong', null, x.titulo), x.descricao ? el('span', null, x.descricao) : null)];
         return el('li', null, x.url ? el('a', { class: 'selo', href: x.url, target: '_blank', rel: 'noopener' }, ...conteudo, el('span', { class: 'sr' }, ' (abre em nova aba)'))
           : el('span', { class: 'selo', tabindex: '0' }, ...conteudo));
       })) : null));
-    // Computador (0.46): sem a faixa extra. As redes vão para a barra escura de acessibilidade
-    // e os selos para o cabeçalho, ao lado do botão da Transparência. No celular a faixa continua.
-    const barra = document.querySelector('.barra-acess-int'), cab = document.querySelector('.cabecalho-int');
-    document.querySelectorAll('.barra-redes, .selos-cabecalho').forEach((x) => x.remove());
-    const r = faixa.querySelector('.redes-topo'), s = faixa.querySelector('.selos');
-    if (r && barra) { const d = el('div', { class: 'barra-redes' }, r.cloneNode(true)); barra.insertBefore(d, barra.children[1] || null); }
-    if (s && cab) { const c2 = s.cloneNode(true); c2.classList.add('selos-cabecalho'); cab.insertBefore(c2, $('btn-menu-mobile')); }
-    document.body.classList.add('topo-compacto');
   }
 
   // Menu: marca o item da página atual (sublinhado verde); no submenu, marca o grupo.
