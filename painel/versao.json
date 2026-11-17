@@ -1,7 +1,8 @@
 {
-  "versao": "0.45.3",
+  "versao": "0.45.4",
   "data": "2026-11-17",
   "notas": [
+    "Site da Câmara (PNTP 20.11): Atividade dos vereadores ganhou barra de filtros (vereador, partido e comissão), além das abas de ano. A contagem e a exportação seguem os filtros.",
     "Correção importante no site (achada pelo Kit de evidências): na página de cada licitação, os documentos (edital, anexos, atas, homologação…) não apareciam (\"Nenhum documento publicado ainda\") e o edital aparecia como \"Contrato undefined\" em Contratos decorrentes. As duas consultas vinham trocadas. Afeta os itens 8.2 e 8.3 do PNTP em todos os órgãos.",
     "Kit de evidências: texto mais natural (\"na página: 190 proposições\", \"pesquisa livre (número, ementa, autoria)\"), e o botão do VLibras sai do print.",
     "Kit de evidências: o print marca só os critérios que atendem, e item sem nada publicado fica sem print (página vazia não é evidência). As etiquetas não cobrem mais o carimbo, e o botão do VLibras não aparece no print.",

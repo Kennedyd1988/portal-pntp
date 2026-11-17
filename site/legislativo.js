@@ -174,6 +174,7 @@
     const atual = new Date().getFullYear();
     let ano = Number(params.get('ano')) || atual;
     const caixa = el('div');
+    const filtro = { nome: '', partido: '', comissao: '' };
     const anos = []; for (let a = atual; a >= atual - 4; a--) anos.push([a, String(a)]);
     const faixa = U.faixaAbas(anos, ano, 'Ano', false, (id) => { ano = Number(id); history.replaceState(null, '', '#/atividade-parlamentar?ano=' + ano); desenhar(); });
     pagina(main, el('h1', null, 'Atividade dos vereadores'),
@@ -188,17 +189,40 @@
       const comExtras = linhas.length && linhas[0].diarias !== undefined;   // script 36: diárias e emendas municipais
       const colunas = [['nome', 'Vereador'], ['partido', 'Partido'], ['autorias', 'Proposições de autoria'], ['relatorias', 'Relatorias'], ['presencas', 'Presenças'], ['sessoes', 'Sessões'], ['votos', 'Votos'], ['comissoes', 'Comissões']]
         .concat(comExtras ? [['diarias', 'Diárias recebidas'], ['diarias_valor', 'Valor das diárias (R$)'], ['emendas', 'Emendas municipais'], ['emendas_valor', 'Valor previsto das emendas (R$)']] : []);
-      caixa.replaceChildren(el('div', { class: 'barra-lista' }, el('span', { class: 'meta' }, linhas.length + ' vereadores'), S.botoesExportar('atividade-vereadores-' + ano, colunas, async (de) => de ? [] : linhas)),
-        linhas.length ? el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' }, el('caption', { class: 'sr' }, 'Atividade dos vereadores em ' + ano),
-          el('thead', null, el('tr', null, ['Vereador', 'Autoria', 'Relatoria', 'Presenças', 'Votos', 'Comissões'].concat(comExtras ? ['Diárias', 'Emendas'] : []).map((t) => el('th', { scope: 'col' }, t)))),
-          el('tbody', null, linhas.map((x) => el('tr', null,
-            el('td', { 'data-rotulo': 'Vereador' }, el('a', { href: '#/parlamentar/' + x.parlamentar_id }, x.nome), x.partido ? el('span', { class: 'meta' }, ' ' + x.partido) : null),
-            el('td', { 'data-rotulo': 'Autoria', class: 'num' }, String(x.autorias)), el('td', { 'data-rotulo': 'Relatoria', class: 'num' }, String(x.relatorias)),
-            el('td', { 'data-rotulo': 'Presenças', class: 'num' }, x.sessoes ? x.presencas + ' de ' + x.sessoes : '—'), el('td', { 'data-rotulo': 'Votos', class: 'num' }, String(x.votos)),
-            el('td', { 'data-rotulo': 'Comissões' }, x.comissoes || '—'),
-            comExtras ? el('td', { 'data-rotulo': 'Diárias', class: 'num' }, Number(x.diarias) ? x.diarias + ' · ' + U.moedaBR(Number(x.diarias_valor)) : '—') : null,
-            comExtras ? el('td', { 'data-rotulo': 'Emendas', class: 'num' }, Number(x.emendas) ? x.emendas + ' · ' + U.moedaBR(Number(x.emendas_valor)) : '—') : null)))))
-          : el('p', { class: 'vazio' }, 'Nenhum vereador publicado.'));
+      if (!linhas.length) { caixa.replaceChildren(el('p', { class: 'vazio' }, 'Nenhum vereador publicado.')); return; }
+      // Filtros (PNTP 20.11, 0.45.4): vereador, partido e comissão; o ano fica nas abas. Valem também para a exportação.
+      const opcoes = (lista, todos) => el('select', null, el('option', { value: '' }, todos), [...new Set(lista.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR')).map((v) => el('option', { value: v, selected: v === filtro[todos === 'Todos os partidos' ? 'partido' : 'comissao'] }, v)));
+      const fNome = el('input', { type: 'search', placeholder: 'Nome do vereador', value: filtro.nome });
+      const fPartido = opcoes(linhas.map((x) => x.partido), 'Todos os partidos');
+      const fComissao = opcoes(linhas.flatMap((x) => String(x.comissoes || '').split(/\s*;\s*/).map((c) => c.replace(/\s*\(.*?\)\s*$/, '').trim())), 'Todas as comissões');
+      const corpo = el('tbody'), total = el('span', { class: 'meta', role: 'status' }), vazio = el('div');
+      const filtradas = () => linhas.filter((x) => (!filtro.nome || normalizar(x.nome).includes(normalizar(filtro.nome)))
+        && (!filtro.partido || x.partido === filtro.partido) && (!filtro.comissao || normalizar(x.comissoes || '').includes(normalizar(filtro.comissao))));
+      const tabela = el('div', { class: 'tabela-rolagem' }, el('table', { class: 'tabela-dados' }, el('caption', { class: 'sr' }, 'Atividade dos vereadores em ' + ano),
+        el('thead', null, el('tr', null, ['Vereador', 'Autoria', 'Relatoria', 'Presenças', 'Votos', 'Comissões'].concat(comExtras ? ['Diárias', 'Emendas'] : []).map((t) => el('th', { scope: 'col' }, t)))), corpo));
+      function aplicar() {
+        Object.assign(filtro, { nome: fNome.value.trim(), partido: fPartido.value, comissao: fComissao.value });
+        const f = filtradas();
+        total.textContent = f.length + (f.length === 1 ? ' vereador' : ' vereadores');
+        tabela.hidden = !f.length;
+        vazio.replaceChildren(f.length ? '' : el('p', { class: 'vazio' }, 'Nenhum vereador com esses filtros.'));
+        corpo.replaceChildren(...f.map((x) => el('tr', null,
+          el('td', { 'data-rotulo': 'Vereador' }, el('a', { href: '#/parlamentar/' + x.parlamentar_id }, x.nome), x.partido ? el('span', { class: 'meta' }, ' ' + x.partido) : null),
+          el('td', { 'data-rotulo': 'Autoria', class: 'num' }, String(x.autorias)), el('td', { 'data-rotulo': 'Relatoria', class: 'num' }, String(x.relatorias)),
+          el('td', { 'data-rotulo': 'Presenças', class: 'num' }, x.sessoes ? x.presencas + ' de ' + x.sessoes : '—'), el('td', { 'data-rotulo': 'Votos', class: 'num' }, String(x.votos)),
+          el('td', { 'data-rotulo': 'Comissões' }, x.comissoes || '—'),
+          comExtras ? el('td', { 'data-rotulo': 'Diárias', class: 'num' }, Number(x.diarias) ? x.diarias + ' · ' + U.moedaBR(Number(x.diarias_valor)) : '—') : null,
+          comExtras ? el('td', { 'data-rotulo': 'Emendas', class: 'num' }, Number(x.emendas) ? x.emendas + ' · ' + U.moedaBR(Number(x.emendas_valor)) : '—') : null)));
+      }
+      let espera;
+      fNome.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 300); });
+      fPartido.addEventListener('change', aplicar); fComissao.addEventListener('change', aplicar);
+      caixa.replaceChildren(
+        el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
+          el('label', null, 'Vereador', fNome), el('label', null, 'Partido', fPartido), el('label', null, 'Comissão', fComissao)),
+        el('div', { class: 'barra-lista' }, total, S.botoesExportar('atividade-vereadores-' + ano, colunas, async (de) => de ? [] : filtradas())),
+        tabela, vazio);
+      aplicar();
     }
     desenhar();
   };
