@@ -1,7 +1,8 @@
 {
-  "versao": "0.44.4",
+  "versao": "0.44.5",
   "data": "2026-11-17",
   "notas": [
+    "Painel: ao tentar excluir um vereador, proposição, sessão ou comissão com registros ligados, a mensagem agora diz quais (presenças, votos, autorias, participações em comissões, diárias, verba indenizatória…), em vez de \"outros registros\".",
     "Diárias: a diária ligada a um vereador usa sempre o nome completo do cadastro dele (o nome lido da portaria, às vezes por OCR, vinha com variações como \"Apolina\"/\"Apoliana\"). Corrigir o nome no cadastro do vereador corrige todas as diárias dele. Na migração, nomes com até 2 letras de diferença também são reconhecidos como o vereador. Script 50 (já aplicado).",
     "Correção: diárias de vereador eram recusadas pelo banco com o erro 'record \"new\" has no field \"origem\"' (na migração e no cadastro). Rode o script 49 na Supabase (já aplicado no projeto).",
     "Migração: saiu o aviso do plano gratuito da Supabase (1 GB); o portal está no plano Pro. O aviso de espaço só aparece se um órgão sozinho passar da metade dos 100 GB.",

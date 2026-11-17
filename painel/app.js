@@ -249,7 +249,12 @@
     publicacoes: 'publicações', servicos: 'serviços da Carta', unidades: 'unidades subordinadas', usuarios_orgaos: 'usuários',
     atendimento_canais: 'canais do e-SIC/Ouvidoria', atendimentos: 'pedidos e manifestações', atendimentos_tramites: 'andamentos de pedidos',
     consorcio_documentos: 'contratos de rateio, de programa ou outros documentos do consórcio',
-    lgpd: 'LGPD e Governo Digital (norma)', menu_itens: 'subitens do menu', orgaos: 'órgãos vinculados'
+    lgpd: 'LGPD e Governo Digital (norma)', menu_itens: 'subitens do menu', orgaos: 'órgãos vinculados',
+    // Câmara (atividade legislativa)
+    proposicoes: 'proposições (como norma resultante)', proposicoes_autores: 'proposições de autoria ou relatoria deste vereador',
+    proposicoes_tramites: 'andamentos da proposição', sessoes: 'reuniões desta comissão', sessoes_presencas: 'presenças em sessões',
+    votacoes: 'votações em sessões', votacoes_votos: 'votos em votações', comissoes_membros: 'participações em comissões',
+    verba_indenizatoria: 'pagamentos de verba indenizatória', consorcio_entes: 'entes consorciados', publicacoes_anexos: 'anexos da publicação'
   };
   function traduzirErro(e) {
     const t = (e && (e.message || e.error_description || String(e))) || '';
