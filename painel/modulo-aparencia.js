@@ -162,7 +162,9 @@
       el('span', null, el('strong', null, rotulo), el('span', { class: 'ajuda bloco' }, ajuda)));
     const radarEscolha = el('fieldset', { class: 'grupo-radio', id: 'ap-radar-estilo' }, el('legend', null, 'Como a faixa aparece na página inicial'),
       opcaoRadar('desenhada', 'Faixa desenhada (padrão)', 'O site desenha a faixa nas cores do portal, com o nome do Radar e o botão de acesso.'),
-      opcaoRadar('imagem', 'Imagem oficial', 'A faixa é a imagem enviada abaixo (precisa enviar a imagem).'));
+      opcaoRadar('imagem', 'Imagem oficial', 'A faixa é a imagem enviada abaixo (precisa enviar a imagem).'),
+      el('span', { class: 'erro-campo', id: 'ap-radar-estilo-erro', role: 'alert' }));
+    radarEscolha.tabIndex = -1;
     const estiloRadar = () => (radarEscolha.querySelector('input:checked') || {}).value || 'desenhada';
     const mostrarImgRadar = () => { radarImg.bloco.hidden = estiloRadar() !== 'imagem'; };
     radarEscolha.addEventListener('change', mostrarImgRadar);
