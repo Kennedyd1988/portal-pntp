@@ -961,3 +961,8 @@ html.contraste .cartao.gestor .gestor-unidade, html.contraste .acessos .icone, h
 html.contraste .btn-transparencia { background: #000 !important; }
 @media print { .barra-redes, .selos-cabecalho { display: none !important; } .revelar { opacity: 1 !important; transform: none !important; } }
 .cartao.gestor .gestor-contato-texto { margin-top: 6px; }
+@media (max-width: 600px) {
+  #conteudo .acessos a.cartao { flex-direction: column; align-items: flex-start; justify-content: flex-start; padding: 14px 12px; gap: 10px; min-height: 0; }
+  .acessos strong { font-size: .92rem; line-height: 1.3; overflow-wrap: anywhere; }
+  .acessos span.meta { font-size: .8rem; }
+}
