@@ -7,7 +7,7 @@
 //   · resposta sugerida para cada critério (Disponibilidade, Atualidade, Série
 //     Histórica, Relatórios e Filtros → Atende / Não atende / N/A);
 //   · links prontos (página do portal e destinos externos) e texto de
-//     esclarecimento (curto e completo), cada um com "Copiar";
+//     esclarecimento objetivo (caminho no menu do site), cada um com "Copiar";
 //   · prints das páginas do próprio portal, com marcação em vermelho (modo
 //     evidência do site, site/evidencia.js) e carimbo de endereço, data e hora.
 //     Um mesmo print comprova todos os itens e critérios da mesma tela.
@@ -256,75 +256,63 @@
     return r;
   }
 
-  // ---------- textos de esclarecimento ----------
+  // ---------- caminho no menu do site ----------
+  // Caminho que o avaliador segue a partir do menu do site até a página do item (Menu › Transparência › Licitações › aba …).
+  let menu = [];
+  const NOMES_ABA = { pca: 'Plano de Contratações Anual', sancionados: 'Sancionados', diretas: 'Dispensas e inexigibilidades', adesoes: 'Adesões a atas',
+    licitacoes: 'Licitações', fiscais: 'Fiscais de contratos', paralisadas: 'Obras paralisadas', recebidas: 'Recebidas', realizadas: 'Realizadas', acordos: 'Acordos sem repasse',
+    servidores: 'Servidores', remuneracao: 'Remuneração', cargos: 'Cargos', estagiarios: 'Estagiários', terceirizados: 'Terceirizados', concedidas: 'Diárias concedidas',
+    tabela: 'Tabela de valores', arrecadacao: 'Arrecadação', empenhos: 'Empenhos', classificacao: 'Classificação da despesa', balanco: 'Balanço Geral',
+    relatorio_gestao: 'Relatório de Gestão', parecer_tce: 'Parecer prévio do TCE', rgf: 'Relatório de Gestão Fiscal', plano_estrategico: 'Plano estratégico',
+    julgamento_camara: 'Julgamento das contas', 'como-pedir': 'Como pedir', pedir: 'Fazer pedido', prazos: 'Prazos', relatorios: 'Relatórios estatísticos',
+    classificadas: 'Informações classificadas', desclassificadas: 'Informações desclassificadas', 'como-manifestar': 'Como manifestar', manifestar: 'Fazer manifestação',
+    satisfacao: 'Pesquisa de satisfação' };
+  function caminhoDe(rota) {
+    const base = rota.split('?')[0];
+    if (base === '/') return 'Página inicial do site (cabeçalho e topo da página)';
+    const ativos = menu.filter((i) => i.tipo === 'interno');
+    const limpa = (d) => String(d || '').replace(/^#/, '').split('?')[0].replace(/\/$/, '') || '/';
+    // Item do menu que leva à página: o destino igual à rota ou o mais longo que seja começo dela.
+    const cand = ativos.filter((i) => { const d = limpa(i.destino); return d !== '/' && (base === d || base.startsWith(d + '/')); })
+      .sort((a, b) => limpa(b.destino).length - limpa(a.destino).length)[0];
+    const sufixo = (d) => base.slice(d.length).split('/').filter(Boolean).map((t) => 'aba "' + (NOMES_ABA[t] || t) + '"');
+    if (cand) {
+      const pai = cand.pai_id ? menu.find((i) => i.id === cand.pai_id) : null;
+      return ['Menu', pai ? pai.rotulo : null, cand.rotulo].concat(sufixo(limpa(cand.destino))).filter(Boolean).join(' › ');
+    }
+    // Fora do menu: pela página do Portal da Transparência (botão no topo do site).
+    const partes = base.split('/').filter(Boolean);
+    return 'Botão "Portal da Transparência" no topo do site › ' + (NOMES_ABA[partes[0]] || tituloCurto(partes[0].replace(/-/g, ' '))) + (partes.length > 1 ? ' › ' + partes.slice(1).map((t) => 'aba "' + (NOMES_ABA[t] || t) + '"').join(' › ') : '');
+  }
+
+  // ---------- esclarecimento (texto objetivo) ----------
+  // Um texto só, para colar no Avalia: onde está (caminho no site) e, em uma frase, o que há publicado.
+  // O link de acesso direto vai em coluna própria (linksDo).
   function montarTextos(x) {
     const p = planoDo(x);
-    const url = urlPublica(p.r);
     const dest = destinosDe(p.r);
     const f = p.fonte ? fatos[p.fonte] : null;
-    const info = paginasInfo[p.r] || {};
     const ds = declaracoesDo(p);
     const resp = respostas(x);
-    const cobra = (l) => x.itens.includes(l);
     const anos = f && f.anos && f.anos.length ? f.anos : null;
-    const filtros = (info.filtros || []).filter((t) => !/^pesquisar$/i.test(t)).map((t) => t.replace(/^pesquisar\s*/i, 'pesquisa livre '));
-    const formatos = info.exportar && info.exportar.length ? info.exportar : FORMATOS;
-    const det = x._detalhe;
-
-    const linhasCurto = [], completo = [];
+    const caminho = caminhoDe(p.r);
+    const partes = [];
     if (dest.principal) {
-      linhasCurto.push('A informação é publicada no sistema externo indicado pelo órgão: ' + dest.principal + '. O portal leva a ele a partir de ' + url + '.');
-    } else if (resp.D === 'Não atende') {
-      linhasCurto.push('Ainda não há conteúdo publicado para este item em ' + url + '.');
+      partes.push('A informação está no sistema externo indicado pelo órgão, acessível no site pelo caminho: ' + caminho + ' (o link leva ao sistema).');
+    } else if (resp.D === 'Não atende' && !ds.length) {
+      partes.push('Ainda não há conteúdo publicado para este item. Local no site: ' + caminho + '.');
     } else {
-      linhasCurto.push('Publicado no portal do órgão: ' + url + (det ? ' (exemplo de detalhe: ' + urlPublica(det.r) + ')' : '') + '.');
+      partes.push('A informação está acessível no site pelo caminho: ' + caminho + '.');
+      if (f && f.total) partes.push('Estão publicados ' + plural(f.total, p.un) + (anos ? ' (' + (anos.length > 1 ? anos[0] + ' a ' + anos[anos.length - 1] : anos[0]) + ')' : '')
+        + (f.mais_recente ? ', o mais recente de ' + dataBR(f.mais_recente) : '') + '.');
+      if (ds.length) partes.push('Períodos sem ocorrência com declaração de inexistência publicada: ' + ds.slice(0, 4).map((d) => d.periodo).join('; ') + (ds.length > 4 ? ' e outros' : '') + '.');
+      const extras = [];
+      if (x.itens.includes('F') && resp.F === 'Atende') extras.push('filtros de pesquisa');
+      if (x.itens.includes('G') && resp.G === 'Atende') extras.push('exportação em CSV, JSON, XML, XLSX e PDF');
+      if (extras.length) partes.push('A página oferece ' + listaE(extras) + '.');
     }
-    if (f && f.total) {
-      linhasCurto.push(plural(f.total, p.un) + (anos ? ' de ' + (anos.length > 1 ? anos[0] + ' a ' + anos[anos.length - 1] : anos[0]) : '')
-        + (f.mais_recente ? '; o mais recente de ' + dataBR(f.mais_recente) : '') + (f.ultima_alteracao ? '; última atualização em ' + dataBR(f.ultima_alteracao) : '') + '.');
-    }
-    const semD = resp.D === 'Não atende' && !dest.principal;
-    if (cobra('G') && !dest.principal && !semD) linhasCurto.push('Exportação em ' + listaE(formatos) + '.');
-    if (cobra('F') && !dest.principal && !semD) linhasCurto.push(filtros.length ? 'Filtros: ' + listaE(filtros) + '.' : 'Com filtros de pesquisa.');
-    if (ds.length) linhasCurto.push('Declaração de inexistência: ' + ds.slice(0, 3).map((d) => d.periodo).join('; ') + (ds.length > 3 ? ' e outros ' + (ds.length - 3) + ' períodos' : '') + '.');
-    if (dest.outros.length) linhasCurto.push('Outros períodos/sistemas: ' + dest.outros.map((l) => (periodoLink(l) ? periodoLink(l) + ': ' : '') + l.url).join('; ') + '.');
-
-    completo.push(x.codigo + ' – ' + x.titulo + ' (' + (CLASSIF[x.classificacao] || x.classificacao) + ').');
-    if (dest.principal) {
-      completo.push('Onde está: a informação é publicada no sistema externo indicado pelo órgão (' + dest.principal + '). A página do portal ' + url + ' explica e leva até ele (Aparência › Destinos das páginas).');
-    } else {
-      completo.push('Onde está: página "' + (info.titulo || tituloCurto(x.titulo)) + '" do portal, ' + url + '.' + (det ? ' Exemplo de página de detalhe: ' + det.nome + ', ' + urlPublica(det.r) + '.' : ''));
-    }
-    for (const [l, , nome] of CRITERIOS) {
-      if (!cobra(l)) continue;
-      let t = '';
-      if (l === 'D') {
-        t = dest.principal ? 'disponível no sistema externo indicado.' : f && f.total ? 'na página: ' + plural(f.total, p.un) + '.' : ds.length ? 'sem registros no período: o órgão publicou declaração de inexistência (' + ds.map((d) => d.periodo).join('; ') + ').' : 'conteúdo publicado na página.';
-        if (ds.length && f && f.total) t += ' Períodos sem ocorrência declarados: ' + ds.map((d) => d.periodo + (d.texto ? ' — "' + d.texto + '"' : '')).join('; ') + '.';
-      } else if (l === 'A') {
-        t = f && (f.mais_recente || f.ultima_alteracao) ? (f.mais_recente ? 'registro mais recente de ' + dataBR(f.mais_recente) : '') + (f.mais_recente && f.ultima_alteracao ? '; ' : '') + (f.ultima_alteracao ? 'última inclusão ou alteração no portal em ' + dataBR(f.ultima_alteracao) : '') + '.'
-          : info.atualizacao ? info.atualizacao + '.' : ds.length ? 'declaração de inexistência vigente para o período.' : 'conferir a data na página.';
-      } else if (l === 'S') {
-        const lista = info.anos && info.anos.length ? info.anos.map((a) => a.replace(/\s*\(.*$/, '')) : anos ? anos.map(String) : [];
-        t = lista.length ? 'exercícios disponíveis em abas por ano: ' + listaE(lista) + '.' : 'conferir os exercícios na página.';
-        const anosDecl = ds.filter((d) => d.exercicio).map((d) => d.exercicio);
-        if (anosDecl.length) t += ' Exercícios sem ocorrência, com declaração: ' + listaE([...new Set(anosDecl)].sort().map(String)) + '.';
-        if (dest.outros.length) t += ' Exercícios anteriores em outro endereço: ' + dest.outros.map((o) => (periodoLink(o) ? periodoLink(o) + ' — ' : '') + o.url).join('; ') + '.';
-      } else if (l === 'G') {
-        t = 'a lista pode ser baixada em ' + listaE(formatos) + ' (botões "Baixar" acima da lista).';
-      } else if (l === 'F') {
-        t = filtros.length ? 'pesquisa e filtros por ' + listaE(filtros.map((y) => y.toLowerCase())) + '.' : 'barra de pesquisa e filtros acima da lista.';
-      }
-      // Critério que não atende: diz o que falta, sem descrever como publicado o que não está.
-      if (resp[l] === 'Não atende') t = (l === 'D' ? 'ainda não há conteúdo publicado para este item.' : 'não atende na autoavaliação.')
-        + (l === 'D' && x.falta && x.falta.length ? ' ' + x.falta.join(' ') : '');
-      completo.push(nome + ' (' + resp[l] + '): ' + t);
-    }
-    if (dest.outros.length && !cobra('S')) completo.push('Outros endereços indicados pelo órgão: ' + dest.outros.map((o) => (o.descricao ? o.descricao + ' ' : '') + (periodoLink(o) ? '(' + periodoLink(o) + ') ' : '') + o.url).join('; ') + '.');
-    const ps = printsDo(x.codigo);
-    if (ps.length) completo.push('Prints anexados: ' + ps.map((y) => y.nome).join(', ') + ' (marcações em vermelho, com endereço, data e hora no alto).');
-    else if (dest.principal) completo.push('Sem print: o conteúdo está em sistema externo; vale o link acima.');
-    return { curto: linhasCurto.join(' '), completo: completo.join('\n'), links: linksDo(x) };
+    if (dest.outros.length) partes.push('Períodos anteriores em outro endereço, indicado na mesma página.');
+    return { texto: partes.join(' '), links: linksDo(x) };
   }
 
   function linksDo(x) {
@@ -342,16 +330,18 @@
 
   // ---------- carga ----------
   async function carregar() {
-    const [o, av, ft, dc, lc, ger] = await Promise.all([
+    const [o, av, ft, dc, lc, ger, mn] = await Promise.all([
       sb.from('orgaos').select('id, nome, tipo, cnpj, dominio, configuracoes').eq('id', org()).maybeSingle(),
       P.avaliacaoPntp(true),
       sb.rpc('pntp_kit_fatos', { p_orgao: org() }),
       sb.from('declaracoes_inexistencia').select('secao, abrangencia, exercicio, numero, data_inicio, data_fim, texto, criado_em').eq('orgao_id', org()).order('data_fim', { ascending: false, nullsFirst: true }).limit(3000),
       sb.from('pntp_kit_lancamentos').select('codigo, lancado_em, lancado_por_nome, observacao').eq('orgao_id', org()),
-      sb.from('pntp_kit_geracoes').select('id, gerado_em, gerado_por_nome, resumo, prints, paginas').eq('orgao_id', org()).order('gerado_em', { ascending: false }).limit(1)
+      sb.from('pntp_kit_geracoes').select('id, gerado_em, gerado_por_nome, resumo, prints, paginas').eq('orgao_id', org()).order('gerado_em', { ascending: false }).limit(1),
+      sb.from('menu_itens').select('id, pai_id, rotulo, tipo, destino, ordem').eq('orgao_id', org()).eq('ativo', true)
     ]);
     for (const r of [ft, lc, ger]) if (r.error) throw r.error;
     orgaoDados = o.data || P.estado.orgao;
+    menu = mn.error ? [] : mn.data || [];
     linhas = (av.linhas || []).slice();
     fatos = Object.fromEntries((ft.data || []).map((x) => [x.fonte, x]));
     decls = dc.error ? [] : dc.data || [];
@@ -479,14 +469,11 @@
         el('tbody', null, el('tr', null, CRITERIOS.map(([l]) => el('td', null, etiquetaResp(resp[l]))))))),
       x.falta && x.falta.length ? el('div', { class: 'aviso-pntp' }, el('strong', null, 'O que falta: '), el('ul', null, x.falta.map((t) => el('li', null, t))),
         x.rota ? el('p', null, el('a', { class: 'btn btn-claro btn-p', href: x.rota }, 'Corrigir no painel')) : null) : null,
-      el('h3', null, 'Links'),
+      el('h3', null, 'Link de acesso direto'),
       el('ul', { class: 'kit-links' }, tx.links.map((l) => el('li', null, el('span', { class: 'kit-link-rot' }, l.rotulo + ': '),
         el('a', { href: l.url, target: '_blank', rel: 'noopener' }, l.url), ' ', botaoCopiar(l.url)))),
       tx.links.length > 1 ? el('p', null, botaoCopiar(tx.links.map((l) => l.url).join('\n'), 'Copiar todos os links')) : null,
-      el('h3', null, 'Esclarecimento'),
-      el('div', { class: 'kit-textos' },
-        el('div', null, el('div', { class: 'kit-texto-cab' }, el('strong', null, 'Versão curta'), botaoCopiar(tx.curto)), caixaTexto(tx.curto, 4)),
-        el('div', null, el('div', { class: 'kit-texto-cab' }, el('strong', null, 'Versão completa'), botaoCopiar(tx.completo)), caixaTexto(tx.completo, 9))),
+      el('div', { class: 'kit-texto-cab' }, el('h3', null, 'Esclarecimento'), botaoCopiar(tx.texto)), caixaTexto(tx.texto, 3),
       el('h3', null, 'Prints'),
       ps.length ? el('div', { class: 'kit-prints' }, ps.map((p) => miniatura(p, x.codigo)))
         : el('p', { class: 'vazio' }, destinosDe(planoDo(x).r).principal ? 'Sem print: o conteúdo está em sistema externo (vale o link e o texto).' : 'Ainda sem print. Use "Gerar kit (ZIP)".')
@@ -725,27 +712,27 @@
   // Dados de cada item para a tabela e o histórico (o que vai ser copiado e colado no Avalia).
   function itensDoKit() {
     return linhas.map((x) => { const t = montarTextos(x); return { c: x.codigo, titulo: x.titulo, classificacao: x.classificacao, situacao: x.situacao,
-      respostas: respostas(x), links: t.links, curto: t.curto, completo: t.completo, falta: x.falta || [], prints: printsDo(x.codigo).map((p) => p.hash || p.nome) }; });
+      respostas: respostas(x), links: t.links, texto: t.texto, falta: x.falta || [], prints: printsDo(x.codigo).map((p) => p.hash || p.nome) }; });
   }
 
   // ---------- Tabela única (Excel e Word) ----------
   // Uma linha por item: código, título, classificação, autoavaliação, resposta de cada critério,
-  // links, esclarecimento curto e completo, o que falta e os prints que comprovam (nomes dos arquivos).
+  // esclarecimento (caminho no site), link de acesso direto, o que falta e os prints (nomes dos arquivos).
   const CAB_TABELA = ['Item', 'Título', 'Classificação', 'Autoavaliação', 'Disponibilidade', 'Atualidade', 'Série Histórica', 'Relatórios', 'Filtros',
-    'Links', 'Esclarecimento (curto)', 'Esclarecimento (completo)', 'O que falta', 'Prints'];
+    'Esclarecimento', 'Link de acesso direto', 'O que falta', 'Prints'];
   function linhasTabela(itensKit, lista) {
     const porNome = Object.fromEntries((lista || []).map((p) => [p.hash || p.nome, p]));
     return itensKit.map((it) => [it.c, it.titulo, CLASSIF[it.classificacao] || it.classificacao, (SITUACAO[it.situacao] || [it.situacao])[0],
       ...CRITERIOS.map(([l]) => (it.respostas || {})[l] || ''),
-      (it.links || []).map((l) => l.url).join('\n'), it.curto || '', it.completo || '', (it.falta || []).join('\n'),
+      it.texto || it.curto || '', (it.links || []).map((l) => l.url).join('\n'), (it.falta || []).join('\n'),
       (it.prints || []).map((h) => (porNome[h] || {}).nome).filter(Boolean).join('\n')]);
   }
   async function tabelaXlsx(itensKit, lista, quando) {
     await carregarScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
     const X = window.XLSX;
     const ws = X.utils.aoa_to_sheet([CAB_TABELA].concat(linhasTabela(itensKit, lista)));
-    ws['!cols'] = [8, 40, 13, 13, 14, 12, 14, 12, 10, 50, 60, 90, 45, 45].map((w) => ({ wch: w }));
-    ws['!autofilter'] = { ref: 'A1:N' + (itensKit.length + 1) };
+    ws['!cols'] = [8, 40, 13, 13, 14, 12, 14, 12, 10, 80, 60, 45, 45].map((w) => ({ wch: w }));
+    ws['!autofilter'] = { ref: 'A1:M' + (itensKit.length + 1) };
     ws['!freeze'] = { xSplit: 2, ySplit: 1 };
     const wb = X.utils.book_new();
     X.utils.book_append_sheet(wb, ws, 'Itens do PNTP');
@@ -757,14 +744,14 @@
     const D = window.docx;
     const par = (texto, negrito) => String(texto || '').split('\n').map((t) => new D.Paragraph({ children: [new D.TextRun({ text: t, bold: !!negrito, size: 16 })] }));
     // No Word, os 5 critérios vão numa célula só (a tabela fica legível na folha deitada).
-    const cab = ['Item', 'Resposta sugerida', 'Links', 'Esclarecimento (curto)', 'Esclarecimento (completo)', 'Prints'];
-    const larg = [12, 13, 17, 20, 26, 12];
+    const cab = ['Item', 'Resposta sugerida', 'Esclarecimento', 'Link de acesso direto', 'Prints'];
+    const larg = [14, 14, 34, 24, 14];
     const celula = (conteudo, i, cabecalho) => new D.TableCell({ children: conteudo, width: { size: larg[i], type: D.WidthType.PERCENTAGE },
       shading: cabecalho ? { fill: 'D9E2F3', type: D.ShadingType.CLEAR, color: 'auto' } : undefined });
     const linhas = linhasTabela(itensKit, lista).map((l) => new D.TableRow({ cantSplit: false, children: [
       celula([].concat(par(l[0], true), par(l[1]), par(l[2] + ' · Autoavaliação: ' + l[3])), 0),
       celula(CRITERIOS.flatMap(([, , n], k) => par(n + ': ' + l[4 + k])), 1),
-      celula(par(l[9]), 2), celula(par(l[10]), 3), celula(par(l[11] + (l[12] ? '\nO que falta: ' + l[12] : '')), 4), celula(par(l[13] || '(sem print)'), 5)] }));
+      celula(par(l[9] + (l[11] ? '\nO que falta: ' + l[11] : '')), 2), celula(par(l[10]), 3), celula(par(l[12] || '(sem print)'), 4)] }));
     const doc = new D.Document({ creator: 'SOFT+ GOV', title: 'Kit de evidências PNTP 2026', sections: [{
       properties: { page: { size: { orientation: D.PageOrientation.LANDSCAPE }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } },
       children: [
