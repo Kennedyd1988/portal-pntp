@@ -1185,3 +1185,5 @@ html.contraste .aba-guia[aria-selected="true"] { background: #000 !important; }
   .perfil-vereador .foto-grande { width: 132px; height: 132px; }
 }
 html.contraste .perfil-vereador, html.contraste .perfil-contatos a, html.contraste .lista-comissoes li, html.contraste .numeros-atividade li { background: #000 !important; color: #fff !important; border-color: #fff !important; }
+a.cartao.cartao-vereador { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.cartao-vereador .foto-vereador { display: block; flex: none; }
