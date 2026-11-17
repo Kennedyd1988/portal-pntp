@@ -419,7 +419,14 @@
     const n = lista.length;
     const trilho = el('div', { class: 'gest-trilho' }, lista.map((g) => el('div', { class: 'gest-item' }, (cartao || cartaoGestor)(g))));
     let pos = 0, timer = null, clones = 0, pausado = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const porVez = () => { const w = trilho.parentElement ? trilho.parentElement.clientWidth : 1200; return w < 560 ? 1 : w < 860 ? 2 : w < 1100 ? 3 : 4; };
+    // Quantos por vez pela largura da janela. Sem largura (bloco ainda fora da página: a página inicial monta
+    // tudo antes de mostrar) mantém o último valor, senão o cálculo dava 1 por vez e os cartões ficavam enormes.
+    let ultimoPorVez = 4;
+    const porVez = () => {
+      const w = trilho.parentElement ? trilho.parentElement.clientWidth : 0;
+      if (w > 0) ultimoPorVez = w < 560 ? 1 : w < 860 ? 2 : w < 1100 ? 3 : 4;
+      return ultimoPorVez;
+    };
     const roda = () => n > porVez();
     // Cópias (só visuais) dos primeiros cartões no fim do trilho, para emendar o fim no começo.
     function montarClones() {
@@ -471,8 +478,11 @@
       if (pos >= n) pos = 0;
       mover(false); iniciar();
     };
-    addEventListener('resize', ajustar);
-    requestAnimationFrame(ajustar);
+    // Recalcula quando a janela do carrossel ganha ou muda de largura (entrou na página, girou a tela, redimensionou).
+    let larguraAnterior = -1;
+    const aoMudar = () => { const w = janela.clientWidth; if (w > 0 && w !== larguraAnterior) { larguraAnterior = w; ajustar(); } };
+    if (window.ResizeObserver) new ResizeObserver(aoMudar).observe(janela);
+    else { addEventListener('resize', aoMudar); requestAnimationFrame(aoMudar); }
     return caixa;
   }
 
