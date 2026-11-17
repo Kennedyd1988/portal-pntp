@@ -111,10 +111,10 @@
   async function detalhe(ctx, url, ler, rotulo) {
     if (ctx.parar()) return;
     if (ctx.jaFeito && await ctx.jaFeito(url)) return;
-    let p; try { p = await ctx.ler(url); } catch (e) { ctx.log(rotulo + ': ' + e.message); return; }
+    let p; try { p = await ctx.ler(url); } catch (e) { if (e.bloqueio) throw e; ctx.log(rotulo + ': ' + e.message); return; }
     let x;
     try { x = p.status === 200 ? await ler(p.html, url) : { vazio: true }; }
-    catch (e) { ctx.log(rotulo + ': ' + e.message); return; }
+    catch (e) { if (e.bloqueio) throw e; ctx.log(rotulo + ': ' + e.message); return; }
     await ctx.emitir(url, x);
   }
   // Anexo que abre no visualizador do site (/visualizador-documento/…): o arquivo real está dentro da página.
@@ -130,7 +130,7 @@
       const todos = (r.html.match(/https?:\/\/intellgest-sigl-media\.s3\.amazonaws\.com\/media\/[^"'<>\s]+/g) || []).map((u) => u.replace(/&amp;/g, '&')).filter(ehArquivo)
         .filter((u) => !/\/(parlamentar|autor|casa|appconfig|logotipo)\//i.test(u));
       real = todos.find((u) => /\.(pdf|docx?|xlsx?|odt|ods|zip|rar|csv)(\?|$)/i.test(u)) || todos.find((u) => /\/media\/arquivos\//i.test(u)) || null;
-    } catch (e) { ctx.log('anexo ' + url.replace(ctx.origem, '') + ': ' + e.message); }
+    } catch (e) { if (e.bloqueio) throw e; ctx.log('anexo ' + url.replace(ctx.origem, '') + ': ' + e.message); }
     ctx._cacheDoc.set(url, real);
     return real;
   }
@@ -147,7 +147,7 @@
         const l = [...sel.options].map((o) => Number(o.value)).filter((a) => a >= ctx.de && a <= ANO + 1).sort((a, b) => b - a);
         return [...new Set(l)];
       }
-    } catch (_) { /* usa o período inteiro */ }
+    } catch (e) { if (e.bloqueio) throw e; /* usa o período inteiro */ }
     return anos(ctx, maisUm);
   }
 
@@ -194,6 +194,66 @@
     return 'outro';
   }
   const funcaoDe = (t) => { const s = sem(t); return /vice/.test(s) ? 'vice_presidente' : /presiden/.test(s) ? 'presidente' : /relator/.test(s) ? 'relator' : /suplent/.test(s) ? 'suplente' : 'membro'; };
+
+  // ---------------- presenças e votações das sessões (0.43.0) ----------------
+  // Presença: ícone de "confirmado" = presente; "x" = ausente (com ou sem justificativa).
+  // Sessão em que ninguém tem presença marcada (todos "Sem justificativa") = presença ainda não registrada no site antigo: não vem.
+  async function lerPresencas(ctx, base) {
+    const r = await ctx.ler(base + 'parlamentares/presenca/');
+    if (r.status !== 200) return [];
+    const { m } = doc(r.html);
+    const l = [];
+    for (const tr of m.querySelectorAll('tbody tr')) {
+      const nome = limpar((tr.querySelector('td[data-label="Parlamentar"]') || {}).textContent);
+      const cel = tr.querySelector('td[data-label="Presença"], td[data-label="Presenca"]');
+      if (!nome || !cel) continue;
+      const ic = (cel.querySelector('i') || {}).className || '';
+      const txt = limpar(cel.textContent);
+      const presente = /circle-check|user-check|fa-check/.test(ic) || /^presente/i.test(txt);
+      const just = !presente && txt && !/^sem justificativa$/i.test(txt) && !/^ausente$/i.test(txt) ? txt.slice(0, 300) : null;
+      l.push({ nome: nomeProprio(nome), presente, justificativa: just });
+    }
+    if (l.length && l.every((p) => !p.presente && !p.justificativa)) return [];
+    return l;
+  }
+  // Resultados: um bloco <article> por item votado (ata, matérias do Expediente e da Ordem do Dia), com o
+  // placar, o resultado ("Proposição Aprovada") e o voto de cada vereador.
+  async function lerVotacoes(ctx, base) {
+    const r = await ctx.ler(base + 'resultados/');
+    if (r.status !== 200) return [];
+    const { m } = doc(r.html);
+    const l = [];
+    for (const art of m.querySelectorAll('article')) {
+      const h = limpar((art.querySelector('h4, h3') || {}).textContent);
+      const c = kv(art);
+      const res = sem([...art.querySelectorAll('span')].map((x) => x.textContent).join(' '));
+      const resultado = /aprovad/.test(res) ? 'aprovada' : /rejeitad/.test(res) ? 'rejeitada' : 'outro';
+      const placar = {};
+      for (const blk of art.querySelectorAll('div')) {
+        const sp = blk.querySelectorAll(':scope > span');
+        if (sp.length === 2 && /^\d+$/.test(limpar(sp[0].textContent))) placar[sem(sp[1].textContent)] = Number(limpar(sp[0].textContent));
+      }
+      const votos = [];
+      for (const tr of art.querySelectorAll('tbody tr')) {
+        const tds = tr.querySelectorAll('td'); if (tds.length < 2) continue;
+        const v = sem(tds[tds.length - 1].textContent);
+        const voto = /^sim/.test(v) ? 'sim' : /^nao|^não/.test(v) ? 'nao' : /absten/.test(v) ? 'abstencao' : /ausente/.test(v) ? 'ausente' : /nao vot|presid/.test(v) ? 'nao_votou' : null;
+        if (voto) votos.push({ nome: nomeProprio(limpar(tds[0].textContent)), voto });
+      }
+      if (!h && !votos.length) continue;
+      const ehAta = /^ata_/.test(art.id || '') || /\bata\b/i.test(h);
+      const pm = h.match(/^(.*?)\s+n[ºo°]\s*(\S+?)\/(\d{4})/i);
+      const forma = sem(pega(c, 'tipo de votacao') || '');
+      l.push({
+        chave: art.id || h,
+        proposicao: pm ? { tipo: tipoProposicao(pm[1]), iniciativa: /executivo/i.test(pm[1]) ? 'executivo' : /legislativo/i.test(pm[1]) ? 'legislativo' : null, numero: pm[2], ano: Number(pm[3]) } : null,
+        descricao: (ehAta && !pm ? 'Ata: ' + (h || 'sessão anterior') : h || 'Votação').slice(0, 500),
+        forma: /simbol/.test(forma) ? 'simbolica' : /secret/.test(forma) ? 'secreta' : 'nominal',
+        resultado, votos_sim: placar.sim != null ? placar.sim : null, votos_nao: placar.nao != null ? placar.nao : null,
+        abstencoes: placar.abstencao != null ? placar.abstencao : null, votos });
+    }
+    return l;
+  }
 
   // ---------------- seções ----------------
   const SECOES = {
@@ -314,7 +374,7 @@
                 if (!nm || data(desl)) continue;   // já saiu da comissão
                 if (!membros.some((x) => sem(x.nome) === sem(nm))) membros.push({ nome: nm, funcao: funcaoDe(papel) });
               }
-            } catch (e) { ctx.log(nome + ': composição não lida (' + e.message + ')'); }
+            } catch (e) { if (e.bloqueio) throw e; ctx.log(nome + ': composição não lida (' + e.message + ')'); }
             // Composição do site antigo já encerrada (ex.: da legislatura passada): não liga membros que não estão mais lá.
             if (composicao && composicao.fim && composicao.fim < HOJE() && membros.length) {
               ctx.log(nomeProprio(nome) + ': a composição do site antigo terminou em ' + composicao.fim.split('-').reverse().join('/') + ' — membros não trazidos; cadastre a composição atual.');
@@ -435,8 +495,11 @@
                 : /sancion|promulg|transformad/.test(ult) ? 'transformada_norma' : /vetad/.test(ult) ? 'vetada' : /rejeit/.test(ult) ? 'rejeitada'
                 : /retirad/.test(ult) ? 'retirada' : /prejudic/.test(ult) ? 'prejudicada' : /aprovad|deferid/.test(ult) ? 'aprovada' : 'arquivada';
               const estimado = andamento === 'arquivada' && !/arquiv/.test(ult);
-              return { ano: anoP, data: dt, chave: { tipo: tipoProposicao(tipoT), numero: nn[1], ano: anoP },
-                registro: { tipo: tipoProposicao(tipoT), numero: nn[1].slice(0, 20), ano: anoP, ementa: ementa.length >= 5 ? ementa : t.slice(0, 2000),
+              // Executivo e Legislativo numeram cada um na sua série ("Projeto de Lei Ordinária - Executivo nº 1/2026" ≠ "… - Legislativo nº 1/2026")
+              const ti = sem(tipoT + ' ' + t);
+              const iniciativa = /executivo/.test(ti) || /prefeit/.test(sem(autorT)) ? 'executivo' : /legislativo/.test(ti) || autorVereador ? 'legislativo' : null;
+              return { ano: anoP, data: dt, chave: { tipo: tipoProposicao(tipoT), iniciativa, numero: nn[1], ano: anoP },
+                registro: { tipo: tipoProposicao(tipoT), iniciativa, numero: nn[1].slice(0, 20), ano: anoP, ementa: ementa.length >= 5 ? ementa : t.slice(0, 2000),
                   data_apresentacao: dt || anoP + '-01-01', andamento,
                   autoria_externa: null },
                 autor: autorT ? { nome: limpar(autorT.replace(/\s+-\s+.*$/, '')), completo: autorT, vereador: autorVereador } : null,
@@ -484,7 +547,7 @@
             try {
               const pa = await ctx.ler(it.url.replace(/resumo\/?$/, 'ata/'));
               if (pa.status === 200) ata = [...doc(pa.html).m.querySelectorAll('a[href]')].map((a) => abs(a.getAttribute('href'), it.url)).find(ehArquivo) || null;
-            } catch (_) { /* sem ata */ }
+            } catch (e) { if (e.bloqueio) throw e; /* sem ata */ }
             // Pauta: as matérias da sessão (Expediente e Ordem do Dia), pela exportação JSON da aba "Proposições";
             // e o arquivo da pauta, quando a aba "Pauta" tem um.
             const base = it.url.replace(/resumo\/?$/, '');
@@ -502,12 +565,15 @@
                 }
                 pauta = Object.entries(grupos).map(([g, ls]) => g + ':\n' + ls.join('\n')).join('\n\n').slice(0, 20000);
               }
-            } catch (_) { /* sem pauta */ }
+            } catch (e) { if (e.bloqueio) throw e; /* sem pauta */ }
             try {
               const pp = await ctx.ler(base + 'pauta/1/');
               if (pp.status === 200) pautaUrl = [...doc(pp.html).m.querySelectorAll('a[href]')].map((a) => abs(a.getAttribute('href'), it.url)).find(ehArquivo) || null;
-            } catch (_) { /* sem arquivo de pauta */ }
-            return { ano: anoDe(dt), data: dt, chave: { data: dt, tipo, numero },
+            } catch (e) { if (e.bloqueio) throw e; /* sem arquivo de pauta */ }
+            // Presenças (aba Parlamentares › Presença) e votações (aba Resultados) — 0.43.0
+            const presencas = await lerPresencas(ctx, base);
+            const votacoes = await lerVotacoes(ctx, base);
+            return { ano: anoDe(dt), data: dt, chave: { data: dt, tipo, numero }, presencas, votacoes,
               registro: { tipo, numero, data: dt, hora: hora(ab) || it.hora, video_url: yt ? 'https://www.youtube.com/watch?v=' + yt : null, pauta,
                 andamento: /cancel/.test(st) ? 'cancelada' : /adiad/.test(st) ? 'adiada' : /nao iniciada/.test(st) && dt >= HOJE() ? 'prevista' : 'realizada',
                 local: null },
@@ -628,8 +694,16 @@
     contrato: {
       nome: 'Contratos', destino: 'Contratos', pntp: true, pasta: 'contratos',
       listas: [],
-      async listar(ctx) {
+      async listar(ctxOriginal) {
         const caminho = '/transparencia/transparencia-administrativa/contratos/';
+        // Aditivos ficam para o fim: assim o contrato original (se existir) já entrou quando o aditivo é tratado.
+        const aditivos = [];
+        const ctx = Object.assign({}, ctxOriginal, { emitir: async (u, x) => (x && x.aditivo ? aditivos.push([u, x]) : ctxOriginal.emitir(u, x)) });
+        await this.lerContratos(ctx, caminho);
+        for (const [u, x] of aditivos) { if (ctxOriginal.parar()) break; await ctxOriginal.emitir(u, x); }
+        return [];
+      },
+      async lerContratos(ctx, caminho) {
         for (const ano of await anosDaLista(ctx, caminho, 'ano', true)) {
           if (ctx.parar()) break;
           const links = [];
@@ -647,7 +721,8 @@
               const ini = data(pega(c, 'inicio da vigencia')), fim = data(pega(c, 'fim da vigencia')), dc = data(pega(c, 'data do contrato'));
               const anoC = anoDe(dc || ini) || ano;
               const mod = sem(pega(c, 'modalidade'));
-              if (/aditiv|apostil/.test(mod)) return { ignorar: 'Termo aditivo/apostilamento: cadastre dentro do contrato original em Contratos', ano: anoC };
+              // Termo aditivo/apostilamento: o módulo só traz quando o contrato original não existe (o site antigo às vezes marca o próprio contrato como aditivo).
+              const aditivo = /aditiv|apostil/.test(mod) ? limpar(pega(c, 'modalidade')) : null;
               const objeto = (pega(c, 'descricao', 'objeto') || '').slice(0, 4000);
               const contratado = (pega(c, 'contratado', 'fornecedor') || '').slice(0, 200);
               const lic = elDe(c, 'licitacao vinculada');
@@ -659,7 +734,7 @@
               }
               const prin = docs.find((d) => /contrato/i.test(d.titulo)) || docs[0];
               const nd = (contratado.match(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/) || [])[1];
-              return { ano: anoC, data: dc || ini, chave: { numero, ano: anoC, contratado_nome: contratado },
+              return { ano: anoC, data: dc || ini, chave: { numero, ano: anoC, contratado_nome: contratado }, aditivo,
                 licitacaoUrl: licA ? abs(licA.getAttribute('href'), url) : null,
                 registro: { origem: 'portal', tipo: /\bata\b/.test(sem(t + ' ' + mod)) ? 'ata_registro_precos' : 'contrato', numero, ano: anoC, processo: util(pega(c, 'processo')),
                   objeto: objeto.length >= 5 ? objeto : 'Contrato ' + (numero || ''), contratado_nome: contratado.length >= 2 ? contratado : 'Não informado no site antigo',
@@ -686,7 +761,7 @@
           for (const ex of await anosDaLista(ctx, '/transparencia/transparencia-administrativa/' + cam + '/', 'exercicio', true)) {
             if (ctx.parar()) break;
             let linhas = null;
-            try { const r = await ctx.ler(base + 'export/?format=json&exercicio=' + ex); linhas = JSON.parse(r.html); } catch (_) { linhas = null; }
+            try { const r = await ctx.ler(base + 'export/?format=json&exercicio=' + ex); linhas = JSON.parse(r.html); } catch (e) { if (e.bloqueio) throw e; linhas = null; }
             if (!Array.isArray(linhas)) { ctx.log(cam.toUpperCase() + ' ' + ex + ': exportação JSON não respondeu.'); continue; }
             for (const l of linhas) {
               const arq = abs(l['Arquivo'] || l['arquivo'], base);
@@ -1160,7 +1235,7 @@
         for (const [cam, tituloPadrao] of PAGS) {
           if (ctx.parar()) break;
           const url = ctx.origem + cam;
-          let r; try { r = await ctx.ler(url); } catch (e) { ctx.log(cam + ': ' + e.message); continue; }
+          let r; try { r = await ctx.ler(url); } catch (e) { if (e.bloqueio) throw e; ctx.log(cam + ': ' + e.message); continue; }
           if (r.status !== 200) continue;
           const { m } = doc(r.html);
           m.querySelectorAll('form, select, button, input, nav, [role="tablist"], .sigl-terceiro').forEach((x) => x.remove());
@@ -1217,7 +1292,7 @@
         const itens = [], vistos = new Set();
         for (const q of [''].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => '?mes=' + m))) {
           if (ctx.parar()) break;
-          let r; try { r = await ctx.ler(ctx.origem + '/institucional/agenda/' + q); } catch (e) { ctx.log('agenda ' + q + ': ' + e.message); continue; }
+          let r; try { r = await ctx.ler(ctx.origem + '/institucional/agenda/' + q); } catch (e) { if (e.bloqueio) throw e; ctx.log('agenda ' + q + ': ' + e.message); continue; }
           if (r.status !== 200) { if (!q) return []; continue; }
           const { m } = doc(r.html);
           for (const it of m.querySelectorAll('.accordion-item')) {
@@ -1272,7 +1347,7 @@
         const itens = [];
         for (const [cam, secao] of PAGS) {
           if (ctx.parar()) break;
-          let r; try { r = await ctx.ler(ctx.origem + cam); } catch (e) { ctx.log(cam + ': ' + e.message); continue; }
+          let r; try { r = await ctx.ler(ctx.origem + cam); } catch (e) { if (e.bloqueio) throw e; ctx.log(cam + ': ' + e.message); continue; }
           if (r.status !== 200 || !/Periodo:/i.test(r.html)) continue;
           const { m } = doc(r.html);
           const vistos = new Set();
@@ -1411,6 +1486,8 @@
     reconhece: (html) => /intgest\.com\.br|intellgest-sigl-media/i.test(html) && /\/parlamentares\/|\/atividade-legislativa\/|\/transparencia\//.test(html),
     // Os arquivos ficam num armazenamento de fora do site (não no endereço do órgão).
     hostsArquivos: ['intellgest-sigl-media.s3.amazonaws.com'],
+    // O servidor da IntGest limita os pedidos (responde 429 com mais de ~2 por segundo): uma leitura por vez, com intervalo.
+    ritmo: { intervalo: 900, maximo: 1 },
     secoes: SECOES,
     maiorId: () => 0,
     util: { data, dataExtenso, valor, kv, limpar, lerPortariaDiaria, periodoDeclaracao }

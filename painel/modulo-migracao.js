@@ -160,8 +160,26 @@
   }
 
   // op: { metodo: 'POST', corpo: 'a=1&b=2' } para as seções que leem dados por formulário (ex.: obras)
+  // Bloqueio por excesso de pedidos (0.43.0): o site responde 429/403/503 em vez da página. Antes a resposta
+  // seguia como "página vazia" e a listagem parava no meio sem aviso (ex.: diárias da página 4 em diante,
+  // exportações de LDO/LOA/RGF, anexos de licitação). Agora: espera crescente, ritmo mais lento e nova tentativa;
+  // se o bloqueio continuar, a leitura falha com erro (o item não é marcado e vem na próxima rodada).
+  const BLOQUEIO = [429, 403, 503, 502, 504];
   async function pagina(url, tentativas, op) {
-    return comRitmo(() => paginaSemRitmo(url, tentativas, op));
+    for (let i = 0; ; i++) {
+      const r = await comRitmo(() => paginaSemRitmo(url, tentativas, op));
+      if (!r || !BLOQUEIO.includes(Number(r.status))) return r;
+      RITMO.bloqueado = true;
+      RITMO.intervalo = Math.min(4000, Math.round(Math.max(RITMO.intervalo, 1200) * 1.5));
+      RITMO.maximo = 1;
+      if (i >= 5) {
+        const e = new Error('O site antigo está bloqueando as leituras (resposta ' + r.status + '). Espere alguns minutos e rode de novo: o que já veio é pulado.');
+        e.bloqueio = true; throw e;
+      }
+      const seg = [20, 40, 60, 120, 180][i];
+      if (!RITMO.avisado) { RITMO.avisado = true; toast('O site antigo pediu para ir mais devagar: a leitura ficou mais lenta e continua sozinha.', true); }
+      RITMO.descansoAte = Math.max(RITMO.descansoAte, Date.now() + seg * 1000);
+    }
   }
   async function paginaSemRitmo(url, tentativas, op) {
     const extra = op && op.metodo ? { metodo: op.metodo, corpo: op.corpo || '' } : {};
@@ -183,6 +201,8 @@
     resumo = Object.fromEntries((r.data || []).map((x) => [x.secao, x]));
     espaco = a.error ? null : (a.data || []).reduce((t, x) => t + Number(x.bytes || 0), 0);
     adaptador = window.MIGRACAO_ADAPTADORES[(cfg.migracao && cfg.migracao.plataforma) || 'plataforma_a'] || null;
+    // Ritmo próprio do modelo (ex.: IntGest limita os pedidos por minuto): começa já no passo que o site aceita.
+    if (adaptador && adaptador.ritmo && !RITMO.bloqueado) Object.assign(RITMO, adaptador.ritmo);
   }
 
   // ---------------- origem ----------------
@@ -236,7 +256,7 @@
       // Na importação, o que já veio (e completo) nem é relido: retomar fica rápido.
       const jaFeito = st.rodando === 'importacao' ? async (url) => {
         const j = await jaMigrado(url);
-        const ok = !!j && j.situacao !== 'erro' && !(j.situacao === 'importado' && FALTOU_ARQUIVO.test(j.detalhe || ''));
+        const ok = !!j && j.situacao !== 'erro' && !(j.situacao === 'importado' && FALTOU_ARQUIVO.test(j.detalhe || '')) && !(await incompleto(chave, j));
         if (ok) { st.feitos = (st.feitos || 0) + 1; st.texto = st.feitos + ' processados (já trazidos antes são pulados)…'; atualizarCartao(chave); }
         return ok;
       } : null;
@@ -324,10 +344,15 @@
     await sb.from('migracao_itens').upsert({ orgao_id: org(), origem_url: url, secao: chave, tabela, registro_id: id || null, ano: x && x.ano || null,
       situacao, detalhe: detalhe ? String(detalhe).slice(0, 500) : null, bytes: bytes || null }, { onConflict: 'orgao_id,origem_url' });
   }
+  // Arquivo guardado fora do site antigo (ex.: armazenamento da IntGest na Amazon): não conta no limite de pedidos do site.
+  function ritmoDoArquivo(url, fn) {
+    let host = ''; try { host = new URL(url).host; } catch (_) { /* endereço inválido */ }
+    return adaptador && (adaptador.hostsArquivos || []).includes(host) ? fn() : comRitmo(fn);
+  }
   async function copiar(url, pasta) {
     try {
       if (ponte.pronto) return await copiarPeloNavegador(url, pasta);
-      const r = await comRitmo(() => servidor({ acao: 'copiar', url, pasta })); return { url: r.url_publica, bytes: r.bytes || 0 };
+      const r = await ritmoDoArquivo(url, () => servidor({ acao: 'copiar', url, pasta })); return { url: r.url_publica, bytes: r.bytes || 0 };
     }
     catch (e) { return { erro: e.message }; }
   }
@@ -347,7 +372,7 @@
     const nome = await sha1(url.replace(/^https?:\/\/(www\.)?/, ''));
     const { data: ja } = await sb.storage.from('arquivos').list(dir, { search: nome });
     if (ja && ja.length) return { url: sb.storage.from('arquivos').getPublicUrl(dir + '/' + ja[0].name).data.publicUrl, bytes: (ja[0].metadata && ja[0].metadata.size) || 0 };
-    const r = await comRitmo(() => viaPonteRepetindo('arquivo', { url }));
+    const r = await ritmoDoArquivo(url, () => viaPonteRepetindo('arquivo', { url }));
     const blob = r.blob;
     if (!blob || !blob.size) throw new Error('Arquivo vazio no site antigo.');
     if (blob.size > 50 * 1048576) throw new Error('Arquivo maior que 50 MB: fica só o link.');
@@ -363,6 +388,28 @@
     const { error } = await sb.storage.from('arquivos').upload(caminho, corpo, { contentType: tipo, upsert: false });
     if (error && !/exist|duplicate/i.test(error.message || '')) throw new Error('Não foi possível gravar o arquivo: ' + error.message);
     return { url: sb.storage.from('arquivos').getPublicUrl(caminho).data.publicUrl, bytes: blob.size };
+  }
+  // Itens marcados como feitos que ainda podem estar incompletos (0.43.0): são lidos de novo e completados.
+  //   · licitação sem nenhum documento (os anexos falharam por bloqueio do site antigo);
+  //   · sessão sem presenças nem votações (lidas a partir da 0.43.0);
+  //   · "já existia" de proposição/licitação: pode ter sido outro processo com o mesmo número (Executivo × Legislativo);
+  //   · contrato pulado como aditivo (agora entra como contrato quando não há o original).
+  async function incompleto(chave, j) {
+    if (!j) return false;
+    if ((chave === 'proposicao' || chave === 'licitacao') && j.situacao === 'ja_existia') return true;
+    if (chave === 'contrato' && j.situacao === 'ignorado' && /aditivo/i.test(j.detalhe || '')) return true;
+    if (!j.registro_id) return false;
+    if (chave === 'licitacao' && j.tabela === 'licitacoes') {
+      const { count } = await sb.from('licitacoes_documentos').select('id', { count: 'exact', head: true }).eq('licitacao_id', j.registro_id);
+      return !count;
+    }
+    if (chave === 'sessao' && j.tabela === 'sessoes') {
+      const [p, v] = await Promise.all([
+        sb.from('sessoes_presencas').select('id', { count: 'exact', head: true }).eq('sessao_id', j.registro_id),
+        sb.from('votacoes').select('id', { count: 'exact', head: true }).eq('sessao_id', j.registro_id)]);
+      return !p.count && !v.count;
+    }
+    return false;
   }
   const FALTOU_ARQUIVO = /Failed to fetch|não copiad|Sem arquivo|não respondeu|timed out|tempo/i;
   // Registro que já existe mas ficou sem o arquivo (cópia falhou antes): copia agora e completa.
@@ -383,6 +430,23 @@
     for (const [k, v] of Object.entries(filtros)) q = v == null ? q.is(k, null) : q.eq(k, v);
     const { data } = await q;
     return data && data[0] ? data[0].id : null;
+  }
+
+  // Palavras do texto (sem acento, 4+ letras) e quanto dois textos se parecem (0 a 1).
+  const palavras = (t) => new Set(String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().match(/[a-z0-9]{4,}/g) || []);
+  function parecido(a, b) {
+    const x = palavras(a), y = palavras(b);
+    if (!x.size || !y.size) return 1;   // sem texto para comparar: fica o número
+    let c = 0; for (const p of x) if (y.has(p)) c++;
+    return c / Math.min(x.size, y.size);
+  }
+  // Registro com os mesmos filtros e texto parecido (ementa/objeto); sem texto parecido = outro registro.
+  async function mesmoObjeto(tabela, filtros, campo, texto, extra) {
+    let q = sb.from(tabela).select('id, ' + campo + (extra ? ', ' + extra : '')).eq('orgao_id', org()).limit(20);
+    for (const [k, v] of Object.entries(filtros)) q = v == null ? q.is(k, null) : q.eq(k, v);
+    const { data } = await q;
+    const l = (data || []).filter((d) => parecido(d[campo], texto) >= 0.6);
+    return l[0] ? l[0].id : null;
   }
 
   // Datas obrigatórias no banco que o site antigo às vezes não mostra (ex.: anexos da IntGest não têm data):
@@ -418,7 +482,9 @@
       const r = Object.assign({}, x.registro);
       const semData = !r.data_publicacao;
       r.data_publicacao = dataOu(r.data_publicacao, r.data_abertura && String(r.data_abertura).slice(0, 10), inicioAno(r.ano));
-      const jaId = r.numero && await existente('licitacoes', { modalidade: r.modalidade, numero: r.numero, ano: r.ano });
+      // Mesmo número nem sempre é o mesmo processo (o site antigo tem processos diferentes com o mesmo número):
+      // só é o mesmo quando o objeto também bate.
+      const jaId = r.numero && await mesmoObjeto('licitacoes', { modalidade: r.modalidade, numero: r.numero, ano: r.ano }, 'objeto', r.objeto);
       let id = jaId;
       if (jaId) {
         // Já existe: se ficou sem documentos (importação anterior recusou os anexos), completa agora.
@@ -447,6 +513,7 @@
     async contrato(x, s) {
       const r = x.registro;
       const jaId = r.numero && await existente('contratos', { numero: r.numero, ano: r.ano });
+      if (x.aditivo && jaId) return { situacao: 'ignorado', aviso: 'Termo aditivo (' + x.aditivo + '): cadastre dentro do contrato original nº ' + r.numero + ' em Contratos' };
       if (jaId) return completarArquivo('contratos', jaId, x, s, false);
       const a = x.arquivos[0] ? await copiar(x.arquivos[0].url, s.pasta) : {};
       // Plataforma B: o contrato aponta a licitação do site antigo; se ela já foi migrada, fica ligada.
@@ -456,7 +523,7 @@
       if (error) throw error;
       const sobra = (x.extras || []).map((d) => d.titulo).filter(Boolean);
       return { situacao: 'importado', id: data.id, tabela: 'contratos', bytes: a.bytes,
-        aviso: [a.erro, x.licitacaoUrl && !licitacao_id ? 'Licitação ainda não migrada: ligue o contrato à licitação depois' : '', sobra.length ? 'Outros anexos no site antigo (não trazidos): ' + sobra.join('; ') : ''].filter(Boolean).join(' · ') || null };
+        aviso: [a.erro, x.aditivo ? 'No site antigo estava como "' + x.aditivo + '", mas não há contrato original com este número: entrou como contrato (confira)' : '', x.licitacaoUrl && !licitacao_id ? 'Licitação ainda não migrada: ligue o contrato à licitação depois' : '', sobra.length ? 'Outros anexos no site antigo (não trazidos): ' + sobra.join('; ') : ''].filter(Boolean).join(' · ') || null };
     },
     async concurso(x, s) {
       const r = x.registro;
@@ -506,6 +573,60 @@
       return { situacao: 'importado', id: data.id, tabela: 'noticias', bytes: a.bytes };
     }
   };
+
+  // Presenças e votações da sessão (Plataforma B, 0.43.0). Só grava o que falta: presença de quem ainda não tem,
+  // votação que ainda não existe na sessão (pela descrição). Vereador não achado = aviso (importe antes os Vereadores).
+  async function presencasVotacoes(sessaoId, x) {
+    const feitos = [], avisos = [], faltam = new Set();
+    if ((x.presencas || []).length) {
+      const { data: ja } = await sb.from('sessoes_presencas').select('parlamentar_id').eq('sessao_id', sessaoId);
+      const tem = new Set((ja || []).map((p) => p.parlamentar_id));
+      const novas = [];
+      for (const p of x.presencas) {
+        const v = await acharVereador(p.nome);
+        if (!v) { faltam.add(p.nome); continue; }
+        if (tem.has(v.id)) continue; tem.add(v.id);
+        novas.push({ orgao_id: org(), sessao_id: sessaoId, parlamentar_id: v.id, presente: p.presente, justificativa: p.justificativa });
+      }
+      if (novas.length) {
+        const { error } = await sb.from('sessoes_presencas').insert(novas);
+        if (error) avisos.push('Presenças não gravadas: ' + (error.message || '')); else feitos.push(novas.length + ' presença(s)');
+      }
+    }
+    if ((x.votacoes || []).length) {
+      const { data: ja } = await sb.from('votacoes').select('descricao').eq('sessao_id', sessaoId);
+      const tem = new Set((ja || []).map((v) => v.descricao));
+      let n = 0;
+      for (const vt of x.votacoes) {
+        if (tem.has(vt.descricao)) continue;
+        let proposicao_id = null;
+        if (vt.proposicao) {
+          const f = { tipo: vt.proposicao.tipo, numero: vt.proposicao.numero, ano: vt.proposicao.ano };
+          proposicao_id = (vt.proposicao.iniciativa && await existente('proposicoes', Object.assign({ iniciativa: vt.proposicao.iniciativa }, f))) || await existente('proposicoes', f);
+        }
+        const votos = [];
+        for (const v of vt.votos || []) {
+          const p = await acharVereador(v.nome);
+          if (!p) { faltam.add(v.nome); continue; }
+          if (!votos.some((y) => y.parlamentar_id === p.id)) votos.push({ parlamentar_id: p.id, voto: v.voto });
+        }
+        const sim = votos.filter((v) => v.voto === 'sim').length, nao = votos.filter((v) => v.voto === 'nao').length;
+        const { data: nv, error } = await sb.from('votacoes').insert({ orgao_id: org(), sessao_id: sessaoId, proposicao_id, descricao: vt.descricao, forma: vt.forma,
+          resultado: vt.resultado, unanime: votos.length > 0 && (sim === 0 || nao === 0) && (sim + nao) > 0,
+          votos_sim: vt.votos_sim, votos_nao: vt.votos_nao, abstencoes: vt.abstencoes }).select('id').single();
+        if (error) { avisos.push('Votação "' + vt.descricao.slice(0, 60) + '" não gravada: ' + (error.message || '')); continue; }
+        if (votos.length) {
+          const { error: e2 } = await sb.from('votacoes_votos').insert(votos.map((v) => Object.assign({ orgao_id: org(), votacao_id: nv.id }, v)));
+          if (e2) avisos.push('Votos de "' + vt.descricao.slice(0, 60) + '" não gravados: ' + (e2.message || ''));
+        }
+        tem.add(vt.descricao); n++;
+        if (vt.proposicao && !proposicao_id) avisos.push('Votação sem proposição ligada (' + vt.descricao.slice(0, 60) + '): importe antes as Proposições');
+      }
+      if (n) feitos.push(n + ' votação(ões)');
+    }
+    if (faltam.size) avisos.push('Vereador(es) não achado(s) no portal: ' + [...faltam].join(', '));
+    return { feitos, avisos };
+  }
 
   // Tipo próprio de publicação (Publicações › Tipos), criado na primeira importação que precisa dele
   async function tipoPublicacao(codigo, nome) {
@@ -767,6 +888,7 @@
       const r = x.registro, avisos = [];
       const jaId = await existente('sessoes', { comissao_id: null, data: r.data, tipo: r.tipo, numero: r.numero });
       if (jaId) {
+        const pv = await presencasVotacoes(jaId, x);
         // Já existe: só completa o que falta (ata, arquivo da pauta e a pauta), se agora o site antigo tem e o portal não.
         const { data: atual } = await sb.from('sessoes').select('ata_url, pauta_url, pauta').eq('id', jaId).maybeSingle();
         if (!atual) return { situacao: 'ja_existia' };
@@ -778,9 +900,9 @@
           if (f.url) { mud[a.campo] = f.url; bytes += f.bytes; feitos.push(a.campo === 'ata_url' ? 'ata' : 'arquivo da pauta'); }
         }
         if (!atual.pauta && r.pauta) { mud.pauta = r.pauta; feitos.push('pauta'); }
-        if (!feitos.length) return { situacao: 'ja_existia', aviso: avisos.join(' · ') || null };
-        const { error: eu } = await sb.from('sessoes').update(mud).eq('id', jaId);
-        if (eu) throw eu;
+        feitos.push(...pv.feitos); avisos.push(...pv.avisos);
+        if (!feitos.length) return { situacao: 'ja_existia', id: jaId, tabela: 'sessoes', aviso: avisos.join(' · ') || null };
+        if (Object.keys(mud).length) { const { error: eu } = await sb.from('sessoes').update(mud).eq('id', jaId); if (eu) throw eu; }
         return { situacao: 'importado', id: jaId, tabela: 'sessoes', bytes, aviso: ['Completado(s): ' + feitos.join(', ')].concat(avisos).join(' · ') };
       }
       const reg = Object.assign({ orgao_id: org(), situacao: 'publicado' }, r);
@@ -788,17 +910,36 @@
       for (const a of x.arquivos || []) { const f = await arquivoDe(a, s, avisos); if (f.url) { reg[a.campo] = f.url; bytes += f.bytes; } }
       const { data, error } = await sb.from('sessoes').insert(reg).select('id').single();
       if (error) throw error;
+      const pv = await presencasVotacoes(data.id, x);
+      avisos.push(...pv.avisos);
       return { situacao: 'importado', id: data.id, tabela: 'sessoes', bytes, aviso: avisos.join(' · ') || null };
     },
     async proposicao(x, s) {
       const r = Object.assign({}, x.registro), avisos = [];
-      const jaId = await existente('proposicoes', { tipo: r.tipo, numero: r.numero, ano: r.ano });
+      let jaId = null;
+      if (r.iniciativa) {
+        // Executivo × Legislativo (script 46): mesma iniciativa = mesma proposição; sem iniciativa gravada
+        // (migração anterior) = a mesma só se a ementa bater, e então ganha a iniciativa.
+        jaId = await existente('proposicoes', { tipo: r.tipo, iniciativa: r.iniciativa, numero: r.numero, ano: r.ano });
+        if (!jaId) {
+          const antigo = await mesmoObjeto('proposicoes', { tipo: r.tipo, iniciativa: null, numero: r.numero, ano: r.ano }, 'ementa', r.ementa);
+          if (antigo) {
+            const { error } = await sb.from('proposicoes').update({ iniciativa: r.iniciativa }).eq('id', antigo);
+            if (error) throw new Error(/iniciativa/i.test(error.message || '') ? 'Rode o script 46 na Supabase (iniciativa das proposições) e importe de novo.' : error.message);
+            jaId = antigo;
+          }
+        }
+      } else jaId = await existente('proposicoes', { tipo: r.tipo, numero: r.numero, ano: r.ano });
       if (jaId) return completarArquivo('proposicoes', jaId, x, s, false);
       const autor = x.autor ? await acharVereador(x.autor.nome) : null;
       if (x.autor && !autor) r.autoria_externa = x.autor.completo.slice(0, 200);
       const f = await arquivoDe((x.arquivos || [])[0], s, avisos);
       const { data, error } = await sb.from('proposicoes').insert(Object.assign({ orgao_id: org(), situacao: 'publicado' }, r, { arquivo_url: f.url })).select('id').single();
-      if (error) throw error;
+      if (error) {
+        if (/iniciativa/i.test(error.message || '')) throw new Error('Rode o script 46 na Supabase (iniciativa das proposições) e importe de novo.');
+        if (/proposicoes_uk|duplicate/i.test(error.message || '')) throw new Error('Já existe ' + r.tipo + ' nº ' + r.numero + '/' + r.ano + ' com outra ementa: rode o script 46 na Supabase (Executivo × Legislativo) e importe de novo.');
+        throw error;
+      }
       let bytes = f.bytes;
       if (autor) {
         const { error: e1 } = await sb.from('proposicoes_autores').insert({ orgao_id: org(), proposicao_id: data.id, parlamentar_id: autor.id, papel: 'autor' });
@@ -1006,7 +1147,7 @@
       const ja = await jaMigrado(url);
       // Já veio, mas o arquivo não foi copiado (ex.: "Failed to fetch"): tenta de novo só o arquivo.
       const semArquivo = ja && ja.situacao === 'importado' && FALTOU_ARQUIVO.test(ja.detalhe || '');
-      if (ja && ja.situacao !== 'erro' && !semArquivo) { st.feitos++; return; }
+      if (ja && ja.situacao !== 'erro' && !semArquivo && !(await incompleto(chave, ja))) { st.feitos++; return; }
       if (x.ignorar) { await marcar(url, chave, null, null, x, 'ignorado', x.ignorar); st.feitos++; return; }
       try {
         const r = await GRAVAR[chave](x, s);
