@@ -263,9 +263,13 @@
         if (ok) { st.feitos = (st.feitos || 0) + 1; st.texto = st.feitos + ' processados (já trazidos antes são pulados)…'; atualizarCartao(chave); }
         return ok;
       } : null;
+      // Barra de progresso: a seção avisa quantos itens achou (previsto) e cada um que leu (avancar).
       const itens = await s.listar({ origem, de, ler: (url, op) => pagina(url, 3, op), parar: () => st.parar, emitir: entregar, jaFeito,
+        previsto: (n) => { st.total = (st.total || 0) + (Number(n) || 0); atualizarCartao(chave); },
+        avancar: () => { st.lidos = (st.lidos || 0) + 1; atualizarCartao(chave); },
         log: (t) => { st.log.unshift(t); atualizarCartao(chave); } });
-      for (const it of itens || []) { if (st.parar) break; await entregar(it.url, it.x); }
+      if (itens && itens.length) st.total = (st.total || 0) + itens.length;
+      for (const it of itens || []) { if (st.parar) break; st.lidos = (st.lidos || 0) + 1; await entregar(it.url, it.x); atualizarCartao(chave); }
       await Promise.all(emCurso);
       return;
     }
@@ -301,7 +305,7 @@
   }
 
   async function analisar(chave) {
-    const s = adaptador.secoes[chave], st = estado[chave] = { itens: [], arquivos: [], bytes: 0, rodando: 'analise', parar: false, log: [] };
+    const s = adaptador.secoes[chave], st = estado[chave] = { itens: [], arquivos: [], bytes: 0, rodando: 'analise', parar: false, log: [], total: 0, lidos: 0 };
     atualizarCartao(chave);
     try {
       await varrer(chave, s, async (url, x) => {
@@ -1144,7 +1148,7 @@
 
   async function importar(chave) {
     const s = adaptador.secoes[chave];
-    const st = estado[chave] = Object.assign(estado[chave] || {}, { rodando: 'importacao', parar: false, log: [], feitos: 0, novos: 0, existentes: 0, erros: 0, bytesCopiados: 0 });
+    const st = estado[chave] = Object.assign(estado[chave] || {}, { rodando: 'importacao', parar: false, log: [], feitos: 0, novos: 0, existentes: 0, erros: 0, bytesCopiados: 0, total: 0, lidos: 0 });
     atualizarCartao(chave);
     const tratar = async (url, x) => {
       const ja = await jaMigrado(url);
@@ -1169,7 +1173,8 @@
     };
     try {
       if (st.analisado && st.itens && st.itens.length) {
-        for (let i = 0; i < st.itens.length && !st.parar; i++) await tratar(st.itens[i].url, st.itens[i].x);
+        st.total = st.itens.length;
+        for (let i = 0; i < st.itens.length && !st.parar; i++) { st.lidos = i + 1; await tratar(st.itens[i].url, st.itens[i].x); }
       } else {
         await varrer(chave, s, tratar);
       }
@@ -1311,6 +1316,7 @@
         el('span', { class: 'ajuda' }, (s.semPeriodo ? 'Tudo' : de <= TODOS_DESDE ? 'Todos os anos' : 'De ' + de + ' a ' + ate) + ' → ' + s.destino)),
       rs ? el('p', { class: 'msg msg-ok mt-1' }, 'Já migrados: ' + rs.importados + ' novos · ' + rs.ja_existiam + ' já existiam no portal' +
         (rs.erros ? ' · ' + rs.erros + ' com erro (rode de novo para tentar outra vez)' : '') + ' · ' + mb(rs.bytes) + ' de arquivos.') : null,
+      rodando ? barraProgresso(st) : null,
       st.texto ? el('p', { class: 'msg ' + (rodando ? 'msg-info' : /Parou/.test(st.texto) ? 'msg-erro' : 'msg-info') + ' mt-1', role: 'status' }, rodando ? '⏳ ' : '', st.texto) : null,
       el('div', { class: 'linha-botoes mt-1' }, btnA, btnI, btnP),
       st.log && st.log.length ? el('details', { class: 'mt-1' }, el('summary', null, 'Avisos (' + st.log.length + ')'),
@@ -1318,10 +1324,27 @@
     cartoes[chave] = c;
     return c;
   }
+  // Barra de progresso da seção: com o total conhecido mostra "X de Y (Z%)"; sem total ainda, barra em movimento.
+  // O total cresce enquanto a seção acha itens (ano a ano, página a página): a porcentagem pode recuar um pouco.
+  function barraProgresso(st) {
+    const total = st.total || 0, lidos = Math.min(st.lidos || 0, total || Infinity);
+    const fase = st.rodando === 'analise' ? 'Analisando' : 'Importando';
+    if (!total) return el('div', { class: 'migracao-progresso mt-1' }, el('progress', { 'aria-label': fase + ': procurando os itens' }), el('span', { class: 'ajuda' }, fase + ': procurando os itens…'));
+    const pct = Math.round(lidos * 100 / total);
+    return el('div', { class: 'migracao-progresso mt-1' },
+      el('progress', { max: total, value: lidos, 'aria-label': fase + ': ' + pct + '%' }),
+      el('span', { class: 'ajuda' }, fase + ': ' + lidos + ' de ' + total + ' (' + pct + '%)'));
+  }
+  // Redesenho do cartão no máximo ~4 vezes por segundo (a barra avança a cada item).
+  const redesenhoPendente = {};
   function atualizarCartao(chave) {
-    const antigo = cartoes[chave];
-    if (!antigo || !antigo.isConnected) return;
-    antigo.replaceWith(cartaoSecao(chave, adaptador.secoes[chave]));
+    if (redesenhoPendente[chave]) return;
+    redesenhoPendente[chave] = setTimeout(() => {
+      delete redesenhoPendente[chave];
+      const antigo = cartoes[chave];
+      if (!antigo || !antigo.isConnected) return;
+      antigo.replaceWith(cartaoSecao(chave, adaptador.secoes[chave]));
+    }, 250);
   }
   let caixaEspaco = null;
   function desenharEspaco() {

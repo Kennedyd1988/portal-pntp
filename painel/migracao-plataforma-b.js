@@ -110,6 +110,7 @@
   // Lê o detalhe e entrega ao módulo (o que já veio, em retomada da importação, nem é relido).
   async function detalhe(ctx, url, ler, rotulo) {
     if (ctx.parar()) return;
+    if (ctx.avancar) ctx.avancar();   // barra de progresso do módulo
     if (ctx.jaFeito && await ctx.jaFeito(url)) return;
     let p; try { p = await ctx.ler(url); } catch (e) { if (e.bloqueio) throw e; ctx.log(rotulo + ': ' + e.message); return; }
     let x;
@@ -282,6 +283,7 @@
           if (l) por.get(id).push(l);
         }
         let ordem = 10;
+        if (ctx.previsto) ctx.previsto(por.size);
         for (const [id, ls] of por) {
           if (ctx.parar()) break;
           const ini = ls.length ? Math.min(...ls.map((l) => l.ini)) : null;
@@ -346,6 +348,7 @@
       async listar(ctx) {
         const links = [];
         await paginas(ctx, '/atividade-legislativa/comissoes/', {}, (m) => { const l = linksDe(m, /\/comissoes\/\d+\/resumo\/?$/, ctx.origem); l.forEach((u) => links.includes(u) || links.push(u)); return l.length > 0; });
+        if (ctx.previsto) ctx.previsto(links.length);
         for (const url of links) {
           if (ctx.parar()) break;
           const base = url.replace(/resumo\/?$/, '');
@@ -423,6 +426,7 @@
             }
             return novas > 0 && noPeriodo > 0;   // listagem do mais novo para o mais antigo: para quando sai do período
           });
+          if (ctx.previsto) ctx.previsto(reus.length);
           for (const rn of reus) {
             await detalhe(ctx, rn.url, (html) => {
               const { m } = doc(html);
@@ -454,6 +458,7 @@
             const l = linksDe(m, /\/materia-legislativa\/\d+\/detalhe\/?$/, ctx.origem).filter((u) => !links.includes(u));
             links.push(...l); return l.length > 0;
           });
+          if (ctx.previsto) ctx.previsto(links.length);
           for (const url of links) {
             await detalhe(ctx, url, (html) => {
               const { m } = doc(html);
@@ -530,6 +535,7 @@
           }
           return novas > 0 && noPeriodo > 0;
         });
+        if (ctx.previsto) ctx.previsto(lista.length);
         for (const it of lista) {
           await detalhe(ctx, it.url, async (html) => {
             const { m } = doc(html);
@@ -607,6 +613,7 @@
             const l = linksDe(m, /\/norma-juridica\/\d+\/detalhe\/?$/, ctx.origem).filter((u) => !links.includes(u));
             links.push(...l); return l.length > 0;
           });
+          if (ctx.previsto) ctx.previsto(links.length);
           for (const url of links) {
             if (vistos.has(url)) continue; vistos.add(url);
             await detalhe(ctx, url, (html) => {
@@ -654,6 +661,7 @@
             const l = linksDe(t, /\/licitacoes\/[0-9a-f-]{20,}\/detalhe\/?$/i, ctx.origem).filter((u) => !links.includes(u));
             links.push(...l); return l.length > 0;
           });
+          if (ctx.previsto) ctx.previsto(links.length);
           for (const url of links) {
             await detalhe(ctx, url, async (html) => {
               const { m } = doc(html);
@@ -711,6 +719,7 @@
             const l = linksDe(m.querySelector('table') || m, /\/contratos\/\d+\/resumo\/?$/, ctx.origem).filter((u) => !links.includes(u));
             links.push(...l); return l.length > 0;
           });
+          if (ctx.previsto) ctx.previsto(links.length);
           for (const url of links) {
             await detalhe(ctx, url, async (html) => {
               const { m } = doc(html);
@@ -844,6 +853,7 @@
             const l = linksDe(m.querySelector('table') || m, /\/transparencia\/convenios\/\d+\/?$/, ctx.origem).filter((u) => !links.includes(u));
             links.push(...l); return l.length > 0;
           });
+          if (ctx.previsto) ctx.previsto(links.length);
           for (const url of links) {
             await detalhe(ctx, url, (html) => {
               const { m } = doc(html);
@@ -906,6 +916,7 @@
           const l = [...t.querySelectorAll('tbody a[href]')].map((a) => abs(a.getAttribute('href'), ctx.origem)).filter((u) => u && /obras?-publicas?\/.+/.test(u) && !/export|paralisadas\/?$/.test(u) && !links.includes(u));
           links.push(...new Set(l)); return l.length > 0;
         });
+        if (ctx.previsto) ctx.previsto(links.length);
         for (const url of links) {
           await detalhe(ctx, url, (html) => {
             const { m } = doc(html);
@@ -971,6 +982,7 @@
             const a = tr.querySelector('a[href]');
             if (!numero || !ementa) continue;
             novas++;
+            if (ctx.previsto) { ctx.previsto(1); ctx.avancar(); }
             const ano = anoDe(dataAto || dataPub);
             if (ano && ano < ctx.de) continue;
             noPeriodo++;
@@ -1012,6 +1024,7 @@
           }
           return novas > 0 && noPeriodo > 0;
         });
+        if (ctx.previsto) ctx.previsto(links.length);
         for (const url of links) {
           await detalhe(ctx, url, async (html) => {
             const { m } = doc(html);
@@ -1073,6 +1086,7 @@
           if (links.length) break;
         }
         if (!links.length) { ctx.log('O site antigo não tem notícias publicadas.'); return []; }
+        if (ctx.previsto) ctx.previsto(links.length);
         for (const url of links) {
           await detalhe(ctx, url, (html) => {
             const { d, m } = doc(html);
