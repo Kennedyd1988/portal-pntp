@@ -771,6 +771,8 @@ tr.pag-oculta { display: none; }
   --tom: color-mix(in srgb, var(--cor) 7%, #fff);
   --acento: #0a9668; --acento-escuro: #06704d; --acento-claro: #e7f6ef; --acento-texto: #066a4a;
 }
+/* Largura um pouco maior (1280 px), para o topo novo caber numa linha */
+.limite { max-width: 1280px; }
 /* Topo */
 .barra-acess { background: var(--navy); }
 .barra-acess-int { align-items: center; min-height: 44px; }
@@ -789,6 +791,8 @@ tr.pag-oculta { display: none; }
 @media (min-width: 1181px) {
   .topo-compacto #faixa-topo { display: none !important; }
   .barra-acess-int { flex-wrap: nowrap; gap: 0; }
+  .barra-acess ul { flex-wrap: nowrap; white-space: nowrap; }
+  .barra-acess .atalhos { gap: 12px; }
   .barra-redes { display: flex; align-items: center; margin: 0 auto 0 14px; padding-left: 14px; border-left: 1px solid rgba(255, 255, 255, .18); }
   .barra-redes .redes-topo { gap: 2px; }
   .barra-redes .redes-topo a { width: 28px; height: 28px; border: 0; background: transparent; opacity: .8; }
