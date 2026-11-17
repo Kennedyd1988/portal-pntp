@@ -1,7 +1,8 @@
 {
-  "versao": "0.44.1",
+  "versao": "0.44.2",
   "data": "2026-11-17",
   "notas": [
+    "Conselhos municipais são do Executivo: saem do menu do site da Câmara e do Consórcio (mesmo que cadastrados), e no painel (Menu do site) as páginas só da Prefeitura — Saúde, Educação, Renúncias, Emendas e Conselhos — deixam de aparecer na lista de destinos desses órgãos.",
     "Migração: itens que ficaram sem arquivo por passar de 50 MB (antes da 0.44.0) são retentados ao importar de novo, agora com o limite de 200 MB.",
     "Arquivos de até 200 MB (plano Pro): o limite do armazenamento subiu de 50 MB para 200 MB (script 47 e configuração geral do Storage) e o painel aceita PDFs de até 200 MB em todas as telas de envio (leis, licitações, contratos, contas, convênios, obras, concursos, PCA, setoriais, estrutura). Na migração do site antigo, arquivos grandes passam a ser copiados (a função de servidor envia em fluxo, sem estourar a memória). Imagens e anexos do e-SIC/Ouvidoria continuam com os limites menores.",
     "Menu padrão por tipo de órgão (script 48): cada tipo tem o seu, só com as páginas que valem para ele no PNTP. Câmara: A Câmara (vereadores, Mesa, comissões), Atividade legislativa (proposições, sessões, votações, atividade dos vereadores) e Transparência com Verba indenizatória e sem as páginas do Executivo. Prefeitura: Transparência completa e o grupo Saúde e Educação. Consórcio: entes, documentos constitutivos, rateio e programa. Os demais (RPPS, autarquia): a parte comum. Todos com Publicações (leis e Diário Oficial), Notícias (notícias, vídeos e agenda), Serviços e Atendimento (com as perguntas frequentes). O botão \"Criar/Recriar menu padrão\" do painel usa esse mesmo menu. Menus já existentes não mudam: para trocar, use \"Recriar menu padrão\" em Menu do site.",

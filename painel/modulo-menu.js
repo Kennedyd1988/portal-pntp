@@ -24,7 +24,13 @@
   // Câmara: telas da atividade legislativa que não estão nos destinos do PNTP.
   const ROTAS_CAMARA = [['/parlamentares', 'Vereadores'], ['/mesa-diretora', 'Mesa Diretora'], ['/comissoes', 'Comissões'], ['/proposicoes', 'Proposições'],
     ['/sessoes', 'Sessões plenárias'], ['/votacoes', 'Votações'], ['/atividade-parlamentar', 'Atividade dos vereadores'], ['/verba-indenizatoria', 'Verba indenizatória']];
-  const rotas = () => P.estado.orgao && P.estado.orgao.tipo === 'consorcio' ? ROTAS.concat(ROTAS_CONSORCIO) : P.estado.orgao && P.estado.orgao.tipo === 'camara' ? ROTAS.concat(ROTAS_CAMARA) : ROTAS;
+  // Páginas só do Executivo (Saúde, Educação, Renúncias, Emendas, Conselhos) não aparecem para Câmara e Consórcio.
+  const SO_PREFEITURA = ['/renuncias', '/saude', '/educacao', '/emendas', '/conselhos'];
+  const rotas = () => {
+    const t = P.estado.orgao && P.estado.orgao.tipo;
+    const base = t === 'prefeitura' || !t ? ROTAS : ROTAS.filter((r) => !SO_PREFEITURA.includes(r[0]));
+    return t === 'consorcio' ? base.concat(ROTAS_CONSORCIO) : t === 'camara' ? base.concat(ROTAS_CAMARA) : base;
+  };
   const nomeRota = (r) => (rotas().find((x) => x[0] === r) || [r, r])[1];
 
   // Menu padrão: um por tipo de órgão (Prefeitura, Câmara, Consórcio, demais), só com as páginas que valem

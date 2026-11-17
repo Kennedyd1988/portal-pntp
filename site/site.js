@@ -855,7 +855,9 @@
     // Itens do menu que levam a uma página oculta saem (e o grupo que ficar sem subitens também).
     // Também saem as páginas que não valem para o tipo de órgão (ex.: na Câmara, Renúncias, Saúde e Educação,
     // que são da matriz do Executivo), mesmo que o menu do órgão tenha sido criado com elas.
-    const naoAplica = (i) => { const k = i.tipo === 'interno' && window.chaveDaRotaPNTP(i.destino); return !!k && !window.aplicavelPNTP(k); };
+    // Conselhos municipais (de Saúde, Educação, Assistência…) são do Executivo: não entram no menu da Câmara nem do Consórcio.
+    const soPrefeitura = (d) => /^\/?conselhos?(\/|$)/.test(String(d || '').replace(/^#/, '')) && S.orgao.tipo !== 'prefeitura';
+    const naoAplica = (i) => { if (i.tipo === 'interno' && soPrefeitura(i.destino)) return true; const k = i.tipo === 'interno' && window.chaveDaRotaPNTP(i.destino); return !!k && !window.aplicavelPNTP(k); };
     const visivel = (i) => !(i.tipo === 'interno' && (S.oculta('#' + String(i.destino || '').replace(/^#/, '')) || naoAplica(i)));
     const itensMenu = (menu.data || []).filter(visivel);
     const ocultos = new Set((menu.data || []).filter((i) => !visivel(i)).map((i) => i.id));
