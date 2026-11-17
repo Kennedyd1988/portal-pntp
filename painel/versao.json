@@ -1,5 +1,5 @@
 {
-  "versao": "0.43.2",
+  "versao": "0.43.3",
   "data": "2026-11-17",
   "notas": [
     "Site (correção): na página inicial das Câmaras, o carrossel de Vereadores podia abrir com um cartão por vez, enorme e cortado, porque calculava a largura antes de o bloco entrar na página. Agora calcula quando o bloco aparece e recalcula sempre que a largura muda (o carrossel de Gestão também).",
