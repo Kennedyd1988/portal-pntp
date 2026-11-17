@@ -148,6 +148,8 @@
     await esperarPagina();
     window.scrollTo(0, 0);
 
+    // Tradutor de Libras flutuante fora do print (o próprio plugin reexibe o botão; por isso sai do DOM).
+    document.querySelectorAll('[vw], [vw-access-button], [vw-plugin-wrapper]').forEach((e) => e.remove());
     // Carimbo no alto da página (antes das marcas: ele empurra o conteúdo para baixo).
     const agora = new Date();
     const carimbo = S.el('div', { id: 'evid-carimbo' },

@@ -2007,7 +2007,8 @@
   R.licitacao = async function (main, partes) {
     const id = partes[0];
     if (!/^[0-9a-f-]{36}$/i.test(id || '')) return R['*'](main);
-    const [{ data: l }, { data: docs }, { data: ctrs }] = await Promise.all([
+    // Mesma ordem das consultas abaixo: licitação, contratos, documentos (antes da 0.45.3 vinham trocados e o edital não aparecia).
+    const [{ data: l }, { data: ctrs }, { data: docs }] = await Promise.all([
       sb.from('licitacoes').select(CAMPOS_LIC).eq('orgao_id', org()).eq('id', id).maybeSingle(),
       sb.from('contratos').select('id, tipo, numero, contratado_nome, valor_atual').eq('licitacao_id', id).order('data_assinatura').limit(100),
       sb.from('licitacoes_documentos').select('tipo, titulo, data, arquivo_url, link_externo, ordem').eq('licitacao_id', id).order('data').order('ordem').limit(500)

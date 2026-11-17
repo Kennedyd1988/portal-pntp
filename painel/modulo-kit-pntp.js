@@ -267,7 +267,7 @@
     const resp = respostas(x);
     const cobra = (l) => x.itens.includes(l);
     const anos = f && f.anos && f.anos.length ? f.anos : null;
-    const filtros = (info.filtros || []).filter((t) => !/^pesquisar$/i.test(t));
+    const filtros = (info.filtros || []).filter((t) => !/^pesquisar$/i.test(t)).map((t) => t.replace(/^pesquisar\s*/i, 'pesquisa livre '));
     const formatos = info.exportar && info.exportar.length ? info.exportar : FORMATOS;
     const det = x._detalhe;
 
@@ -299,7 +299,7 @@
       if (!cobra(l)) continue;
       let t = '';
       if (l === 'D') {
-        t = dest.principal ? 'disponível no sistema externo indicado.' : f && f.total ? plural(f.total, p.un) + ' publicados na página.' : ds.length ? 'sem registros no período: o órgão publicou declaração de inexistência (' + ds.map((d) => d.periodo).join('; ') + ').' : 'conteúdo publicado na página.';
+        t = dest.principal ? 'disponível no sistema externo indicado.' : f && f.total ? 'na página: ' + plural(f.total, p.un) + '.' : ds.length ? 'sem registros no período: o órgão publicou declaração de inexistência (' + ds.map((d) => d.periodo).join('; ') + ').' : 'conteúdo publicado na página.';
         if (ds.length && f && f.total) t += ' Períodos sem ocorrência declarados: ' + ds.map((d) => d.periodo + (d.texto ? ' — "' + d.texto + '"' : '')).join('; ') + '.';
       } else if (l === 'A') {
         t = f && (f.mais_recente || f.ultima_alteracao) ? (f.mais_recente ? 'registro mais recente de ' + dataBR(f.mais_recente) : '') + (f.mais_recente && f.ultima_alteracao ? '; ' : '') + (f.ultima_alteracao ? 'última inclusão ou alteração no portal em ' + dataBR(f.ultima_alteracao) : '') + '.'
