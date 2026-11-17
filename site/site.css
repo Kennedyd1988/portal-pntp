@@ -1124,3 +1124,11 @@ html.contraste .aba-guia[aria-selected="true"] { background: #000 !important; }
 .filtros > label:only-child { grid-column: 1 / -1; }
 #conteudo[data-pagina="inicio"] .faixa-radar-img { display: block; border-radius: 18px; overflow: hidden; box-shadow: 0 12px 28px rgba(6, 22, 41, .12); }
 #conteudo[data-pagina="inicio"] .faixa-radar-img img { display: block; width: 100%; }
+/* Painel sem abas por cima (ex.: Concursos, listas por ano): caixa completa, e a primeira
+   faixa de abas dentro dele (os anos) usa o mesmo formato de aba principal do site. */
+.painel-guia:not(.abas-guia + .painel-guia) { border-top: 1px solid #e3eaf1; border-radius: 16px; }
+.painel-guia:not(.abas-guia + .painel-guia) > .abas-guia-interna:first-child { border-bottom: 2px solid var(--navy); margin-top: 0; margin-bottom: 18px; }
+.painel-guia:not(.abas-guia + .painel-guia) > .abas-guia-interna:first-child .aba-guia-p { height: 42px; padding: 0 20px; font-size: .95rem; background: #edf2f7; border: 1px solid #d9e2eb; border-bottom: 0; }
+.painel-guia:not(.abas-guia + .painel-guia) > .abas-guia-interna:first-child .aba-guia-p:hover { background: #fff; color: var(--navy); }
+.painel-guia:not(.abas-guia + .painel-guia) > .abas-guia-interna:first-child .aba-guia-p[aria-selected="true"] { height: 46px; background: var(--navy); border-color: var(--navy); color: #fff; box-shadow: 0 -4px 12px rgba(6, 22, 41, .08); }
+.painel-guia:not(.abas-guia + .painel-guia) > .abas-guia-interna:first-child .aba-guia-p[aria-selected="true"]::after { left: 14px; right: 14px; top: 5px; bottom: auto; height: 3px; border-radius: 99px; background: var(--acento); }
