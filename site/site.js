@@ -800,7 +800,7 @@
     },
     semDados: (anos, ano) => !Number((anos.find((x) => Number(x.ano) === Number(ano)) || {}).total),
     // Declaração da situação atual, no lugar da lista.
-    cartaoAtual: (d) => el('div', { class: 'cartao' }, el('p', null, el('strong', null, d.texto)),
+    cartaoAtual: (d) => el('div', { class: 'cartao declaracao-atual' }, el('p', null, el('strong', null, d.texto)),
       el('p', { class: 'meta' }, 'Declaração registrada em ' + dataBR(String(d.criado_em).slice(0, 10)) + '.'))
   };
 

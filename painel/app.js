@@ -1508,6 +1508,7 @@
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
     campo, campoOutra, abas, abaDoEndereco, mesclarConfiguracoes, externo, avisoExterno, declaracoes, declaracoesAnuais, declaracoesDoOrgao, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
-    paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf, atualizarAvisos, excluirComPecas
+    paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf, atualizarAvisos, excluirComPecas,
+    avaliacaoPntp: avaliacao, linhaCriterio   // Kit de evidências PNTP (0.45.0)
   };
 })();
