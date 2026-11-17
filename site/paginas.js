@@ -1025,7 +1025,7 @@
             u.norma_criacao || u.norma_url ? [el('dt', null, 'Norma de criação'), el('dd', null,
               u.norma_url ? el('a', { href: u.norma_url, target: '_blank', rel: 'noopener' }, u.norma_criacao || 'Abrir') : u.norma_criacao)] : null)),
         el('div', null, el('h2', null, daUnidade.length > 1 ? 'Responsáveis' : 'Responsável'),
-          daUnidade.length ? el('div', { class: 'grade' + (daUnidade.length > 1 ? ' g2' : '') }, daUnidade.map(cartaoGestor)) : el('p', { class: 'vazio' }, 'Responsável em designação.'))),
+          daUnidade.length ? el('div', { class: 'grade' + (daUnidade.length > 1 ? ' g2' : '') }, daUnidade.map((g) => cartaoGestor(g))) : el('p', { class: 'vazio' }, 'Responsável em designação.'))),
       el('section', { class: 'mt-4' }, el('h2', null, 'Competências e atribuições'),
         u.competencias ? texto(u.competencias) : el('p', { class: 'vazio' }, 'Competências em cadastramento.')),
       sv.data && sv.data.length ? el('section', { class: 'mt-4' }, el('h2', null, 'Serviços desta unidade'),
@@ -1041,7 +1041,7 @@
     const gestores = await gestoresAtivos();
     pagina(main, el('h1', null, 'Gestores e responsáveis'),
       el('p', { class: 'sub' }, 'Atuais responsáveis pela gestão do órgão e de cada unidade.'),
-      gestores.length ? el('div', { class: 'grade g4' }, gestores.map(cartaoGestor)) : el('p', { class: 'vazio' }, 'Em cadastramento.'));
+      gestores.length ? el('div', { class: 'grade g4' }, gestores.map((g) => cartaoGestor(g))) : el('p', { class: 'vazio' }, 'Em cadastramento.'));
   };
 
   // ===================================================================
