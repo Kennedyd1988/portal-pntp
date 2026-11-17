@@ -18,6 +18,7 @@
   const TIPOS_PROP = { projeto_lei: 'Projeto de Lei', projeto_lei_complementar: 'Projeto de Lei Complementar', projeto_emenda_lei_organica: 'Proposta de Emenda à Lei Orgânica',
     projeto_resolucao: 'Projeto de Resolução', projeto_decreto_legislativo: 'Projeto de Decreto Legislativo', requerimento: 'Requerimento', indicacao: 'Indicação',
     mocao: 'Moção', veto: 'Veto', emenda: 'Emenda', outro: 'Outra proposição' };
+  const INICIATIVA_PROP = { legislativo: 'Legislativo (vereadores, Mesa, comissões)', executivo: 'Executivo (Prefeito)', popular: 'Popular', outra: 'Outra' };
   const ANDAMENTO_PROP = { em_tramitacao: 'Em tramitação', aprovada: 'Aprovada', rejeitada: 'Rejeitada', arquivada: 'Arquivada', retirada: 'Retirada',
     vetada: 'Vetada', transformada_norma: 'Transformada em norma', prejudicada: 'Prejudicada' };
   const TIPOS_SESSAO = { ordinaria: 'Sessão ordinária', extraordinaria: 'Sessão extraordinária', solene: 'Sessão solene', especial: 'Sessão especial',
@@ -204,7 +205,7 @@
           el('button', { type: 'button', role: 'tab', class: 'aba aba-p', 'aria-selected': x.ano === ano ? 'true' : 'false', onclick: () => { ano = x.ano; desenhar(); } }, String(x.ano), el('span', { class: 'aba-qtd' }, String(x.total))))),
         el('div', { class: 'filtros' }, fBusca, fTipo, fAnd),
         itens.length ? tabela(['Proposição', 'Autoria', 'Andamento', 'Situação'], itens.map((x) => el('tr', null,
-          el('td', { class: 'quebra' }, el('strong', null, (TIPOS_PROP[x.tipo] || x.tipo) + ' nº ' + x.numero + '/' + x.ano), el('span', { class: 'sub-linha' }, x.ementa)),
+          el('td', { class: 'quebra' }, el('strong', null, (TIPOS_PROP[x.tipo] || x.tipo) + (x.iniciativa === 'executivo' ? ' do Executivo' : '') + ' nº ' + x.numero + '/' + x.ano), el('span', { class: 'sub-linha' }, x.ementa)),
           el('td', { class: 'quebra' }, autores(x)),
           el('td', null, ANDAMENTO_PROP[x.andamento] || x.andamento),
           el('td', null, etiquetaSit(x.situacao)),
@@ -269,6 +270,7 @@
       x = x || {};
       const f = {
         tipo: el('select', null, opcoes(TIPOS_PROP, x.tipo || 'projeto_lei')),
+        iniciativa: el('select', null, opcoes(INICIATIVA_PROP, x.iniciativa || '', 'Não informada')),
         numero: el('input', { type: 'text', maxlength: 20, value: x.numero || '' }),
         ano: el('input', { type: 'number', min: 1990, max: 2100, value: x.ano || new Date().getFullYear() }),
         data: el('input', { type: 'date', value: x.data_apresentacao || hoje() }),
@@ -281,7 +283,7 @@
       const texto = campoArquivo('pp-arq', 'Texto da proposição', x.arquivo_url);
       const abas = P.abas([
         ['dados', 'Dados', [
-          el('div', { class: 'grade-campos' }, campo('pp-tipo', 'Tipo', f.tipo, null, true), campo('pp-num', 'Número', f.numero, null, true), campo('pp-ano', 'Ano', f.ano, null, true), campo('pp-data', 'Apresentação', f.data, null, true)),
+          el('div', { class: 'grade-campos' }, campo('pp-tipo', 'Tipo', f.tipo, null, true), campo('pp-ini', 'Iniciativa', f.iniciativa, 'Executivo e Legislativo numeram cada um na sua série.'), campo('pp-num', 'Número', f.numero, null, true), campo('pp-ano', 'Ano', f.ano, null, true), campo('pp-data', 'Apresentação', f.data, null, true)),
           campo('pp-em', 'Ementa', f.ementa, null, true), campo('pp-aut', 'Autoria (fora da Câmara)', f.autoria, 'Autores e relatores vereadores vão na aba Autoria e relatoria.'),
           campo('pp-and', 'Situação atual', f.andamento), texto.caixa, campo('pp-link', 'Link no sistema legislativo (opcional)', f.link)]],
         ['autoria', 'Autoria e relatoria', x.id ? () => abaAutoria(x) : null, x.id ? null : 'Salve a proposição primeiro.'],
@@ -297,14 +299,18 @@
         ocupado(btn, 'Salvando…');
         try {
           const arquivo = await texto.valor();
-          const id = await P.gravarRegistro('proposicoes', { tipo: f.tipo.value, numero: f.numero.value.trim(), ano: a, data_apresentacao: f.data.value || hoje(),
+          const reg = { tipo: f.tipo.value, numero: f.numero.value.trim(), ano: a, data_apresentacao: f.data.value || hoje(),
             ementa: f.ementa.value.trim(), autoria_externa: f.autoria.value.trim() || null, andamento: f.andamento.value, arquivo_url: arquivo,
-            link_externo: f.link.value.trim() || null, situacao }, x.id);
+            link_externo: f.link.value.trim() || null, situacao };
+          // Coluna do script 46: só vai quando escolhida ou quando o registro já a tem (banco sem o script continua gravando).
+          if (f.iniciativa.value || 'iniciativa' in x) reg.iniciativa = f.iniciativa.value || null;
+          const id = await P.gravarRegistro('proposicoes', reg, x.id);
           ref.fechar(); toast(situacao === 'publicado' ? 'Publicado.' : 'Rascunho salvo.');
           await desenhar();
           if (!x.id) { const { data } = await sb.from('proposicoes').select('*').eq('id', id).maybeSingle(); if (data) formProposicao(data, 'autoria'); }
         } catch (e) {
-          toast(/proposicoes_uk|duplicate/i.test(e.message || '') ? 'Já existe proposição deste tipo com este número e ano.' : P.erroGravacao(e), true);
+          toast(/proposicoes_uk|duplicate/i.test(e.message || '') ? 'Já existe proposição deste tipo, iniciativa, número e ano.'
+            : /iniciativa/i.test(e.message || '') ? 'Rode o script 46 na Supabase para usar o campo Iniciativa.' : P.erroGravacao(e), true);
         } finally { ocupado(btn); }
       }));
       if (abaInicial) abas.ir(abaInicial);
