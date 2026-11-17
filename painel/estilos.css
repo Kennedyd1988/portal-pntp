@@ -627,3 +627,10 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
   .kit-resp-curta, .kit-lancado { grid-column: 2; }
   .kit-textos { grid-template-columns: 1fr; }
 }
+
+/* Escolha com botões de opção (ex.: estilo da faixa do Radar em Aparência, 0.46) */
+.grupo-radio { border: 0; padding: 0; margin: 0 0 14px; display: grid; gap: 8px; }
+.grupo-radio legend { font-weight: 700; margin-bottom: 6px; padding: 0; }
+.opcao-radio { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--linha, #dde5ee); border-radius: 10px; cursor: pointer; background: #fff; }
+.opcao-radio:has(input:checked) { border-color: var(--primaria, #0d4fc4); box-shadow: 0 0 0 1px var(--primaria, #0d4fc4) inset; }
+.opcao-radio input { margin-top: 3px; }

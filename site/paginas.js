@@ -344,8 +344,11 @@
     // Faixa do Radar da Transparência Pública (PNTP 2.9). Com a imagem oficial enviada em
     // Aparência, a faixa inteira é a imagem; sem ela, faixa nas cores do Radar com o texto.
     blocos.push(el('section', { class: 'pt-0 secao', 'aria-labelledby': 'tit-radar' }, el('div', { class: 'limite' },
-      // 0.46: a faixa é sempre desenhada pelo site (nas cores do portal); a imagem de Aparência não é mais usada aqui.
-      el('a', { class: 'faixa-radar', href: S.radar(), target: '_blank', rel: 'noopener' },
+      // Aparência › Selos e Radar: "Imagem oficial" mostra a imagem enviada; o padrão é a faixa desenhada pelo site.
+      c.radar_estilo === 'imagem' && c.radar_imagem_url
+        ? el('a', { class: 'faixa-radar-img', href: S.radar(), target: '_blank', rel: 'noopener' },
+          el('img', { src: c.radar_imagem_url, alt: 'Radar da Transparência Pública' }), el('h2', { id: 'tit-radar', class: 'sr' }, 'Radar da Transparência Pública (abre em nova aba)'))
+        : el('a', { class: 'faixa-radar', href: S.radar(), target: '_blank', rel: 'noopener' },
           iconeRadar(),
           el('span', { class: 'faixa-radar-textos' }, el('h2', { id: 'tit-radar' }, 'Radar da Transparência Pública'),
             el('span', null, 'Consulte a avaliação dos portais de transparência de todo o país (Atricon e Tribunais de Contas).')),

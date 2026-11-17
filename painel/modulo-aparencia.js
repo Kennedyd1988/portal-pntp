@@ -154,7 +154,19 @@
       return st;
     }
     const favicon = blocoImagem('ap-favicon', cfg.favicon_url, 128, 'Escolher ícone', 'Imagem quadrada (PNG, JPG ou WebP), de preferência só o símbolo. Sem ícone, o site usa o brasão.');
-    const radarImg = blocoImagem('ap-radar', cfg.radar_imagem_url, 1600, 'Enviar faixa oficial', 'Opcional: a imagem oficial do Radar da Transparência Pública (Atricon). Sem ela, o site mostra a faixa padrão com o texto do Radar.');
+    const radarImg = blocoImagem('ap-radar', cfg.radar_imagem_url, 1600, 'Enviar faixa oficial', 'A imagem oficial do Radar da Transparência Pública (Atricon), em formato de faixa larga.');
+    // Estilo da faixa na página inicial (0.46): desenhada pelo site (padrão) ou a imagem oficial enviada aqui.
+    const radarEstilo = cfg.radar_estilo === 'imagem' ? 'imagem' : 'desenhada';
+    const opcaoRadar = (valor, rotulo, ajuda) => el('label', { class: 'opcao-radio' },
+      el('input', { type: 'radio', name: 'ap-radar-estilo', value: valor, checked: radarEstilo === valor, disabled: !podeEditar }),
+      el('span', null, el('strong', null, rotulo), el('span', { class: 'ajuda bloco' }, ajuda)));
+    const radarEscolha = el('fieldset', { class: 'grupo-radio', id: 'ap-radar-estilo' }, el('legend', null, 'Como a faixa aparece na página inicial'),
+      opcaoRadar('desenhada', 'Faixa desenhada (padrão)', 'O site desenha a faixa nas cores do portal, com o nome do Radar e o botão de acesso.'),
+      opcaoRadar('imagem', 'Imagem oficial', 'A faixa é a imagem enviada abaixo (precisa enviar a imagem).'));
+    const estiloRadar = () => (radarEscolha.querySelector('input:checked') || {}).value || 'desenhada';
+    const mostrarImgRadar = () => { radarImg.bloco.hidden = estiloRadar() !== 'imagem'; };
+    radarEscolha.addEventListener('change', mostrarImgRadar);
+    mostrarImgRadar();
     const RADAR_PADRAO = 'https://radardatransparencia.atricon.org.br/panel.html';
     const radarLink = texto(cfg.radar_url || '', { type: 'url', placeholder: RADAR_PADRAO });
 
@@ -382,7 +394,7 @@
             listaSelos, btnAddSelo),
           el('section', { class: 'mt-2 cartao' },
             el('h2', null, 'Faixa do Radar da Transparência Pública'),
-            radarImg.bloco,
+            radarEscolha, radarImg.bloco,
             campo('ap-radar-url', 'Link da faixa (opcional)', radarLink, 'Para onde a faixa, o rodapé e a página da Transparência levam (PNTP 2.9). Ex.: a página do órgão no Radar. Em branco: painel geral do Radar (' + RADAR_PADRAO + ').')))]
       ], (/[?&]aba=([a-z]+)/.exec(location.hash) || [])[1]),
       podeEditar ? el('div', { class: 'barra-salvar' }, btnSalvar) : el('p', { class: 'msg msg-info' }, 'Seu perfil pode ver, mas não alterar a aparência.')
@@ -408,6 +420,7 @@
         if (!erroCampo(id, urlValida(v(k)) ? '' : 'Informe o endereço completo, começando com https://')) return;
       }
       if (!erroCampo('ap-radar-url', urlValida(radarLink.value.trim()) ? '' : 'Informe o endereço completo, começando com https://')) return;
+      if (!erroCampo('ap-radar-estilo', estiloRadar() === 'imagem' && !radarImg.url && !radarImg.novo ? 'Para usar a imagem oficial, envie a imagem da faixa (ou escolha a faixa desenhada).' : '')) return;
       for (let k = 0; k < selos.length; k++) {
         if (!erroCampo('ap-selo-t-' + k, selos[k].titulo.value.trim() ? '' : 'Informe o nome do selo (ou remova a linha).')) return;
         if (!erroCampo('ap-selo-u-' + k, urlValida(selos[k].url.value.trim()) ? '' : 'Informe o endereço completo, começando com https://')) return;
@@ -462,7 +475,7 @@
           diario_oficial_nome: v('diario_nome'), diario_oficial_url: v('diario_url'),
           transparencia_url: v('transparencia_url'), licitacoes_url: v('licitacoes_url'),
           estrutura_norma: v('estrutura_norma'), estrutura_norma_url: v('estrutura_norma_url'),
-          selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, radar_url: radarLink.value.trim() || null, destinos: destinosGravar, destinos_links: linksGravar, paginas_ocultas: ocultasGravar,
+          selos: selosGravar, favicon_url: faviconUrl, radar_imagem_url: radarUrl, radar_estilo: estiloRadar(), radar_url: radarLink.value.trim() || null, destinos: destinosGravar, destinos_links: linksGravar, paginas_ocultas: ocultasGravar,
           transparencia_extras: extras.map((e) => ({ titulo: e.titulo.value.trim(), grupo: e.grupo.value === '__novo' ? e.grupoNome.value.trim() : e.grupo.value,
             icone: e.icone.value, tipo: e.tipo.value, valor: e.tipo.value === 'link' ? e.url.value.trim() : e.tipo.value === 'pagina' ? e.pagina.value : e.tipoPub.value }))
         };

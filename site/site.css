@@ -1122,3 +1122,5 @@ html.contraste .est-arvore li > a, html.contraste .est-arvore > li > strong, htm
 html.contraste .aba-guia[aria-selected="true"] { background: #000 !important; }
 
 .filtros > label:only-child { grid-column: 1 / -1; }
+#conteudo[data-pagina="inicio"] .faixa-radar-img { display: block; border-radius: 18px; overflow: hidden; box-shadow: 0 12px 28px rgba(6, 22, 41, .12); }
+#conteudo[data-pagina="inicio"] .faixa-radar-img img { display: block; width: 100%; }

@@ -1,5 +1,5 @@
 {
-  "versao": "0.46.1",
+  "versao": "0.46.2",
   "data": "2026-11-17",
   "notas": [
     "Novo visual do site, em todos os órgãos (Prefeitura, Câmara, Consórcio…). Topo, menu e rodapé valem para todas as páginas; o restante, por enquanto, na página inicial.",
@@ -8,7 +8,7 @@
     "Menu: o item da página atual fica marcado com um sublinhado verde (no submenu, o grupo).",
     "Página inicial: o banner fica sobre uma faixa de fundo e os acessos rápidos sobem num painel branco, com ícone colorido por grupo (Transparência, contratações, serviços, atos oficiais, atendimento) e seta ao passar o mouse.",
     "Página inicial: com até 2 serviços pela internet, eles entram numa linha dentro do painel de acessos (\"Também pela internet\"), em vez de um bloco quase vazio.",
-    "Página inicial: faixa do Radar da Transparência sempre desenhada pelo site, nas cores do portal (a imagem enviada em Aparência não é mais usada nela).",
+    "Faixa do Radar: em Aparência › Selos e Radar, cada órgão escolhe \"Faixa desenhada (padrão)\" (nas cores do portal) ou \"Imagem oficial\" (a imagem enviada). Órgão que ainda não escolheu fica com a faixa desenhada.",
     "Notícias: na notícia de destaque, o resumo não aparece mais repetido (notícias migradas); saiu o contador de visualizações da página inicial; títulos que vieram em CAIXA ALTA aparecem em formato normal (só na exibição, siglas e o nome do município preservados).",
     "Últimas publicações: o ato mais recente em cartão de destaque e os demais em lista, com cor por tipo (lei azul, decreto verde, portaria âmbar, edital roxo); abas em formato de aba.",
     "Últimas publicações: o ato mais recente numa faixa horizontal compacta, e os 6 seguintes em lista de duas colunas.",
