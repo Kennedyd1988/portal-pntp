@@ -1,7 +1,9 @@
 {
-  "versao": "0.44.2",
+  "versao": "0.44.3",
   "data": "2026-11-17",
   "notas": [
+    "Correção: diárias de vereador eram recusadas pelo banco com o erro 'record \"new\" has no field \"origem\"' (na migração e no cadastro). Rode o script 49 na Supabase (já aplicado no projeto).",
+    "Migração: saiu o aviso do plano gratuito da Supabase (1 GB); o portal está no plano Pro. O aviso de espaço só aparece se um órgão sozinho passar da metade dos 100 GB.",
     "Conselhos municipais são do Executivo: saem do menu do site da Câmara e do Consórcio (mesmo que cadastrados), e no painel (Menu do site) as páginas só da Prefeitura — Saúde, Educação, Renúncias, Emendas e Conselhos — deixam de aparecer na lista de destinos desses órgãos.",
     "Migração: itens que ficaram sem arquivo por passar de 50 MB (antes da 0.44.0) são retentados ao importar de novo, agora com o limite de 200 MB.",
     "Arquivos de até 200 MB (plano Pro): o limite do armazenamento subiu de 50 MB para 200 MB (script 47 e configuração geral do Storage) e o painel aceita PDFs de até 200 MB em todas as telas de envio (leis, licitações, contratos, contas, convênios, obras, concursos, PCA, setoriais, estrutura). Na migração do site antigo, arquivos grandes passam a ser copiados (a função de servidor envia em fluxo, sem estourar a memória). Imagens e anexos do e-SIC/Ouvidoria continuam com os limites menores.",

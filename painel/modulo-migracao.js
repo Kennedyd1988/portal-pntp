@@ -1351,11 +1351,13 @@
   function desenharEspaco() {
     if (!caixaEspaco) return;
     const previsto = Object.values(estado).reduce((t, s) => t + (s.analisado ? s.bytes || 0 : 0), 0);
-    const usado = espaco || 0, limite = 1073741824;
-    caixaEspaco.replaceChildren(el('p', { class: 'msg ' + (usado + previsto > limite * 0.9 ? 'msg-falta' : 'msg-info') + ' m-0' },
+    // Plano Pro da Supabase: 100 GB inclusos para todos os órgãos juntos; só avisa quando um órgão sozinho chega perto disso.
+    const usado = espaco || 0, limite = 100 * 1073741824;
+    const perto = usado + previsto > limite * 0.5;
+    caixaEspaco.replaceChildren(el('p', { class: 'msg ' + (perto ? 'msg-falta' : 'msg-info') + ' m-0' },
       'Arquivos deste órgão no portal: ', el('strong', null, mb(usado)),
       previsto ? [' · previsto pelas análises: ', el('strong', null, mb(previsto)), ' · total: ', el('strong', null, mb(usado + previsto))] : null,
-      '. O plano gratuito da Supabase guarda 1 GB para todos os órgãos juntos' + (usado + previsto > limite * 0.9 ? ': vai passar do limite; antes de importar, contrate o plano Pro (100 GB).' : '.')));
+      perto ? '. Este órgão sozinho passa da metade dos 100 GB do plano da Supabase: confira o espaço antes de importar mais.' : '.'));
   }
 
   function desenhar() {
