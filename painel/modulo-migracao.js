@@ -815,6 +815,23 @@
     const iguais = l.filter((p) => chaveNome(p.nome_parlamentar) === k || chaveNome(p.nome) === k);
     return iguais.length === 1 ? iguais[0] : null;
   }
+  // Vereador com nome completo quase igual (até 2 letras de diferença, sem contar acentos): para nomes lidos por OCR.
+  function distancia(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return 99;
+    let ant = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      for (let j = 1; j <= b.length; j++) cur[j] = Math.min(ant[j] + 1, cur[j - 1] + 1, ant[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      ant = cur;
+    }
+    return ant[b.length];
+  }
+  async function vereadorParecido(nome) {
+    const k = chaveNome(nome);
+    if (!k || k.length < 12) return null;
+    const l = (await vereadores()).filter((p) => distancia(chaveNome(p.nome), k) <= 2);
+    return l.length === 1 ? l[0] : null;
+  }
   async function acharComissao(nome) {
     const { data } = await sb.from('comissoes').select('id, nome').eq('orgao_id', org());
     return (data || []).find((c) => chaveNome(c.nome) === chaveNome(nome)) || null;
@@ -1032,8 +1049,13 @@
       if (r.registro.valor_total == null) return { situacao: 'erro', aviso: avisos.join(' · ') + ' — cadastre esta diária à mão em Diárias' };
       const reg = Object.assign({ orgao_id: org() }, r.registro, { ato_url: urlPdf || x.pdf || null });
       if (r.nomeVereador) {
-        const p = (await acharVereador(r.registro.nome)) || (await acharVereador(r.nomeVereador));
-        if (p) reg.parlamentar_id = p.id; else avisos.push('Beneficiário parece vereador, mas não foi achado entre os vereadores do portal: ligue depois em Diárias');
+        // Nome lido por OCR pode ter uma letra trocada ("Apolina"/"Apoliana", "Fidelis"/"Fideles"): aceita diferença pequena.
+        const p = (await acharVereador(r.registro.nome)) || (await acharVereador(r.nomeVereador)) || (await vereadorParecido(r.registro.nome));
+        if (p) {
+          reg.parlamentar_id = p.id;
+          // O nome da diária passa a ser o do cadastro do vereador: o mesmo em todas as diárias dele.
+          if (p.nome && p.nome !== reg.nome) { avisos.push('Nome no ato: "' + reg.nome + '"; usado o do cadastro do vereador'); reg.nome = p.nome; }
+        } else avisos.push('Beneficiário parece vereador, mas não foi achado entre os vereadores do portal: ligue depois em Diárias');
       }
       const { data, error } = await sb.from('diarias').insert(reg).select('id').single();
       if (error) throw error;
