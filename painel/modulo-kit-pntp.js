@@ -274,6 +274,8 @@
     const linhasCurto = [], completo = [];
     if (dest.principal) {
       linhasCurto.push('A informação é publicada no sistema externo indicado pelo órgão: ' + dest.principal + '. O portal leva a ele a partir de ' + url + '.');
+    } else if (resp.D === 'Não atende') {
+      linhasCurto.push('Ainda não há conteúdo publicado para este item em ' + url + '.');
     } else {
       linhasCurto.push('Publicado no portal do órgão: ' + url + (det ? ' (exemplo de detalhe: ' + urlPublica(det.r) + ')' : '') + '.');
     }
@@ -281,8 +283,9 @@
       linhasCurto.push(plural(f.total, p.un) + (anos ? ' de ' + (anos.length > 1 ? anos[0] + ' a ' + anos[anos.length - 1] : anos[0]) : '')
         + (f.mais_recente ? '; o mais recente de ' + dataBR(f.mais_recente) : '') + (f.ultima_alteracao ? '; última atualização em ' + dataBR(f.ultima_alteracao) : '') + '.');
     }
-    if (cobra('G') && !dest.principal) linhasCurto.push('Exportação em ' + listaE(formatos) + '.');
-    if (cobra('F') && !dest.principal) linhasCurto.push(filtros.length ? 'Filtros: ' + listaE(filtros) + '.' : 'Com filtros de pesquisa.');
+    const semD = resp.D === 'Não atende' && !dest.principal;
+    if (cobra('G') && !dest.principal && !semD) linhasCurto.push('Exportação em ' + listaE(formatos) + '.');
+    if (cobra('F') && !dest.principal && !semD) linhasCurto.push(filtros.length ? 'Filtros: ' + listaE(filtros) + '.' : 'Com filtros de pesquisa.');
     if (ds.length) linhasCurto.push('Declaração de inexistência: ' + ds.slice(0, 3).map((d) => d.periodo).join('; ') + (ds.length > 3 ? ' e outros ' + (ds.length - 3) + ' períodos' : '') + '.');
     if (dest.outros.length) linhasCurto.push('Outros períodos/sistemas: ' + dest.outros.map((l) => (periodoLink(l) ? periodoLink(l) + ': ' : '') + l.url).join('; ') + '.');
 
@@ -312,6 +315,9 @@
       } else if (l === 'F') {
         t = filtros.length ? 'pesquisa e filtros por ' + listaE(filtros.map((y) => y.toLowerCase())) + '.' : 'barra de pesquisa e filtros acima da lista.';
       }
+      // Critério que não atende: diz o que falta, sem descrever como publicado o que não está.
+      if (resp[l] === 'Não atende') t = (l === 'D' ? 'ainda não há conteúdo publicado para este item.' : 'não atende na autoavaliação.')
+        + (l === 'D' && x.falta && x.falta.length ? ' ' + x.falta.join(' ') : '');
       completo.push(nome + ' (' + resp[l] + '): ' + t);
     }
     if (dest.outros.length && !cobra('S')) completo.push('Outros endereços indicados pelo órgão: ' + dest.outros.map((o) => (o.descricao ? o.descricao + ' ' : '') + (periodoLink(o) ? '(' + periodoLink(o) + ') ' : '') + o.url).join('; ') + '.');
@@ -452,7 +458,7 @@
         el('span', { class: 'kit-resp-curta' }, CRITERIOS.filter(([l]) => x.itens.includes(l)).map(([l]) => el('span', { class: 'kit-letra kit-' + (resp[l] === 'Atende' ? 'ok' : resp[l] === 'Não atende' ? 'nao' : 'na'), title: NOME_LETRA[l] + ': ' + resp[l] }, l))),
         el('label', { class: 'kit-lancado', onclick: (e) => e.stopPropagation() }, marca, ' Lançado no Avalia',
           lan ? el('span', { class: 'sub-linha' }, dataHora(lan.lancado_em) + (lan.lancado_por_nome ? ' · ' + lan.lancado_por_nome : '')) : null)));
-    det.addEventListener('toggle', () => { if (det.open && !corpo.childNodes.length) corpo.replaceChildren(...corpoItem(x)); });
+    det.addEventListener('toggle', () => { if (det.open && !corpo.childNodes.length) corpo.replaceChildren(...corpoItem(x).filter(Boolean)); });
     det.append(corpo);
     return det;
   }

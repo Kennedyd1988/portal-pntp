@@ -1,7 +1,8 @@
 {
-  "versao": "0.45.0",
+  "versao": "0.45.1",
   "data": "2026-11-17",
   "notas": [
+    "Kit de evidências: item que não atende deixa de ser descrito como publicado no esclarecimento (diz o que falta); saiu um \"null\" que aparecia abaixo dos links.",
     "Novo módulo Kit de evidências PNTP (Avalia), no grupo Controle interno — por enquanto só para Câmaras (Prefeitura e Consórcio depois). Rode o script 51 na Supabase.",
     "Uma linha por item da matriz que vale para o órgão, na ordem e com a numeração do questionário, com a resposta sugerida para Disponibilidade, Atualidade, Série Histórica, Relatórios e Filtros (Atende / Não atende / N/A, calculada pela autoavaliação com os dados publicados).",
     "Em cada item: links prontos com botão Copiar (página do portal, página de detalhe de exemplo e os destinos externos de Aparência › Destinos das páginas) e texto de esclarecimento curto e completo, também com Copiar (quantidade de registros, anos, data mais recente e da última atualização, filtros, formatos de exportação, declarações de inexistência por período e links externos explicados).",
