@@ -1404,7 +1404,7 @@
     const tudo = limpar(String(textoBruto || '').replace(/-\n/g, ''));
     const ini = tudo.search(/art\.?\s*1|resolve/i);
     let corpo = ini >= 0 ? tudo.slice(ini) : '';
-    const fimC = corpo.search(/publique-se|cumpra-se|registre-se/i); if (fimC > 0) corpo = corpo.slice(0, fimC);
+    const fimC = corpo.search(/publique\s*[-–—]?\s*se|cumpra\s*[-–—]?\s*se|registre\s*[-–—]?\s*se/i); if (fimC > 0) corpo = corpo.slice(0, fimC);
     corpo = corpo.replace(/^resolve\s*:?\s*/i, '').trim();
     const cs = sem(corpo);
     // Quantidade: "Concessão de 2 (duas) diárias" (ementa) ou "02 (duas) diárias"/"uma diária" (corpo)
@@ -1417,6 +1417,10 @@
     const mNome = em.match(/(?:^|\s)(?:ao|à|a|aos|às)\s+(.*?)\s*([A-ZÀ-Ú][A-ZÀ-Ú'´`.\s-]{5,}[A-ZÀ-Ú])\.?\s*$/);
     let nome = mNome ? limpar(mNome[2]) : null;
     let cargo = mNome ? limpar(mNome[1].replace(/excelent[ií]ssim[oa]|senhora?|sr\.?a?|sra\.?|\bdo\b|\bda\b/gi, ' ').replace(/servidora?/i, 'Servidor(a)')) : null;
+    if (!nome) {   // corpo, modelo com o rótulo "Cargo": "Conceder ao Sr. NOME, Cargo, Coordenadora Técnica…, 03 (três) diárias"
+      const c1 = corpo.match(/conceder\s+(?:a|à|ao)\s+(?:(?:sr|sra|senhora?)\.?\s+)?([^,;]+?)\s*[,;]\s*cargo\s*[,:]?\s*([^,;]+?)\s*[,;]\s*(?:\d|uma|um|duas|dois|tr[eê]s|quatro|meia)/i);
+      if (c1) { nome = limpar(c1[1]); cargo = limpar(c1[2]); }
+    }
     if (!nome) {   // corpo: "Conceder ao Excelentíssimo Senhor Vereador NOME, …"
       const c2 = corpo.match(/conceder\s+(?:a|à|ao)\s+(.*?)[,;]\s*(?:\d|uma|um|duas|dois|tr[eê]s|quatro|meia)/i);
       if (c2) { const pal = c2[1].split(/\s+/); const i = pal.findIndex((p, k) => k > 0 && /^[A-ZÀ-Ú]/.test(p) && !/^(Senhora?|Excelent|Vereador|Presidente|Secret|Tesoureir|Servidor)/i.test(p)); nome = i >= 0 ? pal.slice(i).join(' ') : null; cargo = i > 0 ? pal.slice(0, i).join(' ').replace(/excelent[ií]ssim[oa]|senhora?|servidora?/gi, ' ') : null; }
@@ -1438,6 +1442,12 @@
     if (!md) md = corpo.match(new RegExp('\\bem\\s+' + NOME_LUGAR + '\\s*[/-]?\\s*(' + UFS + ')\\b'));
     if (md) destino = limpar(md[1].replace(/\s+(nos?|nas?|dias?|para|com|em)$/i, '')) + (md[2] ? '/' + md[2] : '');
     if (destino) destino = destino.replace(new RegExp('\\s*[-\\s]\\s*(' + UFS + ')$'), '/$1');
+    // "cidade NATAL" sem UF: usa a forma com UF que aparecer no próprio ato ("Natal/RN"); nome em CAIXA ALTA vira nome próprio.
+    if (destino && !/\/[A-Z]{2}$/.test(destino)) {
+      const comUf = corpo.match(new RegExp('\\b(' + destino.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')\\s*[/-]\\s*(' + UFS + ')\\b', 'i'));
+      if (comUf) destino = destino + '/' + comUf[2].toUpperCase();
+    }
+    if (destino && destino === destino.toUpperCase()) destino = destino.replace(/^[^/]+/, (c) => nomeProprio(c));
     const ufOrgao = String(((window.PNTP || {}).estado || {}).orgao && window.PNTP.estado.orgao.uf || 'RN').toUpperCase();
     // Sem cidade no ato, mas com órgão da capital (FECAM, Assembleia, TCE): Natal/RN, com aviso (só para órgãos do RN).
     if (!destino && ufOrgao === 'RN' && /fecam|assembleia legislativa|tribunal de contas do estado|\btce\b|natal/i.test(corpo)) { destino = 'Natal/RN'; avisos.push('Destino deduzido do ato (FECAM/Assembleia/TCE ficam em Natal): confira'); }
@@ -1479,7 +1489,7 @@
     }
     // Motivo: a finalidade ("para participar…", "com propósito de…"); senão o artigo inteiro
     let motivo = null;
-    const mm = corpo.match(/(?:com\s+(?:o\s+)?prop[oó]sito\s+(?:de\s+)?|para\s+)((?:participa|tratar|ir\b|pegar|utilizar|acompanhar|resolver|realizar|reuni|assistir|comparecer|entregar|buscar|representar|visitar|audi[eê]ncia|capacita|curso|encontro|semin)[^]*?)(?:\.\s|$)/i);
+    const mm = corpo.match(/(?:com\s+(?:o\s+)?prop[oó]sito\s+(?:de\s+)?|com\s+(?:a\s+)?finalidade\s+de\s+|com\s+o\s+objetivo\s+de\s+|a\s+fim\s+de\s+|para\s+)((?:participa|tratar|ir\b|pegar|utilizar|acompanhar|resolver|realizar|reuni|assistir|comparecer|entregar|buscar|representar|visitar|audi[eê]ncia|capacita|curso|encontro|semin)[^]*?)(?:\.\s|$)/i);
     if (mm && mm[1].length >= 8) motivo = limpar(mm[1]).replace(/[.;,\s]+$/, '');
     if (!motivo && corpo.length > 20) motivo = corpo.replace(/^art\.?\s*1[ºo°]?\s*[-–—.:]?\s*/i, '');
     if (!motivo || motivo.length < 3) { motivo = 'Custeio de despesas de deslocamento, alimentação e hospedagem'; avisos.push('Motivo não lido no ato: texto padrão'); }
