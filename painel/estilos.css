@@ -695,3 +695,21 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .decl-previa-rotulo { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
 .decl-previa-cartao { border: 1px solid #e3eaf1; border-left: 5px solid #e2a114; background: #fffaf0; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
 .decl-previa-cartao span { color: var(--text-dim); font-size: 13px; }
+
+/* 0.47.0 — Preencher pelo PDF (leitor-pdf.js): zona de envio no topo da janela de cadastro e marca "Lido do PDF" */
+.caixa-zona-pdf { margin: 0 0 16px; }
+.zona-pdf { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 2px dashed #b9cde4; border-radius: 14px;
+  background: color-mix(in srgb, var(--brand) 4%, #fff); transition: border-color .15s, background .15s; }
+.zona-pdf:hover, .zona-pdf.arrastando { border-color: var(--acento); background: var(--acento-claro); }
+.zona-pdf.lendo { border-style: solid; opacity: .85; }
+.zona-pdf-icone { --g: #b26d06; flex: none; width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--g) 12%, #fff); color: var(--g); font-family: var(--fonte-num); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.zona-pdf:hover .zona-pdf-icone, .zona-pdf.arrastando .zona-pdf-icone { background: var(--g); color: #fff; }
+.zona-pdf-texto { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.zona-pdf-texto strong { color: var(--text); }
+.zona-pdf-situacao > .msg { margin: 10px 0 0; }
+.zona-pdf-situacao .msg p { margin: 4px 0; }
+.zona-pdf-situacao > .ajuda { display: block; margin-top: 6px; }
+.campo input.lido-pdf, .campo select.lido-pdf, .campo textarea.lido-pdf { border-color: var(--acento); background: #f3fbf7; }
+.etiqueta-lido { background: var(--acento-claro); color: #066a4a; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 1px 8px; vertical-align: 1px; }
+@media (max-width: 600px) { .zona-pdf { flex-wrap: wrap; } .zona-pdf .btn { width: 100%; } }

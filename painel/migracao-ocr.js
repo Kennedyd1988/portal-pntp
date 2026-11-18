@@ -37,11 +37,16 @@
 
   // Texto do PDF (url pública, com CORS). paginas: quantas ler no máximo.
   // aceita: o texto já serve? (padrão: tem o corpo de um ato). Se não servir, lê a imagem das páginas (OCR).
+  // url também pode ser o próprio arquivo (File/Blob) ou um ArrayBuffer: usado pelo "Preencher pelo PDF" (0.47.0).
   async function textoPdf(url, paginas, aceita) {
     const lib = await carregarPdf();
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('PDF não abriu (' + r.status + ')');
-    const pdf = await lib.getDocument({ data: await r.arrayBuffer() }).promise;
+    let dados;
+    if (typeof url === 'string') {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('PDF não abriu (' + r.status + ')');
+      dados = await r.arrayBuffer();
+    } else dados = url instanceof ArrayBuffer ? url : await url.arrayBuffer();
+    const pdf = await lib.getDocument({ data: dados }).promise;
     const n = Math.min(pdf.numPages, paginas || 4);
     let texto = '';
     for (let p = 1; p <= n; p++) {

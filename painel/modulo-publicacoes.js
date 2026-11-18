@@ -124,8 +124,64 @@
     if (x.id) sb.from('publicacoes_anexos').select('*').eq('publicacao_id', x.id).order('ordem').then(({ data }) => { anexos.atuais = data || []; desenharAnexos(); });
     rPdf.addEventListener('change', alternar); rLink.addEventListener('change', alternar); alternar();
 
+    // Preencher pelo PDF (0.47.0): na inclusão, o usuário pode enviar o PDF primeiro e o sistema preenche
+    // tipo, número, data, ano e ementa. Digitar à mão continua igual. Só preenche o que o usuário não mexeu.
+    const tocado = {};
+    for (const k of ['tipo', 'numero', 'data', 'ano', 'ementa']) {
+      const marcar = () => { tocado[k] = true; };
+      f[k].addEventListener('input', marcar); f[k].addEventListener('change', marcar);
+    }
+    async function lerPdf(arquivo, lido) {
+      const r = P.lerAto(lido.texto, TIPOS);
+      const rel = { preenchidos: [], faltou: [], avisos: [] };
+      // O próprio PDF já fica como documento da publicação.
+      if (f.pdf.files[0] !== arquivo) { const dt = new DataTransfer(); dt.items.add(arquivo); f.pdf.files = dt.files; }
+      rPdf.checked = true; alternar(); lerDoc.hidden = true;
+      rel.preenchidos.push('documento (o próprio PDF)');
+      const por = (k, rotulo, valor, mostrar) => {
+        if (!valor) { if (!f[k].value) rel.faltou.push(rotulo); return; }
+        if (String(f[k].value) === String(valor)) return;
+        if (tocado[k] && f[k].value) { rel.avisos.push(rotulo + ' no PDF: ' + (mostrar || valor) + ' (mantido o que você digitou).'); return; }
+        P.preencherLido(f[k], valor); rel.preenchidos.push(rotulo.toLowerCase());
+      };
+      por('tipo', 'Tipo', r.tipo, TIPOS[r.tipo]);
+      por('numero', 'Número', r.numero);
+      por('data', 'Data', r.data, r.data && P.dataBR(r.data));
+      por('ano', 'Ano', r.ano);
+      por('ementa', 'Ementa', r.ementa);
+      if (r.ementaDoArtigo && f.ementa.classList.contains('lido-pdf'))
+        rel.avisos.push('O ato não tem ementa: a sugerida foi tirada do Art. 1º. Ajuste o texto se precisar (ex.: "Nomeia Fulano para o cargo de…").');
+      // Arquivo de outro órgão? O nome do município (ou do órgão) deveria aparecer no texto.
+      const o = P.estado.orgao || {}, txt = P.textoSemAcento(lido.texto);
+      const nomes = [o.municipio, o.nome].filter(Boolean).map(P.textoSemAcento);
+      if (nomes.length && txt.length > 300 && !nomes.some((n) => txt.includes(n.replace(/^(prefeitura|camara) municipal de /, ''))))
+        rel.avisos.push('O nome do município não aparece no PDF. Confira se é o arquivo certo.');
+      // Já cadastrada? (tipo + número + ano são únicos)
+      const tipo = f.tipo.value, numero = f.numero.value.trim(), ano = parseInt(f.ano.value, 10);
+      if (tipo && numero && ano) {
+        const { data } = await sb.from('publicacoes').select('id, situacao').eq('orgao_id', P.estado.orgao.id).eq('tipo', tipo).eq('numero', numero).eq('ano', ano).limit(1);
+        if (data && data.length) rel.avisos.push('Já existe ' + (TIPOS[tipo] || tipo) + ' nº ' + numero + '/' + ano + ' cadastrada (' + (data[0].situacao === 'publicado' ? 'no ar' : 'rascunho') + '). Confira antes de salvar para não duplicar.');
+      }
+      const painelAto = corpo.querySelector('[data-aba-painel="ato"]');
+      if (painelAto && painelAto._abrir) painelAto._abrir();
+      return rel;
+    }
+    const zona = !x.id && !travada ? P.zonaPdf({
+      titulo: 'Já tem o PDF do ato? Envie primeiro',
+      texto: 'O sistema lê o arquivo e preenche tipo, número, data, ano e ementa, e o PDF já fica como documento. Se preferir, digite os dados nas abas abaixo.',
+      aoLer: lerPdf
+    }) : null;
+    // PDF escolhido direto na aba Documento: oferece preencher os campos com ele.
+    const lerDoc = el('button', { type: 'button', class: 'btn btn-claro btn-p', hidden: true }, 'Preencher os campos com os dados deste PDF');
+    if (zona) {
+      blocoPdf.append(lerDoc);
+      f.pdf.addEventListener('change', () => { lerDoc.hidden = !f.pdf.files[0]; });
+      lerDoc.addEventListener('click', () => { if (f.pdf.files[0]) { corpo.querySelector('[data-aba-painel="ato"]')._abrir(); zona.ler(f.pdf.files[0]); } });
+    }
+
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       travada ? el('p', { class: 'msg msg-info' }, 'Esta publicação está no ar. Só quem tem permissão de publicar pode alterá-la.') : null,
+      zona,
       P.abas([
         ['ato', 'Identificação do ato', [el('div', { class: 'grade-campos grade-3' },
           campo('pb-tipo', 'Tipo', f.tipo, null, true),

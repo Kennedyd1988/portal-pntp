@@ -1,6 +1,6 @@
 # SOFT+ GOV — Manual de padrões reutilizáveis
 
-Versão do sistema: 0.46.6 · Atualizado em 17/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
+Versão do sistema: 0.47.0 · Atualizado em 18/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
 
 > Cópia do manual mantida no repositório. A cada publicação no ar, o manual (documento e esta cópia) é atualizado junto com as notas da versão. Veja o "Histórico de atualizações" no fim.
 
@@ -145,6 +145,9 @@ O painel é ferramenta de trabalho: tem a identidade da SOFT+ GOV (e não a do �
 | `P.externo`, `P.avisoExterno` | Parte com link externo: desativa o cadastro manual e mostra o aviso |
 | `P.mesclarConfiguracoes(valores, órgão)` | Grava só as configurações alteradas |
 | `P.editorTexto`, `P.renderTexto` | Editor e exibição da marcação simples |
+| `P.zonaPdf(opções)`, `P.preencherLido`, `P.lerAto` | "Preencher pelo PDF" (`painel/leitor-pdf.js`): zona no topo da janela de inclusão; lê o texto do PDF (ou OCR se escaneado, tudo no navegador) e preenche só os campos que o usuário não mexeu, marcando-os com "Lido do PDF"; digitar à mão continua possível |
+
+**Preencher pelo PDF (padrão para cadastros que nascem de um documento):** a janela "+ Novo…" continua igual e ganha no topo a zona tracejada "Já tem o PDF? Envie primeiro" (ícone redondo âmbar de atos, botão principal "Escolher PDF", arrastar e soltar). Depois da leitura: mensagem verde com o que foi preenchido, amarela com o que faltou e os avisos (já cadastrado, arquivo de outro órgão), campos preenchidos com borda verde e etiqueta "Lido do PDF" (some quando o usuário edita). O PDF lido já vira o documento do registro. Nada é publicado sozinho; CPF nunca vai para campos de texto sugeridos.
 
 **Mensagens e textos:** frases curtas, em linguagem do usuário ("Seu perfil não pode excluir esta declaração."), sem jargão técnico; erros do banco traduzidos por `P.traduzirErro` / `P.erroGravacao`. Terminologia jurídica: "contratado", não "fornecedor".
 
@@ -679,5 +682,6 @@ Trocou a logo → arquivos com nome novo (`-v2`) e o manifesto apontando para el
 
 | Data | Versão | O que mudou nos padrões |
 | --- | --- | --- |
+| 18/11/2026 | 0.47.0 | Novo componente "Preencher pelo PDF" (`P.zonaPdf`, `P.lerAto`) no núcleo do painel; primeiro uso em Publicações oficiais (seção 4) |
 | 17/11/2026 | 0.46.6 | Regra de logo e ícones: nome novo nos arquivos a cada troca de logo, para o app instalado atualizar o ícone (seção 10) |
 | 17/11/2026 | 0.46.5 | Primeira edição: arquitetura, visual do site e do painel, componentes, acessibilidade, usuários e perfis, criação de órgãos, regras de dados, configurações por órgão, fluxo de trabalho e checklist para novos apps |
