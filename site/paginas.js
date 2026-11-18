@@ -440,7 +440,7 @@
         el('div', { class: 'pub-etiquetas' }, el('span', { class: 'etiqueta' }, TIPOS[p.tipo] || p.tipo),
           p.vigencia !== 'vigente' ? el('span', { class: 'etiqueta ' + COR_VIG[p.vigencia] }, VIGENCIA[p.vigencia]) : null),
         el('h3', null, ato(p)),
-        el('span', { class: 'sr' }, 'Publicado em ' + dataBR(p.data_publicacao) + '. '),
+        el('span', { class: 'sr' }, 'Ato de ' + dataBR(p.data_publicacao) + '. '),
         el('p', null, p.ementa),
         doc ? el('a', { class: 'pub-ver botao botao-claro botao-p', href: doc, target: '_blank', rel: 'noopener' }, 'Ver documento',
           el('span', { class: 'sr' }, ' de ' + ato(p) + ' (abre em nova aba)'), el('span', { 'aria-hidden': 'true' }, ' →'))
@@ -742,7 +742,7 @@
       let pag = 1;
       const montar = (sel, op) => sb.from('publicacoes').select(sel || '*', op).eq('orgao_id', org()).eq('tipo', codigo).eq('ano', ano);
       const corpo = el('tbody'), mais = el('div', { class: 'mais' });
-      const colunas = [['numero', 'Número'], ['data_publicacao', 'Data de publicação'], ['competencia', 'Competência'], ['ementa', 'Descrição'],
+      const colunas = [['numero', 'Número'], ['data_publicacao', 'Data do ato'], ['competencia', 'Competência'], ['ementa', 'Descrição'],
         ['vigencia', 'Situação', (v) => VIGENCIA[v]], ['documento', 'Documento', (v, r) => r.arquivo_url || r.link_externo || '']];
       const exportar = S.botoesExportar(codigo.replace(/^x_/, '') + '-' + ano, colunas, async (de, ate) => {
         const { data } = await montar().order('data_publicacao', { ascending: false }).order('id').range(de, ate); return data || [];
@@ -838,7 +838,7 @@
     const aplicar = () => { Object.assign(f, { busca: fBusca.value.trim(), tipo: fTipo.value, ano: fAno.value, vigencia: fVig.value }); carregar(true); };
     [fBusca, fAno].forEach((x) => x.addEventListener('input', () => { clearTimeout(espera); espera = setTimeout(aplicar, 400); }));
     [fTipo, fVig].forEach((x) => x.addEventListener('change', aplicar));
-    const colunas = [['tipo', 'Tipo', (v) => TIPOS[v] || v], ['numero', 'Número'], ['ano', 'Ano'], ['data_publicacao', 'Data de publicação'],
+    const colunas = [['tipo', 'Tipo', (v) => TIPOS[v] || v], ['numero', 'Número'], ['ano', 'Ano'], ['data_publicacao', 'Data do ato'],
       ['ementa', 'Ementa'], ['competencia', 'Competência'], ['vigencia', 'Situação', (v) => VIGENCIA[v]], ['observacao', 'Observação'], ['documento', 'Documento', (v, r) => r.arquivo_url || r.link_externo || '']];
     const exportar = S.botoesExportar('publicacoes-oficiais', colunas, async (de, ate) => {
       const { data } = await montar().order('data_publicacao', { ascending: false }).order('id').range(de, ate);

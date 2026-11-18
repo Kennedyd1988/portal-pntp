@@ -146,7 +146,7 @@
       };
       por('tipo', 'Tipo', r.tipo, TIPOS[r.tipo]);
       por('numero', 'Número', r.numero);
-      por('data', 'Data', r.data, r.data && P.dataBR(r.data));
+      por('data', 'Data do ato', r.data, r.data && P.dataBR(r.data));
       por('ano', 'Ano', r.ano);
       por('ementa', 'Ementa', r.ementa);
       if (r.ementaDoArtigo && f.ementa.classList.contains('lido-pdf'))
@@ -186,7 +186,7 @@
         ['ato', 'Identificação do ato', [el('div', { class: 'grade-campos grade-3' },
           campo('pb-tipo', 'Tipo', f.tipo, null, true),
           campo('pb-numero', 'Número', f.numero),
-          campo('pb-data', 'Data de publicação', f.data, null, true)),
+          campo('pb-data', 'Data do ato', f.data, 'A que está no próprio ato (ex.: "…, de 14 de outubro de 2026").', true)),
           campo('pb-ementa', 'Ementa', f.ementa, 'Resumo oficial do ato ("Dispõe sobre…"). É por ela que o cidadão pesquisa.', true),
           el('div', { class: 'grade-campos' }, campo('pb-ano', 'Ano', f.ano, null, true),
             campo('pb-competencia', 'Competência (opcional)', f.competencia, 'Período a que o documento se refere, quando houver (mês, bimestre, exercício…).'))]],
@@ -218,7 +218,7 @@
 
     async function salvar(situacao, btn) {
       if (!erroCampo('pb-tipo', f.tipo.value ? '' : 'Escolha o tipo.')) return;
-      if (!erroCampo('pb-data', f.data.value ? '' : 'Informe a data.')) return;
+      if (!erroCampo('pb-data', f.data.value ? '' : 'Informe a data do ato.')) return;
       if (!erroCampo('pb-ementa', f.ementa.value.trim().length >= 5 ? '' : 'Informe a ementa.')) return;
       const ano = parseInt(f.ano.value, 10);
       if (!erroCampo('pb-ano', ano >= 1900 && ano <= 2100 ? '' : 'Ano inválido.')) return;
@@ -326,7 +326,7 @@
       });
       lista.replaceChildren(
         el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
-          el('thead', null, el('tr', null, ['Ato', 'Ementa', 'Data', 'Situação do ato', 'Publicação', 'Documento'].map((t) => el('th', { scope: 'col' }, t)),
+          el('thead', null, el('tr', null, ['Ato', 'Ementa', 'Data do ato', 'Situação do ato', 'Publicação', 'Documento'].map((t) => el('th', { scope: 'col' }, t)),
             el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
           el('tbody', null, itens.map((x) => {
             const mexe = !alcance() || x.unidade_id === alcance();
