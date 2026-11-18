@@ -10,6 +10,7 @@ O SOFT+ GOV é um site institucional + Portal da Transparência para órgãos p�
 
 | Camada | Tecnologia | Onde fica | Observação |
 | --- | --- | --- | --- |
+| 18/11/2026 | 0.46.6 | Códigos de referência (carregador, tokens, componentes, núcleo JS, RLS, gatilhos, exclusão, configurações, PWA) |
 | Site público | HTML + CSS + JavaScript puro, sem framework | `site/` (index.html, site.css, site.js, paginas.js e módulos por assunto) | Rotas por hash (`#/pagina`), carregadas sob demanda |
 | Painel de gestão | HTML + CSS + JavaScript puro, PWA instalável | `painel/` (app.js = núcleo, `modulo-*.js` = telas) | Botão "Instalar app" fixo no canto inferior esquerdo |
 | Banco, login e regras | Supabase (PostgreSQL + Auth + Storage + Edge Functions) | `supabase/NN_nome.sql`, rodados em ordem | RLS ligado em todas as tabelas; nada exposto sem `grant` |
@@ -354,6 +355,325 @@ Toda mudança passa por sugestão → prévia → aval → publicação; nada va
 - [ ] Autoavaliação PNTP, Kit de evidências e Radar da Transparência
 - [ ] Declarações de "não há dados" e destinos externos (a menos que o novo app também publique dados obrigatórios)
 - [ ] e-SIC/Ouvidoria e prazos da LAI
+
+## Códigos de referência (copiar e adaptar)
+
+Trechos reais do SOFT+ GOV (kennedyd1988/portal-pntp), prontos para servir de ponto de partida num app novo. Troque nomes de tabela/módulo; mantenha a lógica.
+
+### A. Carregador com controle de versão (index.html do painel e do site)
+
+```html
+<style>html:not(.estilo-ok) body{visibility:hidden}</style>
+<script>
+  setTimeout(function () { document.documentElement.classList.add('estilo-ok'); }, 6000); // nunca trava
+  (function () {
+    function lembrada() { try { return localStorage.getItem('app_versao') || '0'; } catch (e) { return '0'; } }
+    fetch('versao.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .catch(function () { return { versao: lembrada(), notas: [] }; })
+      .then(function (v) {
+        window.VERSAO_APP = v.versao; window.NOTAS_VERSAO = v.notas || [];
+        try { localStorage.setItem('app_versao', v.versao); } catch (e) {}
+        var q = '?v=' + encodeURIComponent(v.versao);
+        var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'estilos.css' + q;
+        css.onload = css.onerror = function () { document.documentElement.classList.add('estilo-ok'); };
+        document.head.appendChild(css);
+        ['config.js', 'app.js', 'modulo-exemplo.js'].reduce(function (ant, arq) {
+          return ant.then(function () { return new Promise(function (ok, erro) {
+            var s = document.createElement('script'); s.src = arq + q; s.onload = ok; s.onerror = erro; document.body.appendChild(s);
+          }); });
+        }, Promise.resolve()).then(function () { window.APP.iniciar(); });
+      });
+  })();
+</script>
+```
+
+`versao.json`:
+
+```json
+{ "versao": "1.0.0", "data": "2026-11-18", "notas": ["O que mudou, na linguagem do usuário (mais nova primeiro)."] }
+```
+
+### B. Tokens de cor do site (a cor do cliente gera o resto)
+
+```css
+:root {
+  --cor: #0d4fc4;                                            /* vem de Aparência (por cliente) */
+  --navy: color-mix(in srgb, var(--cor) 42%, #061629);
+  --navy-2: color-mix(in srgb, var(--cor) 58%, #061629);
+  --tom: color-mix(in srgb, var(--cor) 7%, #fff);
+  --acento: #0a9668; --acento-escuro: #06704d; --acento-claro: #e7f6ef; --acento-texto: #066a4a;
+  --texto: #1a2433; --texto-suave: #536173; --linha: #dde5ee; --fundo: #f5f8fb;
+}
+.limite { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+.barra-acess, .menu, .rodape { background: var(--navy); }
+```
+
+JS que aplica a cor do cliente (site):
+
+```js
+document.documentElement.style.setProperty('--cor', cfg.cor || '#0d4fc4');
+```
+
+### C. Botão principal (amarelo-ouro, contraste ~9:1) e título com traço verde
+
+```css
+.btn-principal { background: linear-gradient(180deg,#ffc94d 0%,#f4b223 100%); color: var(--navy) !important;
+  border: 1px solid #e2a114; border-radius: 10px; padding: 11px 16px; font-weight: 800;
+  box-shadow: 0 6px 16px rgba(226,161,20,.30), inset 0 1px 0 rgba(255,255,255,.45); }
+.btn-principal:hover { background: var(--navy); border-color: var(--navy); color: #fff !important; }
+.pagina > h1 { color: var(--navy); font-size: clamp(1.7rem,3.2vw,2.15rem); letter-spacing: -.035em; }
+.pagina > h1::before, .secao-titulo h2::before { content: ""; display: block; width: 40px; height: 4px;
+  margin: 0 0 14px; border-radius: 99px; background: var(--acento); }
+```
+
+### D. Abas (formato de aba; aberta em marinho com filete verde)
+
+```css
+.abas-guia { display: flex; gap: 4px; border-bottom: 2px solid var(--navy); padding: 6px 4px 0; }
+.aba-guia { position: relative; height: 42px; padding: 0 20px; border: 1px solid #d9e2eb; border-bottom: 0;
+  border-radius: 12px 12px 0 0; background: #edf2f7; color: var(--texto-suave); font-weight: 600; cursor: pointer; }
+.aba-guia:hover { background: #fff; color: var(--navy); }
+.aba-guia[aria-selected="true"] { height: 46px; background: var(--navy); border-color: var(--navy); color: #fff; }
+.aba-guia[aria-selected="true"]::after { content: ""; position: absolute; left: 14px; right: 14px; top: 5px;
+  height: 3px; border-radius: 99px; background: var(--acento); }
+.painel-guia { background: #fff; border: 1px solid #e3eaf1; border-top: 0; border-radius: 0 0 16px 16px; padding: 18px; }
+```
+
+Abas acessíveis (setas, Home, End):
+
+```js
+function faixaAbas(itens, atual, rotulo, aoTrocar) {
+  const lista = el('div', { class: 'abas-guia', role: 'tablist', 'aria-label': rotulo });
+  const botoes = itens.map(([id, texto]) => el('button', { type: 'button', role: 'tab', class: 'aba-guia',
+    'aria-selected': String(id === atual), tabindex: id === atual ? '0' : '-1', onclick: () => abrir(id) }, texto));
+  function abrir(id) { botoes.forEach((b, i) => { const s = itens[i][0] === id; b.setAttribute('aria-selected', String(s)); b.tabIndex = s ? 0 : -1; if (s) b.focus(); }); aoTrocar(id); }
+  lista.addEventListener('keydown', (e) => {
+    const i = botoes.indexOf(document.activeElement); if (i < 0) return;
+    const n = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: botoes.length - 1 }[e.key];
+    if (n === undefined) return; e.preventDefault(); abrir(itens[(n + botoes.length) % botoes.length][0]);
+  });
+  lista.append(...botoes); return { lista, abrir };
+}
+```
+
+### E. Cartões com cor por grupo, cartão de pessoa com aro, indicadores
+
+```css
+.cartao { background: #fff; border: 1px solid #e5ebf1; border-radius: 14px; transition: transform .18s, box-shadow .18s; }
+a.cartao:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(15,39,64,.10); }
+.cartao[data-grupo] { --g: #1d5fd1; }
+.cartao[data-grupo="contratacoes"] { --g: #6a4fc9; } .cartao[data-grupo="servicos"] { --g: #0a8a62; }
+.cartao[data-grupo="atos"] { --g: #b26d06; } .cartao[data-grupo="atendimento"] { --g: #c2416b; }
+.icone { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--g) 12%, #fff); color: var(--g); }
+a.cartao:hover .icone { background: var(--g); color: #fff; }
+.foto-pessoa { width: 104px; height: 104px; border-radius: 50%; object-fit: cover;
+  border: 3px solid #fff; box-shadow: 0 0 0 3px var(--cor), 0 8px 18px rgba(6,22,41,.14); }
+.cargo { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--acento-escuro); }
+.indicador { --k: #1d5fd1; background: #fff; border: 1px solid #e3eaf1; border-top: 4px solid var(--k); border-radius: 14px; padding: 14px 16px; }
+.indicador strong { color: var(--k); font-size: 1.7rem; }
+```
+
+### F. Faixa de destaque (marinho com círculo decorativo)
+
+```css
+.faixa-destaque { position: relative; overflow: hidden; color: #fff; border-radius: 18px; padding: 22px 28px;
+  background: linear-gradient(115deg, var(--navy) 0%, var(--navy-2) 100%); box-shadow: 0 12px 28px rgba(6,22,41,.12); }
+.faixa-destaque::after { content: ""; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px;
+  border-radius: 50%; border: 28px solid rgba(255,255,255,.05); pointer-events: none; }
+```
+
+### G. Filtros, tabela, paginação, foco e alto contraste
+
+```css
+.filtros { background: #fff; border: 1px solid #e3eaf1; border-radius: 14px; padding: 16px; display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.filtros input, .filtros select { min-height: 44px; border: 1px solid #d6e0ea; border-radius: 10px; padding: 0 12px; }
+.filtros input:focus, .filtros select:focus { border-color: var(--acento); outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 20%, transparent); }
+.tabela-caixa { border: 1px solid #e3eaf1; border-radius: 14px; overflow: auto; background: #fff; }
+.tabela th { background: var(--tom); color: var(--navy); text-align: left; }
+.tabela tbody tr:hover td { background: #f7fafc; }
+.pag-botao { min-width: 40px; height: 40px; border-radius: 99px; border: 1px solid #d6e0ea; background: #fff; color: var(--navy); font-weight: 700; }
+.pag-botao.pag-atual { background: var(--navy); color: #fff; border-color: var(--navy); }
+:focus-visible { outline: 3px solid #f2b33d; outline-offset: 2px; }
+html.contraste body { background: #000 !important; color: #fff !important; }
+html.contraste a, html.contraste :focus-visible { color: #ffe600 !important; outline-color: #ffe600 !important; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+```
+
+### H. Núcleo JS do painel/site (criar elementos sem HTML; entrada suave; menu ativo)
+
+```js
+function el(tag, attrs, ...filhos) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const f of filhos.flat(Infinity)) {
+    if (f === null || f === undefined || f === false) continue;
+    e.append(f instanceof Node ? f : document.createTextNode(String(f)));
+  }
+  return e;
+}
+
+// Blocos aparecem ao rolar; desligado com reduzir movimento e alto contraste; libera tudo em 4 s.
+function entradaSuave(main) {
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches
+      || document.documentElement.classList.contains('contraste')) return;
+  const alvos = [...main.querySelectorAll(':scope > section > .limite')];
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('visto'); io.unobserve(e.target); } }), { threshold: 0.05 });
+  alvos.forEach((a) => { a.classList.add('revelar'); io.observe(a); });
+  setTimeout(() => alvos.forEach((a) => a.classList.add('visto')), 4000);
+}
+// CSS: .revelar{opacity:0;transform:translateY(18px);transition:.6s} .revelar.visto{opacity:1;transform:none}
+
+// Marca no menu o item da página atual (rota por hash).
+function marcarMenuAtual(partes) {
+  const atual = '#/' + partes.join('/');
+  document.querySelectorAll('#menu-lista > li').forEach((li) => {
+    const ok = [...li.querySelectorAll('a')].some((a) => { const h = a.getAttribute('href') || ''; return h === atual || (h.length > 2 && atual.startsWith(h + '/')); });
+    li.classList.toggle('ativo', ok);
+  });
+}
+```
+
+### I. Banco: RLS padrão por tabela (leitura pública só do publicado)
+
+```sql
+alter table public.exemplo enable row level security;
+create policy "exemplo: leitura" on public.exemplo for select to anon, authenticated
+  using (situacao = 'publicado' or public.e_membro(orgao_id));
+create policy "exemplo: inclusão" on public.exemplo for insert to authenticated
+  with check (public.tem_permissao(orgao_id, 'exemplo', 'editar') and public.no_alcance(orgao_id, unidade_id));
+create policy "exemplo: edição" on public.exemplo for update to authenticated
+  using (public.tem_permissao(orgao_id, 'exemplo', 'editar') and public.no_alcance(orgao_id, unidade_id))
+  with check (public.tem_permissao(orgao_id, 'exemplo', 'editar') and public.no_alcance(orgao_id, unidade_id));
+create policy "exemplo: exclusão" on public.exemplo for delete to authenticated
+  using (public.tem_permissao(orgao_id, 'exemplo', 'excluir') and public.no_alcance(orgao_id, unidade_id));
+grant select on public.exemplo to anon;
+grant select, insert, update, delete on public.exemplo to authenticated;
+```
+
+### J. Banco: rascunho → publicado (sem security definer, de propósito)
+
+```sql
+create or replace function public.controlar_publicacao()
+returns trigger language plpgsql set search_path = public as $$
+declare v_modulo text := tg_argv[0];
+begin
+  if current_user not in ('anon', 'authenticated') then
+    if new.situacao = 'publicado' and new.publicado_em is null then new.publicado_em := now(); end if;
+    return new;
+  end if;
+  if (new.situacao = 'publicado' or (tg_op = 'UPDATE' and old.situacao = 'publicado'))
+     and not public.tem_permissao(new.orgao_id, v_modulo, 'publicar') then
+    raise exception 'Seu perfil não pode publicar nem alterar o que já está publicado. Salve como rascunho e peça a quem aprova.';
+  end if;
+  if new.situacao = 'publicado' and new.publicado_em is null then new.publicado_em := now(); end if;
+  return new;
+end; $$;
+create trigger exemplo_publicacao before insert or update on public.exemplo
+  for each row execute function public.controlar_publicacao('exemplo');
+```
+
+### K. Banco: histórico automático
+
+```sql
+create or replace function public.registrar_historico()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  antes  jsonb := case when tg_op in ('UPDATE','DELETE') then to_jsonb(old) end;
+  depois jsonb := case when tg_op in ('INSERT','UPDATE') then to_jsonb(new) end;
+  base   jsonb := coalesce(depois, antes);
+begin
+  insert into public.historico (orgao_id, usuario_id, tabela, registro_id, acao, dados_antes, dados_depois)
+  values ((base->>'orgao_id')::uuid, auth.uid(), tg_table_name, base->>'id',
+          case tg_op when 'INSERT' then 'inserir' when 'UPDATE' then 'editar' else 'excluir' end::public.acao_historico,
+          antes, depois);
+  return coalesce(new, old);
+end; $$;
+create trigger exemplo_historico after insert or update or delete on public.exemplo
+  for each row execute function public.registrar_historico();
+```
+
+### L. Banco: exclusão protegida + peças internas
+
+```sql
+-- Ligação a outro registro: nunca apaga junto.
+alter table public.exemplo_itens
+  add constraint exemplo_itens_mae_fk foreign key (exemplo_id) references public.exemplo(id) on delete no action;
+
+-- Excluir junto só as peças internas (lista fechada), devolvendo os arquivos para o app apagar.
+create or replace function public.excluir_com_pecas(p_tabela text, p_id uuid)
+returns text[] language plpgsql security invoker set search_path = public as $$
+declare pecas text[][]; p text[]; arquivos text[] := '{}'; a text[];
+begin
+  pecas := case p_tabela
+    when 'exemplo' then array[array['exemplo_documentos', 'exemplo_id']]
+    else null end;
+  if pecas is null then raise exception 'Tabela não permitida: %', p_tabela; end if;
+  foreach p slice 1 in array pecas loop
+    execute format('select coalesce(array_agg(arquivo_url) filter (where arquivo_url is not null), ''{}'') from public.%I where %I = $1', p[1], p[2])
+      into a using p_id;
+    arquivos := arquivos || a;
+    execute format('delete from public.%I where %I = $1', p[1], p[2]) using p_id;
+  end loop;
+  execute format('delete from public.%I where id = $1', p_tabela) using p_id;
+  return arquivos;
+end; $$;
+```
+
+### M. Banco: configurações mescladas por cliente
+
+```sql
+create or replace function public.mesclar_configuracoes(p_orgao uuid, p_valores jsonb)
+returns jsonb language plpgsql security invoker set search_path = public as $$
+declare v jsonb;
+begin
+  if p_valores is null or jsonb_typeof(p_valores) <> 'object' then raise exception 'Configurações inválidas.'; end if;
+  update public.orgaos set configuracoes = coalesce(configuracoes, '{}'::jsonb) || p_valores
+   where id = p_orgao returning configuracoes into v;
+  if v is null then raise exception 'Seu perfil não pode alterar as configurações deste órgão.'; end if;
+  return v;
+end; $$;
+```
+
+### N. Banco: consulta pesada = função por item + índice
+
+```sql
+create index if not exists exemplo_itens_pessoa_idx on public.exemplo_itens (pessoa_id);
+create or replace function public.resumo_da_pessoa(p_pessoa uuid)
+returns table (total bigint) language sql stable security definer set search_path = public as $$
+  select count(*) from public.exemplo_itens i join public.exemplo e on e.id = i.exemplo_id
+   where i.pessoa_id = p_pessoa and e.situacao = 'publicado';   -- só o publicado
+$$;
+revoke all on function public.resumo_da_pessoa(uuid) from public;
+grant execute on function public.resumo_da_pessoa(uuid) to anon, authenticated;
+```
+
+No app: chamar a função nova e, se ela ainda não existir no banco, cair na consulta antiga (o script pode ainda não ter sido rodado).
+
+### O. PWA: manifesto com ícones de nome versionado
+
+```json
+{
+  "name": "SOFT+ GOV · Portal PNTP", "short_name": "SOFT+ GOV",
+  "start_url": "./", "scope": "./", "display": "standalone",
+  "background_color": "#eef4fb", "theme_color": "#0d4fc4", "lang": "pt-BR",
+  "icons": [
+    { "src": "../softgov-icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "../softgov-icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "../softgov-icone-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
+```
+
+Trocou a logo → arquivos com nome novo (`-v2`) e o manifesto apontando para eles.
 
 ## Histórico de atualizações
 
