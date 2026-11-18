@@ -1,6 +1,6 @@
 # SOFT+ GOV — Manual de padrões reutilizáveis
 
-Versão do sistema: 0.46.5 · Atualizado em 17/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
+Versão do sistema: 0.46.6 · Atualizado em 17/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
 
 > Cópia do manual mantida no repositório. A cada publicação no ar, o manual (documento e esta cópia) é atualizado junto com as notas da versão. Veja o "Histórico de atualizações" no fim.
 
@@ -312,10 +312,11 @@ Toda mudança passa por sugestão → prévia → aval → publicação; nada va
 2. **Prévia sem publicar:** aplicar o visual por cima do site real só no navegador de quem revisa, ou publicar num ramo de teste do Git (ex.: `redesenho-046`), servido em `https://<ramo>.portal-pntp.pages.dev`.
 3. **Aval e publicação:** enviar o ramo para `main`; a Cloudflare publica em cerca de 1 minuto.
 4. **Versão:** subir o número em `painel/versao.json` e escrever as notas em linguagem do usuário, a mais nova primeiro.
-5. **Manual:** atualizar este manual (documento e `docs/PADROES.md`) e o histórico abaixo quando a entrega mudar algum padrão.
-6. **Banco:** mudança de banco vira um script novo numerado (`supabase/NN_assunto.sql`), que pode rodar mais de uma vez, com cabeçalho explicando. A tela continua funcionando se o script ainda não foi rodado.
-7. **Conferência:** computador (1366 px) e celular (375 px), em pelo menos dois tipos de cliente, e alto contraste.
-8. **Varredura de conformidade** a cada entrega (no PNTP: Cartilha e Matriz do ano).
+5. **Logo e ícones:** quando a logo mudar, os arquivos de ícone ganham **nome novo** (ex.: `softgov-icone-192.png` → `softgov-icone-v2-192.png`) e o `manifest.json`, o `favicon` e o `apple-touch-icon` passam a apontar para eles; os antigos ficam no servidor. Com o mesmo nome, o Chrome/Edge não percebe a troca e o app instalado (Windows, celular) continua com o ícone velho.
+6. **Manual:** atualizar este manual (documento e `docs/PADROES.md`) e o histórico abaixo quando a entrega mudar algum padrão.
+7. **Banco:** mudança de banco vira um script novo numerado (`supabase/NN_assunto.sql`), que pode rodar mais de uma vez, com cabeçalho explicando. A tela continua funcionando se o script ainda não foi rodado.
+8. **Conferência:** computador (1366 px) e celular (375 px), em pelo menos dois tipos de cliente, e alto contraste.
+9. **Varredura de conformidade** a cada entrega (no PNTP: Cartilha e Matriz do ano).
 
 **Implantação de um projeto novo na Supabase**
 
@@ -358,4 +359,5 @@ Toda mudança passa por sugestão → prévia → aval → publicação; nada va
 
 | Data | Versão | O que mudou nos padrões |
 | --- | --- | --- |
+| 17/11/2026 | 0.46.6 | Regra de logo e ícones: nome novo nos arquivos a cada troca de logo, para o app instalado atualizar o ícone (seção 10) |
 | 17/11/2026 | 0.46.5 | Primeira edição: arquitetura, visual do site e do painel, componentes, acessibilidade, usuários e perfis, criação de órgãos, regras de dados, configurações por órgão, fluxo de trabalho e checklist para novos apps |
