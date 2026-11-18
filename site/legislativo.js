@@ -89,6 +89,13 @@
       el('p', { class: 'mt-2' }, S.linkDestino('atividade_parlamentar', 'Atividade de cada vereador (autoria, relatoria, presenças, diárias e emendas) →')),
       outros.length ? el('section', { class: 'mt-3' }, el('h2', null, 'Fora de exercício e legislaturas anteriores'), el('div', { class: 'grade-vereadores' }, outros.map(cartaoVereador))) : null);
   };
+  // Atividade de um vereador (todos os anos). A função do script 52 conta só ele (rápida); se ainda não
+  // existir no banco, usa a geral (script 45), que pode demorar e estourar o tempo em Câmaras com muitos dados.
+  async function atividadeDoVereador(id) {
+    const r = await sb.rpc('atividade_vereador', { p_parlamentar: id });
+    if (!r.error) return { data: (r.data || []).map((x) => Object.assign({ parlamentar_id: id }, x)) };
+    return sb.rpc('atividade_parlamentar', { p_orgao: org(), p_ano: null });
+  }
   R.parlamentar = async function (main, partes) {
     if (!so(main)) return;
     const id = partes[0];
@@ -97,7 +104,7 @@
     const ano = new Date().getFullYear();
     const [{ data: com }, { data: ativ }, { data: props }, { data: votos }, { data: verba }, { data: diar }, { data: emen }] = await Promise.all([
       sb.from('comissoes_membros').select('funcao, comissoes(nome, ativa)').eq('parlamentar_id', id),
-      sb.rpc('atividade_parlamentar', { p_orgao: org(), p_ano: null }),   // script 45: todos os anos
+      atividadeDoVereador(id),   // script 52 (só este vereador); sem ele, a função geral do script 45
       sb.from('proposicoes_autores').select('papel, proposicoes(id, tipo, numero, ano, ementa, andamento, data_apresentacao)').eq('parlamentar_id', id).limit(300),
       sb.from('votacoes_votos').select('voto, votacoes(descricao, resultado, sessoes(id, tipo, numero, data))').eq('parlamentar_id', id).limit(300),
       sb.rpc('verba_publica', { p_orgao: org(), p_ano: ano }),
@@ -127,25 +134,39 @@
           p.telefone ? el('a', { href: 'tel:' + String(p.telefone).replace(/\D/g, '') }, el('span', { 'aria-hidden': 'true' }, '☎ '), 'Telefone: ' + p.telefone) : null) : null)),
       p.biografia ? el('section', { class: 'cartao mt-2' }, el('h2', null, 'Biografia'), el('p', { class: 'pre' }, p.biografia)) : null,
       (com || []).length ? el('section', { class: 'mt-2' }, el('h2', null, 'Comissões'), el('ul', { class: 'lista-comissoes' }, com.filter((c) => c.comissoes).map((c) => el('li', null, c.comissoes.nome + ' — ' + (FUNCOES[c.funcao] || c.funcao) + (c.comissoes.ativa ? '' : ' (encerrada)'))))) : null,
+      !a ? el('section', { class: 'mt-2' }, el('h2', null, 'Atividade do vereador'),
+        el('p', { class: 'meta' }, 'Não foi possível carregar os números agora. ', S.linkDestino('atividade_parlamentar', 'Ver a atividade de todos os vereadores →'))) : null,
       a ? el('section', { class: 'mt-2' }, el('h2', null, 'Atividade do vereador'), el('p', { class: 'meta' }, 'Todos os anos.'), el('ul', { class: 'numeros-atividade' },
         el('li', null, el('strong', null, String(a.autorias)), ' proposições de autoria'), el('li', null, el('strong', null, String(a.relatorias)), ' relatorias'),
         el('li', null, el('strong', null, a.presencas + ' de ' + a.sessoes), ' presenças em sessões'), el('li', null, el('strong', null, String(a.votos)), ' votos registrados'),
         a.diarias !== undefined ? el('li', null, el('strong', null, String(a.diarias)), ' diárias recebidas' + (Number(a.diarias) ? ' (' + U.moedaBR(Number(a.diarias_valor)) + ')' : '')) : null,
         a.emendas !== undefined ? el('li', null, el('strong', null, String(a.emendas)), ' emendas municipais' + (Number(a.emendas) ? ' (' + U.moedaBR(Number(a.emendas_valor)) + ' previstos)' : '')) : null)) : null,
-      meusVotos.length ? el('section', { class: 'mt-2' }, el('h2', null, 'Votos recentes'), el('ul', { class: 'partes-contas cartao' }, meusVotos.map((x) => el('li', null,
-        el('a', { href: '#/sessao/' + x.votacoes.sessoes.id }, x.votacoes.descricao), el('span', { class: 'meta' }, dataBR(x.votacoes.sessoes.data) + ' · votou: ' + (VOTOS[x.voto] || x.voto) + ' · ' + (x.votacoes.resultado === 'aprovada' ? 'aprovada' : x.votacoes.resultado === 'rejeitada' ? 'rejeitada' : x.votacoes.resultado)))))) : null,
-      minhaVerba.length ? el('section', { class: 'mt-2' }, el('h2', null, 'Verba indenizatória em ' + ano), el('p', null, minhaVerba.length + ' pagamentos, total ' + U.moedaBR(minhaVerba.reduce((t, x) => t + Number(x.valor), 0)) + '. '),
-        S.linkDestino('verba_indenizatoria', 'Ver todos os pagamentos →')) : null,
-      minhasEmendas.length ? el('section', { class: 'mt-2' }, el('h2', null, 'Emendas ao orçamento municipal'),
-        el('p', { class: 'meta' }, minhasEmendas.length + ' emenda(s) de autoria do vereador, publicadas pela Prefeitura · ' + U.moedaBR(soma(minhasEmendas, 'valor_previsto')) + ' previstos, ' + U.moedaBR(soma(minhasEmendas, 'valor_pago')) + ' pagos.'),
-        el('ul', { class: 'partes-contas cartao' }, minhasEmendas.slice(0, 30).map((x) => el('li', null,
-          el('strong', null, 'Emenda nº ' + x.numero + ' (' + x.exercicio + ')'),
-          el('span', { class: 'meta' }, x.objeto + (x.beneficiario ? ' · Beneficiário: ' + x.beneficiario : '') + ' · ' + U.moedaBR(Number(x.valor_previsto)) + ' previstos · ' + (AND_EMENDA[x.andamento] || x.andamento)))))) : null,
-      minhasDiarias.length ? el('section', { class: 'mt-2' }, el('h2', null, 'Diárias recebidas'),
-        el('p', { class: 'meta' }, minhasDiarias.length + ' concessão(ões) · ' + U.moedaBR(soma(minhasDiarias, 'valor_total')) + ' no total. ', S.linkDestino('diarias', 'Ver todas as diárias da Câmara →')),
-        el('ul', { class: 'partes-contas cartao' }, minhasDiarias.slice(0, 30).map((x) => el('li', null,
-          el('strong', null, x.destino + ' · ' + dataBR(x.data_inicio) + (x.data_fim !== x.data_inicio ? ' a ' + dataBR(x.data_fim) : '')),
-          el('span', { class: 'meta' }, x.motivo + ' · ' + String(x.quantidade).replace('.', ',') + ' diária(s) · ' + U.moedaBR(Number(x.valor_total))))))) : null,
+      // Atuação (0.46.4): votos, diárias, emendas e verba indenizatória numa só caixa, em abas (só as que têm registro).
+      (() => {
+        const resultado = (r) => r === 'aprovada' ? 'aprovada' : r === 'rejeitada' ? 'rejeitada' : r;
+        const abas = [];
+        if (meusVotos.length) abas.push(['votos', 'Votos recentes (' + meusVotos.length + ')', () => el('ul', { class: 'partes-contas cartao' }, meusVotos.map((x) => el('li', null,
+          el('a', { href: '#/sessao/' + x.votacoes.sessoes.id }, x.votacoes.descricao),
+          el('span', { class: 'meta' }, dataBR(x.votacoes.sessoes.data) + ' · votou: ' + (VOTOS[x.voto] || x.voto) + ' · ' + resultado(x.votacoes.resultado)))))]);
+        if (minhasDiarias.length) abas.push(['diarias', 'Diárias (' + minhasDiarias.length + ')', () => el('div', null,
+          el('p', { class: 'meta' }, minhasDiarias.length + ' concessão(ões) · ' + U.moedaBR(soma(minhasDiarias, 'valor_total')) + ' no total. ', S.linkDestino('diarias', 'Ver todas as diárias da Câmara →')),
+          el('ul', { class: 'partes-contas cartao' }, minhasDiarias.slice(0, 30).map((x) => el('li', null,
+            el('strong', null, x.destino + ' · ' + dataBR(x.data_inicio) + (x.data_fim !== x.data_inicio ? ' a ' + dataBR(x.data_fim) : '')),
+            el('span', { class: 'meta' }, x.motivo + ' · ' + String(x.quantidade).replace('.', ',') + ' diária(s) · ' + U.moedaBR(Number(x.valor_total)))))))]);
+        if (minhasEmendas.length) abas.push(['emendas', 'Emendas ao orçamento (' + minhasEmendas.length + ')', () => el('div', null,
+          el('p', { class: 'meta' }, minhasEmendas.length + ' emenda(s) de autoria do vereador, publicadas pela Prefeitura · ' + U.moedaBR(soma(minhasEmendas, 'valor_previsto')) + ' previstos, ' + U.moedaBR(soma(minhasEmendas, 'valor_pago')) + ' pagos.'),
+          el('ul', { class: 'partes-contas cartao' }, minhasEmendas.slice(0, 30).map((x) => el('li', null,
+            el('strong', null, 'Emenda nº ' + x.numero + ' (' + x.exercicio + ')'),
+            el('span', { class: 'meta' }, x.objeto + (x.beneficiario ? ' · Beneficiário: ' + x.beneficiario : '') + ' · ' + U.moedaBR(Number(x.valor_previsto)) + ' previstos · ' + (AND_EMENDA[x.andamento] || x.andamento))))))]);
+        if (minhaVerba.length) abas.push(['verba', 'Verba indenizatória ' + ano + ' (' + minhaVerba.length + ')', () => el('p', null,
+          minhaVerba.length + ' pagamentos, total ' + U.moedaBR(minhaVerba.reduce((t, x) => t + Number(x.valor), 0)) + '. ', S.linkDestino('verba_indenizatoria', 'Ver todos os pagamentos →'))]);
+        if (!abas.length) return null;
+        const painel = el('div', { class: 'painel-guia', role: 'tabpanel' });
+        const mostrar = (k) => { const a = abas.find((x) => x[0] === k) || abas[0]; painel.replaceChildren(a[2]()); };
+        const faixa = U.faixaAbas(abas.map((x) => [x[0], x[1]]), abas[0][0], 'Atuação do vereador', false, mostrar);
+        mostrar(abas[0][0]);
+        return el('section', { class: 'mt-2 secao-atuacao' }, el('h2', null, 'Votos, diárias e emendas'), faixa.lista, painel);
+      })(),
       secaoProposicoes(lista));
   };
   // Proposições do vereador em abas por tipo (projetos de lei, indicações, requerimentos…) e relatorias.
@@ -159,7 +180,7 @@
     const tipos = Object.keys(PLURAL_PROP).filter((t) => autoria.some((x) => x.proposicoes.tipo === t));
     const abas = [['todas', 'Todas (' + autoria.length + ')']].concat(tipos.map((t) => [t, PLURAL_PROP[t] + ' (' + autoria.filter((x) => x.proposicoes.tipo === t).length + ')']),
       relatorias.length ? [['relatorias', 'Relatorias (' + relatorias.length + ')']] : []);
-    const painel = el('div', { class: 'painel-guia painel-guia-interno', role: 'tabpanel' });
+    const painel = el('div', { class: 'painel-guia', role: 'tabpanel' });
     const mostrar = (id) => {
       const itens = id === 'relatorias' ? relatorias : id === 'todas' ? autoria : autoria.filter((x) => x.proposicoes.tipo === id);
       painel.replaceChildren(itens.length ? el('ul', { class: 'partes-contas cartao' }, itens.map((x) => el('li', null,
@@ -168,7 +189,7 @@
         : el('p', { class: 'vazio' }, 'Nenhuma proposição de autoria do vereador.'));
     };
     const inicial = autoria.length ? 'todas' : 'relatorias';
-    const faixa = U.faixaAbas(abas, inicial, 'Tipo de proposição', true, mostrar);
+    const faixa = U.faixaAbas(abas, inicial, 'Tipo de proposição', false, mostrar);
     mostrar(inicial);
     sec.append(faixa.lista, painel, el('p', { class: 'mt-1' }, S.linkDestino('proposicoes', 'Todas as proposições da Câmara →')));
     return sec;
