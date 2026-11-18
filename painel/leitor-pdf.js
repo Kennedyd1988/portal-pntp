@@ -121,13 +121,13 @@
   const escapar = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
   const semAcento = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   // Nº escrito de vários jeitos (e como o OCR costuma ler): Nº, N°, N.º, No, Nr., NÚMERO.
-  const NUM = '\\s*(?:MUNICIPAL\\s*)?(?:N(?:[ºo°.\\s]|[UÚ]MERO|R\\.?)*\\s*[:\\-]?\\s*)?(\\d[\\d.]*)(?:\\s*[\\/\\-]\\s*(\\d{4}|\\d{2})(?!\\d))?';
+  const NUM = '\\s*(?:MUNICIPAL\\s*)?(?:N(?:[ºo°.\\s]|[UÚ]MERO|R\\.?)*\\s*[:\\-]?\\s*)?(\\d(?:[\\d.]|\\s(?=\\d))*)(?:\\s*[\\/\\-]\\s*(\\d{4}|\\d{2})(?!\\d))?';
   const RE_DATA_EXT = /(\d{1,2})\s*[º°o]?\s+de\s+(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/i;
-  const RE_DATA_NUM = /(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})/;
+  const RE_DATA_NUM = /(\d{1,2})\s*[\/.]\s*(\d{1,2})\s*[\/.]\s*(\d{4})/;
   // Onde a ementa termina: começo do preâmbulo ou do texto do ato.
   // Sem diferenciar maiúsculas: fórmulas de abertura. Só em CAIXA ALTA: autoridade ("O PREFEITO", "O SECRETÁRIO"),
   // para não cortar ementas como "Designa o Secretário de Obras…".
-  const RE_PREAMBULO = /\bFA[ÇC]O\s+SABER|\bno\s+uso\s+d[ea]s?\s+(?:suas\s+)?atribui|\bRESOLVE\s*[:.]|\bDECRETA\s*[:.]|\bArt(?:igo)?\.?\s*1\s*[º°o]?\b|\b(?:O|A)\s+Prefeit[oa]\s+(?:Municipal|Constitucional|d[eoa])\b/i;
+  const RE_PREAMBULO = /\bFA[ÇC]O\s+SABER|\bno\s+uso\s+d[ea]s?\s+(?:suas\s+)?atribui|\bRESOLVE\s*[:.]|\bDECRETA\s*[:.]|\bArt(?:igo)?\.?\s*1\s*[º°o]?\b|\b(?:O|A)\s+Prefeit[oa]\s+(?:Municipal|Constitucional|d[eoa])\b|(?<=[.;:]\s|^)(?:O|A)\s+(?:Excelent[íi]ssim[oa]\s+)?(?:Senhor[a]?\s+)?(?:Prefeit|Vice|President|Secret[áa]ri|Diretor|Gestor|Superintendent|C[âa]mara|Mesa|Conselho)/i;
   const RE_PREAMBULO_CAIXA = /\b(?:O|A)\s+(?:EXCELENT[ÍI]SSIM[OA]\s+)?(?:SENHOR[A]?\s+)?(?:PREFEIT|VICE|PRESIDENT|SECRET[ÁA]RI|DIRETOR|GESTOR|SUPERINTENDENT|C[ÂA]MARA|MESA|CONSELHO)/;
   function inicioPreambulo(t) {
     const a = RE_PREAMBULO.exec(t), b = RE_PREAMBULO_CAIXA.exec(t);
@@ -171,7 +171,7 @@
       const re = new RegExp('\\b(' + pad + ')' + NUM, 'gi');
       let m;
       while ((m = re.exec(t)) && achados.length < 60) {
-        achados.push({ cod, i: m.index, fim: m.index + m[0].length, caixaAlta: m[1] === m[1].toUpperCase(), numero: m[2].replace(/\.$/, ''), ano: m[3] });
+        achados.push({ cod, i: m.index, fim: m.index + m[0].length, caixaAlta: m[1] === m[1].toUpperCase(), numero: m[2].replace(/\s+/g, '').replace(/\.$/, ''), ano: m[3] });
       }
     }
     // Cabeçalho do ato vem em CAIXA ALTA; citações de outras leis no texto, não. Na mesma posição, o tipo mais longo vence.
