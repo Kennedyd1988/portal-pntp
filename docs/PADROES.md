@@ -1,0 +1,361 @@
+# SOFT+ GOV — Manual de padrões reutilizáveis
+
+Versão do sistema: 0.46.5 · Atualizado em 17/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
+
+> Cópia do manual mantida no repositório. A cada publicação no ar, o manual (documento e esta cópia) é atualizado junto com as notas da versão. Veja o "Histórico de atualizações" no fim.
+
+## 1. Visão geral e arquitetura
+
+O SOFT+ GOV é um site institucional + Portal da Transparência para órgãos públicos, com painel de gestão, todos servidos como páginas estáticas e um único banco Supabase para todos os clientes. Este manual reúne os padrões que podem ser reaproveitados em qualquer app novo da SOFT+, inclusive de finalidade totalmente diferente.
+
+| Camada | Tecnologia | Onde fica | Observação |
+| --- | --- | --- | --- |
+| Site público | HTML + CSS + JavaScript puro, sem framework | `site/` (index.html, site.css, site.js, paginas.js e módulos por assunto) | Rotas por hash (`#/pagina`), carregadas sob demanda |
+| Painel de gestão | HTML + CSS + JavaScript puro, PWA instalável | `painel/` (app.js = núcleo, `modulo-*.js` = telas) | Botão "Instalar app" fixo no canto inferior esquerdo |
+| Banco, login e regras | Supabase (PostgreSQL + Auth + Storage + Edge Functions) | `supabase/NN_nome.sql`, rodados em ordem | RLS ligado em todas as tabelas; nada exposto sem `grant` |
+| Arquivos | Storage da Supabase (bucket `arquivos`), limite de 200 MB | Envio por um ponto único no código | Troca de provedor só por configuração |
+| Hospedagem | Cloudflare Pages (vários domínios) | `portal-pntp.pages.dev`; GitHub Pages redireciona | Cada ramo do Git gera um endereço de teste |
+| E-mail | SMTP próprio (Brevo) | Authentication › SMTP e segredos das funções | Convites, "Esqueci minha senha", e-SIC/Ouvidoria |
+
+**Princípios que valem para qualquer app novo:**
+
+- **Um banco para todos os clientes:** cada órgão é uma linha em `orgaos`; subsites usam `orgao_pai_id`. Nunca um banco por cliente.
+- **Qual órgão abrir:** pelo domínio cadastrado no órgão ou, enquanto o domínio não aponta, por `?orgao=CNPJ` (só números).
+- **Regras no banco, não só na tela:** permissões, travas de exclusão, rascunho → publicado e histórico ficam em gatilhos e políticas do PostgreSQL. O painel apenas reflete.
+- **Controle de versões:** um único `painel/versao.json` (`versao`, `data`, `notas`) serve site e painel. O número entra como `?v=` em todos os CSS/JS, forçando o navegador a baixar a versão nova. As notas aparecem para o usuário.
+- **Carregamento sem tela crua:** até o CSS da versão chegar, a página mostra só "Carregando…"; se algo travar, libera em 6 segundos.
+- **Texto sem HTML:** conteúdo digitado usa marcação simples (`## título`, `**negrito**`, `*itálico*`, listas, `[link](https://…)`) e é desenhado elemento a elemento, nunca com HTML colado (segurança).
+- **Configurações mescladas:** cada tela grava só as chaves que mudou em `orgaos.configuracoes` (função `mesclar_configuracoes`), sem apagar o que outra tela gravou.
+
+## 2. Identidade visual do site
+
+Visual sério e institucional: azul-marinho calculado da cor de cada órgão, verde só nos detalhes e amarelo-ouro reservado ao botão principal de ação (Portal da Transparência). A cor do órgão vem do painel (Aparência) e todo o resto é derivado dela.
+
+**Tokens de cor (CSS)**
+
+| Token | Valor | Uso |
+| --- | --- | --- |
+| `--cor` | cor do órgão (padrão `#0d4fc4`) | Links, anéis das fotos, detalhes; vem de Aparência |
+| `--cor-escura` / `--cor-clara` | 22% mais escura / 90% mais clara | Hover de links / fundos suaves (calculadas pelo site) |
+| `--navy` | `color-mix(in srgb, var(--cor) 42%, #061629)` | Barra de acessibilidade, menu, rodapé, títulos, botões |
+| `--navy-2` | `color-mix(in srgb, var(--cor) 58%, #061629)` | Hover de botões e final dos degradês |
+| `--tom` | `color-mix(in srgb, var(--cor) 7%, #fff)` | Fundo de etiquetas, faixa atrás do banner, cabeçalho de tabela |
+| `--acento` | `#0a9668` | Traço dos títulos, sublinhado do menu, filete da aba aberta |
+| `--acento-escuro` | `#06704d` | Verde com texto branco (contraste ~6:1) e cargos |
+| `--acento-claro` / `--acento-texto` | `#e7f6ef` / `#066a4a` | Etiquetas verdes (categoria, chips) |
+| Botão principal | degradê `#ffc94d` → `#f4b223`, borda `#e2a114`, texto `--navy` | Portal da Transparência, botão de busca (contraste ~9:1) |
+| `--texto` / `--texto-suave` | `#1a2433` / `#536173` | Texto corrido / texto secundário |
+| `--linha` / `--fundo` | `#dde5ee` / `#f5f8fb` | Bordas / fundos cinza-azulados |
+
+**Cores por grupo (ícones, abas e indicadores):** azul `#1d5fd1` (Transparência), roxo `#6a4fc9` (contratações), verde `#0a8a62` (serviços, decretos), âmbar `#b26d06` (atos oficiais, portarias), rosa `#c2416b` (atendimento), cinza-azulado `#4f6378` (outros). O ícone usa fundo com 10–12% da cor e, ao passar o mouse, fica cheio com o ícone branco.
+
+**Cores de situação (iguais no site e no painel):** `--info-*` (azul), `--ok-*` (verde), `--falta-*` (amarelo) e `--erro-*` (vermelho), com as mensagens `.msg-info`, `.msg-ok`, `.msg-falta` e `.msg-erro`.
+
+**Tipografia e medidas**
+
+- Fonte: **Public Sans** (400 a 800), com reserva para system-ui. Títulos em 800, espaçamento entre letras de -0,025em a -0,04em.
+- Tamanhos: H1 de página `clamp(1.7rem, 3.2vw, 2.15rem)`; título de seção 1,65rem (1,35rem no celular); texto 1rem com altura de linha 1,55.
+- Rótulos pequenos (cargo, "Mais recente", tipo de ato): 0,72rem, peso 700, maiúsculas, espaçamento 0,06–0,1em.
+- Largura máxima do conteúdo (`.limite`): 1280 px, com 24 px de margem lateral (18 px no celular).
+- Raios: 10 px (botões, campos), 14 px (cartões, tabelas), 18 px (cartões de destaque), 20–22 px (painéis e faixas de destaque), 99 px (pílulas e etiquetas).
+- Sombras: leve `0 6px 18px rgba(12,38,64,.05)`; destaque `0 16px 36px rgba(6,22,41,.16)`; ao passar o mouse o cartão sobe 2–3 px.
+- Espaçamento entre seções: 60 px (34 px no celular). Espaços por classes utilitárias (`.mt-05` a `.mt-4`, `.mb-1` a `.mb-3`), nunca `style` solto.
+
+## 3. Componentes do site
+
+Cada componente existe pronto em `site/site.css` (blocos "REDESENHO 0.46" no fim do arquivo) e pode ser copiado para outro app com as mesmas classes.
+
+| Componente | Classes principais | Padrão |
+| --- | --- | --- |
+| Barra de acessibilidade | `.barra-acess`, `.atalhos`, `.acess-ferramentas` | Fundo `--navy`; atalhos e-MAG [1] a [4], Acessibilidade, Alto contraste, A+ A A−, Mapa do site, Entrar no painel |
+| Cabeçalho | `.cabecalho`, `.marca`, `.busca-topo`, `.btn-transparencia` | Brasão de 68 px, esfera em maiúsculas pequenas, nome em `--navy` 800; busca com botão marinho; botão amarelo-ouro |
+| Faixa de redes e selos | `.faixa-topo`, `.redes-topo`, `.selos` | Exclusiva, abaixo do cabeçalho; fundo `--tom`; rótulos "Siga-nos" e "Selos e certificações"; selos 42 px que quebram linha (sem rolagem) |
+| Menu | `.menu`, `.menu-lista`, `li.ativo` | Fixo no topo ao rolar; fundo `--navy`; item da página atual com sublinhado verde de 3 px; submenu com cantos de 12 px |
+| Trilha | `.trilha` | "Início › Seção › Página", 0,86rem |
+| Título de página | `.pagina > h1`, `.sub` | Traço verde 40×4 px acima do título; subtítulo 1,05rem em `--texto-suave` |
+| Título de seção | `.secao-titulo` | Título com traço verde 34×4 px; "Ver todos →" como botão pílula contornado |
+| Banner + atalhos | `.hero-faixa`, `.secao-acessos.sobre-banner` | Banner sobre faixa `--tom`; painel branco dos atalhos sobe 64 px sem cobrir a arte |
+| Cartão de atalho | `.acessos a.cartao[data-grupo]` | Ícone redondo 50 px na cor do grupo; seta → aparece ao passar o mouse; no celular ícone acima do texto |
+| Faixa de destaque | `.faixa-radar`, `.transp-topo`, `.perfil-vereador` | Degradê `--navy` → `--navy-2`, círculos decorativos com 4–5% de branco, botão branco que fica verde ou amarelo no hover |
+| Abas | `.abas-guia`, `.aba-guia`, `.painel-guia` | Formato de aba (cantos 12 px em cima); fechadas `#edf2f7`; aberta em `--navy` com texto branco e filete verde; linha marinho de 2 px embaixo; painel branco |
+| Abas internas | `.abas-guia-interna`, `.aba-guia-p` | Mais leves (aberta em `--tom`), só quando há abas dentro de abas; se forem as únicas da página, usam o formato principal |
+| Filtros | `form.filtros` | Cartão branco (ou `--tom` dentro de painel); campos de 44 px, raio 10, foco com borda verde e anel de 3 px |
+| Lista e exportação | `.barra-lista`, `.exportar` | Total à esquerda; CSV, JSON, XML, XLSX, PDF e Imprimir como pílulas contornadas |
+| Tabela | `.tabela-caixa`, `table.tabela` | Caixa raio 14; cabeçalho em `--tom` com texto marinho; linha destacada ao passar o mouse; vira cartões no celular (`data-rotulo`) |
+| Paginação | `.paginacao`, `.pag-botao` | Botões redondos de 40 px; página atual em `--navy` |
+| Etiqueta | `.etiqueta`, `-verde`, `-ambar`, `-vermelha` | Pílula 0,75rem 700 em fundo `--tom` |
+| Cartão de pessoa | `.cartao.gestor`, `.cartao-vereador`, `.est-foto` | Foto redonda com borda branca + anel de 3 px na `--cor`; cargo verde em maiúsculas; unidade em etiqueta com ícone de prédio; sem foto = iniciais |
+| Contatos | `.gestor-contatos`, `.perfil-contatos` | Botões redondos só em carrosséis; em páginas de consulta, e-mail e telefone por extenso (PNTP 2.3) |
+| Notícia de destaque | `.noticia-h-grande` | Foto à esquerda; categoria em etiqueta verde + data; título 1,6rem; resumo em 5 linhas |
+| Publicações | `.secao-publicacoes .pub-cartao[data-tipo]` | Mais recente em faixa marinho; demais em lista de 2 colunas com data colorida por tipo e botão ↗ |
+| Indicadores | `.numeros-atividade`, `.resumo-pntp` | Cartão branco com faixa colorida de 4 px no topo e número grande na cor do grupo |
+| Organograma | `.est-arvore` | Órgão em caixa marinho; unidades em caixas brancas ligadas por linhas; 1º nível com borda verde |
+| Declaração "não há" e link externo | `.declaracao-atual`, `.caixa-externa` | Faixa lateral de 5 px (âmbar ou azul), cantos 14 |
+| Aviso do topo | `.aviso-informativo`, `-importante`, `-urgente` | Faixa inteira com ícone, texto e ação; pode fechar |
+
+**Comportamentos padrão**
+
+- Entrada suave dos blocos ao rolar (`.revelar` → `.visto`), desligada com "reduzir movimento", alto contraste, impressão e no Kit de evidências; libera tudo após 4 s.
+- Carrosséis (banner e gestores) pausam ao passar o mouse ou focar, têm botão de pausa e não andam com "reduzir movimento". Itens fora da tela ficam `inert`.
+- Títulos vindos em CAIXA ALTA aparecem em formato normal só na exibição (`S.semCaixaAlta`), preservando siglas e o nome do município.
+- Fundo das seções alterna branco e cinza-azulado (`.secao-cinza`) para dar ritmo.
+- Página com um só destino externo abre direto; com vários, mostra o quadro "Onde consultar".
+
+## 4. Padrões do painel
+
+O painel é ferramenta de trabalho: tem a identidade da SOFT+ GOV (e não a do órgão), sem animações de entrada, e reaproveita as cores de situação e o acabamento do site. Tudo fica em `painel/estilos.css` e no núcleo `painel/app.js`, exposto como `window.PNTP` (no código, `P`).
+
+**Identidade**
+
+| Token | Valor | Uso |
+| --- | --- | --- |
+| `--brand` / `--brand-escuro` | `#0d4fc4` / `#0a3d99` | Botão principal, links, foco das abas |
+| Lateral | `#0f2947`, itens `#d2deeb`, ativo `#24497a` | Menu lateral fixo de 256 px |
+| `--text` / `--text-dim` / `--line` / `--ink` | `#0f2947` / `#5c7692` / `#d7e4f0` / `#eef4fb` | Texto, secundário, bordas, fundo da área de trabalho |
+| `--green` / `--red` / `--amber` | `#16875a` / `#c73f3f` / `#b3790f` | Situação (atende, erro, pendência) |
+| `--acento` | `#0a9668` | Traço dos títulos, foco verde dos campos |
+| Fontes | Inter (texto), Source Serif 4 (títulos H1/H2), IBM Plex Mono (números, versão, contadores) | — |
+
+**Estrutura das telas**
+
+- Lateral escura com marca, pesquisa no menu, "Início" e grupos (CONTEÚDO DO SITE, TRANSPARÊNCIA, ATENDIMENTO, CONTROLE INTERNO, CONFIGURAÇÕES…). Cada grupo tem cor própria no filete e nos marcadores; o item aberto ganha barra lateral na cor do grupo. Versão no rodapé da lateral.
+- Topo da área de trabalho: nome do órgão + perfil do usuário, botões "Trocar órgão", "Ver site" e "Sair".
+- Cada módulo: `cabecalho-modulo` com título (traço verde acima), subtítulo e botão principal à direita ("+ Novo…"); depois o aviso amarelo de situação no PNTP, as abas e a lista.
+- Abas no estilo **guia de navegador** (regra fixa do projeto): a aberta "cobre" a linha de baixo, filete de 3 px em cima, contador em `aba-qtd`. Nunca abas em forma de botão ou pílula. Janela com mais de um assunto = abas (`P.abas`).
+- Abas do painel seguem as abas da página correspondente do site (mesmos nomes e ordem).
+- Cartões raio 14 com sombra leve; título do cartão com filete verde à esquerda. Indicadores com faixa colorida de 4 px no topo.
+- Tabelas em caixa raio 14, cabeçalho `#eef4fb`, ações alinhadas à direita (`td.acoes`), paginação numerada.
+- Avisos amarelos padronizados em todas as telas para o que falta (com link "Corrigir" que abre a aba certa).
+
+**Funções do núcleo para reaproveitar**
+
+| Função | Para quê |
+| --- | --- |
+| `P.el(tag, atributos, ...filhos)` | Cria elementos sem HTML em texto (seguro) |
+| `P.abas(itens, inicial)` | Abas de janela/módulo; 5º item da aba marca destino externo |
+| `P.campo(id, rótulo, controle, ajuda)` + `P.erroCampo(id, texto)` | Campo com rótulo, ajuda e mensagem de erro (`id-erro`), abre a aba do campo com erro |
+| `P.abrirDialogo`, `P.confirmar(título, texto, botão, perigo)`, `P.aviso` | Janelas e confirmações (exclusão sempre confirmada) |
+| `P.toast(msg, erro)`, `P.msg`, `P.ocupado(botão, texto)` | Retorno rápido, mensagens fixas e botão "Gravando…" |
+| `P.paginar`, `P.contar` | Listas paginadas (cursor ou número de página) |
+| `P.gravarRegistro`, `P.excluirComPecas(tabela, id)` | Gravação padrão e exclusão junto com as peças internas (apaga arquivos) |
+| `P.enviarArquivo`, `P.apagarArquivo`, `P.reduzirImagem`, `P.validarPdf` | Arquivos num ponto único; imagens reduzidas no navegador |
+| `P.cpfValido`, `P.cnpjValido`, `P.formatarDoc`, `P.mascaraDoc` | Validação e máscara de CPF/CNPJ |
+| `P.declaracoes(chave, opções)` | Bloco "Declarar que não há dados" (seção 9) |
+| `P.externo`, `P.avisoExterno` | Parte com link externo: desativa o cadastro manual e mostra o aviso |
+| `P.mesclarConfiguracoes(valores, órgão)` | Grava só as configurações alteradas |
+| `P.editorTexto`, `P.renderTexto` | Editor e exibição da marcação simples |
+
+**Mensagens e textos:** frases curtas, em linguagem do usuário ("Seu perfil não pode excluir esta declaração."), sem jargão técnico; erros do banco traduzidos por `P.traduzirErro` / `P.erroGravacao`. Terminologia jurídica: "contratado", não "fornecedor".
+
+## 5. Acessibilidade, responsividade, alto contraste e impressão
+
+Todo app público segue o e-MAG e a WCAG AA; os itens abaixo são genéricos e valem para qualquer finalidade.
+
+- **Atalhos e-MAG** na barra do topo: Alt+1 conteúdo, Alt+2 menu, Alt+3 busca, Alt+4 rodapé; link "Pular para o conteúdo" no painel.
+- **Ferramentas:** Alto contraste (`html.contraste`: fundo preto, texto branco, links e foco amarelos `#ffe600`), tamanho do texto A+ / A / A−, página de Acessibilidade e Mapa do site, VLibras (Libras, governo federal).
+- **Contraste mínimo:** 4,5:1 para texto (o verde com texto branco usa `#06704d`, cerca de 6:1; o botão amarelo com texto marinho, cerca de 9:1).
+- **Foco visível:** contorno amarelo `#f2b33d` de 3 px em tudo que recebe foco; dentro das abas, contorno interno.
+- **Abas acessíveis:** `role=tablist/tab/tabpanel`, setas ← →, Home e End trocam de aba; só a aba aberta recebe Tab.
+- **Imagens:** `alt` descritivo nas fotos ("Foto de Fulano"); ícones decorativos com `aria-hidden`; textos só para leitor de tela com a classe `.sr`.
+- **Links que abrem nova aba** avisam "(abre em nova aba)" em texto escondido e mostram ↗.
+- **Movimento:** com `prefers-reduced-motion`, nada anima (carrosséis param, entrada suave desliga).
+- **Pontos de quebra:** 420 px (grades viram 1 coluna), 600 px (celular: menos margem, atalhos com ícone em cima, tabelas viram cartões), 760 px (faixas e listas em coluna), 960 px (menu vira botão "Menu", botão da Transparência desce para linha própria), 1180 px (topo completo numa linha).
+- **Impressão:** esconde barra, menu, busca, botões, rodapé e VLibras; mostra todo o conteúdo sem animação.
+- **Dados pessoais na tela:** CPF sempre mascarado no site (`***.456.789-**`); listas de espera identificadas só por protocolo (LGPD/ECA).
+
+## 6. Usuários, perfis e permissões (genérico)
+
+A permissão é sempre **perfil (o que pode fazer) × módulo (onde)**, com quatro ações: ver, editar, publicar e excluir. Um usuário pode atender vários órgãos, com um vínculo (órgão + perfil + alcance) para cada um.
+
+**Perfis padrão (criados para todo órgão, editáveis pelo Suporte SOFT+)**
+
+| Perfil | Descrição |
+| --- | --- |
+| Administrador do órgão | Acesso total, inclusive usuários e aparência |
+| Gestor de conteúdo | Revisa e publica o que os cadastradores enviam |
+| Cadastrador setorial | Cria rascunhos só no seu setor; não publica |
+| Comunicação | Notícias, banners, avisos e páginas |
+| Atendimento (SIC e Ouvidoria) | Responde pedidos e manifestações |
+| Controle interno | Vê tudo e emite relatórios; não altera |
+| Suporte SOFT+ (marca, não perfil) | Equipe da SOFT+: cadastra órgãos, edita perfis do sistema, vê tudo |
+
+Um vínculo pode ter perfis adicionais (`perfis_extras`); as permissões se somam.
+
+**Criação de usuário (padrão atual)**
+
+1. Quem tem a permissão "Usuários" (padrão: Administrador e Suporte) abre a página única de usuários, que lista as pessoas de todos os órgãos que ele administra.
+2. Informa nome, e-mail, senha inicial e os vínculos (órgão, perfil, alcance). Sem convite: a função `convidar-usuario` (Edge Function, chave secreta só no servidor) cria o login já confirmado.
+3. No primeiro acesso, o painel exige que a pessoa troque a senha.
+4. Modo antigo ainda aceito: link de acesso (para copiar ou mandar no WhatsApp) ou e-mail automático (precisa de SMTP próprio).
+
+**Regras e travas (todas no banco)**
+
+- O órgão nunca fica sem administrador ativo.
+- Ninguém altera o próprio acesso (perfil, alcance, desativar).
+- Ninguém dá a outro um perfil com mais poderes do que o seu ("trava de perfil maior"). Quem só tem "editar usuários" não dá mais poder do que tem.
+- Só administrador do órgão cria perfis, mexe em permissões e dá o perfil de administrador.
+- **Alcance setorial:** usuário limitado a uma unidade só vê e altera o que é dela; gestor de usuários setorial só dá acesso à própria unidade. Itens do órgão todo (banner, aviso, página, menu) não são alteráveis por alcance setorial.
+- Administrador vê só os usuários dos órgãos que administra e nunca os vínculos da pessoa com outros órgãos. Cadastrador não acessa a página.
+- Link de acesso entregue na mão só para quem nunca criou senha e não atende outro órgão; nos demais casos, só por e-mail.
+- Quem já entrou no painel é desativado, nunca apagado (o histórico fica completo).
+- E-mail de usuário só muda pelo SQL Editor. A marca Suporte SOFT+ só muda pelo painel por quem já é Suporte, ninguém muda a própria e sempre sobra pelo menos um.
+
+## 7. Criação de órgãos (entes) e configurações padrão (genérico)
+
+O cliente (órgão, empresa, igreja…) é um registro na tabela `orgaos`, criado só pelo Suporte SOFT+ no módulo "Órgãos da plataforma". O mesmo modelo serve para qualquer app com vários clientes.
+
+**Campos do cadastro:** nome, sigla, tipo (prefeitura, câmara, RPPS, consórcio, autarquia, outro), CNPJ (conferido), município, UF, domínio, órgão pai (subsite) e `configuracoes` (JSON).
+
+**O que `criar_orgao` faz de uma vez**
+
+1. Confere se quem pede é Suporte SOFT+ ("Só o Suporte SOFT+ cadastra órgãos").
+2. Confere o CNPJ e grava o órgão com a identidade inicial (nome de exibição, cor padrão).
+3. Cria o **menu padrão próprio do tipo** (`criar_menu_padrao`): prefeitura, câmara e consórcio têm menus diferentes. O módulo do tipo só aparece para o tipo certo.
+4. A lista `orgaos_plataforma` mostra as pendências de cada órgão (sem administrador, sem brasão, sem domínio…).
+
+**Depois de criar:** abrir o órgão, cadastrar o administrador em Usuários e permissões e seguir as pendências do Início. Desativar o órgão tira site e painel do ar de uma vez. Um órgão com subsites não pode virar subsite de outro (`alterar_orgao`).
+
+**Configurações padrão de um órgão novo**
+
+| Configuração | Padrão | Onde muda |
+| --- | --- | --- |
+| Cor principal | `#0d4fc4` (o marinho, o tom e os fundos são calculados dela) | Aparência › Identidade |
+| Brasão, ícone, nome de exibição | Nome do cadastro; sem brasão, só o nome | Aparência › Identidade |
+| Contatos e redes | Vazios (redes só aparecem se preenchidas) | Aparência › Contatos e redes |
+| Selos | Nenhum (sem selos e redes, a faixa some) | Aparência › Selos e Radar |
+| Faixa do Radar | "Faixa desenhada (padrão)"; link = painel geral do Radar | Aparência › Selos e Radar |
+| Destinos das páginas | Todas as páginas do próprio portal | Aparência › Destinos das páginas |
+| Páginas ocultas | Nenhuma | Aparência › Destinos |
+| Menu | Menu padrão do tipo | Menu do site |
+| Perfis | Os 6 perfis padrão | Usuários e permissões › Perfis |
+| Arquivos | Limite de 200 MB por arquivo | Storage (plano Pro) |
+
+**Site do órgão novo:** abre em `https://portal-pntp.pages.dev/site/?orgao=CNPJ` até o domínio próprio ser apontado (Cloudflare aceita vários domínios). Aponte o domínio só depois da migração do site antigo.
+
+## 8. Regras de dados: publicação, histórico, exclusão e segurança (genérico)
+
+As regras de dados ficam no PostgreSQL (gatilhos e políticas RLS), para valerem em qualquer tela, importação ou integração.
+
+**Segurança (scripts 01, 03, 06)**
+
+- RLS ligado em todas as tabelas; "Automatically expose new tables" desligada; cada tabela só aparece na API com `grant` explícito.
+- Leitura pública só do que está publicado (`situacao = 'publicado'`); o membro do órgão vê também os rascunhos (`e_membro(orgao_id)`).
+- Inclusão, edição e exclusão exigem `tem_permissao(orgao, módulo, ação)` e `no_alcance(orgao, unidade)`.
+- Tabelas "filhas" herdam a leitura da tabela mãe e um gatilho confere que filho e mãe são do mesmo órgão.
+- Funções que precisam de chave secreta (criar login, chamar sistemas externos) rodam em Edge Functions, nunca no navegador.
+- Coluna com CPF inteiro fechada para o público; o site lê só a versão mascarada e um resumo para busca.
+
+**Rascunho → publicado (gatilho `controlar_publicacao`)**
+
+- Quem só tem "editar" cria e altera rascunhos. Publicar, tirar do ar ou mexer no que já está publicado exige "publicar".
+- O gatilho não usa `security definer` de propósito: precisa enxergar o papel real de quem grava.
+- Data futura = agendado (o site só mostra quando a data chega, sem tarefa agendada).
+- Dados contábeis e de folha não têm rascunho: entram no ar ao salvar.
+
+**Histórico (`registrar_historico`)**
+
+- Toda inclusão, edição e exclusão é gravada na tabela `historico` por gatilho no próprio banco.
+- `marcar_atualizacao` mantém `atualizado_em` e quem alterou. Tabelas com dados pessoais guardam só quais campos mudaram.
+- Importação de lista grande grava uma linha por importação, não uma por registro.
+
+**Exclusão de dados vinculados (scripts 26 e 37)**
+
+- **Nenhum registro ligado a outro pode ser excluído.** As chaves estrangeiras usam `on delete no action`; o banco recusa e o painel explica o motivo. Exemplos: unidade com gestores, subunidades, notícias, publicações ou usuários; notícia usada em banner; edital de seleção publicada; página que está no menu; item de menu com subitens; publicação indicada como norma.
+- Exceções que apagam junto (cascade): só o que depende do próprio órgão, o login da pessoa e as **peças internas** de um registro.
+- Peças internas (documentos, aditivos, fiscais, medições, autores, presenças…) saem junto pela função `excluir_com_pecas(tabela, id)`, que devolve os arquivos para o painel apagar do armazenamento. Só aceita tabelas de uma lista permitida.
+- Toda exclusão passa por confirmação com o nome do item e o aviso de que sai do site.
+- Quem já entrou no painel e o órgão são **desativados**, nunca apagados.
+
+**Outras regras genéricas**
+
+- Busca sem acento: função `normalizar_texto` + coluna `busca` com índice.
+- Listas paginadas no banco (cursor ou número de página); cada coluna exibida numa listagem pública vira filtro.
+- Exportação padrão em CSV, JSON, XML, XLSX, PDF e Imprimir, sempre seguindo os filtros da tela.
+- Totais calculados pelo banco a partir dos movimentos, com travas de coerência.
+- Funções de consulta pesadas: preferir uma função por item (ex.: `atividade_vereador`) a uma que calcula todos e filtra, e criar índice pela coluna de busca (evita estouro de tempo).
+
+## 9. Configurações por órgão e recursos específicos da transparência
+
+A tela Aparência é genérica; destinos externos, declarações, autoavaliação e Kit de evidências são próprios de portais públicos, mas a ideia pode ser adaptada.
+
+**Aparência (genérico)** — abas: Identidade, Contatos e redes, Destinos das páginas, Diário Oficial e sistemas, Selos e Radar ("Faixa desenhada (padrão)" ou "Imagem oficial"; link do Radar). Tudo grava em `orgaos.configuracoes` por `mesclar_configuracoes`; imagens trocadas são apagadas do armazenamento.
+
+**Destinos externos (específico, adaptável)**
+
+- Todo direcionamento para sistema de outra empresa fica num lugar só (Aparência › Destinos das páginas), por chave de página ou parte.
+- Com link externo, o cadastro manual da parte fica desativado no painel; os dados já cadastrados ficam guardados.
+- Cada página aceita "outros endereços" com explicação (mínimo 10 letras) e os exercícios que cobrem; contam na série histórica.
+- O banco confere todo dia se cada endereço responde; 2 falhas seguidas geram aviso no Início.
+- Uma página pode ser ocultada do site (responde como inexistente).
+
+**Declarar que não há dados (específico, 62 itens do PNTP)**
+
+- Vale para a situação atual (substitui a lista no site) ou para um período: mês, bimestre, trimestre, quadrimestre, semestre, ano ou datas (`declaracoes_inexistencia`).
+- Texto sugerido por item e período (`DECLARACOES_PNTP` em `site/destinos.js`), editável.
+- No painel (`P.declaracoes`): faixa âmbar com a situação à vista, períodos em etiquetas coloridas por tipo, atalhos "Ano atual / Ano anterior / Mês passado / Situação atual", botão principal "Registrar declaração" e prévia "Como aparece no site".
+- No site: o ano declarado vira aba com a declaração no lugar da lista; períodos sem abas aparecem em "Períodos sem ocorrência".
+- A declaração conta para atualidade e série histórica na autoavaliação e não gera aviso de prazo.
+
+**Autoavaliação e Kit de evidências (específico)**
+
+- `avaliacao_pntp(órgão)` calcula cada critério, o índice estimado e o nível; o Início mostra o que falta com "Corrigir" que abre a aba exata.
+- Série histórica segue a cartilha 2026: atualidade = último exercício encerrado; nos itens 11.1 a 11.4, se o mais recente é 2025, a série é 2024, 2023 e 2022.
+- O Kit de evidências gera prints marcados (modo `?evidencia=1`), tabela única em Excel/Word e ZIP com uma pasta de prints por item.
+
+**Ideia reaproveitável:** "avaliação automática no banco + lista do que falta com botão Corrigir" serve para qualquer checklist de conformidade.
+
+## 10. Fluxo de trabalho, versões e implantação (genérico)
+
+Toda mudança passa por sugestão → prévia → aval → publicação; nada vai para o ar sem a aprovação do dono do produto.
+
+1. **Sugestão:** descrever o que vai mudar, item por item, numerado para aprovação.
+2. **Prévia sem publicar:** aplicar o visual por cima do site real só no navegador de quem revisa, ou publicar num ramo de teste do Git (ex.: `redesenho-046`), servido em `https://<ramo>.portal-pntp.pages.dev`.
+3. **Aval e publicação:** enviar o ramo para `main`; a Cloudflare publica em cerca de 1 minuto.
+4. **Versão:** subir o número em `painel/versao.json` e escrever as notas em linguagem do usuário, a mais nova primeiro.
+5. **Manual:** atualizar este manual (documento e `docs/PADROES.md`) e o histórico abaixo quando a entrega mudar algum padrão.
+6. **Banco:** mudança de banco vira um script novo numerado (`supabase/NN_assunto.sql`), que pode rodar mais de uma vez, com cabeçalho explicando. A tela continua funcionando se o script ainda não foi rodado.
+7. **Conferência:** computador (1366 px) e celular (375 px), em pelo menos dois tipos de cliente, e alto contraste.
+8. **Varredura de conformidade** a cada entrega (no PNTP: Cartilha e Matriz do ano).
+
+**Implantação de um projeto novo na Supabase**
+
+- Criar o projeto na região São Paulo; desligar "Automatically expose new tables".
+- Rodar os scripts em ordem no SQL Editor; nunca rodar `teste_*.sql` no projeto real.
+- Edge Functions pelo editor, com "Verify JWT" desligado (a função confere o login sozinha).
+- SMTP próprio (Brevo); "Email OTP Expiration" = 86400; URL do site em Authentication › URL Configuration.
+- Tarefas agendadas com `pg_cron` e chaves no cofre (`vault`).
+
+## 11. Checklist para um novo app no mesmo padrão
+
+**Reaproveitar como está (genérico)**
+
+- [ ] Estrutura de pastas `site/`, `painel/`, `supabase/` e o `versao.json` com `?v=` nos arquivos
+- [ ] Tabelas e funções de órgãos/clientes (`orgaos`, `criar_orgao`, menu padrão por tipo, `mesclar_configuracoes`)
+- [ ] Usuários, perfis × módulos, alcance, travas e a função `convidar-usuario`
+- [ ] Gatilhos `controlar_publicacao`, `registrar_historico`, `marcar_atualizacao` e a exclusão protegida (`no action` + `excluir_com_pecas`)
+- [ ] RLS com leitura pública só do publicado e permissão por `tem_permissao` / `no_alcance`
+- [ ] Tokens de cor derivados da cor do cliente (`--navy`, `--navy-2`, `--tom`) e o acento verde
+- [ ] Componentes do site (topo, menu, faixas de destaque, abas, cartões, tabelas, filtros, paginação, etiquetas, cartões de pessoa)
+- [ ] Núcleo do painel (`P.el`, `P.abas`, `P.campo`, diálogos, toasts, paginação, arquivos, validação de CPF/CNPJ)
+- [ ] Acessibilidade: atalhos e-MAG, alto contraste, A+/A−, VLibras, foco amarelo, reduzir movimento
+- [ ] Fluxo sugestão → prévia → aval → publicação, ramos de teste e scripts numerados
+
+**Adaptar ao novo domínio**
+
+- [ ] Tipos de cliente e o menu padrão de cada um
+- [ ] Lista de módulos e perfis padrão com as permissões de cada um
+- [ ] Cores por grupo dos atalhos e do menu lateral conforme os grupos do novo app
+- [ ] Checklist de conformidade próprio, se houver
+- [ ] Textos legais e de privacidade (LGPD) do novo contexto
+
+**Deixar de fora se não for portal público**
+
+- [ ] Autoavaliação PNTP, Kit de evidências e Radar da Transparência
+- [ ] Declarações de "não há dados" e destinos externos (a menos que o novo app também publique dados obrigatórios)
+- [ ] e-SIC/Ouvidoria e prazos da LAI
+
+## Histórico de atualizações
+
+| Data | Versão | O que mudou nos padrões |
+| --- | --- | --- |
+| 17/11/2026 | 0.46.5 | Primeira edição: arquitetura, visual do site e do painel, componentes, acessibilidade, usuários e perfis, criação de órgãos, regras de dados, configurações por órgão, fluxo de trabalho e checklist para novos apps |

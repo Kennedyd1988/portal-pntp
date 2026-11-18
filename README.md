@@ -3,6 +3,8 @@
 Plataforma de site institucional + Portal da Transparência para órgãos públicos,
 construída para atender a matriz do PNTP 2026 (Atricon).
 
+**Manual de padrões reutilizáveis** (layout, componentes, usuários, órgãos, regras de dados, fluxo): [`docs/PADROES.md`](docs/PADROES.md). Atualizado a cada publicação que mude algum padrão.
+
 ## Decisões técnicas
 
 - **Banco e login:** Supabase (PostgreSQL), projeto `softplus-portal`, região São Paulo.
