@@ -666,3 +666,32 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .tabela tbody tr:hover td { background: #f8fbfe; }
 .avatar { border: 2px solid #fff; box-shadow: 0 0 0 2px #7fa7e0; }
 @media (prefers-reduced-motion: reduce) { .crit-pntp, .crit-pntp:hover { transition: none; transform: none; } }
+
+/* 0.46.5 — "Declarar que não há dados": situação à vista, períodos em etiquetas, atalhos e prévia do site */
+.declaracoes { border: 1px solid #f0d49a; border-left: 5px solid #e2a114; border-radius: 12px; background: #fffdf7; padding: 12px 16px; }
+.declaracoes > summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; list-style: none; }
+.declaracoes > summary::-webkit-details-marker { display: none; }
+.declaracoes > summary::after { content: "▾"; margin-left: auto; color: #8a6a1c; transition: transform .15s; }
+.declaracoes[open] > summary::after { transform: rotate(180deg); }
+.decl-icone { width: 24px; height: 24px; border-radius: 50%; background: #e2a114; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex: none; }
+.decl-titulo { font-weight: 700; color: #4a3507; }
+.decl-item { font-weight: 600; color: #6b5420; }
+.decl-situacao { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+.decl-situacao-vigor { background: #e6f4ee; color: #0f5f40; }
+.decl-situacao-periodos { background: #e8f0fc; color: #0b3f9c; }
+.decl-situacao-nenhuma { background: #eef1f4; color: #5c6b7a; }
+.chip-periodo { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 12.5px; font-weight: 700; white-space: nowrap; background: #e8f0fc; color: #0b3f9c; }
+.chip-periodo.chip-ano { background: #e8f0fc; color: #0b3f9c; }
+.chip-periodo.chip-mes { background: #f1ecff; color: #5a3fb8; }
+.chip-periodo.chip-bimestre, .chip-periodo.chip-trimestre, .chip-periodo.chip-quadrimestre, .chip-periodo.chip-semestre { background: #e7f6ef; color: #066a4a; }
+.chip-periodo.chip-periodo { background: #fdf3e1; color: #6b4807; }
+.chip-periodo.chip-atual { background: #0f5f40; color: #fff; }
+.btn-icone-excluir { display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; background: transparent; color: var(--red); font: inherit; font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+.btn-icone-excluir:hover { background: #fdecec; border-color: #f2c4c4; }
+.decl-atalhos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0 12px; }
+.chip-atalho { border: 1px solid #cfdcea; background: #fff; color: var(--text); font: inherit; font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 99px; cursor: pointer; }
+.chip-atalho:hover { background: var(--brand); border-color: var(--brand); color: #fff; }
+.decl-previa { margin: 2px 0 14px; }
+.decl-previa-rotulo { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+.decl-previa-cartao { border: 1px solid #e3eaf1; border-left: 5px solid #e2a114; background: #fffaf0; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.decl-previa-cartao span { color: var(--text-dim); font-size: 13px; }

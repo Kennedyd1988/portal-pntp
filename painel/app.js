@@ -1170,9 +1170,10 @@
     const pode = !!(o.perm && o.perm.editar) && !estado.alcanceUnidade;
     const pre = 'dcl' + (++seqDecl) + '-';
     const info = (window.DECLARACOES_PNTP || {})[chave];
-    const atualTopo = el('div'), lista = el('div'), resumo = el('span', { class: 'ajuda' });
+    const atualTopo = el('div'), lista = el('div'), resumo = el('span', { class: 'decl-situacao decl-situacao-nenhuma' }, 'Nenhuma declaração');
     const det = el('details', { class: 'declaracoes' },
-      el('summary', null, 'Declarar que não há dados', info ? ' — ' + info[0] : '', ' ', resumo),
+      el('summary', null, el('span', { class: 'decl-icone', 'aria-hidden': 'true' }, '!'),
+        el('span', { class: 'decl-titulo' }, 'Declarar que não há dados', info ? el('span', { class: 'decl-item' }, ' — ' + info[0]) : null), resumo),
       el('p', { class: 'ajuda' }, 'Quando não houver o que publicar, registre a declaração: para a situação atual (o site mostra só a declaração, no lugar da lista) ou para um período, como um ano, um mês ou um semestre (o site mostra a declaração dentro daquele período, com a data do registro). O texto vem sugerido e pode ser alterado.'),
       lista);
     det.open = declAbertos.has(chave);
@@ -1194,15 +1195,19 @@
       const periodos = itens.filter((x) => x.abrangencia !== 'atual');
       atualTopo.replaceChildren(atual ? el('p', { class: 'msg msg-info' }, el('strong', null, 'Declaração em vigor: '), '"' + atual.texto + '". ',
         'O site mostra só esta declaração, no lugar da lista. Para voltar a mostrar os dados, exclua-a em "Declarar que não há dados".') : '');
-      resumo.textContent = itens.length ? '(' + itens.length + (itens.length === 1 ? ' registrada)' : ' registradas)') : '';
+      // Situação à vista mesmo com a caixa fechada (0.46.5).
+      resumo.className = 'decl-situacao ' + (atual ? 'decl-situacao-vigor' : periodos.length ? 'decl-situacao-periodos' : 'decl-situacao-nenhuma');
+      resumo.textContent = atual ? 'Declaração em vigor' + (periodos.length ? ' + ' + periodos.length + (periodos.length === 1 ? ' período' : ' períodos') : '')
+        : periodos.length ? periodos.length + (periodos.length === 1 ? ' período declarado' : ' períodos declarados') : 'Nenhuma declaração';
       lista.replaceChildren(
         itens.length ? el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela tabela-declaracoes' },
           el('thead', null, el('tr', null, ['Período', 'Declaração', 'Registrada em'].map((t) => el('th', { scope: 'col' }, t)), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))),
           el('tbody', null, [atual].concat(periodos).filter(Boolean).map((d) => el('tr', null,
-            el('td', null, el('strong', null, window.periodoDeclaracaoPNTP(d))),
+            el('td', null, el('span', { class: 'chip-periodo chip-' + d.abrangencia }, window.periodoDeclaracaoPNTP(d))),
             el('td', { class: 'quebra' }, d.texto),
             el('td', { class: 'num' }, dataBR(String(d.criado_em).slice(0, 10))),
-            el('td', { class: 'acoes' }, pode ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(d) }, 'Excluir') : null)))))) : el('p', { class: 'ajuda' }, 'Nenhuma declaração registrada.'),
+            el('td', { class: 'acoes' }, pode ? el('button', { type: 'button', class: 'btn-icone-excluir', title: 'Excluir esta declaração', onclick: () => excluir(d) },
+              el('span', { 'aria-hidden': 'true' }, '🗑'), el('span', null, 'Excluir'), el('span', { class: 'sr' }, ' a declaração de ' + window.periodoDeclaracaoPNTP(d))) : null)))))) : el('p', { class: 'ajuda' }, 'Nenhuma declaração registrada.'),
         pode ? formulario() : '');
     }
     async function mudou() {
@@ -1247,8 +1252,29 @@
       [fEx, fNum, fIni, fFim].forEach((x) => x.addEventListener('change', sugerir));
       fEx.addEventListener('input', sugerir);
       ajustar();
-      const restaurar = el('button', { type: 'button', class: 'link', onclick: () => { editado = false; sugerir(); } }, 'Usar o texto sugerido');
-      const btn = el('button', { type: 'button', class: 'btn btn-claro' }, 'Registrar declaração');
+      const restaurar = el('button', { type: 'button', class: 'link', onclick: () => { editado = false; sugerir(); previa(); } }, 'Usar o texto sugerido');
+      const btn = el('button', { type: 'button', class: 'btn btn-primario' }, 'Registrar declaração');
+      // Atalhos de período (0.46.5): preenchem período e texto; o usuário só confere e registra.
+      const hoje = new Date(), mesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+      const atalho = (rotulo, abr, ex, num) => el('button', { type: 'button', class: 'chip-atalho', onclick: () => {
+        fAbr.value = abr; exMexido = true; editado = false; ajustar();
+        if (ex) fEx.value = ex; if (num) fNum.value = String(num); sugerir(); previa();
+      } }, rotulo);
+      const atalhos = el('div', { class: 'decl-atalhos' }, el('span', { class: 'ajuda' }, 'Atalhos:'),
+        atalho('Ano atual (' + Y + ')', 'ano', Y), atalho('Ano anterior (' + (Y - 1) + ')', 'ano', Y - 1),
+        atalho('Mês passado (' + NOMES_MES[mesPassado.getMonth()].toLowerCase() + '/' + mesPassado.getFullYear() + ')', 'mes', mesPassado.getFullYear(), mesPassado.getMonth() + 1),
+        atalho('Situação atual', 'atual'));
+      // Prévia de como o cidadão vê no site, atualizada enquanto se digita.
+      const previaCaixa = el('div', { class: 'decl-previa', 'aria-live': 'polite' });
+      const previa = () => {
+        const per = fAbr.value === 'atual' ? 'Situação atual' : window.periodoDeclaracaoPNTP(atualDoForm());
+        previaCaixa.replaceChildren(el('span', { class: 'decl-previa-rotulo' }, 'Como aparece no site'),
+          el('div', { class: 'decl-previa-cartao' }, el('strong', null, fTxt.value.trim() || '(escreva o texto da declaração)'),
+            el('span', null, (fAbr.value === 'atual' ? '' : per + ' · ') + 'Declaração registrada em ' + new Date().toLocaleDateString('pt-BR') + '.')));
+      };
+      fTxt.addEventListener('input', previa); fAbr.addEventListener('change', previa);
+      [fEx, fNum, fIni, fFim].forEach((x) => { x.addEventListener('change', previa); x.addEventListener('input', previa); });
+      previa();
       btn.addEventListener('click', async () => {
         const a = fAbr.value;
         const reg = { orgao_id: estado.orgao.id, secao: chave, abrangencia: a, texto: fTxt.value.trim() };
@@ -1273,8 +1299,10 @@
         } finally { ocupado(btn); }
       });
       return el('fieldset', { class: 'opcoes declaracao-nova' }, el('legend', null, 'Nova declaração'),
+        atalhos,
         el('div', { class: 'grade-campos' }, campo(pre + 'abr', 'Vale para', fAbr), cEx, cNum, cIni, cFim),
         campo(pre + 'txt', 'Texto da declaração (aparece no site)', fTxt, 'Sugerido conforme o item e o período; pode ser alterado.'),
+        previaCaixa,
         el('div', { class: 'secao-parte-acoes' }, btn, restaurar));
     }
     carregar();

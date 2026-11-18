@@ -1,7 +1,8 @@
 {
-  "versao": "0.46.4",
+  "versao": "0.46.5",
   "data": "2026-11-17",
   "notas": [
+    "Painel, \"Declarar que não há dados\" (em todos os itens que aceitam declaração): faixa âmbar com a situação à vista mesmo fechada (\"Declaração em vigor\", \"2 períodos declarados\" ou \"Nenhuma declaração\"); períodos em etiquetas coloridas por tipo; Excluir discreto com ícone (com confirmação); atalhos \"Ano atual\", \"Ano anterior\", \"Mês passado\" e \"Situação atual\" que já preenchem período e texto; \"Registrar declaração\" como botão principal; e prévia de como a declaração aparece no site, atualizada enquanto se digita.",
     "Página do vereador: votos, diárias, emendas e verba indenizatória agora ficam numa só caixa, em abas (só aparecem as que têm registro). Proposições com abas no formato principal.",
     "Página do vereador: o quadro \"Atividade do vereador\" às vezes sumia (a contagem de todos os vereadores, em todos os anos, estourava o tempo do banco). Agora a página conta só aquele vereador. Rode o script 52 na Supabase. Enquanto o script não for rodado, se a contagem falhar, aparece um aviso com link para a Atividade dos vereadores em vez de a seção sumir.",
     "Fotos com aro mais visível (borda branca e anel na cor do órgão) em todo o site: gestores e responsáveis, vereadores, Mesa Diretora, estrutura organizacional e carrosséis da página inicial (também quando não há foto, com as iniciais).",
