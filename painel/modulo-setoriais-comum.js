@@ -93,6 +93,16 @@
       const caixa = el('div', { class: 'grade-campos' }, campo(id + '-pdf', c.r || 'PDF', pdf, 'Até ' + LIMITE_MB + ' MB.', c.ob), campo(id + '-link', 'ou link', link));
       return { el: el('div', null, caixa, atual), ler: () => ({ pdf: pdf.files[0] || null, link: link.value.trim() }), inputs: [pdf, link] };
     }
+    else if (c.t === 'pdfurl') {
+      // 'pdfurl' (0.47.1): PDF enviado OU link, gravados na mesma coluna (c.k). Ex.: diarias.ato_url.
+      const nosso = !!valor && valor.includes('/storage/v1/object/public/');
+      const pdf = el('input', { type: 'file', accept: 'application/pdf' });
+      const link = el('input', { type: 'url', value: nosso ? '' : valor || '', placeholder: 'https://… (no lugar do PDF)' });
+      pdf.id = id + '-pdf'; link.id = id + '-link';
+      const atual = nosso ? el('p', { class: 'ajuda' }, 'Arquivo atual: ', el('a', { href: valor, target: '_blank', rel: 'noopener' }, 'abrir PDF'), ' (envie outro para trocar)') : null;
+      const caixa = el('div', { class: 'grade-campos' }, campo(id + '-pdf', c.r || 'PDF', pdf, c.aj || 'Até ' + LIMITE_MB + ' MB.', c.ob), campo(id + '-link', 'ou link', link));
+      return { el: el('div', null, caixa, atual), ler: () => ({ pdf: pdf.files[0] || null, link: link.value.trim() }), inputs: [pdf, link], atual: nosso ? valor : null };
+    }
     else input = el('input', { type: c.t === 'url' ? 'url' : 'text', maxlength: c.max || 200, value: valor || '', placeholder: c.ph || null });
     if (c.t === 'bool') {
       input.id = id;
@@ -131,9 +141,43 @@
     const abasJanela = o.abas.map(([id, rot, lista]) => [id, rot, linhaCampos(lista, mapa)])
       .concat((o.extras || []).map(([id, rot, fn]) => editando ? [id, rot, () => fn(r, travado)] : [id, rot, null, 'Salve primeiro para preencher esta parte.']));
     const abas = abasJanela.length > 1 ? P.abas(abasJanela) : el('div', null, abasJanela[0][2]);
+    // Preencher pelo PDF (0.47.1): só na inclusão. api.preencher só mexe no que o usuário não tocou.
+    let zona = null;
+    if (o.lerPdf && !editando && !travado && o.perm.editar) {
+      const tocado = {};
+      for (const c of todos) for (const i of mapa[c.k].inputs || [mapa[c.k].input]) {
+        const marcar = () => { tocado[c.k] = true; };
+        i.addEventListener('input', marcar); i.addEventListener('change', marcar);
+      }
+      const api = {
+        valor: (k) => (mapa[k] && mapa[k].input ? mapa[k].input.value : ''),
+        anexar(k, arquivo) {
+          const m = mapa[k]; if (!m || !m.inputs) return;
+          const dt = new DataTransfer(); dt.items.add(arquivo); m.inputs[0].files = dt.files;
+          if (m.inputs[1]) m.inputs[1].value = '';
+        },
+        preencher(k, v, rotulo, rel) {
+          const c = todos.find((x) => x.k === k), m = mapa[k];
+          if (!c || !m || !m.input) return;
+          const i = m.input;
+          if (v === null || v === undefined || v === '') { if (!i.value) rel.faltou.push(rotulo); return; }
+          let txt = c.t === 'num' ? Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : c.t === 'doc' ? P.formatarDoc(String(v)) : String(v);
+          if (c.t === 'sel' && ![...i.options].some((op) => op.value === txt)) return;
+          if (c.max && txt.length > c.max) txt = txt.slice(0, c.max);
+          if (i.value === txt) return;
+          if (tocado[k] && i.value) { rel.avisos.push(rotulo + ' no PDF: ' + txt + ' (mantido o que você digitou).'); return; }
+          P.preencherLido(i, txt); rel.preenchidos.push(/^[A-Z]{2,}$/.test(rotulo) ? rotulo : rotulo.toLowerCase());
+        }
+      };
+      zona = P.zonaPdf({ titulo: o.lerPdf.titulo, texto: o.lerPdf.texto, aoLer: async (a, lido) => {
+        const rel = await o.lerPdf.aoLer(a, lido, api);
+        if (abas.ir && abasJanela[0]) abas.ir(abasJanela[0][0]);
+        return rel;
+      } });
+    }
     const corpo = el('form', { class: 'form-dialogo', novalidate: true, onsubmit: (e) => e.preventDefault() },
       travado ? el('p', { class: 'msg msg-info' }, 'Este registro está publicado. Só quem tem permissão de publicar pode alterá-lo.') : null,
-      o.aviso || null, abas);
+      o.aviso || null, zona, abas);
     if (travado || !o.perm.editar) for (const i of corpo.querySelectorAll('input, select, textarea')) if (!i.closest('[data-livre]')) i.disabled = true;
     const acoes = [el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, travado || !o.perm.editar ? 'Fechar' : 'Cancelar')];
     const btnR = el('button', { type: 'button', class: o.rascunho ? 'btn btn-claro' : 'btn btn-primario' }, o.rascunho ? (publicado ? 'Tirar do ar (rascunho)' : 'Salvar rascunho') : 'Salvar');
@@ -148,6 +192,7 @@
     async function salvar(situacao, btn) {
       const dados = Object.assign({}, o.fixos || {});
       let arq = null;
+      const pdfs = [];   // campos 'pdfurl' com PDF novo: enviados só na hora de gravar
       for (const c of todos) {
         if (c.t === 'arquivo') {
           const v = mapa[c.k].ler();
@@ -156,6 +201,15 @@
           const tera = v.pdf || v.link || r.arquivo_url;
           if (!erroCampo(pre + c.k + '-pdf', (c.ob || situacao === 'publicado' && c.obPublicar) && !tera ? 'Envie o PDF ou informe o link.' : '')) return;
           arq = v; dados.link_externo = v.link || null;
+          continue;
+        }
+        if (c.t === 'pdfurl') {
+          const v = mapa[c.k].ler();
+          if (!erroCampo(pre + c.k + '-link', v.link && !P.urlValida(v.link) ? 'Endereço completo, começando com https://' : '')) return;
+          if (!erroCampo(pre + c.k + '-pdf', v.pdf && (v.pdf.type !== 'application/pdf' || v.pdf.size > LIMITE_MB * 1048576) ? 'Envie um PDF de até ' + LIMITE_MB + ' MB.' : '')) return;
+          if (!erroCampo(pre + c.k + '-pdf', c.ob && !(v.pdf || v.link || mapa[c.k].atual) ? 'Envie o PDF ou informe o link.' : '')) return;
+          if (v.pdf) pdfs.push([c.k, v.pdf]);
+          dados[c.k] = v.link || (v.pdf ? null : mapa[c.k].atual);
           continue;
         }
         const x = lerCampo(c, mapa[c.k], pre);
@@ -168,7 +222,9 @@
       try {
         if (arq && arq.pdf) dados.arquivo_url = await P.enviarArquivo(o.modulo, arq.pdf, 'pdf', 'application/pdf');
         else if (arq && arq.link && r.arquivo_url) dados.arquivo_url = null;   // trocou o PDF pelo link
+        for (const [k, f] of pdfs) dados[k] = await P.enviarArquivo(o.modulo, f, 'pdf', 'application/pdf');
         const id = await P.gravarRegistro(o.tabela, dados, r.id);
+        for (const c of todos) if (c.t === 'pdfurl' && mapa[c.k].atual && dados[c.k] !== mapa[c.k].atual) P.apagarArquivo(mapa[c.k].atual);
         if (arq && r.arquivo_url && dados.arquivo_url !== undefined && dados.arquivo_url !== r.arquivo_url) P.apagarArquivo(r.arquivo_url);
         dlg.close();
         toast(situacao === 'publicado' ? 'Publicado.' : o.rascunho ? 'Rascunho salvo.' : 'Salvo.');

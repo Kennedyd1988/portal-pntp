@@ -216,6 +216,44 @@
     }
     return cacheVer.lista;
   }
+  // Preencher pelo PDF (0.47.1): usa a mesma leitura das portarias de diária da migração do site antigo
+  // (lerPortariaDiaria, em migracao-plataforma-b.js), já testada com atos reais; o que o ato não traz fica para digitar.
+  const NOME_TIPO = { portaria: 'Portaria', decreto: 'Decreto', resolucao: 'Resolução', ato: 'Ato' };
+  async function lerPortaria(arquivo, lido, api, ver) {
+    const rel = { preenchidos: [], faltou: [], avisos: [] };
+    api.anexar('ato_url', arquivo); rel.preenchidos.push('PDF do ato');
+    const util = ((window.MIGRACAO_ADAPTADORES || {}).plataforma_b || {}).util;
+    if (!util || !util.lerPortariaDiaria) { rel.avisos.push('O leitor de portarias de diária não carregou. Atualize a página e tente de novo.'); return rel; }
+    const ato = P.lerAto(lido.texto, NOME_TIPO);
+    const nomeAto = ato.numero ? (NOME_TIPO[ato.tipo] || 'Portaria') + ' nº ' + ato.numero + (ato.ano ? '/' + ato.ano : '') : '';
+    const { data: valores } = await sb.from('diarias_valores').select('grupo, abrangencia, valor').eq('orgao_id', org());
+    const r = util.lerPortariaDiaria(lido.texto, { numero: ato.numero, ano: ato.ano || new Date().getFullYear(), ementa: ato.ementaDoArtigo ? '' : ato.ementa || '', dataAto: ato.data, ato: nomeAto }, valores || []);
+    const g = r.registro, av = r.avisos.join(' | ');
+    const naoInf = (v) => !v || /^n[aã]o informado no ato$/i.test(String(v).trim());
+    api.preencher('nome', naoInf(g.nome) || /Benefici[aá]rio n[aã]o lido/.test(av) ? null : g.nome, 'Beneficiário', rel);
+    // CPF (só para conferência, não vai ao site): o primeiro do ato.
+    const cpf = (String(lido.texto).match(/CPF[^\d]{0,20}(\d{3}\.?\d{3}\.?\d{3}-?\d{2})/i) || [])[1];
+    if (cpf) api.preencher('documento', cpf.replace(/\D/g, ''), 'CPF', { preenchidos: rel.preenchidos, faltou: [], avisos: rel.avisos });
+    api.preencher('cargo', /Cargo n[aã]o informado/.test(av) ? null : g.cargo, 'Cargo ou função', rel);
+    api.preencher('destino', naoInf(g.destino) ? null : g.destino, 'Destino', rel);
+    if (g.abrangencia) api.preencher('abrangencia', g.abrangencia, 'Abrangência', { preenchidos: rel.preenchidos, faltou: [], avisos: rel.avisos });
+    api.preencher('motivo', /Motivo n[aã]o lido/.test(av) ? null : g.motivo, 'Motivo', rel);
+    const semDatas = /Datas da viagem n[aã]o informadas/.test(av);
+    if (semDatas && !ato.data) { api.preencher('data_inicio', null, 'Saída', rel); api.preencher('data_fim', null, 'Retorno', rel); }
+    else { api.preencher('data_inicio', g.data_inicio, 'Saída', rel); api.preencher('data_fim', g.data_fim, 'Retorno', rel); }
+    api.preencher('quantidade', /Quantidade n[aã]o informada/.test(av) ? null : g.quantidade, 'Nº de diárias', rel);
+    api.preencher('valor_unitario', g.valor_unitario, 'Valor da diária', rel);
+    api.preencher('valor_total', g.valor_total, 'Valor total', rel);
+    api.preencher('ato_concessao', nomeAto || null, 'Ato de concessão', rel);
+    // Avisos que ajudam a conferir (o que faltou já está na lista acima).
+    for (const a of r.avisos) if (/calculado pela tabela|deduzido|Datas da viagem/.test(a)) rel.avisos.push(a.replace(/Datas da viagem não informadas no ato: saída na data da portaria e retorno pela quantidade de diárias/, 'O ato não traz as datas da viagem: saída e retorno foram calculados pela data da portaria e pelo nº de diárias. Confira.') + (/[.!]$/.test(a) ? '' : '.'));
+    if (r.nomeVereador && ver.length) rel.avisos.push('O beneficiário parece ser vereador: confira o campo Vereador (o sistema liga sozinho se o nome for igual ao do cadastro).');
+    if (nomeAto) {
+      const { data } = await sb.from('diarias').select('id').eq('orgao_id', org()).eq('ato_concessao', nomeAto).limit(1);
+      if (data && data.length) rel.avisos.push('Já existe diária cadastrada com o ato "' + nomeAto + '". Confira antes de salvar para não duplicar.');
+    }
+    return rel;
+  }
   function diarias(caixa) {
     let lst;
     const abrir = async (r) => {
@@ -233,7 +271,10 @@
         [{ k: 'valor_unitario', r: 'Valor da diária (R$)', t: 'num' }, { k: 'valor_total', r: 'Valor total (R$)', t: 'num', aj: 'Em branco: nº de diárias × valor da diária.' },
           { k: 'data_pagamento', r: 'Pago em', t: 'data' }],
         [{ k: 'empenho_numero', r: 'Empenho', t: 'text', max: 30 }, { k: 'ato_concessao', r: 'Ato de concessão', t: 'text', max: 120, ph: 'Ex.: Portaria nº 98/2026' }],
-        { k: 'ato_url', r: 'Link do ato (PDF da portaria)', t: 'url' }]]],
+        { k: 'ato_url', r: 'PDF do ato de concessão', t: 'pdfurl', aj: 'A portaria (ou outro ato) que concedeu a diária. Até 200 MB.' }]]],
+      lerPdf: { titulo: 'Já tem o PDF da portaria? Envie primeiro',
+        texto: 'O sistema lê o ato e preenche beneficiário, cargo, destino, motivo, datas, nº de diárias, valores e o ato de concessão, e o PDF já fica anexado. Se preferir, digite os dados abaixo.',
+        aoLer: (arquivo, lido, api) => lerPortaria(arquivo, lido, api, ver) },
       validar: (d) => {
         const e = datasOk(d, 'data_inicio', 'data_fim', 'O retorno não pode ser antes da saída.'); if (e) return e;
         if (!(d.quantidade > 0)) return ['quantidade', 'Informe o número de diárias.'];
