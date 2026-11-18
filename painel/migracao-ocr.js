@@ -35,6 +35,24 @@
   // Corpo de ato: a parte que interessa vem depois do "RESOLVE"/"Art. 1º". Só cabeçalho = PDF escaneado.
   const temCorpo = (t) => /resolve|art\.?\s*1|conceder/i.test(t) && t.replace(/\s+/g, ' ').length > 300;
 
+  // Junta os pedaços de texto do PDF pela posição: pedaços colados ("202" + "6", "D" + "O") viram uma palavra só;
+  // espaço só onde há distância de verdade ou troca de linha (0.47.0; antes punha espaço entre todos os pedaços).
+  function juntar(itens) {
+    let t = '', ant = null;
+    for (const x of itens) {
+      if (ant && !ant.hasEOL && x.str) {
+        const mesmaLinha = Math.abs(x.transform[5] - ant.transform[5]) < 2;
+        const folga = x.transform[4] - (ant.transform[4] + ant.width);
+        const alt = x.height || ant.height || 10;
+        if ((!mesmaLinha || folga > alt * 0.15) && !/\s$/.test(t) && !/^\s/.test(x.str)) t += ' ';
+      }
+      t += x.str;
+      if (x.hasEOL) t += '\n';
+      if (x.str || x.hasEOL) ant = x;
+    }
+    return t;
+  }
+
   // Texto do PDF (url pública, com CORS). paginas: quantas ler no máximo.
   // aceita: o texto já serve? (padrão: tem o corpo de um ato). Se não servir, lê a imagem das páginas (OCR).
   // url também pode ser o próprio arquivo (File/Blob) ou um ArrayBuffer: usado pelo "Preencher pelo PDF" (0.47.0).
@@ -51,7 +69,7 @@
     let texto = '';
     for (let p = 1; p <= n; p++) {
       const c = await (await pdf.getPage(p)).getTextContent();
-      texto += c.items.map((x) => x.str + (x.hasEOL ? '\n' : ' ')).join('') + '\n';
+      texto += juntar(c.items) + '\n';
     }
     if ((aceita || temCorpo)(texto)) return { texto, ocr: false };
     // Escaneado: uma leitura por vez (o OCR usa bastante memória).

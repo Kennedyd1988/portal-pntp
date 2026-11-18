@@ -127,8 +127,8 @@
   // Onde a ementa termina: começo do preâmbulo ou do texto do ato.
   // Sem diferenciar maiúsculas: fórmulas de abertura. Só em CAIXA ALTA: autoridade ("O PREFEITO", "O SECRETÁRIO"),
   // para não cortar ementas como "Designa o Secretário de Obras…".
-  const RE_PREAMBULO = /\bFA[ÇC]O\s+SABER|\bno\s+uso\s+d[ea]s?\s+(?:suas\s+)?atribui|\bRESOLVE\s*[:.]|\bDECRETA\s*[:.]|\bArt(?:igo)?\.?\s*1\s*[º°o]?\b|\b(?:O|A)\s+Prefeit[oa]\s+(?:Municipal|Constitucional|d[eoa])\b|(?<=[.;:]\s|^)(?:O|A)\s+(?:Excelent[íi]ssim[oa]\s+)?(?:Senhor[a]?\s+)?(?:Prefeit|Vice|President|Secret[áa]ri|Diretor|Gestor|Superintendent|C[âa]mara|Mesa|Conselho)/i;
-  const RE_PREAMBULO_CAIXA = /\b(?:O|A)\s+(?:EXCELENT[ÍI]SSIM[OA]\s+)?(?:SENHOR[A]?\s+)?(?:PREFEIT|VICE|PRESIDENT|SECRET[ÁA]RI|DIRETOR|GESTOR|SUPERINTENDENT|C[ÂA]MARA|MESA|CONSELHO)/;
+  const RE_PREAMBULO = /\bFA[ÇC]O\s+SABER|\bno\s+uso\s+d[ea]s?\s+(?:suas\s+)?atribui|\bRESOLVE\s*[:.]|\bDECRETA\s*[:.]|\bArt(?:igo)?\.?\s*1\s*[º°o]?\b|\b(?:O|A)\s+Prefeit[oa]\s+(?:Municipal|Constitucional|d[eoa])\b|(?<=[.;:”"]\s|^)(?:O|A)\s+(?:Excelent[íi]ssim[oa]\s+)?(?:Senhor[a]?\s+)?(?:Prefeit|Vice|President|Secret[áa]ri|Diretor|Gestor|Superintendent|C[âa]mara|Mesa|Conselho)/i;
+  const RE_PREAMBULO_CAIXA = /(?<=[.;:”"]\s|^)(?:O|A)\s+(?:EXCELENT[ÍI]SSIM[OA]\s+)?(?:SENHOR[A]?\s+)?(?:PREFEIT|VICE|PRESIDENT|SECRET[ÁA]RI|DIRETOR|GESTOR|SUPERINTENDENT|C[ÂA]MARA|MESA|CONSELHO)/;
   function inicioPreambulo(t) {
     const a = RE_PREAMBULO.exec(t), b = RE_PREAMBULO_CAIXA.exec(t);
     const i = Math.min(a ? a.index : Infinity, b ? b.index : Infinity);
@@ -198,8 +198,10 @@
     const resto = depois.slice(fimCab);
     const p = inicioPreambulo(resto);
     const candidata = limpar((p ? resto.slice(0, p.index) : resto.slice(0, 400)).replace(/^\s*(?:,\s*)?de\s+\d{1,2}\s+de\s+\w+\s+de\s+\d{4}/i, ''));
+    // Ementa entre aspas (“DISPÕE SOBRE…”.) fica sem as aspas.
+    const semAspas = (e) => e.replace(/^[“"'‘]+\s*/, '').replace(/\s*[”"'’]+\s*([.;]?)$/, '$1');
     const autoridade = /^(?:O|A)\s+(?:Excelent|Senhor|Secret|Prefeit|President|Diretor|Gestor|Vice|Superintendent|C[âa]mara|Mesa|Conselho)/i.test(candidata);
-    if (cab && !autoridade && candidata.length >= 15 && candidata.length <= 700 && /[a-zà-ú]{3}/i.test(candidata)) r.ementa = cortar(semCpf(candidata), 600);
+    if (cab && !autoridade && candidata.length >= 15 && candidata.length <= 700 && /[a-zà-ú]{3}/i.test(candidata)) r.ementa = cortar(semAspas(semCpf(candidata)), 600);
     else {
       // Sem ementa (comum em portarias): resume o Art. 1º ("Nomear FULANO para o cargo de…").
       const a1 = /(?:RESOLVE|DECRETA)\s*[:.]?\s*(?:Art(?:igo)?\.?\s*1\s*[º°o]?\s*[-–—.:]?\s*)?(.+)|Art(?:igo)?\.?\s*1\s*[º°o]?\s*[-–—.:]?\s*(.+)/i.exec(resto || t);
