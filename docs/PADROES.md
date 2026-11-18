@@ -10,7 +10,6 @@ O SOFT+ GOV é um site institucional + Portal da Transparência para órgãos p�
 
 | Camada | Tecnologia | Onde fica | Observação |
 | --- | --- | --- | --- |
-| 18/11/2026 | 0.46.6 | Códigos de referência (carregador, tokens, componentes, núcleo JS, RLS, gatilhos, exclusão, configurações, PWA) |
 | Site público | HTML + CSS + JavaScript puro, sem framework | `site/` (index.html, site.css, site.js, paginas.js e módulos por assunto) | Rotas por hash (`#/pagina`), carregadas sob demanda |
 | Painel de gestão | HTML + CSS + JavaScript puro, PWA instalável | `painel/` (app.js = núcleo, `modulo-*.js` = telas) | Botão "Instalar app" fixo no canto inferior esquerdo |
 | Banco, login e regras | Supabase (PostgreSQL + Auth + Storage + Edge Functions) | `supabase/NN_nome.sql`, rodados em ordem | RLS ligado em todas as tabelas; nada exposto sem `grant` |
@@ -682,6 +681,7 @@ Trocou a logo → arquivos com nome novo (`-v2`) e o manifesto apontando para el
 
 | Data | Versão | O que mudou nos padrões |
 | --- | --- | --- |
-| 18/11/2026 | 0.47.0 | Novo componente "Preencher pelo PDF" (`P.zonaPdf`, `P.lerAto`) no núcleo do painel; primeiro uso em Publicações oficiais (seção 4) |
+| 18/11/2026 | 0.47.0 | Novo componente "Preencher pelo PDF" (`P.zonaPdf`, `P.lerAto`) no núcleo do painel; primeiro uso em Publicações oficiais, onde o campo passou a se chamar "Data do ato" (seção 4) |
+| 18/11/2026 | 0.46.6 | Códigos de referência (carregador, tokens, componentes, núcleo JS, RLS, gatilhos, exclusão, configurações, PWA) |
 | 17/11/2026 | 0.46.6 | Regra de logo e ícones: nome novo nos arquivos a cada troca de logo, para o app instalado atualizar o ícone (seção 10) |
 | 17/11/2026 | 0.46.5 | Primeira edição: arquitetura, visual do site e do painel, componentes, acessibilidade, usuários e perfis, criação de órgãos, regras de dados, configurações por órgão, fluxo de trabalho e checklist para novos apps |
