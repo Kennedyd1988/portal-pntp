@@ -132,6 +132,23 @@
     for (const k of [].concat(chave)) { const u = window.externoPNTP((estado.orgao || {}).configuracoes || {}, k); if (u) return { chave: k, url: u }; }
     return null;
   }
+  // Integração com a Gestão de Consórcio (sistema SOFT+ dos consórcios): quando um item está integrado,
+  // a Gestão é quem cadastra e o Portal mostra só para consulta. O banco trava a edição de qualquer jeito.
+  // configuracoes.integracao_gestao = { entes, pessoas, identidade, url } (gravado só pela Gestão).
+  const ROTA_GESTAO = { entes: '#entes', pessoas: '#pessoas', identidade: '#cimop' };
+  const NOME_GESTAO = { entes: 'Cadastro de Consorciados › Entes', pessoas: 'Cadastro de Consorciados › Pessoas do CIMOP', identidade: 'Cadastro de Consorciados › Dados do CIMOP' };
+  function integracaoGestao(item) {
+    const g = ((estado.orgao || {}).configuracoes || {}).integracao_gestao;
+    return g && g[item] ? g : null;
+  }
+  const linkGestao = (item) => { const g = integracaoGestao(item); return g ? (g.url || 'https://gestao-consorcio.pages.dev/') + (ROTA_GESTAO[item] || '') : null; };
+  function avisoGestao(item, texto) {
+    if (!integracaoGestao(item)) return null;
+    return el('div', { class: 'msg msg-info aviso-gestao' },
+      el('strong', null, 'Controlado pela Gestão de Consórcio. '), texto || 'Estes dados são cadastrados na Gestão de Consórcio e chegam aqui já publicados.',
+      ' Para alterar, use ', el('a', { href: linkGestao(item), target: '_blank', rel: 'noopener' }, NOME_GESTAO[item] + ' ↗', el('span', { class: 'sr' }, ' (abre em nova aba)')), '.');
+  }
+
   function avisoExterno(ext) {
     const d = (window.DESTINOS_PNTP || []).find((x) => x[0] === ext.chave);
     const podeAparencia = estado.permissoes.aparencia && estado.permissoes.aparencia.ver;
@@ -767,8 +784,12 @@
     const itens = ITENS_PNTP.filter(([letra]) => x.itens.includes(letra)).map(([, campo, rotulo]) =>
       el('span', { class: 'item-pntp ' + (x[campo] ? 'item-ok' : 'item-falta') }, el('span', { 'aria-hidden': 'true' }, x[campo] ? '✓ ' : '! '), rotulo,
         el('span', { class: 'sr' }, x[campo] ? ' (atendido)' : ' (falta)')));
+    // Itens integrados com a Gestão de Consórcio: "Corrigir" abre a tela certa lá.
+    const itemGestao = x.codigo === '25.7' ? 'entes' : x.codigo === '2.3' ? 'pessoas' : ['2.4', '2.5'].includes(x.codigo) ? 'identidade' : null;
+    const rotaGestao = itemGestao && linkGestao(itemGestao);
     const corrigir = x.rota && x.situacao !== 'atende' && podeVerCriterio(x)
-      ? el('a', { class: 'btn btn-claro btn-p', href: x.rota }, 'Corrigir', el('span', { class: 'sr' }, ' o critério ' + x.codigo)) : null;
+      ? (rotaGestao ? el('a', { class: 'btn btn-claro btn-p', href: rotaGestao, target: '_blank', rel: 'noopener' }, 'Corrigir na Gestão ↗', el('span', { class: 'sr' }, ' o critério ' + x.codigo + ' (abre em nova aba)'))
+        : el('a', { class: 'btn btn-claro btn-p', href: x.rota }, 'Corrigir', el('span', { class: 'sr' }, ' o critério ' + x.codigo))) : null;
     return el('li', { class: 'crit-pntp crit-' + x.situacao },
       el('span', { class: 'crit-icone', 'aria-hidden': 'true' }, icone),
       el('div', { class: 'crit-corpo' },
@@ -1590,7 +1611,7 @@
     cpfValido, cnpjValido, erroDoc, formatarDoc, mascaraDoc,
     abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo, copiaNova, botaoDuplicar,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
-    campo, campoOutra, abas, abaDoEndereco, mesclarConfiguracoes, externo, avisoExterno, declaracoes, declaracoesAnuais, declaracoesDoOrgao, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
+    campo, campoOutra, abas, abaDoEndereco, mesclarConfiguracoes, externo, avisoExterno, integracaoGestao, avisoGestao, declaracoes, declaracoesAnuais, declaracoesDoOrgao, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
     paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf, atualizarAvisos, excluirComPecas,
     avaliacaoPntp: avaliacao, linhaCriterio   // Kit de evidências PNTP (0.45.0)
   };

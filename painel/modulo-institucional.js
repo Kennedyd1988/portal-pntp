@@ -33,8 +33,9 @@
   const podeEditarUnidade = (u) => perm.editar && (!alcance() || u.id === alcance());
   const podeExcluirUnidade = () => perm.excluir && !alcance();
   const podeCriarUnidade = () => perm.editar && !alcance();
-  const podeEditarGestor = (g) => perm.editar && (!alcance() || g.unidade_id === alcance());
-  const podeExcluirGestor = (g) => perm.excluir && (!alcance() || g.unidade_id === alcance());
+  const daGestao = () => !!(P.integracaoGestao && P.integracaoGestao('pessoas'));   // gestores controlados pela Gestão de Consórcio
+  const podeEditarGestor = (g) => perm.editar && !daGestao() && (!alcance() || g.unidade_id === alcance());
+  const podeExcluirGestor = (g) => perm.excluir && !daGestao() && (!alcance() || g.unidade_id === alcance());
 
   const nomeUnidade = (id) => (dados.unidades.find((u) => u.id === id) || {}).nome || '';
 
@@ -411,13 +412,14 @@
           el('h1', null, 'Unidades e gestores'),
           el('p', { class: 'sub' }, 'Estrutura organizacional, contatos, horários e responsáveis. Tudo aparece no site.')
         ),
-        (aba === 'unidades' ? podeCriarUnidade() : perm.editar)
+        (aba === 'unidades' ? podeCriarUnidade() : perm.editar && !daGestao())
           ? el('button', { type: 'button', class: 'btn btn-primario', onclick: () => aba === 'unidades' ? formUnidade() : formGestor() },
             aba === 'unidades' ? '+ Nova unidade' : '+ Novo gestor') : null
       ),
       alcance() && perm.editar ? el('p', { class: 'msg msg-info' }, 'Seu acesso é limitado a "' + nomeUnidade(alcance()) +
         '": você altera só essa unidade e os gestores dela. As demais aparecem apenas para consulta.') : null,
       pendencias.length ? el('p', { class: 'msg msg-info' }, 'Pendências: ' + pendencias.join(' · ') + '.') : null,
+      aba === 'gestores' && daGestao() ? P.avisoGestao('pessoas', 'Os gestores do CIMOP são as Pessoas do CIMOP marcadas com "Mostrar no site" na Gestão de Consórcio. As unidades continuam sendo cadastradas aqui.') : null,
       el('div', { class: 'abas', role: 'tablist' },
         botaoAba('unidades', 'Unidades', dados.unidades.length),
         botaoAba('gestores', 'Gestores', dados.gestores.length)

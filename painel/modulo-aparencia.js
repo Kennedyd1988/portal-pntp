@@ -404,6 +404,15 @@
     corTexto.id = 'ap-cor';
 
     if (!podeEditar) for (const i of form.querySelectorAll('input, select')) i.disabled = true;
+    // Identidade controlada pela Gestão de Consórcio: nome exibido, brasão, endereço, contatos e horário ficam só para consulta.
+    const CHAVES_GESTAO = ['nome_exibicao', 'endereco', 'cep', 'telefone', 'email', 'horario', 'whatsapp'];
+    const identGestao = !!(P.integracaoGestao && P.integracaoGestao('identidade'));
+    if (identGestao) {
+      for (const k of CHAVES_GESTAO) if (f[k]) f[k].disabled = true;
+      inputArquivo.disabled = true;
+      for (const b of form.querySelectorAll('.brasao-acoes label[for="brasao-arquivo"], .brasao-acoes .link')) { b.classList.add('desativado'); b.hidden = b.tagName === 'BUTTON'; }
+      form.prepend(P.avisoGestao('identidade', 'Nome exibido, brasão, endereço, CEP, telefone, WhatsApp, e-mail e horário do CIMOP vêm da Gestão de Consórcio. Cores, ícone, domínio, redes sociais e destinos continuam aqui.'));
+    }
 
     const urlValida = (v) => !v || /^https?:\/\/\S+\.\S+/.test(v);
 
@@ -481,6 +490,7 @@
           transparencia_extras: extras.map((e) => ({ titulo: e.titulo.value.trim(), grupo: e.grupo.value === '__novo' ? e.grupoNome.value.trim() : e.grupo.value,
             icone: e.icone.value, tipo: e.tipo.value, valor: e.tipo.value === 'link' ? e.url.value.trim() : e.tipo.value === 'pagina' ? e.pagina.value : e.tipoPub.value }))
         };
+        if (identGestao) { for (const k of CHAVES_GESTAO) delete mudancas[k]; delete mudancas.brasao_url; }
         const novaCfg = Object.assign({}, cfg, mudancas);
         // Só o que esta tela cuida vai para o banco, junto com o que já está lá (script 41):
         // não apaga o que outra tela gravou enquanto esta estava aberta (ex.: site antigo da Migração).
@@ -488,7 +498,7 @@
         if (e2) throw e2;
         if (!data || !data.length) throw Object.assign(new Error('Seu perfil não tem permissão para alterar a aparência deste órgão.'), { amigavel: true });
         Object.assign(novaCfg, await P.mesclarConfiguracoes(mudancas, org.id));
-        if (antigo && antigo !== brasaoUrl) P.apagarArquivo(antigo);
+        if (!identGestao && antigo && antigo !== brasaoUrl) P.apagarArquivo(antigo);
         for (const k of ['favicon_url', 'radar_imagem_url']) if (cfg[k] && cfg[k] !== novaCfg[k]) P.apagarArquivo(cfg[k]);
         // Imagens de selos trocadas ou removidas: apaga do armazenamento.
         for (const u of selosAntigos) if (!selosGravar.some((x) => x.imagem_url === u)) P.apagarArquivo(u);

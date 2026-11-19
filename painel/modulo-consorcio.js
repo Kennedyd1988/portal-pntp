@@ -29,6 +29,7 @@
   let perm = {}, entes = [];
   const org = () => P.estado.orgao.id;
   const pode = () => perm.editar && !P.estado.alcanceUnidade;
+  const daGestao = () => !!(P.integracaoGestao && P.integracaoGestao('entes'));   // entes controlados pela Gestão de Consórcio
   const anoAtual = () => new Date().getFullYear();
   const so = (tipos) => Object.fromEntries(tipos.map((t) => [t, TIPOS_DOC[t]]));
   const ente = (id) => entes.find((e) => e.id === id);
@@ -95,7 +96,7 @@
   function abaEntes() {
     const caixa = el('div');
     const abrir = (r, aba) => T().formulario({ tabela: 'consorcio_entes', modulo: 'consorcio', titulo: 'ente consorciado', registro: r || { situacao_ente: 'ativo', uf: P.estado.orgao.uf || 'RN' },
-      perm, rascunho: true, abaInicial: aba, depois: async () => { await carregarEntes(); desenhar(); },
+      perm: daGestao() ? Object.assign({}, perm, { editar: false, publicar: false, excluir: false }) : perm, rascunho: true, abaInicial: aba, depois: async () => { await carregarEntes(); desenhar(); },
       abas: [['dados', 'Ente', [
         [{ k: 'nome', r: 'Nome do ente', t: 'text', ob: true, minimo: 3, ph: 'Ex.: Município de Riacho da Cruz' }, { k: 'tipo_ente', r: 'Tipo', t: 'sel', op: TIPOS_ENTE },
           { k: 'uf', r: 'UF', t: 'sel', op: Object.fromEntries(UFS.map((u) => [u, u])), ob: true }],
@@ -130,13 +131,13 @@
       caixa.replaceChildren(
         el('p', { class: 'ajuda' }, 'Municípios, estados ou outros entes que integram o consórcio, com a lei que ratificou o protocolo de intenções. Quem saiu continua na lista, com a data de saída (composição vigente no site).'),
         faltas.length ? el('div', { class: 'msg msg-falta' }, el('strong', null, 'Para atender o PNTP: '), el('ul', { style: 'margin:4px 0 0 18px' }, faltas.map((t) => el('li', null, t)))) : '',
-        el('p', null, botaoNovo('+ Novo ente consorciado', () => abrir())),
+        daGestao() ? P.avisoGestao('entes', 'Os entes consorciados do CIMOP são cadastrados na Gestão de Consórcio e chegam aqui já publicados.') : el('p', null, botaoNovo('+ Novo ente consorciado', () => abrir())),
         T().tabela([['Ente', (e) => [el('strong', null, e.nome), el('span', { class: 'sub-linha' }, TIPOS_ENTE[e.tipo_ente] + ' · ' + e.uf + (e.cnpj ? ' · CNPJ ' + P.formatarDoc(e.cnpj) : ''))], 'quebra'],
           ['Lei de ratificação', (e) => e.lei_ratificacao_url ? el('a', { href: e.lei_ratificacao_url, target: '_blank', rel: 'noopener' }, e.lei_ratificacao || 'abrir') : e.lei_ratificacao || '—'],
           ['No consórcio', (e) => [SIT_ENTE[e.situacao_ente].split(' (')[0], el('span', { class: 'sub-linha' }, (e.data_ingresso ? 'desde ' + P.dataBR(e.data_ingresso) : '') + (e.data_saida ? ' · saiu em ' + P.dataBR(e.data_saida) : ''))]],
           ['Situação', sit]], entes,
-          (e) => [T().botao('Contratos', () => abrir(e, 'contratos')), T().botao(pode() ? 'Editar' : 'Ver', () => abrir(e)),
-            pode() && perm.excluir ? T().botao('Excluir', () => T().excluir('consorcio_entes', e, e.nome, async () => { await carregarEntes(); desenhar(); }), true) : null],
+          (e) => [T().botao('Contratos', () => abrir(e, 'contratos')), T().botao(pode() && !daGestao() ? 'Editar' : 'Ver', () => abrir(e)),
+            pode() && perm.excluir && !daGestao() ? T().botao('Excluir', () => T().excluir('consorcio_entes', e, e.nome, async () => { await carregarEntes(); desenhar(); }), true) : null],
           'Nenhum ente cadastrado.'));
     }
     desenhar();
