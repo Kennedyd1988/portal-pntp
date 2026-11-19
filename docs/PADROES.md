@@ -1,6 +1,6 @@
 # SOFT+ GOV — Manual de padrões reutilizáveis
 
-Versão do sistema: 0.47.2 · Atualizado em 18/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
+Versão do sistema: 0.48.0 · Atualizado em 19/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
 
 > Cópia do manual mantida no repositório. A cada publicação no ar, o manual (documento e esta cópia) é atualizado junto com as notas da versão. Veja o "Histórico de atualizações" no fim.
 
@@ -280,6 +280,19 @@ As regras de dados ficam no PostgreSQL (gatilhos e políticas RLS), para valerem
 - Exportação padrão em CSV, JSON, XML, XLSX, PDF e Imprimir, sempre seguindo os filtros da tela.
 - Totais calculados pelo banco a partir dos movimentos, com travas de coerência.
 - Funções de consulta pesadas: preferir uma função por item (ex.: `atividade_vereador`) a uma que calcula todos e filtra, e criar índice pela coluna de busca (evita estouro de tempo).
+
+**Vários clientes donos dos dados num mesmo schema (padrão da Gestão de Consórcio 0.12.0)**
+
+- Quando um app atende vários clientes num schema próprio (ex.: `consorcio`), cada tabela tem `consorcio_id` (ou o id do cliente) e uma política RESTRICTIVE `isolar_<cliente>` comparando com uma função `atual()`, que lê o cliente escolhido na sessão, depois o salvo no usuário, depois o primeiro vínculo.
+- Usuário em vários clientes: tabela de vínculo (usuário, cliente, perfil, ativo); escolhe no login e troca pelo topo ("Trocar consórcio"). Só o Suporte SOFT+ cria clientes.
+- Funções `security definer` pertencem a um papel dono próprio (sem bypass de RLS), para continuarem presas ao cliente; ficam com postgres só as de permissão, as que resolvem o cliente e as cascas públicas.
+- Acesso público: casca que fixa o cliente pela sigla do link (`?c=SIGLA`), pela IRP ou pelo protocolo e chama a função `_base`. Links sem sigla abrem o primeiro cliente, para não quebrar links antigos.
+- Números e documentos únicos (ofício, IRP, CNPJ) são únicos por cliente; configurações têm uma linha por cliente.
+- Migração: cópia de segurança num schema `<schema>_bkp_NN`, teste completo numa transação que se desfaz (cria um cliente de teste e confere o isolamento) e só então a execução real.
+
+**Integração Gestão de Consórcio ↔ Portal (0.48.0)**
+
+- Por item (entes, gestores, documentos, identidade com redes): item ligado é cadastrado só na Gestão e chega ao Portal já publicado; no Portal fica só para consulta, com o aviso "Controlado pela Gestão de Consórcio", e o "Corrigir" da autoavaliação abre a Gestão. Item desligado: cada sistema cadastra o seu. Integrações começam desligadas.
 
 ## 9. Configurações por órgão e recursos específicos da transparência
 
@@ -685,6 +698,7 @@ Trocou a logo → arquivos com nome novo (`-v2`) e o manifesto apontando para el
 
 | Data | Versão | O que mudou nos padrões |
 | --- | --- | --- |
+| 19/11/2026 | 0.48.0 | Padrão de vários clientes donos dos dados num mesmo schema (isolamento por política RESTRICTIVE, papel dono, cascas públicas com `?c=SIGLA`, migração com cópia e teste desfeito) e integração Gestão de Consórcio ↔ Portal por item (seção 8) |
 | 18/11/2026 | 0.47.2 | "Incluir outro ao salvar" em todas as janelas abertas por "+", botão "Duplicar" nas listas (`P.copiaNova`, `P.botaoDuplicar`) e ementa sugerida no formato de ementa e envio em lote de PDFs (`P.loteDePdfs`) em Publicações e Diárias (seção 4) |
 | 18/11/2026 | 0.47.1 | "Preencher pelo PDF" no formulário comum (`lerPdf`) e campo `pdfurl` (PDF ou link na mesma coluna); primeiro uso em Diárias (seção 4) |
 | 18/11/2026 | 0.47.0 | Novo componente "Preencher pelo PDF" (`P.zonaPdf`, `P.lerAto`) no núcleo do painel; primeiro uso em Publicações oficiais, onde o campo passou a se chamar "Data do ato" (seção 4) |
