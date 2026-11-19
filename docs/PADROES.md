@@ -1,6 +1,6 @@
 # SOFT+ GOV — Manual de padrões reutilizáveis
 
-Versão do sistema: 0.47.1 · Atualizado em 18/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
+Versão do sistema: 0.47.2 · Atualizado em 18/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
 
 > Cópia do manual mantida no repositório. A cada publicação no ar, o manual (documento e esta cópia) é atualizado junto com as notas da versão. Veja o "Histórico de atualizações" no fim.
 
@@ -144,9 +144,12 @@ O painel é ferramenta de trabalho: tem a identidade da SOFT+ GOV (e não a do �
 | `P.externo`, `P.avisoExterno` | Parte com link externo: desativa o cadastro manual e mostra o aviso |
 | `P.mesclarConfiguracoes(valores, órgão)` | Grava só as configurações alteradas |
 | `P.editorTexto`, `P.renderTexto` | Editor e exibição da marcação simples |
+| `P.copiaNova(registro)`, `P.botaoDuplicar(abrirCópia)` | "Duplicar" nas listas: cópia sem id, número, protocolo, arquivos, links, slug e ligações, sempre como rascunho; abre na mesma janela de cadastro como novo |
 | `P.zonaPdf(opções)`, `P.preencherLido`, `P.lerAto` | "Preencher pelo PDF" (`painel/leitor-pdf.js`): zona no topo da janela de inclusão; lê o texto do PDF (ou OCR se escaneado, tudo no navegador) e preenche só os campos que o usuário não mexeu, marcando-os com "Lido do PDF"; digitar à mão continua possível |
 
 **Preencher pelo PDF (padrão para cadastros que nascem de um documento):** a janela "+ Novo…" continua igual e ganha no topo a zona tracejada "Já tem o PDF? Envie primeiro" (ícone redondo âmbar de atos, botão principal "Escolher PDF", arrastar e soltar). Depois da leitura: mensagem verde com o que foi preenchido, amarela com o que faltou e os avisos (já cadastrado, arquivo de outro órgão), campos preenchidos com borda verde e etiqueta "Lido do PDF" (some quando o usuário edita). O PDF lido já vira o documento do registro. Nada é publicado sozinho; CPF nunca vai para campos de texto sugeridos. Nos módulos que usam o formulário comum (`P.setor.formulario`), basta passar `lerPdf: { titulo, texto, aoLer(arquivo, lido, api) }`; `api.preencher(campo, valor, rótulo, relatório)` só mexe no que o usuário não tocou e `api.anexar(campo, arquivo)` põe o PDF no campo. Campo `t: 'pdfurl'`: PDF enviado ou link, gravados na mesma coluna (ex.: `diarias.ato_url`).
+
+**Cadastrar em sequência:** toda janela aberta por um botão "+ …" ganha no rodapé, à esquerda, a caixa "Incluir outro ao salvar" (feita no `P.abrirDialogo`, vale sozinha para todas as telas). Marcada, a janela reabre em branco depois de salvar (fechar, Cancelar e Esc não contam) e fica marcada na sessão. Nas listas, "Duplicar" fica ao lado de "Editar", com a mesma permissão; não vale para usuários, órgãos, menu, unidades e gestores, vereadores, comissões e listas de espera.
 
 **Mensagens e textos:** frases curtas, em linguagem do usuário ("Seu perfil não pode excluir esta declaração."), sem jargão técnico; erros do banco traduzidos por `P.traduzirErro` / `P.erroGravacao`. Terminologia jurídica: "contratado", não "fornecedor".
 
@@ -681,6 +684,7 @@ Trocou a logo → arquivos com nome novo (`-v2`) e o manifesto apontando para el
 
 | Data | Versão | O que mudou nos padrões |
 | --- | --- | --- |
+| 18/11/2026 | 0.47.2 | "Incluir outro ao salvar" em todas as janelas abertas por "+", botão "Duplicar" nas listas (`P.copiaNova`, `P.botaoDuplicar`) e ementa sugerida no formato de ementa (seção 4) |
 | 18/11/2026 | 0.47.1 | "Preencher pelo PDF" no formulário comum (`lerPdf`) e campo `pdfurl` (PDF ou link na mesma coluna); primeiro uso em Diárias (seção 4) |
 | 18/11/2026 | 0.47.0 | Novo componente "Preencher pelo PDF" (`P.zonaPdf`, `P.lerAto`) no núcleo do painel; primeiro uso em Publicações oficiais, onde o campo passou a se chamar "Data do ato" (seção 4) |
 | 18/11/2026 | 0.46.6 | Códigos de referência (carregador, tokens, componentes, núcleo JS, RLS, gatilhos, exclusão, configurações, PWA) |

@@ -551,7 +551,7 @@
               el('td', null, el('span', { class: 'etiqueta etiqueta-' + (c.situacao === 'publicado' ? 'publicado' : 'rascunho') }, c.situacao === 'publicado' ? 'No ar' : 'Rascunho')),
               el('td', { class: 'acoes' },
                 el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(c, 'aditivos') }, 'Aditivos e fiscais'),
-                podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(c) }, c.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
+                podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(c) }, c.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null, podeGravar() ? P.botaoDuplicar(() => form(P.copiaNova(c))) : null,
                 perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(c) }, 'Excluir') : null));
           })))),
         el('div', { class: 'rodape-lista' }, el('span', { class: 'ajuda' }, 'Mostrando ' + itens.length + ' de ' + total), fim ? '' : btnMais));

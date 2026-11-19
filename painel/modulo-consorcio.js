@@ -84,7 +84,7 @@
       } });
   }
   const botaoNovo = (rot, fn) => pode() ? el('button', { type: 'button', class: 'btn btn-primario', onclick: fn }, rot) : '';
-  const acoesDoc = (abrir, depois) => (r) => [T().botao(pode() ? 'Editar' : 'Ver', () => abrir(r)),
+  const acoesDoc = (abrir, depois) => (r) => [T().botao(pode() ? 'Editar' : 'Ver', () => abrir(r)), pode() ? T().botao('Duplicar', () => { abrir(P.copiaNova(r)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null,
     pode() && perm.excluir ? T().botao('Excluir', () => T().excluir('consorcio_documentos', r, r.titulo, depois), true) : null];
   // Declarações de que não há dados no pé da aba; ao mudar, as abas de ano se refazem.
   const declaracao = (chave, lista) => P.declaracoes(chave, { perm, aoMudar: () => lista && lista.recarregar(true) });

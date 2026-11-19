@@ -158,6 +158,41 @@
     return (i > max * 0.6 ? c.slice(0, i) : c).replace(/[,;:\s]+$/, '') + '…';
   }
 
+  // Ementa sugerida (0.47.2): o Art. 1º reescrito como ementa — verbo na 3ª pessoa ("Nomear" → "Nomeia",
+  // "Fica exonerada…" → "Exonera…"), sem os complementos de praxe e cortado no essencial.
+  const VERBOS_IRREG = { dispor: 'Dispõe', propor: 'Propõe', compor: 'Compõe', impor: 'Impõe', repor: 'Repõe', expor: 'Expõe', manter: 'Mantém', ter: 'Tem', ver: 'Vê', dar: 'Dá' };
+  const cap = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+  function terceiraPessoa(v) {
+    const b = v.toLowerCase();
+    if (VERBOS_IRREG[b]) return VERBOS_IRREG[b];
+    if (/ear$/.test(b)) return cap(b.slice(0, -3) + 'eia');          // nomear → nomeia
+    if (/uir$/.test(b)) return cap(b.slice(0, -2) + 'i');            // instituir → institui
+    if (/ar$/.test(b)) return cap(b.slice(0, -2) + 'a');             // designar → designa
+    if (/[ei]r$/.test(b)) return cap(b.slice(0, -2) + 'e');          // conceder → concede, conferir → confere
+    return cap(v);
+  }
+  function participioParaVerbo(p) {
+    const b = p.toLowerCase().replace(/(ad|id|íd|ost)(?:[oa]s?)$/, '$1o');
+    if (/eado$/.test(b)) return terceiraPessoa(b.slice(0, -4) + 'ear');
+    if (/u[íi]do$/.test(b)) return terceiraPessoa(b.slice(0, -4) + 'uir');
+    if (/ado$/.test(b)) return terceiraPessoa(b.slice(0, -3) + 'ar');
+    if (/ido$/.test(b)) return terceiraPessoa(b.slice(0, -3) + 'er');   // concedido → concede; conferido → confere (mesma forma)
+    if (/osto$/.test(b)) return terceiraPessoa(b.slice(0, -4) + 'or');
+    return null;
+  }
+  function comoEmenta(t) {
+    let e = t.trim(), m;
+    if ((m = e.match(/^ficam?\s+([a-zà-ú]+(?:ad|id|íd|ost)[oa]s?)\b\s*(.*)$/i))) {   // "Fica exonerada, a pedido, MARIA…" → "Exonera, a pedido, MARIA…"
+      const v = participioParaVerbo(m[1]); if (v) e = v + (m[2] ? (m[2][0] === ',' ? '' : ' ') + m[2] : '');
+    } else if ((m = e.match(/^([a-zà-ú]+(?:ar|er|ir|or))\b(.*)$/i))) e = terceiraPessoa(m[1]) + m[2];
+    e = e.replace(/,\s+(para|como|no cargo|do cargo|na função|da função)\b/gi, ' $1')   // vírgula que sobrou do CPF tirado
+      // Complementos de praxe que não entram na ementa.
+      .replace(/,?\s*(?:nos termos d[ao]s?|de acordo com|conforme|com fundamento n[ao]s?|com base n[ao]s?|em conformidade com)\s[^,;]*?(?=[,;]|\.?$)/gi, '')
+      .replace(/,?\s*(?:a contar de|a partir de)\s[^,;]*?(?=[,;]|\.?$)/gi, '')
+      .replace(/\s+,/g, ',').replace(/\s{2,}/g, ' ').replace(/[,;:\s.]+$/, '');
+    return e + '.';
+  }
+
   function lerAto(texto, tipos) {
     const t = String(texto || '').replace(/\s+/g, ' ').trim();
     const r = { tipo: null, numero: null, ano: null, data: null, ementa: null, ementaDoArtigo: false };
@@ -208,7 +243,7 @@
       if (a1) {
         let corpo = (a1[1] || a1[2] || '').split(/\s+Art(?:igo)?\.?\s*2\s*[º°o]?|\s+Par[áa]grafo\s+[úu]nico|\s+§\s*1|\s+(?:Gabinete|Pal[áa]cio|Registre-se|Publique-se|Cumpra-se|Sala\s+das\s+Sess)/i)[0];
         corpo = limpar(corpo.split(/(?<=[a-zà-ú0-9)\]]{2})\.\s+(?=[A-ZÀ-Ú])/)[0]);
-        if (corpo.length >= 10) { corpo = semCpf(corpo); r.ementa = cortar(corpo.charAt(0).toUpperCase() + corpo.slice(1), 300); r.ementaDoArtigo = true; }
+        if (corpo.length >= 10) { corpo = comoEmenta(semCpf(corpo)); r.ementa = cortar(corpo.charAt(0).toUpperCase() + corpo.slice(1), 250); r.ementaDoArtigo = true; }
       }
     }
     return r;

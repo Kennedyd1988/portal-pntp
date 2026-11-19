@@ -446,7 +446,7 @@
         ['Sigilo até', (r) => r.prazo_fim ? P.dataBR(r.prazo_fim) : r.evento_fim, 'quebra'],
         desclassificadas ? ['Desclassificação', (r) => dois(P.dataBR(r.data_desclassificacao), MOTIVOS_DESC[r.motivo_desclassificacao])] : ['Situação', sigilo],
         ['No site', (r) => S.etiquetaSituacao(r.situacao)]],
-      acoes: (l) => [S.botao(pode() ? 'Editar' : 'Ver', () => abrir(l)), pode() && perm.excluir ? S.botao('Excluir', () => S.excluir('informacoes_classificadas', l, l.assunto.slice(0, 60), () => lst.recarregar(true)), true) : null] });
+      acoes: (l) => [S.botao(pode() ? 'Editar' : 'Ver', () => abrir(l)), pode() ? S.botao('Duplicar', () => { abrir(P.copiaNova(l)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null, pode() && perm.excluir ? S.botao('Excluir', () => S.excluir('informacoes_classificadas', l, l.assunto.slice(0, 60), () => lst.recarregar(true)), true) : null] });
     return caixa;
   }
 

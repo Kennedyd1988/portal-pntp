@@ -258,6 +258,7 @@
               el('td', { class: 'acoes' },
                 perm.editar && mexe ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formNoticia(n) },
                   n.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
+                perm.editar && mexe ? P.botaoDuplicar(() => formNoticia(P.copiaNova(n))) : null,
                 perm.excluir && mexe ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirNoticia(n) }, 'Excluir') : null));
           })))),
         el('div', { class: 'rodape-lista' },
@@ -443,7 +444,7 @@
             el('td', null, String(b.ordem)),
             el('td', null, el('span', { class: 'etiqueta etiqueta-' + cls }, rot)),
             el('td', { class: 'acoes' },
-              podeGravar ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formBanner(b) }, 'Editar') : null,
+              podeGravar ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formBanner(b) }, 'Editar') : null, podeGravar ? P.botaoDuplicar(() => formBanner(P.copiaNova(b))) : null,
               perm.excluir && !alcance() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirSimples('banners', b, 'banner', b.imagem_url) }, 'Excluir') : null));
         })))) : el('p', { class: 'vazio' }, 'Nenhum banner cadastrado.'),
       fimB ? '' : el('div', { class: 'rodape-lista' }, el('span'), btnMais));
@@ -522,7 +523,7 @@
             el('td', { class: 'num' }, P.dataHoraBR(a.inicio) + ' → ' + (a.fim ? P.dataHoraBR(a.fim) : 'sem fim')),
             el('td', null, el('span', { class: 'etiqueta etiqueta-' + cls }, rot)),
             el('td', { class: 'acoes' },
-              podeGravar ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formAviso(a) }, 'Editar') : null,
+              podeGravar ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formAviso(a) }, 'Editar') : null, podeGravar ? P.botaoDuplicar(() => formAviso(P.copiaNova(a))) : null,
               perm.excluir && !alcance() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirSimples('avisos', a, 'aviso') }, 'Excluir') : null));
         })))) : el('p', { class: 'vazio' }, 'Nenhum aviso cadastrado.'),
       fimA ? '' : el('div', { class: 'rodape-lista' }, el('span'), btnMais));

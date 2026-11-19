@@ -224,7 +224,7 @@
               el('td', null, s.prazo_maximo || '—'),
               el('td', null, el('span', { class: 'etiqueta etiqueta-' + (s.situacao === 'publicado' ? 'publicado' : 'rascunho') }, s.situacao === 'publicado' ? 'Publicado' : 'Rascunho')),
               el('td', { class: 'acoes' },
-                perm.editar && mexe ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(s) }, s.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
+                perm.editar && mexe ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(s) }, s.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null, perm.editar && mexe ? P.botaoDuplicar(() => form(P.copiaNova(s))) : null,
                 perm.excluir && mexe ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(s) }, 'Excluir') : null));
           })))),
         el('div', { class: 'rodape-lista' }, el('span', { class: 'ajuda' }, 'Mostrando ' + itens.length + ' de ' + total), fim ? null : btnMais));

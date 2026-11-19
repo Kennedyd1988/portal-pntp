@@ -304,7 +304,7 @@
               el('td', null, el('span', { class: 'etiqueta etiqueta-' + (d.situacao === 'publicado' ? 'publicado' : 'rascunho') }, d.situacao === 'publicado' ? 'No ar' : 'Rascunho')),
               el('td', null, doc ? el('a', { href: doc, target: '_blank', rel: 'noopener' }, d.arquivo_url ? 'PDF' : 'Link') : (d.resultado === 'pendente' ? el('span', { class: 'falta-leve' }, '—') : el('span', { class: 'falta' }, 'Sem documento'))),
               el('td', { class: 'acoes' },
-                podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(d) }, d.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
+                podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(d) }, d.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null, podeGravar() ? P.botaoDuplicar(() => form(P.copiaNova(d))) : null,
                 perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(d) }, 'Excluir') : null));
           })))),
         el('div', { class: 'rodape-lista' }, el('span', { class: 'ajuda' }, 'Mostrando ' + itens.length + ' de ' + total), fim ? '' : btnMais));

@@ -150,7 +150,7 @@
       por('ano', 'Ano', r.ano);
       por('ementa', 'Ementa', r.ementa);
       if (r.ementaDoArtigo && f.ementa.classList.contains('lido-pdf'))
-        rel.avisos.push('O ato não tem ementa: a sugerida foi tirada do Art. 1º. Ajuste o texto se precisar (ex.: "Nomeia Fulano para o cargo de…").');
+        rel.avisos.push('O ato não tem ementa: o sistema montou uma a partir do Art. 1º. Confira e ajuste o texto se precisar.');
       // Arquivo de outro órgão? O nome do município (ou do órgão) deveria aparecer no texto.
       const o = P.estado.orgao || {}, txt = P.textoSemAcento(lido.texto);
       const nomes = [o.municipio, o.nome].filter(Boolean).map(P.textoSemAcento);
@@ -339,7 +339,7 @@
               el('td', null, el('span', { class: 'etiqueta etiqueta-' + (x.situacao === 'publicado' ? 'publicado' : 'rascunho') }, x.situacao === 'publicado' ? 'No ar' : 'Rascunho')),
               el('td', null, doc ? el('a', { href: doc, target: '_blank', rel: 'noopener' }, x.arquivo_url ? 'PDF' : 'Link') : el('span', { class: 'falta' }, 'Sem documento')),
               el('td', { class: 'acoes' },
-                perm.editar && mexe ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(x) }, x.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
+                perm.editar && mexe ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(x) }, x.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null, perm.editar && mexe ? P.botaoDuplicar(() => form(P.copiaNova(x))) : null,
                 perm.excluir && mexe ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(x) }, 'Excluir') : null));
           })))),
         el('div', { class: 'rodape-lista' }, el('span', { class: 'ajuda' }, 'Mostrando ' + itens.length + ' de ' + total), fim ? null : btnMais));

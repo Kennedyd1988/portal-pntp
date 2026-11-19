@@ -30,7 +30,7 @@
             el('span', { class: 'sub-linha' }, el('a', { href: v.url, target: '_blank', rel: 'noopener' }, v.url))),
           el('td', { class: 'num' }, P.dataBR(v.data)),
           el('td', null, el('span', { class: 'etiqueta etiqueta-' + (v.situacao === 'publicado' ? 'publicado' : 'rascunho') }, v.situacao === 'publicado' ? 'No ar' : 'Rascunho')),
-          el('td', { class: 'acoes' }, pode ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(v) }, 'Editar') : null,
+          el('td', { class: 'acoes' }, pode ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(v) }, 'Editar') : null, pode ? P.botaoDuplicar(() => form(P.copiaNova(v))) : null,
             pode && ctx.perm.excluir ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(v) }, 'Excluir') : null))))))
         : el('p', { class: 'vazio' }, 'Nenhum vídeo cadastrado.'));
   }

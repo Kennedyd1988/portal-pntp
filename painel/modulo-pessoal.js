@@ -28,7 +28,7 @@
   const pode = () => perm.editar && !P.estado.alcanceUnidade;
   const dois = (a, b) => [a, b ? el('span', { class: 'sub-linha' }, b) : null];
   const anoAtual = () => new Date().getFullYear();
-  const acoes = (tabela, abrir, nome, lst) => (l) => [S.botao(pode() ? 'Editar' : 'Ver', () => abrir(l)),
+  const acoes = (tabela, abrir, nome, lst) => (l) => [S.botao(pode() ? 'Editar' : 'Ver', () => abrir(l)), pode() ? S.botao('Duplicar', () => { abrir(P.copiaNova(l)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null,
     pode() ? S.botao('Excluir', () => S.excluir(tabela, l, nome(l), () => lst().recarregar(true)), true) : null];
   const datasOk = (d, ini, fim, rot) => d[ini] && d[fim] && d[fim] < d[ini] ? [fim, rot || 'Não pode ser antes do início.'] : null;
 

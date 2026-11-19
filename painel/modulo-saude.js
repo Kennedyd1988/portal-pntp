@@ -57,7 +57,7 @@
         S.tabela([['Estabelecimento', (e) => [el('strong', null, e.nome), el('span', { class: 'sub-linha' }, TIPOS_ESTAB[e.tipo] + (e.bairro ? ' · ' + e.bairro : ''))], 'quebra'],
           ['Horário', (e) => e.horario || el('span', { class: 'falta' }, 'Falta')],
           ['Profissionais', (e) => String(((e.saude_profissionais || [])[0] || {}).count || 0), 'num'], ['Situação', (e) => S.etiquetaSituacao(e.situacao)]], lista,
-          (e) => [S.botao('Profissionais', () => abrir(e, 'prof')), S.botao(pode() ? 'Editar' : 'Ver', () => abrir(e)),
+          (e) => [S.botao('Profissionais', () => abrir(e, 'prof')), S.botao(pode() ? 'Editar' : 'Ver', () => abrir(e)), pode() ? S.botao('Duplicar', () => { abrir(P.copiaNova(e)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null,
             pode() && perm.excluir ? S.botao('Excluir', () => S.excluir('saude_estabelecimentos', e, e.nome, listar), true) : null],
           'Nenhum estabelecimento cadastrado.'));
     }
@@ -159,7 +159,7 @@
       lista.replaceChildren(el('p', { class: 'ajuda' }, meds.length + ' medicamento(s)' + (meds.length === 2000 ? ' (mostrando os 2.000 primeiros; use a pesquisa)' : '') + '.'),
         S.tabela([['Medicamento', (m) => [el('strong', null, m.nome), m.apresentacao ? el('span', { class: 'sub-linha' }, m.apresentacao) : null], 'quebra'],
           ['Componente', (m) => COMPONENTES[m.componente]], ['Onde obter', (m) => m.onde_obter || '—']], meds,
-          pode() ? (m) => [S.botao('Editar', () => abrir(m)), perm.excluir ? S.botao('Excluir', () => S.excluir('saude_medicamentos', m, m.nome + (m.apresentacao ? ' ' + m.apresentacao : '') + ' (e o estoque dele)', listar), true) : null] : null,
+          pode() ? (m) => [S.botao('Editar', () => abrir(m)), pode() ? S.botao('Duplicar', () => { abrir(P.copiaNova(m)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null, perm.excluir ? S.botao('Excluir', () => S.excluir('saude_medicamentos', m, m.nome + (m.apresentacao ? ' ' + m.apresentacao : '') + ' (e o estoque dele)', listar), true) : null] : null,
           'Nenhum medicamento com esses filtros.'));
     }
     const abrir = (m) => S.formulario({ tabela: 'saude_medicamentos', modulo: 'saude', titulo: 'medicamento', registro: m, perm, depois: listar, abas: [['dados', 'Medicamento', CAMPOS_MED]] });
@@ -225,7 +225,7 @@
       resumo.replaceChildren(linhas.length ? 'Posição do estoque: ' + (pos[0] === pos[pos.length - 1] ? P.dataBR(pos[0]) : 'de ' + P.dataBR(pos[0]) + ' a ' + P.dataBR(pos[pos.length - 1])) + '. O PNTP pede o estoque atualizado (até 30 dias): importe a contagem nova sempre que fechar o mês.' : 'Nenhum estoque informado ainda.');
       lista.replaceChildren(S.tabela([['Medicamento', (e) => [el('strong', null, e.saude_medicamentos.nome), e.saude_medicamentos.apresentacao ? el('span', { class: 'sub-linha' }, e.saude_medicamentos.apresentacao) : null], 'quebra'],
         ['Local', (e) => e.local], ['Quantidade', (e) => S.numBR(e.quantidade) + (e.unidade ? ' ' + e.unidade : ''), 'num'], ['Posição em', (e) => P.dataBR(e.posicao_em), 'num']], linhas,
-        pode() ? (e) => [S.botao('Editar', () => abrir(e)), S.botao('Excluir', () => S.excluir('saude_estoques', e, e.saude_medicamentos.nome + ' em ' + e.local, listar), true)] : null,
+        pode() ? (e) => [S.botao('Editar', () => abrir(e)), pode() ? S.botao('Duplicar', () => { abrir(P.copiaNova(e)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null, S.botao('Excluir', () => S.excluir('saude_estoques', e, e.saude_medicamentos.nome + ' em ' + e.local, listar), true)] : null,
         'Nenhum estoque com esses filtros.'));
     }
     const abrir = (e) => S.formulario({ tabela: 'saude_estoques', modulo: 'saude', titulo: 'estoque — ' + e.saude_medicamentos.nome, registro: e, perm, depois: listar,

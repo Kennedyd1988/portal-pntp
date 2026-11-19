@@ -539,7 +539,7 @@
             el('td', null, el('span', { class: 'etiqueta etiqueta-' + (o.situacao === 'publicado' ? 'publicado' : 'rascunho') }, o.situacao === 'publicado' ? 'No ar' : 'Rascunho')),
             el('td', { class: 'acoes' },
               el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(o, 'planilha') }, 'Planilha'),
-              podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(o) }, o.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
+              podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(o) }, o.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null, podeGravar() ? P.botaoDuplicar(() => form(P.copiaNova(o))) : null,
               perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(o) }, 'Excluir') : null)))))),
         el('div', { class: 'rodape-lista' }, el('span', { class: 'ajuda' }, 'Mostrando ' + itens.length + ' de ' + total), fim ? '' : btnMais));
     }

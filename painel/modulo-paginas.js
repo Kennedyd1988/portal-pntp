@@ -123,7 +123,7 @@
           el('td', null, el('span', { class: 'etiqueta etiqueta-' + (p.situacao === 'publicado' ? 'publicado' : 'rascunho') }, p.situacao === 'publicado' ? 'Publicada' : 'Rascunho')),
           el('td', { class: 'num' }, P.dataHoraBR(p.atualizado_em)),
           el('td', { class: 'acoes' },
-            podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formPagina(p) }, p.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
+            podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formPagina(p) }, p.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null, podeGravar() ? P.botaoDuplicar(() => formPagina(P.copiaNova(p))) : null,
             perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirPagina(p) }, 'Excluir') : null)))))) :
         el('p', { class: 'vazio' }, busca ? 'Nenhuma página encontrada.' : 'Nenhuma página criada ainda.')
     ].filter(Boolean));
@@ -184,7 +184,7 @@
         el('td', null, String(q.ordem)),
         el('td', null, el('span', { class: 'etiqueta etiqueta-' + (q.ativo ? 'publicado' : 'desativado') }, q.ativo ? 'No site' : 'Oculta')),
         el('td', { class: 'acoes' },
-          podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formFaq(q) }, 'Editar') : null,
+          podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => formFaq(q) }, 'Editar') : null, podeGravar() ? P.botaoDuplicar(() => formFaq(P.copiaNova(q))) : null,
           perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluirFaq(q) }, 'Excluir') : null))))))
       : el('p', { class: 'vazio' }, busca ? 'Nenhuma pergunta encontrada.' : 'Nenhuma pergunta cadastrada ainda.'));
   }

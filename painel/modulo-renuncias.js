@@ -56,7 +56,7 @@
       try { await carregarRenuncias(); } catch (e) { caixa.replaceChildren(el('p', { class: 'msg msg-erro' }, P.erroGravacao(e))); return; }
       lista.replaceChildren(S.tabela([['Benefício', (r) => [el('strong', null, r.titulo), el('span', { class: 'sub-linha' }, ESPECIES[r.especie] + ' · ' + TRIBUTOS[r.tributo])], 'quebra'],
         ['Fundamento legal', (r) => r.fundamento_legal, 'quebra'], ['Situação', (r) => S.etiquetaSituacao(r.situacao)]], renuncias,
-        (r) => [S.botao('Valores', () => abrirRenuncia(r, 'valores', listar)), S.botao(pode() ? 'Editar' : 'Ver', () => abrirRenuncia(r, null, listar)),
+        (r) => [S.botao('Valores', () => abrirRenuncia(r, 'valores', listar)), S.botao(pode() ? 'Editar' : 'Ver', () => abrirRenuncia(r, null, listar)), pode() ? S.botao('Duplicar', () => { abrirRenuncia(P.copiaNova(r), null, listar); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null,
           pode() && perm.excluir ? S.botao('Excluir', () => S.excluir('renuncias', r, r.titulo, listar), true) : null],
         'Nenhuma desoneração cadastrada.'));
     }
@@ -196,7 +196,7 @@
         ['Proponente', (i) => [i.proponente, i.documento ? el('span', { class: 'sub-linha' }, P.formatarDoc(i.documento)) : null]],
         ['Aprovado', (i) => S.moeda(i.valor_aprovado), 'num'], ['Liberado', (i) => S.moeda(i.valor_liberado), 'num'], ['Andamento', (i) => AND_INC[i.andamento]],
         ['Situação', (i) => S.etiquetaSituacao(i.situacao)]], data || [],
-        (i) => [S.botao(pode() ? 'Editar' : 'Ver', () => abrir(i)), pode() && perm.excluir ? S.botao('Excluir', () => S.excluir('incentivos_projetos', i, i.projeto, listar), true) : null],
+        (i) => [S.botao(pode() ? 'Editar' : 'Ver', () => abrir(i)), pode() ? S.botao('Duplicar', () => { abrir(P.copiaNova(i)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null, pode() && perm.excluir ? S.botao('Excluir', () => S.excluir('incentivos_projetos', i, i.projeto, listar), true) : null],
         'Nenhum projeto cadastrado.'));
     }
     const abrir = (i) => S.formulario({ tabela: 'incentivos_projetos', modulo: 'renuncias', titulo: 'projeto incentivado', registro: i, perm, rascunho: true, depois: listar,

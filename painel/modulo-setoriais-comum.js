@@ -512,7 +512,7 @@
         tabela([['Documento', (d) => [el('strong', null, d.titulo), el('span', { class: 'sub-linha' }, (o.tipos[d.tipo] || 'Outro documento') + (d.periodo ? ' · ' + d.periodo : ''))], 'quebra'],
           ['Exercício', (d) => d.exercicio + (d.exercicio_fim && d.exercicio_fim !== d.exercicio ? '–' + d.exercicio_fim : ''), 'num'],
           ['Publicação', (d) => P.dataBR(d.data_publicacao) || '—', 'num'], ['Arquivo', linkArquivo], ['Situação', (d) => etiquetaSituacao(d.situacao)]], docs,
-          (d) => [botao(pode ? 'Editar' : 'Ver', () => abrir(d)), pode && o.perm.excluir ? botao('Excluir', () => excluir('documentos_setoriais', d, d.titulo, listar), true) : null],
+          (d) => [botao(pode ? 'Editar' : 'Ver', () => abrir(d)), pode ? botao('Duplicar', () => { abrir(P.copiaNova(d)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null, pode && o.perm.excluir ? botao('Excluir', () => excluir('documentos_setoriais', d, d.titulo, listar), true) : null],
           'Nenhum documento cadastrado.'));
     }
     caixa.replaceChildren(el('p', { class: 'vazio' }, 'Carregando…'));

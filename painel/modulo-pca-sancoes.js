@@ -178,7 +178,7 @@
           el('td', null, linkDoc(r)),
           el('td', null, etiquetaSituacao(r.situacao)),
           el('td', { class: 'acoes' },
-            podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(r) }, r.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
+            podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(r) }, r.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null, podeGravar() ? P.botaoDuplicar(() => form(P.copiaNova(r))) : null,
             perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(r) }, 'Excluir') : null))))))
         : el('p', { class: 'vazio' }, 'Nenhum documento do PCA de ' + ano + '.');
       conteiner.replaceChildren(...[
@@ -379,7 +379,7 @@
               el('td', null, linkDoc(s)),
               el('td', null, etiquetaSituacao(s.situacao)),
               el('td', { class: 'acoes' },
-                podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(s) }, s.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
+                podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(s) }, s.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null, podeGravar() ? P.botaoDuplicar(() => form(P.copiaNova(s))) : null,
                 perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(s) }, 'Excluir') : null)))))),
           el('div', { class: 'rodape-lista' }, el('span', { class: 'ajuda' }, 'Mostrando ' + itens.length + ' de ' + total), fim ? '' : btnMais));
       }

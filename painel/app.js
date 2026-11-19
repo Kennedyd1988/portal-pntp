@@ -1026,15 +1026,52 @@
   // ---------- utilidades compartilhadas com os módulos ----------
 
   // Caixa de diálogo padrão (formulários e confirmações).
+  // "Incluir outro ao salvar" (0.47.2): toda janela de cadastro aberta por um botão "+ …" ganha, no rodapé, a opção de
+  // reabrir em branco depois de salvar. Vale para todas as telas sem mexer em cada uma: o sistema lembra qual botão "+"
+  // abriu a janela e clica nele de novo quando ela fecha por ter salvado (fechar, Cancelar e Esc não contam).
+  let ultimoMais = null;
+  document.addEventListener('click', (e) => {
+    const b = e.target && e.target.closest ? e.target.closest('button') : null;
+    if (b && /^\s*\+/.test(b.textContent || '')) ultimoMais = { botao: b, texto: b.textContent.trim(), quando: Date.now() };
+  }, true);
+  const lembrarOutro = (texto, v) => { try { if (v === undefined) return sessionStorage.getItem('incluir_outro:' + texto) === '1'; sessionStorage.setItem('incluir_outro:' + texto, v ? '1' : '0'); } catch (e) { return false; } };
+
   function abrirDialogo(titulo, corpo, acoes) {
+    const ehForm = corpo instanceof Element && (corpo.matches('form') || !!corpo.querySelector('input:not([type=hidden]), select, textarea'));
+    const mais = ehForm && ultimoMais && Date.now() - ultimoMais.quando < 8000 ? ultimoMais : null;
+    if (ehForm) ultimoMais = null;
+    let outro = null;
+    if (mais) {
+      outro = el('input', { type: 'checkbox' });
+      outro.checked = lembrarOutro(mais.texto);
+      outro.addEventListener('change', () => lembrarOutro(mais.texto, outro.checked));
+    }
+    let cancelado = false;
     const d = el('dialog', { class: 'dialogo', 'aria-label': titulo },
       el('div', { class: 'dialogo-topo' },
         el('h2', null, titulo),
-        el('button', { type: 'button', class: 'dialogo-fechar', 'aria-label': 'Fechar', onclick: () => d.close() }, '×')
+        el('button', { type: 'button', class: 'dialogo-fechar', 'aria-label': 'Fechar', onclick: () => { cancelado = true; d.close(); } }, '×')
       ),
       el('div', { class: 'dialogo-corpo' }, corpo),
-      el('div', { class: 'dialogo-acoes' }, acoes || [])
+      el('div', { class: 'dialogo-acoes' },
+        outro ? el('label', { class: 'incluir-outro', title: 'Depois de salvar, abre outra janela em branco para o próximo cadastro' }, outro, 'Incluir outro ao salvar') : null,
+        acoes || [])
     );
+    if (outro) {
+      d.addEventListener('cancel', () => { cancelado = true; });
+      d.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('button');
+        if (b && /^(cancelar|fechar|voltar)$/i.test((b.textContent || '').trim())) cancelado = true;
+      }, true);
+      d.addEventListener('close', () => {
+        if (cancelado || !outro.checked) return;
+        setTimeout(() => {
+          if (document.querySelector('dialog[open]')) return;   // a tela já abriu outra janela (ex.: completar o cadastro)
+          const b = mais.botao.isConnected ? mais.botao : [...document.querySelectorAll('button')].find((x) => (x.textContent || '').trim() === mais.texto);
+          if (b && !b.disabled) b.click();
+        }, 450);
+      });
+    }
     d.addEventListener('close', () => {
       // Devolve o aviso para a página antes de apagar a janela (senão ele some junto).
       const t = $('toast');
@@ -1044,6 +1081,24 @@
     document.body.append(d);
     d.showModal();
     return d;
+  }
+
+  // Duplicar (0.47.2): cópia de um registro para abrir como NOVO na mesma janela de cadastro. Sai o que identifica o
+  // original (id, número, protocolo, arquivos, links, datas de controle, ligações carregadas); entra sempre como rascunho.
+  const LIMPAR_COPIA = /^(id|criado_em|atualizado_em|criado_por|atualizado_por|publicado_em|busca|numero|protocolo|codigo|link_externo|ordem|slug)$|_url$|^(arquivo|foto|imagem|capa|brasao|anexo)/;
+  function copiaNova(x, limparMais) {
+    const c = {};
+    for (const [k, v] of Object.entries(x || {})) {
+      if (LIMPAR_COPIA.test(k) || (limparMais && limparMais.includes(k))) continue;
+      if (v && typeof v === 'object' && !(Array.isArray(v) && v.every((i) => i === null || typeof i !== 'object'))) continue;
+      c[k] = v;
+    }
+    if ('situacao' in c) c.situacao = 'rascunho';
+    return c;
+  }
+  function botaoDuplicar(abrirCopia) {
+    return el('button', { type: 'button', class: 'btn btn-claro btn-p', title: 'Abre um cadastro novo já preenchido com os dados deste (sem número, arquivo e link)',
+      onclick: () => { abrirCopia(); setTimeout(() => toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); } }, 'Duplicar');
   }
 
   function confirmar(titulo, texto, rotuloOk, perigo) {
@@ -1533,7 +1588,7 @@
   window.PNTP = {
     sb, estado, el, $, toast, msg, ocupado, erroCampo, traduzirErro, emailValido,
     cpfValido, cnpjValido, erroDoc, formatarDoc, mascaraDoc,
-    abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo,
+    abrirDialogo, confirmar, aviso, reduzirImagem, enviarArquivo, apagarArquivo, copiaNova, botaoDuplicar,
     normalizar, ordemAlfabetica, telas, iniciar, rotear,
     campo, campoOutra, abas, abaDoEndereco, mesclarConfiguracoes, externo, avisoExterno, declaracoes, declaracoesAnuais, declaracoesDoOrgao, dataBR, dataHoraBR, paraDataHoraLocal, urlValida, renderTexto, editorTexto,
     paginar, contar, erroGravacao, amigavel, gravarRegistro, validarPdf, atualizarAvisos, excluirComPecas,

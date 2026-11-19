@@ -284,7 +284,7 @@
               el('td', null, linkDoc(c)),
               el('td', null, etiquetaSituacao(c.situacao)),
               el('td', { class: 'acoes' },
-                podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(c) }, c.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
+                podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(c) }, c.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null, podeGravar() ? P.botaoDuplicar(() => form(P.copiaNova(c))) : null,
                 perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(c) }, 'Excluir') : null)))))),
           el('div', { class: 'rodape-lista' }, el('span', { class: 'ajuda' }, 'Mostrando ' + itens.length + ' de ' + total), fim ? '' : btnMais));
       }
@@ -576,7 +576,7 @@
               el('td', null, el('span', { class: 'etiqueta etiqueta-' + (COR_EMENDA[x.andamento] || 'rascunho') }, ANDAMENTOS_EMENDA[x.andamento] || x.andamento)),
               el('td', null, etiquetaSituacao(x.situacao)),
               el('td', { class: 'acoes' },
-                podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(x) }, x.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null,
+                podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => form(x) }, x.situacao === 'publicado' && !perm.publicar ? 'Ver' : 'Editar') : null, podeGravar() ? P.botaoDuplicar(() => form(P.copiaNova(x))) : null,
                 perm.excluir && podeGravar() ? el('button', { type: 'button', class: 'btn btn-claro btn-p btn-texto-perigo', onclick: () => excluir(x) }, 'Excluir') : null)))))),
           el('div', { class: 'rodape-lista' }, el('span', { class: 'ajuda' }, 'Mostrando ' + itens.length + ' de ' + total), fim ? '' : btnMais));
       }

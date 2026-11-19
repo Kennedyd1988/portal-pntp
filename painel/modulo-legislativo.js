@@ -209,7 +209,7 @@
           el('td', { class: 'quebra' }, autores(x)),
           el('td', null, ANDAMENTO_PROP[x.andamento] || x.andamento),
           el('td', null, etiquetaSit(x.situacao)),
-          el('td', { class: 'acoes' }, botao('Tramitação', () => formProposicao(x, 'tramitacao')), podeGravar() ? botao('Editar', () => formProposicao(x)) : null,
+          el('td', { class: 'acoes' }, botao('Tramitação', () => formProposicao(x, 'tramitacao')), podeGravar() ? botao('Editar', () => formProposicao(x)) : null, podeGravar() ? botao('Duplicar', () => { formProposicao(P.copiaNova(x)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null,
             perm.excluir && podeGravar() ? botao('Excluir', async () => { if (await excluirRegistro('proposicoes', x.id, (TIPOS_PROP[x.tipo] || '') + ' ' + x.numero + '/' + x.ano, [x.arquivo_url])) desenhar(); }, true) : null))))
           : el('p', { class: 'vazio' }, 'Nenhuma proposição em ' + ano + (filtros.busca || filtros.tipo || filtros.andamento ? ' com esses filtros' : '') + '.'));
     }
@@ -353,7 +353,7 @@
           el('td', null, s.andamento !== 'realizada' ? '—' : (s.ata_url ? 'Ata' : el('span', { class: 'texto-alerta' }, 'Sem ata')), ' · ', (s.sessoes_presencas || []).length ? (s.sessoes_presencas.length + ' presenças') : el('span', { class: 'texto-alerta' }, 'sem presenças')),
           el('td', { class: 'num' }, String((s.votacoes || []).length)),
           el('td', null, etiquetaSit(s.situacao)),
-          el('td', { class: 'acoes' }, podeGravar() ? botao('Editar', () => formSessao(s)) : null,
+          el('td', { class: 'acoes' }, podeGravar() ? botao('Editar', () => formSessao(s)) : null, podeGravar() ? botao('Duplicar', () => { formSessao(P.copiaNova(s)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null,
             perm.excluir && podeGravar() ? botao('Excluir', async () => { if (await excluirRegistro('sessoes', s.id, (TIPOS_SESSAO[s.tipo] || 'Sessão') + ' de ' + P.dataBR(s.data), [s.pauta_url, s.ata_url])) desenhar(); }, true) : null))))
           : el('p', { class: 'vazio' }, 'Nenhuma sessão em ' + ano + '.'),
         P.declaracoes('legislativo_comissoes', { perm }),
@@ -597,7 +597,7 @@
           el('td', { class: 'num' }, P.dataBR(v.data)), el('td', null, nomeParl(parlPorId(v.parlamentar_id))),
           el('td', { class: 'quebra' }, v.descricao, v.beneficiario_nome ? el('span', { class: 'sub-linha' }, v.beneficiario_nome) : null),
           el('td', { class: 'num' }, Number(v.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })), el('td', null, etiquetaSit(v.situacao)),
-          el('td', { class: 'acoes' }, podeGravar() ? botao('Editar', () => formVerba(v)) : null,
+          el('td', { class: 'acoes' }, podeGravar() ? botao('Editar', () => formVerba(v)) : null, podeGravar() ? botao('Duplicar', () => { formVerba(P.copiaNova(v)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null,
             perm.excluir && podeGravar() ? botao('Excluir', async () => { if (await excluirRegistro('verba_indenizatoria', v.id, v.descricao, [v.documento_url])) desenhar(); }, true) : null)))),
           el('p', { class: 'ajuda' }, 'Total em ' + ano + ': ' + total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })))
           : el('p', { class: 'vazio' }, 'Nenhum pagamento em ' + ano + '.'),

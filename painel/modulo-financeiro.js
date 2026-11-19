@@ -33,7 +33,7 @@
     const d = String(v || '').replace(/\D/g, '');
     return d.length >= 6 && d.length <= 10 ? d.slice(0, 1) + '.' + d.slice(1, 2) + '.' + d.slice(2, 4) + '.' + d.slice(4, 6) + (d.length > 6 ? '.' + d.slice(6) : '') : v;
   };
-  const botoesLinha = (tabela, abrir, nome, recarregar, excluir) => (l) => [S.botao(pode() ? 'Editar' : 'Ver', () => abrir(l)),
+  const botoesLinha = (tabela, abrir, nome, recarregar, excluir) => (l) => [S.botao(pode() ? 'Editar' : 'Ver', () => abrir(l)), pode() ? S.botao('Duplicar', () => { abrir(P.copiaNova(l)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null,
     pode() && (excluir === undefined ? perm.editar : excluir) ? S.botao('Excluir', () => S.excluir(tabela, l, nome(l), () => recarregar()), true) : null];
 
   // ===================================================================
@@ -192,7 +192,7 @@
         ['Credor e objeto', (r) => [el('strong', null, r.credor_nome), r.credor_doc ? ' · ' + P.formatarDoc(r.credor_doc) : '', el('span', { class: 'sub-linha' }, r.objeto.length > 120 ? r.objeto.slice(0, 117) + '…' : r.objeto)], 'quebra'],
         ['Classificação', (r) => doisValores(r.natureza_codigo || '—', [r.unidade_codigo, r.funcao_codigo && 'função ' + r.funcao_codigo, r.fonte_codigo && 'fonte ' + r.fonte_codigo].filter(Boolean).join(' · '))],
         ['Empenhado', (r) => S.moeda(r.total_empenhado), 'num'], ['Liquidado', (r) => S.moeda(r.total_liquidado), 'num'], ['Pago', (r) => S.moeda(r.total_pago), 'num']],
-      acoes: (r) => [S.botao('Pagamentos', () => abrir(r, 'movimentos')), S.botao(pode() ? 'Editar' : 'Ver', () => abrir(r)),
+      acoes: (r) => [S.botao('Pagamentos', () => abrir(r, 'movimentos')), S.botao(pode() ? 'Editar' : 'Ver', () => abrir(r)), pode() ? S.botao('Duplicar', () => { abrir(P.copiaNova(r)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null,
         pode() && perm.excluir ? S.botao('Excluir', () => S.excluir('despesas', r, 'empenho ' + r.numero, () => lst.recarregar(true)), true) : null] });
     return caixa;
   }
