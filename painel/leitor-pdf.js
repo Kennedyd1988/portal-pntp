@@ -249,5 +249,146 @@
     return r;
   }
 
-  Object.assign(P, { zonaPdf, preencherLido, lerAto, textoSemAcento: semAcento });
+  // ---------------------------------------------------------------
+  // Envio em lote (0.47.2): vários PDFs de uma vez → tabela de conferência editável → grava cada linha.
+  // o = { titulo, explicacao, colunas: [{ k, r, t: 'text'|'date'|'sel'|'area'|'num', op, ob, largura }],
+  //       ler(arquivo, lido) → { valores, avisos }, duplicado(valores) → texto | null,
+  //       gravar(valores, arquivo, situacao) → Promise, podePublicar, depois() }
+  function loteDePdfs(o) {
+    const linhas = [];
+    const entrada = el('input', { type: 'file', accept: 'application/pdf', multiple: true, class: 'sr', tabindex: '-1', 'aria-hidden': 'true' });
+    const btnEscolher = el('button', { type: 'button', class: 'btn btn-primario btn-p' }, 'Escolher PDFs');
+    const zona = el('div', { class: 'zona-pdf' },
+      el('div', { class: 'zona-pdf-icone', 'aria-hidden': 'true' }, 'PDF'),
+      el('div', { class: 'zona-pdf-texto' },
+        el('strong', null, 'Arraste os PDFs para cá ou clique em "Escolher PDFs"'),
+        el('span', { class: 'ajuda' }, o.explicacao || 'O sistema lê cada arquivo e monta a tabela abaixo. Confira e corrija nas próprias células antes de salvar.')),
+      btnEscolher, entrada);
+    const situacao = el('p', { class: 'ajuda lote-situacao', 'aria-live': 'polite' });
+    const corpoTabela = el('tbody');
+    const tabela = el('div', { class: 'tabela-caixa lote-caixa', hidden: true },
+      el('table', { class: 'tabela tabela-lote' },
+        el('thead', null, el('tr', null, el('th', null, 'Arquivo'), o.colunas.map((c) => el('th', null, c.r)), el('th', null, 'Situação'), el('th', null, el('span', { class: 'sr' }, 'Remover')))),
+        corpoTabela));
+    const corpo = el('div', { class: 'lote-pdf' }, zona, situacao, tabela);
+    // Telas sem rascunho (ex.: Diárias, que entram no ar ao salvar): um botão só, que grava as linhas completas.
+    const btnRascunho = o.semSituacao ? null : el('button', { type: 'button', class: 'btn btn-claro', disabled: true }, 'Salvar todos como rascunho');
+    const btnPublicar = o.semSituacao ? el('button', { type: 'button', class: 'btn btn-primario', disabled: true }, 'Salvar os completos')
+      : o.podePublicar ? el('button', { type: 'button', class: 'btn btn-primario', disabled: true }, 'Publicar os completos') : null;
+    const dlg = P.abrirDialogo(o.titulo, corpo, [el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Fechar'), btnRascunho, btnPublicar]);
+    dlg.classList.add('dialogo-largo', 'dialogo-lote');
+    let lendo = false, gravou = false;
+    dlg.addEventListener('close', () => { if (gravou && o.depois) o.depois(); });
+
+    btnEscolher.addEventListener('click', () => entrada.click());
+    entrada.addEventListener('change', () => { adicionar([...entrada.files]); entrada.value = ''; });
+    zona.addEventListener('dragover', (e) => { e.preventDefault(); zona.classList.add('arrastando'); });
+    zona.addEventListener('dragleave', () => zona.classList.remove('arrastando'));
+    zona.addEventListener('drop', (e) => { e.preventDefault(); zona.classList.remove('arrastando'); adicionar([...(e.dataTransfer ? e.dataTransfer.files : [])]); });
+
+    function controle(c, v) {
+      let i;
+      if (c.t === 'sel') i = el('select', null, el('option', { value: '' }, '— Escolha —'), Object.entries(c.op).map(([k, t]) => el('option', { value: k, selected: k === v }, t)));
+      else if (c.t === 'area') { i = el('textarea', { rows: 2 }); i.value = v || ''; }
+      else i = el('input', { type: c.t === 'date' ? 'date' : 'text', inputmode: c.t === 'num' ? 'decimal' : null, value: v === null || v === undefined ? '' : (c.t === 'num' ? Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v) });
+      i.setAttribute('aria-label', c.r);
+      if (c.largura) i.style.minWidth = c.largura;
+      if (v !== null && v !== undefined && v !== '') i.classList.add('lido-pdf');
+      i.addEventListener('input', () => { i.classList.remove('lido-pdf'); conferir(i._linha); });
+      i.addEventListener('change', () => conferir(i._linha));
+      return i;
+    }
+    function valoresDe(l) {
+      const v = {};
+      for (const c of o.colunas) {
+        const x = l.campos[c.k].value.trim();
+        v[c.k] = !x ? null : c.t === 'num' ? Number(x.replace(/\./g, '').replace(',', '.')) : x;
+      }
+      return v;
+    }
+    function etiqueta(l, tipo, texto) { l.sit.replaceChildren(el('span', { class: 'etiqueta etiqueta-' + tipo }, texto)); l.estado = tipo; }
+    function conferir(l) {
+      if (!l || l.salvo) return;
+      const v = valoresDe(l);
+      const falta = o.colunas.filter((c) => c.ob && (v[c.k] === null || (c.t === 'num' && Number.isNaN(v[c.k])))).map((c) => c.r);
+      l.completo = !falta.length && !l.dup;
+      if (l.dup) etiqueta(l, 'lote-dup', l.dup);
+      else if (falta.length) etiqueta(l, 'lote-falta', 'Falta: ' + falta.join(', '));
+      else etiqueta(l, 'lote-ok', l.avisos.length ? 'Confira: ' + l.avisos.join(' · ') : 'Lido');
+      atualizarBotoes();
+    }
+    function atualizarBotoes() {
+      const pendentes = linhas.filter((l) => !l.salvo && !l.removido && l.lido);
+      if (btnRascunho) btnRascunho.disabled = lendo || !pendentes.length;
+      if (btnPublicar) btnPublicar.disabled = lendo || !pendentes.some((l) => l.completo);
+    }
+    async function adicionar(arquivos) {
+      const pdfs = arquivos.filter((a) => /\.pdf$/i.test(a.name) || a.type === 'application/pdf');
+      if (arquivos.length > pdfs.length) P.toast((arquivos.length - pdfs.length) + ' arquivo(s) não são PDF e ficaram de fora.', true);
+      if (!pdfs.length) return;
+      tabela.hidden = false;
+      const novas = pdfs.map((a) => {
+        const l = { arquivo: a, campos: {}, avisos: [], lido: false };
+        l.sit = el('td', { 'data-rotulo': 'Situação' }, el('span', { class: 'etiqueta' }, 'Na fila'));
+        const rem = el('button', { type: 'button', class: 'btn btn-claro btn-p', 'aria-label': 'Tirar ' + a.name + ' da lista', onclick: () => { if (l.salvo) return; l.removido = true; l.tr.remove(); atualizarBotoes(); } }, '×');
+        l.tr = el('tr', null, el('td', { 'data-rotulo': 'Arquivo', class: 'lote-arquivo', title: a.name }, a.name), o.colunas.map((c) => el('td', { 'data-rotulo': c.r }, '…')), l.sit, el('td', { class: 'acoes' }, rem));
+        corpoTabela.append(l.tr); linhas.push(l);
+        return l;
+      });
+      lendo = true; atualizarBotoes();
+      for (let k = 0; k < novas.length; k++) {
+        const l = novas[k];
+        if (l.removido) continue;
+        situacao.textContent = 'Lendo ' + (k + 1) + ' de ' + novas.length + ': "' + l.arquivo.name + '"…';
+        etiqueta(l, 'lendo', 'Lendo…');
+        let r = { valores: {}, avisos: [] };
+        try {
+          P.validarPdf(l.arquivo);
+          const lido = await window.MIGRACAO_OCR.textoPdf(l.arquivo, 3, (t) => t.replace(/\s+/g, ' ').trim().length > 200);
+          r = (await o.ler(l.arquivo, lido)) || r;
+          if (lido.ocr) r.avisos = ['lido por OCR'].concat(r.avisos || []);
+        } catch (e) { r.avisos = ['não foi possível ler (' + ((e && e.message) || 'erro') + '), preencha à mão']; }
+        l.avisos = r.avisos || []; l.extras = r.extras || {};
+        const tds = l.tr.querySelectorAll('td');
+        o.colunas.forEach((c, i) => { const ctl = controle(c, (r.valores || {})[c.k]); ctl._linha = l; l.campos[c.k] = ctl; tds[i + 1].replaceChildren(ctl); });
+        l.lido = true;
+        try { l.dup = o.duplicado ? await o.duplicado(valoresDe(l)) : null; } catch (e) { l.dup = null; }
+        conferir(l);
+      }
+      lendo = false;
+      const n = linhas.filter((l) => !l.removido && !l.salvo);
+      situacao.textContent = n.length + ' arquivo(s) na lista. Confira as células (as preenchidas pelo arquivo estão em verde) e salve.';
+      atualizarBotoes();
+    }
+    async function gravarTodos(sit, btn) {
+      const alvo = linhas.filter((l) => !l.salvo && !l.removido && l.lido && (sit === 'rascunho' ? !l.dup : l.completo));
+      const pulados = linhas.filter((l) => !l.salvo && !l.removido && l.lido).length - alvo.length;
+      if (!alvo.length) { P.toast(sit === 'publicado' ? 'Nenhuma linha completa para ' + (o.semSituacao ? 'salvar.' : 'publicar.') : 'Nada para salvar (linhas já cadastradas ficam de fora).', true); return; }
+      P.ocupado(btn, sit === 'publicado' ? 'Publicando…' : 'Salvando…');
+      let ok = 0;
+      for (const l of alvo) {
+        const v = valoresDe(l);
+        const falta = sit === 'rascunho' ? o.colunas.filter((c) => c.obRascunho && v[c.k] === null).map((c) => c.r) : [];
+        if (falta.length) { etiqueta(l, 'lote-falta', 'Falta: ' + falta.join(', ')); continue; }
+        etiqueta(l, 'lendo', 'Gravando…');
+        try {
+          const url = await P.enviarArquivo(o.modulo, l.arquivo, 'pdf', 'application/pdf');
+          try { await o.gravar(Object.assign({}, l.extras, v), url, o.semSituacao ? null : sit); }
+          catch (e) { P.apagarArquivo(url); throw e; }
+          l.salvo = true; ok++; gravou = true;
+          etiqueta(l, 'lote-salvo', o.semSituacao ? 'Salvo ✓' : sit === 'publicado' ? 'Publicado ✓' : 'Rascunho salvo ✓');
+          Object.values(l.campos).forEach((i) => { i.disabled = true; });
+        } catch (e) { etiqueta(l, 'lote-erro', P.traduzirErro ? P.traduzirErro(e) : (e.message || 'Erro ao gravar')); }
+      }
+      P.ocupado(btn);
+      atualizarBotoes();
+      situacao.textContent = ok + ' gravado(s)' + (pulados ? '; ' + pulados + ' ficaram na lista (incompletos ou já cadastrados)' : '') + '.';
+      P.toast(ok + (o.semSituacao ? ' salvo(s).' : sit === 'publicado' ? ' publicado(s).' : ' rascunho(s) salvo(s).'));
+    }
+    if (btnRascunho) btnRascunho.addEventListener('click', () => gravarTodos('rascunho', btnRascunho));
+    if (btnPublicar) btnPublicar.addEventListener('click', () => gravarTodos('publicado', btnPublicar));
+    return dlg;
+  }
+
+  Object.assign(P, { zonaPdf, preencherLido, lerAto, loteDePdfs, textoSemAcento: semAcento });
 })();

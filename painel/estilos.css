@@ -718,3 +718,22 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .dialogo-acoes .incluir-outro { margin-right: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-dim); cursor: pointer; user-select: none; }
 .dialogo-acoes .incluir-outro input { width: 18px; height: 18px; accent-color: var(--acento); margin: 0; }
 @media (max-width: 600px) { .dialogo-acoes { flex-wrap: wrap; } .dialogo-acoes .incluir-outro { flex-basis: 100%; } }
+
+/* 0.47.2 — Envio em lote de PDFs (P.loteDePdfs): tabela de conferência editável */
+.lote-situacao { margin: 10px 0 8px; }
+.lote-caixa { max-height: 55vh; overflow: auto; }
+.tabela-lote { min-width: 980px; }
+.tabela-lote td { padding: 8px 10px; vertical-align: top; }
+.tabela-lote input, .tabela-lote select, .tabela-lote textarea { width: 100%; min-height: 38px; border: 1px solid #d6e0ea; border-radius: 10px; padding: 6px 10px; font: inherit; font-size: 14px; background: #fff; }
+.tabela-lote textarea { min-width: 240px; resize: vertical; }
+.tabela-lote input:focus, .tabela-lote select:focus, .tabela-lote textarea:focus { border-color: var(--acento); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 20%, transparent); }
+.tabela-lote .lido-pdf { border-color: var(--acento); background: #f3fbf7; }
+.dialogo.dialogo-lote { width: min(1320px, calc(100vw - 24px)); }
+.tabela-lote .lote-arquivo { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-dim); }
+.tabela-lote td:nth-last-child(2) { min-width: 150px; }
+.tabela-lote thead th { position: sticky; top: 0; z-index: 1; }
+.etiqueta-lote-ok, .etiqueta-lote-salvo { background: #e6f4ee; color: #0f5f40; }
+.etiqueta-lote-falta { background: #fdf3e1; color: #7a520a; }
+.etiqueta-lote-dup, .etiqueta-lote-erro { background: #fbeaea; color: #8f2626; }
+.etiqueta-lendo { background: #e8f0fc; color: #0b3f9c; }
+.tabela-lote td .etiqueta { white-space: normal; line-height: 1.35; }

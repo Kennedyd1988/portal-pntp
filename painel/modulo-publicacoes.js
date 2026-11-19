@@ -277,6 +277,34 @@
     btnPublicar.addEventListener('click', () => salvar('publicado', btnPublicar));
   }
 
+  // Envio em lote (0.47.2): vários PDFs de atos de uma vez → tabela de conferência → rascunhos ou publicados.
+  function lote() {
+    const o = P.estado.orgao || {};
+    const nomes = [o.municipio, o.nome].filter(Boolean).map((n) => P.textoSemAcento(n).replace(/^(prefeitura|camara) municipal de /, ''));
+    P.loteDePdfs({
+      titulo: 'Enviar vários PDFs de atos', modulo: 'publicacoes', podePublicar: perm.publicar, depois: () => recarregar(),
+      explicacao: 'O sistema lê cada ato (tipo, número, data e ementa) e monta a tabela abaixo. Confira e corrija nas próprias células. Cada PDF vira o documento da sua publicação.',
+      colunas: [{ k: 'tipo', r: 'Tipo', t: 'sel', op: TIPOS, ob: true, obRascunho: true, largura: '150px' }, { k: 'numero', r: 'Número', t: 'text', largura: '90px' },
+        { k: 'data_publicacao', r: 'Data do ato', t: 'date', ob: true, obRascunho: true, largura: '150px' }, { k: 'ementa', r: 'Ementa', t: 'area', ob: true, obRascunho: true }],
+      ler: (arquivo, lido) => {
+        const r = P.lerAto(lido.texto, TIPOS), avisos = [];
+        if (r.ementaDoArtigo) avisos.push('ementa montada do Art. 1º');
+        const txt = P.textoSemAcento(lido.texto);
+        if (nomes.length && txt.length > 300 && !nomes.some((n) => txt.includes(n))) avisos.push('município não aparece no PDF');
+        return { valores: { tipo: r.tipo, numero: r.numero, data_publicacao: r.data, ementa: r.ementa }, avisos };
+      },
+      duplicado: async (v) => {
+        const ano = v.data_publicacao ? parseInt(v.data_publicacao.slice(0, 4), 10) : null;
+        if (!v.tipo || !v.numero || !ano) return null;
+        const { data } = await sb.from('publicacoes').select('id').eq('orgao_id', P.estado.orgao.id).eq('tipo', v.tipo).eq('numero', v.numero).eq('ano', ano).limit(1);
+        return data && data.length ? 'Já cadastrada' : null;
+      },
+      gravar: (v, url, situacao) => P.gravarRegistro('publicacoes', {
+        tipo: v.tipo, numero: v.numero || null, ano: parseInt(v.data_publicacao.slice(0, 4), 10), data_publicacao: v.data_publicacao,
+        ementa: v.ementa, vigencia: 'vigente', arquivo_url: url, link_externo: null, origem: 'manual', situacao })
+    });
+  }
+
   async function excluir(x) {
     // Vínculo: a publicação pode ser a norma do Governo Digital (tela LGPD).
     const { count } = await sb.from('lgpd').select('orgao_id', { count: 'exact', head: true }).eq('gov_digital_publicacao', x.id);
@@ -351,6 +379,7 @@
           el('p', { class: 'sub' }, 'Leis, decretos, portarias e demais atos. Cada um com PDF ou link para o documento oficial.')),
         el('div', { class: 'botoes-cabecalho' },
           perm.editar ? el('button', { type: 'button', class: 'btn btn-claro', disabled: true, title: 'O layout da planilha de importação será definido numa próxima etapa.' }, 'Importar planilha (em breve)') : null,
+          perm.editar ? el('button', { type: 'button', class: 'btn btn-claro', onclick: () => lote(), title: 'Envie vários PDFs de uma vez: o sistema lê cada um e monta uma tabela para conferir' }, 'Enviar vários PDFs') : null,
           perm.editar ? el('button', { type: 'button', class: 'btn btn-primario', onclick: () => form() }, '+ Nova publicação') : null)),
       el('div', { class: 'cartao cartao-diario' },
         el('div', null,

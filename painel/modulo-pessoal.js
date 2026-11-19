@@ -254,6 +254,41 @@
     }
     return rel;
   }
+  // Envio em lote de portarias de diária (0.47.2): a mesma leitura da janela (lerPortaria), uma linha por PDF.
+  async function loteDiarias(depois) {
+    const ver = await vereadores();
+    P.loteDePdfs({
+      titulo: 'Enviar várias portarias de diária', modulo: 'diarias', semSituacao: true, depois,
+      explicacao: 'O sistema lê cada portaria e monta a tabela abaixo. Confira e corrija nas próprias células. Cada PDF fica anexado como ato de concessão da sua diária.',
+      colunas: [{ k: 'nome', r: 'Beneficiário', t: 'text', ob: true, largura: '170px' }, { k: 'cargo', r: 'Cargo', t: 'text', ob: true, largura: '150px' },
+        { k: 'destino', r: 'Destino', t: 'text', ob: true, largura: '140px' }, { k: 'motivo', r: 'Motivo', t: 'area', ob: true, largura: '200px' },
+        { k: 'data_inicio', r: 'Saída', t: 'date', ob: true, largura: '150px' }, { k: 'data_fim', r: 'Retorno', t: 'date', ob: true, largura: '150px' },
+        { k: 'quantidade', r: 'Diárias', t: 'num', ob: true, largura: '80px' }, { k: 'valor_total', r: 'Total (R$)', t: 'num', ob: true, largura: '110px' },
+        { k: 'ato_concessao', r: 'Ato', t: 'text', largura: '150px' }],
+      ler: async (arquivo, lido) => {
+        const valores = {};
+        const api = { anexar() {}, valor: () => '', preencher(k, v) { if (v !== null && v !== undefined && v !== '') valores[k] = v; } };
+        const rel = await lerPortaria(arquivo, lido, api, ver);
+        const extras = { documento: valores.documento || null, abrangencia: valores.abrangencia || 'estado', valor_unitario: valores.valor_unitario == null ? null : valores.valor_unitario };
+        const avisos = rel.avisos.concat([]);
+        return { valores, extras, avisos: avisos.map((a) => a.replace(/\.$/, '')).filter((a) => !/^O beneficiário parece/.test(a)).slice(0, 2).map((a) => a.length > 90 ? a.slice(0, 88) + '…' : a) };
+      },
+      duplicado: async (v) => {
+        if (!v.ato_concessao) return null;
+        const { data } = await sb.from('diarias').select('id').eq('orgao_id', org()).eq('ato_concessao', v.ato_concessao).limit(1);
+        return data && data.length ? 'Já cadastrada' : null;
+      },
+      gravar: (v, url) => {
+        if (v.data_fim < v.data_inicio) throw new Error('O retorno está antes da saída.');
+        const d = { nome: v.nome, documento: v.documento, cargo: v.cargo, destino: v.destino, abrangencia: v.abrangencia, motivo: v.motivo,
+          data_inicio: v.data_inicio, data_fim: v.data_fim, quantidade: v.quantidade, valor_total: v.valor_total,
+          valor_unitario: v.quantidade > 0 ? Math.round(v.valor_total / v.quantidade * 100) / 100 : v.valor_unitario, ato_concessao: v.ato_concessao, ato_url: url };
+        const iguais = ver.filter((p) => [p.nome, p.nome_parlamentar].some((x) => x && normalizar(x) === normalizar(d.nome)));
+        if (iguais.length === 1) d.parlamentar_id = iguais[0].id;
+        return P.gravarRegistro('diarias', d);
+      }
+    });
+  }
   function diarias(caixa) {
     let lst;
     const abrir = async (r) => {
@@ -299,7 +334,8 @@
     lst = S.listaAno(caixa, { declaracao: 'diarias_concedidas', tabela: 'diarias', anos: S.anosFinanceiros('diarias'), ordem: 'data_inicio', crescente: false, vazio: 'Nenhuma diária cadastrada.',
       filtros: [{ k: 'abrangencia', r: 'Abrangência', t: 'sel', op: ABR_DIARIA, vazio: 'Abrangência: todas' }, { k: 'busca', r: 'Pesquisar', t: 'busca', ph: 'Nome, cargo, destino ou motivo' }],
       rodape: resumo,
-      botoes: () => pode() ? [el('button', { type: 'button', class: 'btn btn-primario', onclick: () => abrir() }, '+ Incluir diária')] : [],
+      botoes: () => pode() ? [el('button', { type: 'button', class: 'btn btn-claro', onclick: () => loteDiarias(() => lst.recarregar(true)), title: 'Envie várias portarias de uma vez: o sistema lê cada uma e monta uma tabela para conferir' }, 'Enviar várias portarias'),
+        el('button', { type: 'button', class: 'btn btn-primario', onclick: () => abrir() }, '+ Incluir diária')] : [],
       colunas: [['Beneficiário', (r) => dois(el('strong', null, r.nome), [r.cargo, r.unidade].filter(Boolean).join(' · ')), 'quebra'],
         ['Destino e motivo', (r) => dois(r.destino + ' · ' + (ABR_DIARIA[r.abrangencia] || ''), r.motivo), 'quebra'],
         ['Período', (r) => P.dataBR(r.data_inicio) + (r.data_fim !== r.data_inicio ? ' a ' + P.dataBR(r.data_fim) : ''), 'num'],

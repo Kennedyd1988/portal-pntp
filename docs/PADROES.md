@@ -144,6 +144,7 @@ O painel é ferramenta de trabalho: tem a identidade da SOFT+ GOV (e não a do �
 | `P.externo`, `P.avisoExterno` | Parte com link externo: desativa o cadastro manual e mostra o aviso |
 | `P.mesclarConfiguracoes(valores, órgão)` | Grava só as configurações alteradas |
 | `P.editorTexto`, `P.renderTexto` | Editor e exibição da marcação simples |
+| `P.loteDePdfs(opções)` | Envio em lote: botão contornado "Enviar vários PDFs" ao lado do "+ Novo…"; janela larga com zona para vários arquivos, leitura um por um e tabela de conferência editável (células lidas em verde; etiqueta por linha: Lido / Confira / Falta / Já cadastrado / Salvo); grava linha por linha como rascunho ou publicado (ou só "Salvar os completos" nas telas sem rascunho) |
 | `P.copiaNova(registro)`, `P.botaoDuplicar(abrirCópia)` | "Duplicar" nas listas: cópia sem id, número, protocolo, arquivos, links, slug e ligações, sempre como rascunho; abre na mesma janela de cadastro como novo |
 | `P.zonaPdf(opções)`, `P.preencherLido`, `P.lerAto` | "Preencher pelo PDF" (`painel/leitor-pdf.js`): zona no topo da janela de inclusão; lê o texto do PDF (ou OCR se escaneado, tudo no navegador) e preenche só os campos que o usuário não mexeu, marcando-os com "Lido do PDF"; digitar à mão continua possível |
 
@@ -684,7 +685,7 @@ Trocou a logo → arquivos com nome novo (`-v2`) e o manifesto apontando para el
 
 | Data | Versão | O que mudou nos padrões |
 | --- | --- | --- |
-| 18/11/2026 | 0.47.2 | "Incluir outro ao salvar" em todas as janelas abertas por "+", botão "Duplicar" nas listas (`P.copiaNova`, `P.botaoDuplicar`) e ementa sugerida no formato de ementa (seção 4) |
+| 18/11/2026 | 0.47.2 | "Incluir outro ao salvar" em todas as janelas abertas por "+", botão "Duplicar" nas listas (`P.copiaNova`, `P.botaoDuplicar`) e ementa sugerida no formato de ementa e envio em lote de PDFs (`P.loteDePdfs`) em Publicações e Diárias (seção 4) |
 | 18/11/2026 | 0.47.1 | "Preencher pelo PDF" no formulário comum (`lerPdf`) e campo `pdfurl` (PDF ou link na mesma coluna); primeiro uso em Diárias (seção 4) |
 | 18/11/2026 | 0.47.0 | Novo componente "Preencher pelo PDF" (`P.zonaPdf`, `P.lerAto`) no núcleo do painel; primeiro uso em Publicações oficiais, onde o campo passou a se chamar "Data do ato" (seção 4) |
 | 18/11/2026 | 0.46.6 | Códigos de referência (carregador, tokens, componentes, núcleo JS, RLS, gatilhos, exclusão, configurações, PWA) |
