@@ -30,6 +30,9 @@
   const org = () => P.estado.orgao.id;
   const pode = () => perm.editar && !P.estado.alcanceUnidade;
   const daGestao = () => !!(P.integracaoGestao && P.integracaoGestao('entes'));   // entes controlados pela Gestão de Consórcio
+  const docGestao = () => !!(P.integracaoGestao && P.integracaoGestao('documentos'));   // documentos controlados pela Gestão de Consórcio
+  const siglaGestao = () => ((P.integracaoGestao && (P.integracaoGestao('entes') || P.integracaoGestao('documentos'))) || {}).sigla || 'consórcio';
+  const SO_LEITURA = { editar: false, publicar: false, excluir: false };
   const anoAtual = () => new Date().getFullYear();
   const so = (tipos) => Object.fromEntries(tipos.map((t) => [t, TIPOS_DOC[t]]));
   const ente = (id) => entes.find((e) => e.id === id);
@@ -70,7 +73,7 @@
     }
     campos.push({ k: 'descricao', r: 'Observação (opcional)', t: 'area', max: 4000, ph: o.descricao || 'Ex.: aprovado na assembleia geral de 20/03/2026' });
     campos.push({ k: 'arquivo', r: 'PDF', t: 'arquivo', obPublicar: true });
-    return T().formulario({ tabela: 'consorcio_documentos', modulo: 'consorcio', titulo: o.nome || 'documento', registro: r, perm, rascunho: true,
+    return T().formulario({ tabela: 'consorcio_documentos', modulo: 'consorcio', titulo: o.nome || 'documento', registro: r, perm: docGestao() ? Object.assign({}, perm, SO_LEITURA) : perm, rascunho: true,
       fixos: o.tipos.length === 1 ? { tipo: o.tipos[0] } : null, depois: o.depois,
       abas: [['dados', 'Documento', campos]],
       validar: (d) => {
@@ -85,7 +88,8 @@
       } });
   }
   const botaoNovo = (rot, fn) => pode() ? el('button', { type: 'button', class: 'btn btn-primario', onclick: fn }, rot) : '';
-  const acoesDoc = (abrir, depois) => (r) => [T().botao(pode() ? 'Editar' : 'Ver', () => abrir(r)), pode() ? T().botao('Duplicar', () => { abrir(P.copiaNova(r)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null,
+  const botaoDoc = (rot, fn) => docGestao() ? '' : botaoNovo(rot, fn);
+  const acoesDoc = (abrir, depois) => (r) => docGestao() ? [T().botao('Ver', () => abrir(r))] : [T().botao(pode() ? 'Editar' : 'Ver', () => abrir(r)), pode() ? T().botao('Duplicar', () => { abrir(P.copiaNova(r)); setTimeout(() => P.toast('Cópia aberta como novo cadastro: confira número, datas e anexe o arquivo.'), 300); }) : null,
     pode() && perm.excluir ? T().botao('Excluir', () => T().excluir('consorcio_documentos', r, r.titulo, depois), true) : null];
   // Declarações de que não há dados no pé da aba; ao mudar, as abas de ano se refazem.
   const declaracao = (chave, lista) => P.declaracoes(chave, { perm, aoMudar: () => lista && lista.recarregar(true) });
@@ -131,7 +135,7 @@
       caixa.replaceChildren(
         el('p', { class: 'ajuda' }, 'Municípios, estados ou outros entes que integram o consórcio, com a lei que ratificou o protocolo de intenções. Quem saiu continua na lista, com a data de saída (composição vigente no site).'),
         faltas.length ? el('div', { class: 'msg msg-falta' }, el('strong', null, 'Para atender o PNTP: '), el('ul', { style: 'margin:4px 0 0 18px' }, faltas.map((t) => el('li', null, t)))) : '',
-        daGestao() ? P.avisoGestao('entes', 'Os entes consorciados do CIMOP são cadastrados na Gestão de Consórcio e chegam aqui já publicados.') : el('p', null, botaoNovo('+ Novo ente consorciado', () => abrir())),
+        daGestao() ? P.avisoGestao('entes', 'Os entes consorciados do ' + siglaGestao() + ' são cadastrados na Gestão de Consórcio e chegam aqui já publicados.') : el('p', null, botaoNovo('+ Novo ente consorciado', () => abrir())),
         T().tabela([['Ente', (e) => [el('strong', null, e.nome), el('span', { class: 'sub-linha' }, TIPOS_ENTE[e.tipo_ente] + ' · ' + e.uf + (e.cnpj ? ' · CNPJ ' + P.formatarDoc(e.cnpj) : ''))], 'quebra'],
           ['Lei de ratificação', (e) => e.lei_ratificacao_url ? el('a', { href: e.lei_ratificacao_url, target: '_blank', rel: 'noopener' }, e.lei_ratificacao || 'abrir') : e.lei_ratificacao || '—'],
           ['No consórcio', (e) => [SIT_ENTE[e.situacao_ente].split(' (')[0], el('span', { class: 'sub-linha' }, (e.data_ingresso ? 'desde ' + P.dataBR(e.data_ingresso) : '') + (e.data_saida ? ' · saiu em ' + P.dataBR(e.data_saida) : ''))]],
@@ -155,7 +159,7 @@
     caixa.append(el('p', { class: 'ajuda' }, 'Protocolo de intenções (25.1), contrato de consórcio público e estatuto (25.2). Publique sempre a versão vigente do estatuto e, separadas, as alterações aprovadas pela assembleia geral.'));
     lista = T().listaAno(caixa, { tabela: 'consorcio_documentos', base: (q) => q.in('tipo', CONSTITUTIVOS), ordem: 'data',
       filtros: [{ k: 'tipo', r: 'Tipo', t: 'sel', op: so(CONSTITUTIVOS), vazio: 'Tipo: todos' }, { k: 'busca', r: 'Pesquisar', t: 'busca', ph: 'Título, número' }],
-      botoes: () => [botaoNovo('+ Incluir documento', () => abrir())],
+      botoes: () => [botaoDoc('+ Incluir documento', () => abrir())],
       colunas: [['Documento', (d) => [el('strong', null, d.titulo), el('span', { class: 'sub-linha' }, TIPOS_DOC[d.tipo] + (d.numero ? ' nº ' + d.numero : ''))], 'quebra'],
         ['Data', (d) => P.dataBR(d.data), 'num'], ['Arquivo', linkArq], ['Situação', sit]],
       acoes: acoesDoc(abrir, () => lista.recarregar(true)), vazio: 'Nenhum documento constitutivo cadastrado.' });
@@ -185,7 +189,7 @@
       if (error) { faltas.replaceChildren(); return; }
       faltas.replaceChildren((data || []).length ? el('div', { class: 'msg msg-falta' }, el('strong', null, 'Para atender o PNTP (25.3): '),
         'Contrato de rateio de ' + ano + ' faltando para ' + data.map((x) => x.nome + ' / ' + x.uf).join(', ') + '.',
-        pode() ? el('span', null, ' ', T().botao('Incluir agora', () => abrir({ exercicio: ano, data: T().hoje(), ente_id: data[0].ente_id }))) : '')
+        pode() && !docGestao() ? el('span', null, ' ', T().botao('Incluir agora', () => abrir({ exercicio: ano, data: T().hoje(), ente_id: data[0].ente_id }))) : '')
         : !entes.length ? el('div', { class: 'msg msg-falta' }, el('strong', null, 'Para atender o PNTP (25.3): '), 'cadastre os entes consorciados (aba Entes consorciados): o rateio é conferido ente por ente.') : '');
     }
     caixa.append(el('p', { class: 'ajuda' }, 'Um contrato de rateio para cada ente consorciado em cada exercício (Lei 11.107/2005, art. 8º). O PNTP confere o ano atual e os 3 anteriores. Os valores das cotas recebidas mês a mês vão em Receitas (previsão e arrecadação).'), faltas);
@@ -193,7 +197,7 @@
       anos: async () => { const { data, error } = await sb.rpc('consorcio_anos', { p_orgao: org(), p_qual: 'rateio' }); if (error) throw error; return data || []; },
       filtroAno: (q, ano) => q.eq('exercicio', ano),
       filtros: [{ k: 'ente_id', r: 'Ente', t: 'sel', op: opEntes(true), vazio: 'Ente: todos' }, { k: 'busca', r: 'Pesquisar', t: 'busca', ph: 'Título, número' }],
-      botoes: () => [botaoNovo('+ Incluir contrato de rateio', () => abrir())],
+      botoes: () => [botaoDoc('+ Incluir contrato de rateio', () => abrir())],
       colunas: [['Ente', (d) => [el('strong', null, nomeEnte(d.ente_id)), el('span', { class: 'sub-linha' }, d.titulo + (d.numero ? ' · nº ' + d.numero : ''))], 'quebra'],
         ['Exercício', (d) => String(d.exercicio), 'num'], ['Valor', (d) => moeda(d.valor), 'num'], ['Vigência', (d) => periodo(d.vigencia_inicio, d.vigencia_fim), 'num'],
         ['Arquivo', linkArq], ['Situação', sit]],
@@ -216,7 +220,7 @@
       anos: async () => { const { data, error } = await sb.rpc('consorcio_anos', { p_orgao: org(), p_qual: 'programa' }); if (error) throw error; return data || []; },
       filtroAno: (q, ano) => q.eq('ano', ano),
       filtros: [{ k: 'ente_id', r: 'Ente', t: 'sel', op: opEntes(true), vazio: 'Ente: todos' }, { k: 'busca', r: 'Pesquisar', t: 'busca', ph: 'Objeto, número' }],
-      botoes: () => [botaoNovo('+ Incluir contrato de programa', () => abrir())],
+      botoes: () => [botaoDoc('+ Incluir contrato de programa', () => abrir())],
       colunas: [['Contrato', (d) => [el('strong', null, d.titulo), el('span', { class: 'sub-linha' }, nomeEnte(d.ente_id) + (d.numero ? ' · nº ' + d.numero : ''))], 'quebra'],
         ['Vigência', (d) => periodo(d.vigencia_inicio, d.vigencia_fim), 'num'], ['Valor', (d) => moeda(d.valor), 'num'], ['Arquivo', linkArq], ['Situação', sit]],
       acoes: acoesDoc(abrir, () => lista.recarregar(true)), vazio: 'Nenhum contrato de programa cadastrado.' });
@@ -238,7 +242,7 @@
       anos: async () => { const { data, error } = await sb.rpc('consorcio_anos', { p_orgao: org(), p_qual: 'atas' }); if (error) throw error; return data || []; },
       filtroAno: (q, ano) => q.eq('ano', ano),
       filtros: [{ k: 'tipo', r: 'Tipo', t: 'sel', op: so(ATAS), vazio: 'Tipo: todas' }, { k: 'busca', r: 'Pesquisar', t: 'busca', ph: 'Título, assunto' }],
-      botoes: () => [botaoNovo('+ Incluir ata', () => abrir())],
+      botoes: () => [botaoDoc('+ Incluir ata', () => abrir())],
       colunas: [['Ata', (d) => [el('strong', null, d.titulo), el('span', { class: 'sub-linha' }, TIPOS_DOC[d.tipo])], 'quebra'], ['Data', (d) => P.dataBR(d.data), 'num'],
         ['Arquivo', linkArq], ['Situação', sit]],
       acoes: acoesDoc(abrir, () => lista.recarregar(true)), vazio: 'Nenhuma ata cadastrada.' });
@@ -258,7 +262,7 @@
     lista = T().listaAno(caixa, { tabela: 'consorcio_documentos', base: (q) => q.eq('tipo', 'orcamento'), ordem: 'data', rotuloAno: 'Exercício', declaracao: 'consorcio_orcamento',
       anos: async () => { const { data, error } = await sb.rpc('consorcio_anos', { p_orgao: org(), p_qual: 'orcamento' }); if (error) throw error; return data || []; },
       filtroAno: (q, ano) => q.eq('exercicio', ano),
-      botoes: () => [botaoNovo('+ Incluir orçamento', () => abrir())],
+      botoes: () => [botaoDoc('+ Incluir orçamento', () => abrir())],
       colunas: [['Orçamento', (d) => [el('strong', null, d.titulo), d.descricao ? el('span', { class: 'sub-linha' }, d.descricao) : null], 'quebra'], ['Exercício', (d) => String(d.exercicio), 'num'],
         ['Total', (d) => moeda(d.valor), 'num'], ['Arquivo', linkArq], ['Situação', sit]],
       acoes: acoesDoc(abrir, () => lista.recarregar(true)), vazio: 'Nenhum orçamento cadastrado.' });
@@ -277,6 +281,7 @@
       el('div', { class: 'cabecalho-modulo' }, el('div', null, el('h1', null, 'Consórcio público'),
         el('p', { class: 'sub' }, 'Entes consorciados, documentos constitutivos, contratos de rateio e de programa, atas e orçamento (PNTP 2026, matriz dos Consórcios Públicos).'))),
       P.estado.alcanceUnidade && perm.editar ? el('p', { class: 'msg msg-info' }, 'Os documentos do consórcio são do órgão todo: só quem tem acesso ao órgão inteiro altera.') : '',
+      docGestao() ? P.avisoGestao('documentos', 'Documentos constitutivos, contratos de rateio e de programa, atas e orçamento do ' + siglaGestao() + ' são cadastrados na Gestão de Consórcio e chegam aqui já publicados. As declarações de "não há dados" continuam aqui.') : '',
       P.abas([
         ['entes', 'Entes consorciados', abaEntes, null, 'consorcio_entes'],
         ['constitutivos', 'Documentos constitutivos', abaConstitutivos, null, 'consorcio_documentos'],

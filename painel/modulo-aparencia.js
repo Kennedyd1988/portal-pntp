@@ -405,13 +405,13 @@
 
     if (!podeEditar) for (const i of form.querySelectorAll('input, select')) i.disabled = true;
     // Identidade controlada pela Gestão de Consórcio: nome exibido, brasão, endereço, contatos e horário ficam só para consulta.
-    const CHAVES_GESTAO = ['nome_exibicao', 'endereco', 'cep', 'telefone', 'email', 'horario', 'whatsapp'];
+    const CHAVES_GESTAO = ['nome_exibicao', 'endereco', 'cep', 'telefone', 'email', 'horario', 'whatsapp', 'instagram', 'facebook', 'youtube'];
     const identGestao = !!(P.integracaoGestao && P.integracaoGestao('identidade'));
     if (identGestao) {
       for (const k of CHAVES_GESTAO) if (f[k]) f[k].disabled = true;
       inputArquivo.disabled = true;
       for (const b of form.querySelectorAll('.brasao-acoes label[for="brasao-arquivo"], .brasao-acoes .link')) { b.classList.add('desativado'); b.hidden = b.tagName === 'BUTTON'; }
-      form.prepend(P.avisoGestao('identidade', 'Nome exibido, brasão, endereço, CEP, telefone, WhatsApp, e-mail e horário do CIMOP vêm da Gestão de Consórcio. Cores, ícone, domínio, redes sociais e destinos continuam aqui.'));
+      form.prepend(P.avisoGestao('identidade', 'Nome exibido, brasão, endereço, CEP, telefone, WhatsApp, e-mail, horário e redes sociais vêm da Gestão de Consórcio. Cores, ícone, domínio, selos e destinos continuam aqui.'));
     }
 
     const urlValida = (v) => !v || /^https?:\/\/\S+\.\S+/.test(v);

@@ -134,9 +134,9 @@
   }
   // Integração com a Gestão de Consórcio (sistema SOFT+ dos consórcios): quando um item está integrado,
   // a Gestão é quem cadastra e o Portal mostra só para consulta. O banco trava a edição de qualquer jeito.
-  // configuracoes.integracao_gestao = { entes, pessoas, identidade, url } (gravado só pela Gestão).
-  const ROTA_GESTAO = { entes: '#entes', pessoas: '#pessoas', identidade: '#cimop' };
-  const NOME_GESTAO = { entes: 'Cadastro de Consorciados › Entes', pessoas: 'Cadastro de Consorciados › Pessoas do CIMOP', identidade: 'Cadastro de Consorciados › Dados do CIMOP' };
+  // configuracoes.integracao_gestao = { entes, pessoas, identidade, documentos, sigla, url } (gravado só pela Gestão).
+  const ROTA_GESTAO = { entes: '#entes', pessoas: '#pessoas', identidade: '#consorcio', documentos: '#documentos' };
+  const NOME_GESTAO = { entes: 'Cadastro de Consorciados › Entes', pessoas: 'Consórcio › Pessoas do consórcio', identidade: 'Consórcio › Dados do consórcio', documentos: 'Consórcio › Documentos do consórcio' };
   function integracaoGestao(item) {
     const g = ((estado.orgao || {}).configuracoes || {}).integracao_gestao;
     return g && g[item] ? g : null;
@@ -785,7 +785,8 @@
       el('span', { class: 'item-pntp ' + (x[campo] ? 'item-ok' : 'item-falta') }, el('span', { 'aria-hidden': 'true' }, x[campo] ? '✓ ' : '! '), rotulo,
         el('span', { class: 'sr' }, x[campo] ? ' (atendido)' : ' (falta)')));
     // Itens integrados com a Gestão de Consórcio: "Corrigir" abre a tela certa lá.
-    const itemGestao = x.codigo === '25.7' ? 'entes' : x.codigo === '2.3' ? 'pessoas' : ['2.4', '2.5'].includes(x.codigo) ? 'identidade' : null;
+    const itemGestao = x.codigo === '25.7' ? 'entes' : x.codigo === '2.3' ? 'pessoas' : ['2.4', '2.5'].includes(x.codigo) ? 'identidade'
+      : ['25.1', '25.2', '25.3', '25.4', '25.5', '25.6', '11.11'].includes(x.codigo) ? 'documentos' : null;
     const rotaGestao = itemGestao && linkGestao(itemGestao);
     const corrigir = x.rota && x.situacao !== 'atende' && podeVerCriterio(x)
       ? (rotaGestao ? el('a', { class: 'btn btn-claro btn-p', href: rotaGestao, target: '_blank', rel: 'noopener' }, 'Corrigir na Gestão ↗', el('span', { class: 'sr' }, ' o critério ' + x.codigo + ' (abre em nova aba)'))
