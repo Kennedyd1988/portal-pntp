@@ -575,6 +575,27 @@
     busca.hidden = estado.orgaos.length < 6;
     busca.value = '';
     desenharListaOrgaos('');
+    carregarBrasoes();
+  }
+
+  // Brasão escolhido na Aparência de cada órgão no lugar da sigla (0.50.0). Lido a cada vez que a
+  // lista aparece, para refletir um brasão trocado agora há pouco; sem brasão, fica a sigla.
+  async function carregarBrasoes() {
+    const ids = estado.orgaos.map((o) => o.id);
+    if (!ids.length) return;
+    const { data, error } = await sb.from('orgaos').select('id, brasao:configuracoes->>brasao_url').in('id', ids);
+    if (error) return;
+    estado.brasoes = Object.fromEntries((data || []).filter((o) => o.brasao).map((o) => [o.id, o.brasao]));
+    if (!$('tela-orgaos').hidden) desenharListaOrgaos($('busca-orgao').value || '');
+  }
+  function marcaOrgao(o) {
+    const url = (estado.brasoes || {})[o.id];
+    const caixa = el('span', { class: 'item-orgao-sigla' + (url ? ' com-brasao' : ''), 'aria-hidden': 'true' });
+    if (!url) { caixa.textContent = siglaDe(o); return caixa; }
+    const img = el('img', { src: url, alt: '', loading: 'lazy' });
+    img.onerror = () => { caixa.classList.remove('com-brasao'); caixa.replaceChildren(siglaDe(o)); };
+    caixa.append(img);
+    return caixa;
   }
 
   function desenharListaOrgaos(filtro) {
@@ -594,7 +615,7 @@
       const subsite = !!o.orgao_pai_id;
       lista.append(el('li', null,
         el('button', { type: 'button', class: 'item-orgao', style: subsite ? 'margin-left:28px;width:calc(100% - 28px)' : null, onclick: () => abrirOrgao(o) },
-          el('span', { class: 'item-orgao-sigla', 'aria-hidden': 'true' }, siglaDe(o)),
+          marcaOrgao(o),
           el('span', { class: 'item-orgao-texto' },
             el('span', { class: 'item-orgao-nome' }, o.nome),
             el('span', { class: 'item-orgao-det' }, (subsite ? 'Subsite · ' : '') + (TIPO_ORGAO[o.tipo] || o.tipo) + ' · ' + o.perfil)

@@ -330,6 +330,7 @@ Toda mudança passa por sugestão → prévia → aval → publicação; nada va
 
 1. **Sugestão:** descrever o que vai mudar, item por item, numerado para aprovação.
 2. **Prévia sem publicar:** aplicar o visual por cima do site real só no navegador de quem revisa, ou publicar num ramo de teste do Git (ex.: `redesenho-046`), servido em `https://<ramo>.portal-pntp.pages.dev`.
+2a. **Homologação (desde 0.50.0):** com usuários usando o sistema, todas as alterações se acumulam no ramo `homologacao` (`https://homologacao.portal-pntp.pages.dev`) e só vão para o `main` quando o dono autoriza. O banco é o mesmo: conferir no órgão de teste ("Câmara Municipal de Teste SOFT+ (homologação)"), nunca num órgão real. Scripts que só acrescentam podem rodar antes; scripts que mudam o comportamento do que está no ar rodam só no dia da publicação.
 3. **Aval e publicação:** enviar o ramo para `main`; a Cloudflare publica em cerca de 1 minuto.
 4. **Versão:** subir o número em `painel/versao.json` e escrever as notas em linguagem do usuário, a mais nova primeiro.
 5. **Logo e ícones:** quando a logo mudar, os arquivos de ícone ganham **nome novo** (ex.: `softgov-icone-192.png` → `softgov-icone-v2-192.png`) e o `manifest.json`, o `favicon` e o `apple-touch-icon` passam a apontar para eles; os antigos ficam no servidor. Com o mesmo nome, o Chrome/Edge não percebe a troca e o app instalado (Windows, celular) continua com o ícone velho.

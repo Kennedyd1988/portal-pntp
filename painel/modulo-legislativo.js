@@ -120,11 +120,11 @@
     const caixa = el('div');
     function desenhar() {
       caixa.replaceChildren(
-        el('p', { class: 'ajuda' }, 'Composição da Casa com foto, partido e biografia de cada vereador (PNTP 20.1). Ex-vereadores ficam no histórico: desmarque "Em exercício". A coluna Mesa mostra o cargo na composição em vigor (aba Mesa Diretora).'),
+        el('p', { class: 'ajuda' }, 'Composição da Casa com foto, partido e biografia de cada vereador (PNTP 20.1). Quem está "em exercício" sai da legislatura informada (o ano atual dentro dela); ex-vereadores ficam no histórico sozinhos quando a legislatura acaba. Licença, renúncia, cassação ou suplente que devolveu a vaga: marque "Afastado do mandato" no cadastro. A coluna Mesa mostra o cargo na composição em vigor (aba Mesa Diretora).'),
         podeGravar() ? el('p', null, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => formVereador() }, '+ Novo vereador')) : null,
         parlamentares.length ? tabela(['Vereador', 'Partido', 'Mesa', 'Legislatura', 'Situação'], parlamentares.map((p) => el('tr', null,
           el('td', null, el('strong', null, p.nome_parlamentar || p.nome), p.nome_parlamentar ? el('span', { class: 'sub-linha' }, p.nome) : null,
-            p.em_exercicio ? null : el('span', { class: 'sub-linha' }, 'Fora de exercício')),
+            p.em_exercicio ? null : el('span', { class: 'sub-linha' }, p.afastado ? 'Afastado do mandato' : (p.legislatura_inicio ? 'Legislatura encerrada' : 'Fora de exercício'))),
           el('td', null, p.partido || '—'), el('td', null, cargoVigente(p.id) || '—'),
           el('td', { class: 'num' }, p.legislatura_inicio ? p.legislatura_inicio + '–' + (p.legislatura_fim || '') : '—'),
           el('td', null, etiquetaSit(p.situacao)),
@@ -145,9 +145,28 @@
         ini: el('input', { type: 'number', min: 1990, max: 2100, value: p.legislatura_inicio || '' }),
         fim: el('input', { type: 'number', min: 1990, max: 2100, value: p.legislatura_fim || '' }),
         ordem: el('input', { type: 'number', min: 0, max: 999, value: p.ordem || 0 }),
-        exerc: el('input', { type: 'checkbox' })
+        exerc: el('input', { type: 'checkbox' }),
+        afast: el('input', { type: 'checkbox' })
       };
       f.bio.value = p.biografia || ''; f.exerc.checked = p.em_exercicio !== false;
+      // 0.50.0 (script 55): com legislatura, "em exercício" é calculado (ano atual dentro dela e não afastado).
+      // Antes do script, quem estava desmarcado com legislatura em curso conta como afastado.
+      const anoHoje = new Date().getFullYear();
+      const dentro = (ini, fim) => !!ini && anoHoje >= ini && anoHoje <= (fim || ini + 3);
+      f.afast.checked = p.afastado === true || (p.afastado === undefined && p.em_exercicio === false && dentro(p.legislatura_inicio, p.legislatura_fim));
+      const linhaExerc = el('label', { class: 'checkbox' }, f.exerc, ' Em exercício (aparece na composição atual)');
+      const linhaAfast = el('label', { class: 'checkbox' }, f.afast, ' Afastado do mandato (licença, renúncia, cassação, suplente que devolveu a vaga)');
+      const situacaoExerc = el('p', { class: 'ajuda' });
+      function atualizarExerc() {
+        const ini = +f.ini.value || null, fim = +f.fim.value || null;
+        linhaExerc.hidden = !!ini; linhaAfast.hidden = !ini;
+        situacaoExerc.textContent = !ini ? 'Sem legislatura informada: marque à mão se está em exercício.'
+          : !dentro(ini, fim) ? (ini > anoHoje ? 'Legislatura ainda não começou: fica fora da composição atual até ' + ini + '.' : 'Legislatura encerrada: fica no histórico de ex-vereadores.')
+          : f.afast.checked ? 'Afastado: sai da composição atual, mas continua no histórico desta legislatura.'
+          : 'Em exercício: legislatura em curso. Aparece na composição atual.';
+      }
+      [f.ini, f.fim].forEach((i) => i.addEventListener('input', atualizarExerc)); f.afast.addEventListener('change', atualizarExerc);
+      atualizarExerc();
       const corpo = el('div', null,
         el('div', { class: 'grade-campos' }, campo('lv-nome', 'Nome civil', f.nome, null, true), campo('lv-np', 'Nome parlamentar', f.nomeParl)),
         el('div', { class: 'grade-campos' }, campo('lv-part', 'Partido', f.partido), campo('lv-ord', 'Ordem na lista', f.ordem)),
@@ -156,7 +175,7 @@
         campo('lv-bio', 'Biografia', f.bio),
         el('div', { class: 'grade-campos' }, campo('lv-email', 'E-mail', f.email), campo('lv-tel', 'Telefone', f.tel)),
         el('div', { class: 'grade-campos' }, campo('lv-ini', 'Legislatura: início (ano)', f.ini), campo('lv-fim', 'fim (ano)', f.fim)),
-        el('label', { class: 'checkbox' }, f.exerc, ' Em exercício (aparece na composição atual)'));
+        linhaAfast, linhaExerc, situacaoExerc);
       const dlg = dialogo(p.id ? 'Editar vereador' : 'Novo vereador', corpo, (ref) => acoesGravar(ref, p, async (situacao, btn) => {
         if (!erroCampo('lv-nome', f.nome.value.trim().length >= 3 ? '' : 'Informe o nome.')) return;
         if (!erroCampo('lv-email', !f.email.value.trim() || P.emailValido(f.email.value.trim()) ? '' : 'E-mail inválido.')) return;
@@ -164,9 +183,16 @@
         try {
           let foto = p.foto_url || null;
           if (f.foto.files[0]) { const r = await P.reduzirImagem(f.foto.files[0], 600); foto = await P.enviarArquivo('legislativo', r.blob, r.ext); }
-          await P.gravarRegistro('parlamentares', { nome: f.nome.value.trim(), nome_parlamentar: f.nomeParl.value.trim() || null, partido: f.partido.value.trim().toUpperCase() || null,
+          const ini = +f.ini.value || null, fim = +f.fim.value || null;
+          const exercicio = ini ? dentro(ini, fim) && !f.afast.checked : f.exerc.checked;
+          const dados = { nome: f.nome.value.trim(), nome_parlamentar: f.nomeParl.value.trim() || null, partido: f.partido.value.trim().toUpperCase() || null,
             foto_url: foto, biografia: f.bio.value.trim() || null, email: f.email.value.trim() || null, telefone: f.tel.value.trim() || null,
-            legislatura_inicio: +f.ini.value || null, legislatura_fim: +f.fim.value || null, ordem: +f.ordem.value || 0, em_exercicio: f.exerc.checked, situacao }, p.id);
+            legislatura_inicio: ini, legislatura_fim: fim, ordem: +f.ordem.value || 0, em_exercicio: exercicio, afastado: !!ini && f.afast.checked, situacao };
+          try { await P.gravarRegistro('parlamentares', dados, p.id); }
+          catch (e) {   // script 55 ainda não rodado: grava sem a coluna nova
+            if (!/afastado/i.test((e && e.message) || '')) throw e;
+            delete dados.afastado; await P.gravarRegistro('parlamentares', dados, p.id);
+          }
           if (foto !== p.foto_url && p.foto_url) P.apagarArquivo(p.foto_url);
           ref.fechar(); toast(situacao === 'publicado' ? 'Publicado.' : 'Rascunho salvo.'); await carregarBase(); desenhar();
         } catch (e) { mostrarErro(e); } finally { ocupado(btn); }
