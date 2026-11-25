@@ -1133,9 +1133,9 @@
       }
     },
     // ---------------------------------------------------------------
-    // Mesa Diretora vigente (a de período que inclui hoje) → cargo na Mesa de cada vereador.
+    // Mesa Diretora vigente (a de período que inclui hoje) → composição da Mesa no período dela.
     mesa: {
-      nome: 'Mesa Diretora (atual)', destino: 'Atividade legislativa › Vereadores (cargo na Mesa)', semPeriodo: true, pasta: 'legislativo', soCamara: true,
+      nome: 'Mesa Diretora (atual)', destino: 'Atividade legislativa › Mesa Diretora (período atual)', semPeriodo: true, pasta: 'legislativo', soCamara: true,
       listas: [],
       async listar(ctx) {
         if (!(await ehCamara(ctx))) return [];

@@ -737,3 +737,8 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .etiqueta-lote-dup, .etiqueta-lote-erro { background: #fbeaea; color: #8f2626; }
 .etiqueta-lendo { background: #e8f0fc; color: #0b3f9c; }
 .tabela-lote td .etiqueta { white-space: normal; line-height: 1.35; }
+
+/* Mesa Diretora (0.49.0): cabeçalho do cartão de cada composição e atalhos de biênio */
+.cartao-cabeca { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.cartao-cabeca .acoes { display: flex; gap: 6px; }
+.atalhos-periodo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -4px 0 12px; font-size: 13px; color: var(--text-dim); }

@@ -318,9 +318,9 @@
       }
     },
     // ---------------------------------------------------------------
-    // Mesa Diretora da sessão legislativa atual → cargo na Mesa de cada vereador (importe antes os vereadores).
+    // Mesa Diretora da sessão legislativa atual → composição da Mesa no período dela (importe antes os vereadores).
     mesa: {
-      nome: 'Mesa Diretora (atual)', destino: 'Atividade legislativa › Vereadores (cargo na Mesa)', semPeriodo: true, pasta: 'legislativo',
+      nome: 'Mesa Diretora (atual)', destino: 'Atividade legislativa › Mesa Diretora (período atual)', semPeriodo: true, pasta: 'legislativo',
       listas: [],
       async listar(ctx) {
         const r = await ctx.ler(ctx.origem + '/parlamentares/mesa-diretora/');

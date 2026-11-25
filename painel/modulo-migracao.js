@@ -803,7 +803,7 @@
   let cacheVereadores = null;
   async function vereadores(recarregar) {
     if (cacheVereadores && !recarregar) return cacheVereadores;
-    const { data, error } = await sb.from('parlamentares').select('id, nome, nome_parlamentar, partido, cargo_mesa, foto_url, biografia, email, telefone, legislatura_inicio, legislatura_fim').eq('orgao_id', org());
+    const { data, error } = await sb.from('parlamentares').select('id, nome, nome_parlamentar, partido, foto_url, biografia, email, telefone, legislatura_inicio, legislatura_fim').eq('orgao_id', org());
     if (error) throw error;
     cacheVereadores = data || [];
     return cacheVereadores;
@@ -843,6 +843,37 @@
     if (!c.url) avisos.push('Arquivo não copiado: ' + c.erro);
     return { url: c.url || null, bytes: c.bytes || 0 };
   }
+  // Mesa Diretora: período a partir do texto da sessão legislativa; reaproveita o período que já cobre as datas.
+  function ordemCargoMesa(c) {
+    const t = chaveNome(c), n = Number((String(c || '').match(/(\d)/) || [])[1]) || (/segund/.test(t) ? 2 : /terceir/.test(t) ? 3 : /quart/.test(t) ? 4 : 1);
+    return /vice/.test(t) ? 20 + n : /presiden/.test(t) ? 10 : /secret/.test(t) ? 40 + n : /tesour/.test(t) ? 60 : /suplent/.test(t) ? 90 : 80;
+  }
+  const cachePeriodoMesa = {};
+  async function periodoMesa(sessao) {
+    const chave = org() + '|' + (sessao || '');
+    if (cachePeriodoMesa[chave]) return cachePeriodoMesa[chave];
+    const t = String(sessao || '');
+    const datas = (t.match(/\d{2}\/\d{2}\/\d{4}/g) || []).map((d) => d.split('/').reverse().join('-'));
+    const anos = (t.match(/\b(19|20)\d{2}\b/g) || []).map(Number);
+    const agora = new Date().getFullYear();
+    let ini, fim;
+    if (datas.length >= 2) [ini, fim] = [datas[0], datas[1]];
+    else if (anos.length) { ini = Math.min(...anos) + '-01-01'; fim = Math.max(...anos) + '-12-31'; }
+    else { const li = agora - ((((agora - 2021) % 4) + 4) % 4), a = agora - li < 2 ? li : li + 2; ini = a + '-01-01'; fim = (a + 1) + '-12-31'; }
+    const ai = +ini.slice(0, 4), li = ai - ((((ai - 2021) % 4) + 4) % 4);
+    const { data: ex, error: e1 } = await sb.from('mesa_periodos').select('id, nome, inicio, fim').eq('orgao_id', org()).lte('inicio', fim).gte('fim', ini).order('inicio').limit(1);
+    if (e1) throw /mesa_periodos|does not exist|Could not find/i.test(e1.message || '') ? new Error('Rode o script 54 na Supabase antes de importar a Mesa Diretora.') : e1;
+    let per = ex && ex[0];
+    if (!per) {
+      const nome = +fim.slice(0, 4) - ai === 1 && (ai - li === 0 || ai - li === 2) ? (ai - li === 0 ? '1º biênio' : '2º biênio') : null;
+      const { data, error } = await sb.from('mesa_periodos').insert({ orgao_id: org(), legislatura_inicio: li, legislatura_fim: Math.max(li + 3, +fim.slice(0, 4)),
+        inicio: ini, fim, nome, situacao: 'publicado' }).select('id, nome, inicio, fim').single();
+      if (error) throw error;
+      per = data;
+    }
+    per.rotulo = (per.nome ? per.nome + ' ' : '') + per.inicio.split('-').reverse().join('/') + ' a ' + per.fim.split('-').reverse().join('/');
+    return (cachePeriodoMesa[chave] = per);
+  }
   Object.assign(GRAVAR, {
     async vereador(x, s) {
       const r = x.registro, avisos = [];
@@ -864,14 +895,20 @@
       cacheVereadores = null;
       return { situacao: 'importado', id: data.id, tabela: 'parlamentares', bytes: f.bytes, aviso: avisos.join(' · ') || null };
     },
+    // Mesa Diretora (0.49.0, script 54): grava o membro na composição (período) da Mesa. O período sai do texto
+    // da sessão legislativa do site antigo (datas dd/mm/aaaa ou anos); sem isso, o biênio em vigor hoje.
     async mesa(x) {
       const p = await acharVereador(x.registro.nome_parlamentar);
       if (!p) return { situacao: 'erro', aviso: 'Vereador "' + x.registro.nome_parlamentar + '" não encontrado: importe antes a seção Vereadores' };
-      if ((p.cargo_mesa || '') === x.registro.cargo_mesa) return { situacao: 'ja_existia', id: p.id, tabela: 'parlamentares' };
-      const { error } = await sb.from('parlamentares').update({ cargo_mesa: x.registro.cargo_mesa }).eq('id', p.id);
+      const per = await periodoMesa(x.sessao);
+      const cargo = x.registro.cargo_mesa;
+      const { data: ja, error: e0 } = await sb.from('mesa_membros').select('id, cargo').eq('periodo_id', per.id).eq('parlamentar_id', p.id).maybeSingle();
+      if (e0) throw e0;
+      if (ja && ja.cargo === cargo) return { situacao: 'ja_existia', id: per.id, tabela: 'mesa_periodos' };
+      const { error } = ja ? await sb.from('mesa_membros').update({ cargo, ordem: ordemCargoMesa(cargo) }).eq('id', ja.id)
+        : await sb.from('mesa_membros').insert({ orgao_id: org(), periodo_id: per.id, parlamentar_id: p.id, cargo, ordem: ordemCargoMesa(cargo) });
       if (error) throw error;
-      cacheVereadores = null;
-      return { situacao: 'importado', id: p.id, tabela: 'parlamentares', aviso: x.sessao ? 'Mesa da ' + x.sessao : null };
+      return { situacao: 'importado', id: per.id, tabela: 'mesa_periodos', aviso: 'Mesa ' + per.rotulo + (x.sessao ? ' (no site antigo: ' + x.sessao + ')' : '') };
     },
     async comissao(x) {
       const r = x.registro;

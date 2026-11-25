@@ -377,8 +377,15 @@
     if (pubs.some((g) => g.itens.length)) blocos.push(secaoPublicacoes(pubs));
     // Câmara: bloco dos vereadores em exercício (Presidente, demais da Mesa e os outros), antes do bloco "Gestão".
     if (S.orgao.tipo === 'camara') {
-      const { data: vs } = await sb.from('parlamentares').select('id, nome, nome_parlamentar, partido, cargo_mesa, foto_url, ordem')
-        .eq('orgao_id', org()).eq('em_exercicio', true).order('ordem').order('nome').limit(60);
+      const [{ data: vs }, mv] = await Promise.all([
+        sb.from('parlamentares').select('id, nome, nome_parlamentar, partido, cargo_mesa, foto_url, ordem')
+          .eq('orgao_id', org()).eq('em_exercicio', true).order('ordem').order('nome').limit(60),
+        sb.rpc('mesa_vigente', { p_orgao: org() })   // script 54: cargo na Mesa em vigor hoje
+      ]);
+      if (!mv.error) {
+        const cargo = new Map((mv.data || []).map((m) => [m.parlamentar_id, m.cargo]));
+        for (const v of vs || []) v.cargo_mesa = cargo.get(v.id) || null;
+      }
       const vereadores = (vs || []).sort((a, b) => ordemVereador(a) - ordemVereador(b) || (a.ordem || 0) - (b.ordem || 0));
       if (vereadores.length) blocos.push(el('section', { class: 'secao secao-cinza', 'aria-labelledby': 'tit-vereadores' }, el('div', { class: 'limite' },
         el('div', { class: 'secao-titulo' }, el('h2', { id: 'tit-vereadores' }, 'Vereadores'), el('a', { href: '#/parlamentares' }, 'Todos os vereadores →')),

@@ -2,6 +2,7 @@
 // Módulo "Atividade legislativa" (Câmara Municipal) — PNTP 2026, matriz do
 // Poder Legislativo (dimensão 20). Abas:
 //   Vereadores ........ 20.1 composição e biografias
+//   Mesa Diretora ..... composições por legislatura e período, com o ato da eleição (0.49.0)
 //   Proposições ....... 20.3 projetos, autoria, relatoria e tramitação (20.11 vem daqui)
 //   Sessões ........... 20.4 pauta do Plenário, 20.6 ata e presenças, 20.7 votações, 20.9 vídeo
 //   Comissões ......... 20.5 composição e (pelas reuniões em Sessões) pautas
@@ -30,7 +31,7 @@
   const VOTOS = { sim: 'Sim', nao: 'Não', abstencao: 'Abstenção', ausente: 'Ausente', nao_votou: 'Não votou (presidente)' };
 
   let perm = {}, conteiner = null, cfg = {};
-  let parlamentares = [], comissoes = [];
+  let parlamentares = [], comissoes = [], mesas = [], semMesa = false;
   const org = () => P.estado.orgao.id;
   const podeGravar = () => perm.editar && !P.estado.alcanceUnidade;
   const opcoes = (obj, atual, vazio) => [vazio != null ? el('option', { value: '' }, vazio) : null]
@@ -50,6 +51,15 @@
     if (p.error) throw p.error;
     if (c.error) throw c.error;
     parlamentares = p.data || []; comissoes = c.data || []; cfg = (o.data && o.data.configuracoes) || {};
+    // Mesa Diretora (script 54): sem o script, a aba avisa e o resto do módulo funciona.
+    const m = await sb.from('mesa_periodos').select('*, mesa_membros(id, parlamentar_id, cargo, ordem)').eq('orgao_id', org()).order('inicio', { ascending: false });
+    semMesa = !!m.error; mesas = m.data || [];
+  }
+  // Cargo do vereador na Mesa em vigor hoje (só para mostrar na lista de vereadores).
+  function cargoVigente(id) {
+    const h = hoje(), per = mesas.find((x) => x.inicio <= h && x.fim >= h);
+    const mb = per && (per.mesa_membros || []).find((x) => x.parlamentar_id === id);
+    return mb ? mb.cargo : null;
   }
 
   // PDF ou link num mesmo campo: devolve o endereço (enviando o PDF, se houver).
@@ -89,7 +99,7 @@
     d.classList.add('dialogo-largo');
     return d;
   }
-  const PECAS_LEG = { proposicoes: 'os autores e a tramitação', sessoes: 'as presenças e as votações', comissoes: 'os membros', votacoes: 'os votos' };
+  const PECAS_LEG = { proposicoes: 'os autores e a tramitação', sessoes: 'as presenças e as votações', comissoes: 'os membros', votacoes: 'os votos', mesa_periodos: 'os membros' };
   async function excluirRegistro(tabela, id, nome, arquivos) {
     if (!await P.confirmar('Excluir', 'Excluir "' + nome + '"' + (PECAS_LEG[tabela] ? ' com ' + PECAS_LEG[tabela] : '') + '? Registros de outras partes ligados a ele (ex.: vereador com proposições ou votos) impedem a exclusão.', 'Excluir', true)) return false;
     const { data, error } = PECAS_LEG[tabela] ? await P.excluirComPecas(tabela, id) : await sb.from(tabela).delete().eq('id', id).select('id');
@@ -110,12 +120,12 @@
     const caixa = el('div');
     function desenhar() {
       caixa.replaceChildren(
-        el('p', { class: 'ajuda' }, 'Composição da Casa com foto, partido e biografia de cada vereador (PNTP 20.1). Ex-vereadores ficam no histórico: desmarque "Em exercício".'),
+        el('p', { class: 'ajuda' }, 'Composição da Casa com foto, partido e biografia de cada vereador (PNTP 20.1). Ex-vereadores ficam no histórico: desmarque "Em exercício". A coluna Mesa mostra o cargo na composição em vigor (aba Mesa Diretora).'),
         podeGravar() ? el('p', null, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => formVereador() }, '+ Novo vereador')) : null,
         parlamentares.length ? tabela(['Vereador', 'Partido', 'Mesa', 'Legislatura', 'Situação'], parlamentares.map((p) => el('tr', null,
           el('td', null, el('strong', null, p.nome_parlamentar || p.nome), p.nome_parlamentar ? el('span', { class: 'sub-linha' }, p.nome) : null,
             p.em_exercicio ? null : el('span', { class: 'sub-linha' }, 'Fora de exercício')),
-          el('td', null, p.partido || '—'), el('td', null, p.cargo_mesa || '—'),
+          el('td', null, p.partido || '—'), el('td', null, cargoVigente(p.id) || '—'),
           el('td', { class: 'num' }, p.legislatura_inicio ? p.legislatura_inicio + '–' + (p.legislatura_fim || '') : '—'),
           el('td', null, etiquetaSit(p.situacao)),
           el('td', { class: 'acoes' }, podeGravar() ? botao('Editar', () => formVereador(p)) : null,
@@ -128,7 +138,6 @@
         nome: el('input', { type: 'text', maxlength: 200, value: p.nome || '' }),
         nomeParl: el('input', { type: 'text', maxlength: 120, value: p.nome_parlamentar || '', placeholder: 'Nome usado na Câmara' }),
         partido: el('input', { type: 'text', maxlength: 40, value: p.partido || '', placeholder: 'Sigla. Ex.: MDB' }),
-        mesa: el('input', { type: 'text', maxlength: 80, value: p.cargo_mesa || '', placeholder: 'Ex.: Presidente, 1º Secretário' }),
         foto: el('input', { type: 'file', accept: 'image/*' }),
         bio: el('textarea', { rows: 6, maxlength: 8000, placeholder: 'Formação, profissão, mandatos, atuação…' }),
         email: el('input', { type: 'email', maxlength: 160, value: p.email || '' }),
@@ -141,7 +150,8 @@
       f.bio.value = p.biografia || ''; f.exerc.checked = p.em_exercicio !== false;
       const corpo = el('div', null,
         el('div', { class: 'grade-campos' }, campo('lv-nome', 'Nome civil', f.nome, null, true), campo('lv-np', 'Nome parlamentar', f.nomeParl)),
-        el('div', { class: 'grade-campos' }, campo('lv-part', 'Partido', f.partido), campo('lv-mesa', 'Cargo na Mesa Diretora', f.mesa), campo('lv-ord', 'Ordem na lista', f.ordem)),
+        el('div', { class: 'grade-campos' }, campo('lv-part', 'Partido', f.partido), campo('lv-ord', 'Ordem na lista', f.ordem)),
+        el('p', { class: 'ajuda' }, 'O cargo na Mesa Diretora é cadastrado na aba Mesa Diretora, por legislatura e período.'),
         campo('lv-foto', 'Foto', f.foto, p.foto_url ? 'Já tem foto. Envie outra só para trocar.' : 'JPG ou PNG; é reduzida automaticamente.'),
         campo('lv-bio', 'Biografia', f.bio),
         el('div', { class: 'grade-campos' }, campo('lv-email', 'E-mail', f.email), campo('lv-tel', 'Telefone', f.tel)),
@@ -155,10 +165,141 @@
           let foto = p.foto_url || null;
           if (f.foto.files[0]) { const r = await P.reduzirImagem(f.foto.files[0], 600); foto = await P.enviarArquivo('legislativo', r.blob, r.ext); }
           await P.gravarRegistro('parlamentares', { nome: f.nome.value.trim(), nome_parlamentar: f.nomeParl.value.trim() || null, partido: f.partido.value.trim().toUpperCase() || null,
-            cargo_mesa: f.mesa.value.trim() || null, foto_url: foto, biografia: f.bio.value.trim() || null, email: f.email.value.trim() || null, telefone: f.tel.value.trim() || null,
+            foto_url: foto, biografia: f.bio.value.trim() || null, email: f.email.value.trim() || null, telefone: f.tel.value.trim() || null,
             legislatura_inicio: +f.ini.value || null, legislatura_fim: +f.fim.value || null, ordem: +f.ordem.value || 0, em_exercicio: f.exerc.checked, situacao }, p.id);
           if (foto !== p.foto_url && p.foto_url) P.apagarArquivo(p.foto_url);
           ref.fechar(); toast(situacao === 'publicado' ? 'Publicado.' : 'Rascunho salvo.'); await carregarBase(); desenhar();
+        } catch (e) { mostrarErro(e); } finally { ocupado(btn); }
+      }));
+      return dlg;
+    }
+    desenhar();
+    return caixa;
+  }
+
+  // ===================================================================
+  // MESA DIRETORA (0.49.0, script 54): composições por legislatura e período (padrão: biênio)
+  // ===================================================================
+  const CARGOS_MESA = ['Presidente', 'Vice-Presidente', '1º Vice-Presidente', '2º Vice-Presidente', '1º Secretário', '2º Secretário', '3º Secretário', 'Tesoureiro', 'Suplente'];
+  const dataBr = (d) => d ? d.split('-').reverse().join('/') : '';
+  // Legislatura municipal que contém o ano (2021–2024, 2025–2028…).
+  const legDoAno = (a) => { const i = a - ((((a - 2021) % 4) + 4) % 4); return [i, i + 3]; };
+  const rotuloLeg = (x) => x.legislatura_inicio + '–' + x.legislatura_fim;
+  function ordemCargo(c) {
+    const s = P.normalizar(c || ''), n = Number((s.match(/(\d)/) || [])[1]) || (/segund/.test(s) ? 2 : /terceir/.test(s) ? 3 : /quart/.test(s) ? 4 : 1);
+    return /vice/.test(s) ? 20 + n : /presiden/.test(s) ? 10 : /secret/.test(s) ? 40 + n : /tesour/.test(s) ? 60 : /suplent/.test(s) ? 90 : 80;
+  }
+
+  function abaMesa() {
+    const caixa = el('div');
+    let leg = null;
+    function desenhar() {
+      if (semMesa) { caixa.replaceChildren(el('p', { class: 'msg msg-falta' }, 'Rode o script 54 na Supabase para cadastrar a Mesa Diretora por legislatura.')); return; }
+      const h = hoje();
+      const legs = [...new Map(mesas.map((x) => [rotuloLeg(x), x])).values()].map((x) => [x.legislatura_inicio, x.legislatura_fim])
+        .sort((a, b) => b[0] - a[0]);
+      const atual = legDoAno(new Date().getFullYear());
+      if (!legs.some((l) => l[0] === atual[0])) legs.unshift(atual);
+      if (!leg || !legs.some((l) => l[0] === leg[0])) leg = legs.find((l) => l[0] === atual[0]) || legs[0];
+      const periodos = mesas.filter((x) => x.legislatura_inicio === leg[0]).sort((a, b) => a.inicio < b.inicio ? -1 : 1);
+      caixa.replaceChildren(
+        el('p', { class: 'ajuda' }, 'Cada composição da Mesa Diretora com o período de mandato (normalmente um biênio dentro da legislatura) e o ato da eleição. O site mostra a composição em vigor e as anteriores.'),
+        podeGravar() ? el('p', null, el('button', { type: 'button', class: 'btn btn-primario', onclick: () => formMesa({ legislatura_inicio: leg[0], legislatura_fim: leg[1] }) }, '+ Nova composição da Mesa')) : null,
+        el('div', { class: 'abas abas-internas', role: 'tablist', 'aria-label': 'Legislatura' }, legs.map((l) =>
+          el('button', { type: 'button', role: 'tab', class: 'aba aba-p', 'aria-selected': l[0] === leg[0] ? 'true' : 'false', onclick: () => { leg = l; desenhar(); } },
+            'Legislatura ' + l[0] + '–' + l[1], el('span', { class: 'aba-qtd' }, String(mesas.filter((x) => x.legislatura_inicio === l[0]).length))))),
+        periodos.length ? el('div', { class: 'lista-mesa' }, periodos.map((x) => {
+          const vigor = x.inicio <= h && x.fim >= h;
+          const membros = (x.mesa_membros || []).slice().sort((a, b) => a.ordem - b.ordem);
+          return el('div', { class: 'cartao mt-1' },
+            el('div', { class: 'cartao-cabeca' },
+              el('div', null, el('strong', null, (x.nome || 'Mesa Diretora') + ' · ' + dataBr(x.inicio) + ' a ' + dataBr(x.fim)), ' ',
+                vigor ? el('span', { class: 'etiqueta etiqueta-publicado' }, 'Em vigor') : x.inicio > h ? el('span', { class: 'etiqueta' }, 'Futura') : null, ' ', etiquetaSit(x.situacao)),
+              el('div', { class: 'acoes' }, podeGravar() ? botao('Editar', () => formMesa(x)) : botao('Ver', () => formMesa(x)),
+                perm.excluir && podeGravar() ? botao('Excluir', async () => { if (await excluirRegistro('mesa_periodos', x.id, (x.nome || 'Mesa Diretora') + ' ' + dataBr(x.inicio) + ' a ' + dataBr(x.fim), [x.ato_url].filter((u) => u && /\/storage\//.test(u)))) { await carregarBase(); desenhar(); } }, true) : null)),
+            membros.length ? tabela(['Cargo', 'Vereador'], membros.map((m) => el('tr', null, el('td', null, m.cargo), el('td', null, nomeParl(parlPorId(m.parlamentar_id))), el('td')))) : el('p', { class: 'vazio' }, 'Sem membros cadastrados.'),
+            x.ato_url || x.ato_descricao ? el('p', { class: 'ajuda' }, 'Ato da eleição: ', x.ato_url ? el('a', { href: x.ato_url, target: '_blank', rel: 'noopener' }, x.ato_descricao || 'abrir') : x.ato_descricao) : el('p', { class: 'ajuda' }, 'Ato da eleição não informado.'));
+        })) : el('p', { class: 'vazio' }, 'Nenhuma composição da Mesa cadastrada na legislatura ' + leg[0] + '–' + leg[1] + '.'));
+    }
+
+    function formMesa(x) {
+      x = x || {};
+      const [li0, lf0] = x.legislatura_inicio ? [x.legislatura_inicio, x.legislatura_fim] : legDoAno(new Date().getFullYear());
+      const f = {
+        li: el('input', { type: 'number', min: 1990, max: 2100, value: li0 }),
+        lf: el('input', { type: 'number', min: 1990, max: 2100, value: lf0 }),
+        nome: el('input', { type: 'text', maxlength: 80, value: x.nome || '', placeholder: 'Ex.: 1º biênio' }),
+        ini: el('input', { type: 'date', value: x.inicio || '' }),
+        fim: el('input', { type: 'date', value: x.fim || '' }),
+        atoDesc: el('input', { type: 'text', maxlength: 300, value: x.ato_descricao || '', placeholder: 'Ex.: Ata da sessão de eleição de 01/01/2025' }),
+        obs: el('textarea', { rows: 3, maxlength: 2000 })
+      };
+      f.obs.value = x.observacoes || '';
+      const ato = campoArquivo('me-ato', 'Ato da eleição', x.ato_url, 'Ata da eleição ou resolução que deu posse à Mesa. Até ' + LIMITE_MB + ' MB.');
+      // Atalhos: biênios da legislatura informada.
+      const bienio = (k) => { const li = +f.li.value; if (!li) return; const a = li + (k - 1) * 2; f.ini.value = a + '-01-01'; f.fim.value = (a + 1) + '-12-31'; if (!f.nome.value.trim() || /bi[eê]nio/i.test(f.nome.value)) f.nome.value = k + 'º biênio'; };
+      f.li.addEventListener('change', () => { if (+f.li.value && (!+f.lf.value || +f.lf.value < +f.li.value)) f.lf.value = +f.li.value + 3; });
+      const atalhos = el('p', { class: 'atalhos-periodo' }, 'Preencher: ',
+        el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => bienio(1) }, '1º biênio'), ' ',
+        el('button', { type: 'button', class: 'btn btn-claro btn-p', onclick: () => bienio(2) }, '2º biênio'));
+
+      // Membros: linhas editáveis (cargo + vereador).
+      const cargos = el('datalist', { id: 'me-cargos' }, CARGOS_MESA.map((c) => el('option', { value: c })));
+      const linhas = el('tbody');
+      const ordenados = parlamentares.slice().sort((a, b) => (b.em_exercicio - a.em_exercicio) || nomeParl(a).localeCompare(nomeParl(b), 'pt-BR'));
+      function novaLinha(m) {
+        m = m || {};
+        const cargo = el('input', { type: 'text', maxlength: 80, list: 'me-cargos', value: m.cargo || '', placeholder: 'Cargo', 'aria-label': 'Cargo' });
+        const parl = el('select', { 'aria-label': 'Vereador' }, el('option', { value: '' }, 'Escolha o vereador'),
+          ordenados.map((p) => el('option', { value: p.id, selected: p.id === m.parlamentar_id }, nomeParl(p) + (p.em_exercicio ? '' : ' — fora de exercício'))));
+        const tr = el('tr', null, el('td', null, cargo), el('td', null, parl),
+          el('td', { class: 'acoes' }, botao('Remover', () => tr.remove(), true)));
+        tr._dados = () => ({ cargo: cargo.value.trim(), parlamentar_id: parl.value });
+        linhas.append(tr);
+      }
+      const membrosAtuais = (x.mesa_membros || []).slice().sort((a, b) => a.ordem - b.ordem);
+      if (membrosAtuais.length) membrosAtuais.forEach(novaLinha);
+      else ['Presidente', 'Vice-Presidente', '1º Secretário', '2º Secretário'].forEach((c) => novaLinha({ cargo: c }));
+      const blocoMembros = el('div', null, cargos,
+        el('div', { class: 'tabela-caixa' }, el('table', { class: 'tabela' },
+          el('thead', null, el('tr', null, el('th', { scope: 'col' }, 'Cargo'), el('th', { scope: 'col' }, 'Vereador'), el('th', { scope: 'col' }, el('span', { class: 'sr' }, 'Ações')))), linhas)),
+        el('p', { class: 'mt-1' }, el('button', { type: 'button', class: 'btn btn-claro', onclick: () => novaLinha() }, '+ Incluir cargo')),
+        el('p', { class: 'ajuda' }, 'Linhas sem vereador são ignoradas. A ordem no site segue o cargo (Presidente, vices, secretários, tesoureiro…).'));
+
+      const corpo = el('div', null,
+        el('div', { class: 'grade-campos' }, campo('me-li', 'Legislatura: início (ano)', f.li, null, true), campo('me-lf', 'fim (ano)', f.lf, null, true), campo('me-nome', 'Nome do período', f.nome)),
+        atalhos,
+        el('div', { class: 'grade-campos' }, campo('me-ini', 'Início do mandato da Mesa', f.ini, null, true), campo('me-fim', 'Fim', f.fim, 'Padrão: biênio. Use outro período se o Regimento Interno prever.', true)),
+        el('h3', { class: 'mt-2' }, 'Membros'), blocoMembros,
+        el('h3', { class: 'mt-2' }, 'Ato da eleição'), campo('me-atod', 'Descrição', f.atoDesc), ato.caixa,
+        campo('me-obs', 'Observações', f.obs));
+
+      const dlg = dialogo(x.id ? 'Mesa Diretora' : 'Nova composição da Mesa', corpo, (ref) => acoesGravar(ref, x, async (situacao, btn) => {
+        const li = +f.li.value, lf = +f.lf.value;
+        if (!erroCampo('me-li', li >= 1990 && li <= 2100 ? '' : 'Informe o ano de início da legislatura.')) return;
+        if (!erroCampo('me-lf', lf >= li && lf <= 2100 ? '' : 'O fim da legislatura não pode ser antes do início.')) return;
+        if (!erroCampo('me-ini', f.ini.value ? '' : 'Informe o início.')) return;
+        if (!erroCampo('me-fim', !f.fim.value ? 'Informe o fim.' : f.fim.value < f.ini.value ? 'O fim não pode ser antes do início.'
+          : +f.ini.value.slice(0, 4) < li || +f.fim.value.slice(0, 4) > lf ? 'O período precisa ficar dentro da legislatura ' + li + '–' + lf + '.' : '')) return;
+        if (!ato.validar()) return;
+        const membros = [...linhas.children].map((tr) => tr._dados()).filter((m) => m.parlamentar_id);
+        if (membros.some((m) => m.cargo.length < 2)) return toast('Informe o cargo de cada vereador da Mesa.', true);
+        if (new Set(membros.map((m) => m.parlamentar_id)).size !== membros.length) return toast('O mesmo vereador aparece em dois cargos.', true);
+        if (situacao === 'publicado' && !membros.length) return toast('Inclua ao menos um membro antes de publicar.', true);
+        ocupado(btn, 'Salvando…');
+        try {
+          const atoUrl = await ato.valor();
+          const id = await P.gravarRegistro('mesa_periodos', { legislatura_inicio: li, legislatura_fim: lf, nome: f.nome.value.trim() || null, inicio: f.ini.value, fim: f.fim.value,
+            ato_descricao: f.atoDesc.value.trim() || null, ato_url: atoUrl, observacoes: f.obs.value.trim() || null, situacao }, x.id);
+          // Membros: troca a composição inteira (é peça interna do período).
+          if (x.id) { const { error: e1 } = await sb.from('mesa_membros').delete().eq('periodo_id', id); if (e1) throw e1; }
+          if (membros.length) {
+            const { error: e2 } = await sb.from('mesa_membros').insert(membros.map((m) => ({ orgao_id: org(), periodo_id: id, parlamentar_id: m.parlamentar_id, cargo: m.cargo, ordem: ordemCargo(m.cargo) })));
+            if (e2) throw e2;
+          }
+          if (x.ato_url && atoUrl !== x.ato_url && /\/storage\//.test(x.ato_url)) P.apagarArquivo(x.ato_url);
+          ref.fechar(); toast(situacao === 'publicado' ? 'Publicado.' : 'Rascunho salvo.');
+          leg = [li, lf]; await carregarBase(); desenhar();
         } catch (e) { mostrarErro(e); } finally { ocupado(btn); }
       }));
       return dlg;
@@ -664,6 +805,7 @@
       el('p', { class: 'ajuda' }, 'Leis, resoluções e decretos legislativos (20.2) ficam em Publicações oficiais. O decreto legislativo do julgamento das contas do Prefeito (20.8) fica em Planejamento e contas.'),
       P.abas([
         ['parlamentares', 'Vereadores', abaVereadores, null, 'parlamentares'],
+        ['mesa', 'Mesa Diretora', abaMesa],
         ['proposicoes', 'Proposições', abaProposicoes, null, 'proposicoes'],
         ['sessoes', 'Sessões', abaSessoes, null, 'sessoes'],
         ['comissoes', 'Comissões', abaComissoes, null, 'comissoes'],

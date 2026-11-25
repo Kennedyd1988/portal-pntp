@@ -2,6 +2,7 @@
 // Site público — Câmara Municipal (Portal PNTP · SOFT+)
 // Matriz do Poder Legislativo do PNTP 2026 (dimensão 20):
 //   #/parlamentares, #/parlamentar/:id ..... 20.1 composição e biografias (e 20.11 de cada um)
+//   #/mesa-diretora ........................ Mesa em vigor e composições anteriores (0.49.0)
 //   #/proposicoes, #/proposicao/:id ........ 20.3 projetos, autoria, relatoria e tramitação
 //   #/sessoes, #/sessao/:id ................ 20.4 pautas, 20.6 atas e presenças, 20.9 vídeo
 //   #/comissoes ............................ 20.5 comissões e pautas das reuniões
@@ -38,11 +39,31 @@
   const etiqueta = (par) => el('span', { class: 'etiqueta ' + par[1] }, par[0]);
   const novaAba = () => el('span', { class: 'sr' }, ' (abre em nova aba)');
   const linkExt = (href, rotulo, cls) => el('a', { href, target: '_blank', rel: 'noopener', class: cls || null }, rotulo, novaAba());
-  let cacheParl = null;
+  let cacheParl = null, cacheMesa = null;
+  // Composições da Mesa Diretora publicadas (script 54), da mais nova para a mais antiga. null = sem o script.
+  async function mesas() {
+    if (!cacheMesa || cacheMesa.org !== org()) {
+      const { data, error } = await sb.from('mesa_periodos')
+        .select('id, nome, inicio, fim, legislatura_inicio, legislatura_fim, ato_descricao, ato_url, observacoes, mesa_membros(parlamentar_id, cargo, ordem)')
+        .eq('orgao_id', org()).eq('situacao', 'publicado').order('inicio', { ascending: false });
+      cacheMesa = { org: org(), lista: error ? null : data || [] };
+    }
+    return cacheMesa.lista;
+  }
+  const hojeISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+  const vigente = (lista) => (lista || []).find((x) => x.inicio <= hojeISO() && x.fim >= hojeISO()) || null;
   async function parlamentares() {
     if (!cacheParl || cacheParl.org !== org()) {
-      const { data } = await sb.from('parlamentares').select('id, nome, nome_parlamentar, partido, cargo_mesa, foto_url, biografia, email, telefone, legislatura_inicio, legislatura_fim, em_exercicio, ordem')
-        .eq('orgao_id', org()).order('em_exercicio', { ascending: false }).order('ordem').order('nome');
+      const [{ data }, ms] = await Promise.all([
+        sb.from('parlamentares').select('id, nome, nome_parlamentar, partido, cargo_mesa, foto_url, biografia, email, telefone, legislatura_inicio, legislatura_fim, em_exercicio, ordem')
+          .eq('orgao_id', org()).order('em_exercicio', { ascending: false }).order('ordem').order('nome'),
+        mesas()
+      ]);
+      // Cargo na Mesa = o da composição em vigor hoje (sem o script 54, fica o campo antigo do vereador).
+      if (ms) {
+        const v = vigente(ms), cargo = new Map(((v && v.mesa_membros) || []).map((m) => [m.parlamentar_id, m.cargo]));
+        for (const p of data || []) p.cargo_mesa = cargo.get(p.id) || null;
+      }
       cacheParl = { org: org(), lista: data || [] };
     }
     return cacheParl.lista;
@@ -53,25 +74,63 @@
   const cartaoVereador = (p) => el('a', { class: 'cartao cartao-vereador', href: '#/parlamentar/' + p.id },
     p.foto_url ? el('img', { src: p.foto_url, alt: 'Foto de ' + nomeParl(p), loading: 'lazy', class: 'foto-vereador' }) : el('span', { class: 'foto-vereador foto-vazia', 'aria-hidden': 'true' }, nomeParl(p).slice(0, 1)),
     el('strong', null, nomeParl(p)), el('span', { class: 'meta' }, [p.partido, p.cargo_mesa].filter(Boolean).join(' · ')));
-  // Mesa Diretora (0.41.0): vereadores em exercício com cargo na Mesa, na ordem dos cargos
-  // (Presidente, vice-presidentes, secretários, tesoureiro, demais).
+  // Mesa Diretora (0.49.0, script 54): composição em vigor e as anteriores, por legislatura e período.
+  // Ordem dos cargos: Presidente, vice-presidentes, secretários, tesoureiro, demais.
   function ordemMesa(c) {
-    const s = normalizar(c || ''), n = Number((s.match(/(\d)/) || [])[1]) || 1;
+    const s = normalizar(c || ''), n = Number((s.match(/(\d)/) || [])[1]) || (/segund/.test(s) ? 2 : /terceir/.test(s) ? 3 : 1);
     return /vice/.test(s) ? 10 + n : /presiden/.test(s) ? 1 : /secretari/.test(s) ? 20 + n : /tesoureir/.test(s) ? 30 + n : /suplent/.test(s) ? 50 + n : 40;
   }
+  // Membros de uma composição com os dados do vereador, na ordem dos cargos.
+  async function membrosDe(per) {
+    const lista = await parlamentares();
+    return ((per && per.mesa_membros) || []).map((m) => Object.assign({}, lista.find((p) => p.id === m.parlamentar_id) || {}, { cargo_mesa: m.cargo, _ordem: m.ordem }))
+      .filter((p) => p.id).sort((a, b) => (a._ordem ?? ordemMesa(a.cargo_mesa)) - (b._ordem ?? ordemMesa(b.cargo_mesa)) || ordemMesa(a.cargo_mesa) - ordemMesa(b.cargo_mesa));
+  }
   async function mesaAtual() {
+    const ms = await mesas();
+    if (ms) return membrosDe(vigente(ms));
     return (await parlamentares()).filter((p) => p.em_exercicio && p.cargo_mesa).sort((a, b) => ordemMesa(a.cargo_mesa) - ordemMesa(b.cargo_mesa) || (a.ordem || 0) - (b.ordem || 0));
   }
   const cartaoMesa = (p) => el('a', { class: 'cartao cartao-vereador', href: '#/parlamentar/' + p.id },
     p.foto_url ? el('img', { src: p.foto_url, alt: 'Foto de ' + nomeParl(p), loading: 'lazy', class: 'foto-vereador' }) : el('span', { class: 'foto-vereador foto-vazia', 'aria-hidden': 'true' }, nomeParl(p).slice(0, 1)),
     el('span', { class: 'etiqueta' }, p.cargo_mesa), el('strong', null, nomeParl(p)), p.partido ? el('span', { class: 'meta' }, p.partido) : null);
+  const nomePeriodo = (x) => (x.nome ? x.nome + ' · ' : '') + dataBR(x.inicio) + ' a ' + dataBR(x.fim);
+  const atoEleicao = (x) => x.ato_url ? linkExt(x.ato_url, x.ato_descricao || 'Ato da eleição da Mesa', 'botao botao-claro botao-p')
+    : x.ato_descricao ? el('span', { class: 'meta' }, 'Ato da eleição: ' + x.ato_descricao) : null;
+  // Composição anterior/futura: cartão com cargo e vereador (mesmo visual das Comissões).
+  async function cartaoComposicao(x) {
+    const membros = await membrosDe(x), futura = x.inicio > hojeISO();
+    return el('section', { class: 'cartao com-cartao', 'aria-labelledby': 'mesa-' + x.id },
+      el('div', { class: 'com-topo' },
+        el('h3', { id: 'mesa-' + x.id }, nomePeriodo(x)),
+        el('div', { class: 'pub-etiquetas' }, el('span', { class: 'etiqueta ' + (futura ? 'etiqueta-verde' : 'etiqueta-ambar') }, futura ? 'Próxima composição' : 'Encerrada'))),
+      membros.length ? el('ul', { class: 'com-membros', 'aria-label': 'Membros' }, membros.map((p) => el('li', { class: 'com-membro' + (/^presiden/.test(normalizar(p.cargo_mesa)) ? ' com-presidente' : '') },
+        p.foto_url ? el('img', { src: p.foto_url, alt: '', loading: 'lazy' }) : el('span', { class: 'com-sem-foto', 'aria-hidden': 'true' }, nomeParl(p).slice(0, 1)),
+        el('span', { class: 'com-nome' }, el('a', { href: '#/parlamentar/' + p.id }, nomeParl(p)), p.partido ? el('span', { class: 'meta' }, p.partido) : null),
+        el('span', { class: 'etiqueta' + (/^presiden/.test(normalizar(p.cargo_mesa)) ? ' etiqueta-verde' : '') }, p.cargo_mesa))))
+        : el('p', { class: 'vazio' }, 'Composição não informada.'),
+      atoEleicao(x) ? el('p', { class: 'mt-1' }, atoEleicao(x)) : null,
+      x.observacoes ? el('p', { class: 'meta' }, x.observacoes) : null);
+  }
   R['mesa-diretora'] = async function (main) {
     if (!so(main)) return;
     S.titulo('Mesa Diretora'); trilha(['Mesa Diretora']);
-    const mesa = await mesaAtual();
+    const [ms, mesa] = await Promise.all([mesas(), mesaAtual()]);
+    const v = ms ? vigente(ms) : null;
+    const outras = (ms || []).filter((x) => x !== v);
+    // Histórico agrupado por legislatura (mais nova primeiro).
+    const legs = [...new Set(outras.map((x) => x.legislatura_inicio + '–' + x.legislatura_fim))];
+    const historico = [];
+    for (const l of legs) {
+      const doGrupo = outras.filter((x) => x.legislatura_inicio + '–' + x.legislatura_fim === l);
+      historico.push(el('h3', { class: 'mt-2' }, 'Legislatura ' + l), el('div', { class: 'com-grade' }, await Promise.all(doGrupo.map(cartaoComposicao))));
+    }
     pagina(main, el('h1', null, 'Mesa Diretora'),
-      el('p', { class: 'sub' }, 'Vereadores que dirigem os trabalhos da Câmara na sessão legislativa atual.'),
+      el('p', { class: 'sub' }, 'Vereadores que dirigem os trabalhos da Câmara' + (v ? ' no período ' + nomePeriodo(v) + ' (legislatura ' + v.legislatura_inicio + '–' + v.legislatura_fim + ')' : ' na sessão legislativa atual') + '.'),
       mesa.length ? el('div', { class: 'grade-vereadores' }, mesa.map(cartaoMesa)) : el('p', { class: 'vazio' }, 'Composição da Mesa Diretora em atualização.'),
+      v && atoEleicao(v) ? el('p', { class: 'mt-1' }, atoEleicao(v)) : null,
+      v && v.observacoes ? el('p', { class: 'meta' }, v.observacoes) : null,
+      historico.length ? el('section', { class: 'mt-3', 'aria-labelledby': 'tit-mesa-hist' }, el('h2', { id: 'tit-mesa-hist' }, 'Composições anteriores'), historico) : null,
       el('p', { class: 'mt-2' }, el('a', { href: '#/parlamentares' }, 'Todos os vereadores →')));
   };
   R.parlamentares = async function (main) {
