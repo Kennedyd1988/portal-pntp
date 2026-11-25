@@ -651,7 +651,7 @@
     $('topo-orgao-perfil').textContent = (TIPO_ORGAO[o.tipo] || o.tipo) + ' · Seu perfil: ' + o.perfil +
       (estado.alcanceNome ? ' · ' + estado.alcanceNome : '');
     $('topo-usuario').textContent = estado.usuario.nome || estado.usuario.email;
-    $('btn-trocar-orgao').hidden = estado.orgaos.length < 2;
+    $('btn-trocar-orgao').hidden = false;   // sempre visível: a troca relê a lista de órgãos (0.48.3)
 
     // Menu: só módulos que o perfil pode ver, agrupados e na ordem do catálogo.
     // Cada grupo é um bloco (título + itens recuados), para a pesquisa do menu esconder grupos vazios.
@@ -676,45 +676,27 @@
     rotear();
   }
 
-  // Lista de órgãos sempre atual (0.48.2): antes ela só era lida ao entrar no painel, então quem
-  // virava Suporte SOFT+ (ou ganhava vínculo novo) com o painel aberto continuava vendo só o órgão
-  // de antes, sem o botão "Trocar órgão", até sair e entrar de novo. Agora a lista é relida ao
-  // clicar em "Trocar órgão" e ao voltar para a aba/app (no máximo a cada 30 segundos).
-  let orgaosLidosEm = Date.now();
-  async function atualizarOrgaos(avisar) {
+  // Lista de órgãos atualizada na troca (0.48.3): antes ela só era lida ao entrar no painel, então
+  // quem virava Suporte SOFT+ (ou ganhava vínculo novo) com o painel aberto continuava vendo só o
+  // órgão de antes. Agora "Trocar órgão" fica sempre visível e relê a lista ao ser clicado.
+  async function atualizarOrgaos() {
     if (!estado.usuario || !estado.usuario.id) return;
     const [ficha, orgaos] = await Promise.all([
       sb.from('usuarios').select('id, nome, email, suporte_softplus').eq('id', estado.usuario.id).maybeSingle(),
       sb.rpc('meus_orgaos')
     ]);
     if (ficha.error || orgaos.error) return;
-    orgaosLidosEm = Date.now();
-    const assinatura = (l) => (l || []).map((o) => o.id + '|' + o.perfil).sort().join(',');
-    const mudou = assinatura(estado.orgaos) !== assinatura(orgaos.data);
-    const eraSuporte = !!estado.usuario.suporte_softplus;
     if (ficha.data) estado.usuario = ficha.data;
     estado.orgaos = orgaos.data || [];
-    if (estado.orgao) {
-      const atual = estado.orgaos.find((o) => o.id === estado.orgao.id);
-      if (atual) estado.orgao = Object.assign({}, estado.orgao, atual);
-    }
-    $('btn-trocar-orgao').hidden = estado.orgaos.length < 2;
-    if (avisar && mudou && estado.orgao) {
-      const virouSuporte = !eraSuporte && estado.usuario.suporte_softplus;
-      toast((virouSuporte ? 'Seu usuário agora é Suporte SOFT+. ' : 'Seus acessos mudaram. ') +
-        'Você tem acesso a ' + estado.orgaos.length + (estado.orgaos.length === 1 ? ' órgão' : ' órgãos') +
-        (estado.orgaos.length > 1 ? ': use "Trocar órgão" para abrir outro.' : '.'));
-    }
   }
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && estado.orgao && Date.now() - orgaosLidosEm > 30000) atualizarOrgaos(true);
-  });
-  // Para quem fica com o painel aberto sem sair da aba: confere a cada 2 minutos (só com a aba visível).
-  setInterval(() => { if (!document.hidden && estado.orgao) atualizarOrgaos(true); }, 120000);
   $('btn-trocar-orgao').addEventListener('click', async (ev) => {
     const btn = ev.currentTarget;
     ocupado(btn, 'Abrindo…');
-    try { await atualizarOrgaos(false); } finally { ocupado(btn); }
+    try { await atualizarOrgaos(); } finally { ocupado(btn); }
+    if (estado.orgao && estado.orgaos.length === 1 && estado.orgaos[0].id === estado.orgao.id) {
+      toast('Você tem acesso só a este órgão.');
+      return;
+    }
     estado.orgao = null; mostrarListaOrgaos();
   });
   // Pesquisa no menu lateral: filtra os itens pelo nome (sem acento); Enter abre o primeiro.
