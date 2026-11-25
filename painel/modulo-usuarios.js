@@ -397,7 +397,7 @@
           const { error } = await sb.from('usuarios_orgaos').insert({ usuario_id: p.usuario_id, orgao_id: v.orgao_id, perfil_id: v.perfil_id, unidade_id: v.unidade_id, perfis_extras: v.perfis_extras });
           if (error) throw error;
         }
-        dlg.close(); toast('Acesso liberado. A pessoa vê o novo órgão na próxima vez que entrar.'); await recarregar(); depois();
+        dlg.close(); toast('Acesso liberado. Se a pessoa estiver com o painel aberto, o novo órgão aparece em até 2 minutos (ou ao clicar em "Trocar órgão").'); await recarregar(); depois();
       } catch (e) { mostrarErro(e); }
       finally { ocupado(btn); }
     });
@@ -414,7 +414,7 @@
     const { error } = await sb.rpc('definir_suporte_softplus', { p_usuario: p.usuario_id, p_valor: !tirar });
     if (error) { mostrarErro(/definir_suporte_softplus|Could not find/i.test(error.message || '') ? amigavel('Falta rodar o script 38 no banco.') : error); return; }
     if (tirar) d.suportes.delete(p.usuario_id); else d.suportes.add(p.usuario_id);
-    toast(tirar ? 'Acesso de Suporte SOFT+ retirado.' : 'Agora é Suporte SOFT+. Vale na próxima vez que a pessoa entrar.');
+    toast(tirar ? 'Acesso de Suporte SOFT+ retirado.' : 'Agora é Suporte SOFT+: a pessoa já vê todos os órgãos. Se estiver com o painel aberto, o botão "Trocar órgão" aparece em até 2 minutos.');
     depois();
   }
 
