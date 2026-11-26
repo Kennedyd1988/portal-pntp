@@ -1,7 +1,9 @@
 {
-  "versao": "0.52.1",
-  "data": "2026-11-25",
+  "versao": "0.53.0",
+  "data": "2026-11-26",
   "notas": [
+    "Consórcios: Publicações oficiais sem as abas e os tipos de Lei e Decreto (consórcio público não edita leis nem decretos), no painel e no site. No site, a página inicial mostra as abas Portarias e Resoluções nas Últimas publicações, e os textos passam a falar em \"Portarias e resoluções\" (acesso rápido, Portal da Transparência e Diário Oficial). Os demais órgãos não mudam.",
+    "Correção: incluir, trocar ou excluir anexos de uma publicação no painel dava \"permission denied\" em todos os órgãos. Corrigido no banco (script 58, já aplicado).",
     "Estrutura organizacional: as unidades principais da aba \"Unidades\" seguem a ordem definida no painel (campo \"Ordem\"), e não mais a ordem alfabética.",
     "Estrutura organizacional: cada órgão pode escolher as \"unidades principais\" que aparecem como cartões na aba \"Unidades\" do site (caixa \"Unidade principal\" na janela da unidade). O organograma não muda. Sem nenhuma marcada, a aba continua mostrando as unidades do topo do organograma. Script 57 já aplicado na Supabase.",
     "Nova marca \"Desenvolvedor\", separada do Suporte SOFT+. Só o Desenvolvedor: (1) vê e mexe nos órgãos de teste, que somem da lista de órgãos, do painel e do site público de todos os demais, inclusive do Suporte SOFT+ (o site do órgão de teste só abre no navegador em que o Desenvolvedor entrou no painel); (2) dá ou tira a marca Suporte SOFT+ de outra pessoa. Em Órgãos da plataforma, o Desenvolvedor marca um órgão como \"Órgão de teste\" na janela Editar, e a lista mostra a etiqueta \"Teste · só Desenvolvedor\". O Suporte SOFT+ continua vendo e alterando todos os demais órgãos, criando órgãos e editando os perfis padrão. A marca Desenvolvedor só muda pelo SQL Editor. Script 56 já aplicado na Supabase.",

@@ -21,6 +21,11 @@
   const GRUPO_PUB = { lei_organica: 'leis', emenda_lei_organica: 'leis', lei_complementar: 'leis', lei: 'leis', decreto: 'decretos', portaria: 'portarias',
     resolucao: 'normas', instrucao_normativa: 'normas', decreto_legislativo: 'decretos', edital: 'editais', ato: 'outros', outro: 'outros' };
   const ABAS_PUBLICACOES = [['todas', 'Todas'], ['leis', 'Leis'], ['decretos', 'Decretos'], ['portarias', 'Portarias'], ['normas', 'Resoluções e instruções'], ['editais', 'Editais'], ['outros', 'Outros atos']];
+  // Consórcio público não edita leis nem decretos: some com essas abas e tipos e os textos falam em portarias e resoluções.
+  const SEM_LEIS = ['lei_organica', 'emenda_lei_organica', 'lei_complementar', 'lei', 'decreto', 'decreto_legislativo'];
+  const consorcio = () => S.orgao.tipo === 'consorcio';
+  const abasPublicacoes = () => consorcio() ? ABAS_PUBLICACOES.filter(([id]) => id !== 'leis' && id !== 'decretos') : ABAS_PUBLICACOES;
+  const tiposVisiveis = () => Object.keys(TIPOS).filter((k) => !(consorcio() && SEM_LEIS.includes(k)));
   const tiposPub = () => tiposCarregados || (tiposCarregados = sb.from('publicacoes_tipos').select('codigo, nome, grupo').eq('orgao_id', org())
     .then(({ data }) => { for (const t of data || []) { TIPOS[t.codigo] = t.nome; GRUPO_PUB[t.codigo] = t.grupo || 'outros'; } }, () => {}));
   const VIGENCIA = { vigente: 'Vigente', alterada: 'Alterada', revogada: 'Revogada', sem_efeito: 'Sem efeito' };
@@ -308,7 +313,7 @@
       ['licitacao', 'Licitações', 'Editais, dispensas e resultados', 'licitacoes'],
       ['licitacao', 'Contratos', 'Contratos, aditivos e fiscais', 'contratos'],
       ['servicos', 'Carta de Serviços', 'Como pedir cada serviço', 'carta_servicos'],
-      ['publicacoes', 'Leis e atos oficiais', 'Leis, decretos e portarias', 'publicacoes'],
+      consorcio() ? ['publicacoes', 'Atos oficiais', 'Portarias e resoluções', 'publicacoes'] : ['publicacoes', 'Leis e atos oficiais', 'Leis, decretos e portarias', 'publicacoes'],
       ['diario', 'Diário Oficial', c.diario_oficial_nome || 'Publicações oficiais', 'diario_oficial'],
       ['ouvidoria', 'Ouvidoria', 'Elogios, sugestões e reclamações', 'ouvidoria'],
       ['esic', 'e-SIC', 'Pedido de acesso à informação', 'esic']
@@ -427,7 +432,10 @@
     ['editais', 'Editais', ['edital']]
   ];
   async function ultimasPublicacoes() {
-    return Promise.all(ABAS_PUB.map(async ([id, rotulo, tipos]) => {
+    const abas = consorcio()
+      ? [ABAS_PUB[0], ABAS_PUB[3], ['resolucoes', 'Resoluções', ['resolucao', 'instrucao_normativa']], ABAS_PUB[4]]
+      : ABAS_PUB;
+    return Promise.all(abas.map(async ([id, rotulo, tipos]) => {
       let q = sb.from('publicacoes').select('id, tipo, numero, ano, data_publicacao, ementa, vigencia, arquivo_url, link_externo').eq('orgao_id', org());
       if (tipos) q = q.in('tipo', tipos);
       const { data } = await q.order('data_publicacao', { ascending: false }).order('id', { ascending: false }).limit(7);
@@ -786,8 +794,10 @@
     // ?tipo=x_… abre direto num tipo (ex.: item extra do Portal da Transparência apontando para um tipo de publicação).
     const tipoPedido = TIPOS[params.get('tipo')] ? params.get('tipo') : '';
     const f = { busca: params.get('q') || '', tipo: tipoPedido, ano: '', vigencia: '' };
-    let grupo = tipoPedido ? (GRUPO_PUB[tipoPedido] || 'outros') : ABAS_PUBLICACOES.some((x) => x[0] === params.get('aba')) ? params.get('aba') : 'todas';
-    const tiposDoGrupo = () => Object.keys(TIPOS).filter((k) => grupo === 'todas' || (GRUPO_PUB[k] || 'outros') === grupo);
+    const ABAS = abasPublicacoes();
+    let grupo = tipoPedido ? (GRUPO_PUB[tipoPedido] || 'outros') : ABAS.some((x) => x[0] === params.get('aba')) ? params.get('aba') : 'todas';
+    if (!ABAS.some((x) => x[0] === grupo)) grupo = 'todas';
+    const tiposDoGrupo = () => tiposVisiveis().filter((k) => grupo === 'todas' || (GRUPO_PUB[k] || 'outros') === grupo);
     const LOTE = 20;
     let itens = [];
     const montar = (sel, op) => {
@@ -853,7 +863,7 @@
     });
     const c = S.conf;
     // Abas por tipo de ato, iguais às do painel (Leis, Decretos, Portarias…), no mesmo desenho das abas de Planejamento e contas.
-    const abas = ABAS_PUBLICACOES.map(([id, rot]) => el('a', { class: 'aba-guia', href: '#/publicacoes?aba=' + id, role: 'tab', id: 'aba-pub-' + id,
+    const abas = ABAS.map(([id, rot]) => el('a', { class: 'aba-guia', href: '#/publicacoes?aba=' + id, role: 'tab', id: 'aba-pub-' + id,
       'aria-controls': 'painel-pub', 'aria-selected': id === grupo ? 'true' : 'false', tabindex: id === grupo ? '0' : '-1' }, rot));
     const lista = el('div', { class: 'abas-guia', role: 'tablist', 'aria-label': 'Tipo de ato' }, abas);
     function escolher(id, focar) {
@@ -868,10 +878,10 @@
     }
     lista.addEventListener('click', (e) => { const a = e.target.closest('a.aba-guia'); if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); escolher(a.id.slice(8), false); });
     lista.addEventListener('keydown', (e) => {
-      const i = ABAS_PUBLICACOES.findIndex((x) => x[0] === grupo);
-      const n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? ABAS_PUBLICACOES.length - 1 : null;
+      const i = ABAS.findIndex((x) => x[0] === grupo);
+      const n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? ABAS.length - 1 : null;
       if (n === null) return;
-      e.preventDefault(); escolher(ABAS_PUBLICACOES[(n + ABAS_PUBLICACOES.length) % ABAS_PUBLICACOES.length][0], true);
+      e.preventDefault(); escolher(ABAS[(n + ABAS.length) % ABAS.length][0], true);
     });
     const painelPub = el('div', { id: 'painel-pub', class: 'painel-guia', role: 'tabpanel', tabindex: '-1', 'aria-labelledby': 'aba-pub-' + grupo },
       el('form', { class: 'filtros', role: 'search', onsubmit: (e) => { e.preventDefault(); aplicar(); } },
@@ -882,7 +892,7 @@
         el('thead', null, el('tr', null, ['Ato', 'Ementa', 'Data', 'Situação', 'Documento'].map((t) => el('th', { scope: 'col' }, t)))), corpo)),
       mais);
     pagina(main, el('h1', null, 'Publicações oficiais'),
-      el('p', { class: 'sub' }, 'Leis, decretos, portarias e demais atos normativos.',
+      el('p', { class: 'sub' }, consorcio() ? 'Portarias, resoluções e demais atos do consórcio.' : 'Leis, decretos, portarias e demais atos normativos.',
         c.diario_oficial_url ? [' A íntegra das edições do Diário Oficial está em ', el('a', { href: '#/diario-oficial' }, c.diario_oficial_nome || 'Diário Oficial'), '.'] : null),
       lista, painelPub);
     await carregar(true);
@@ -896,7 +906,7 @@
         ? [el('p', null, 'Os atos oficiais deste órgão são publicados no ', el('strong', null, c.diario_oficial_nome || 'Diário Oficial'), ', sistema externo onde ficam as edições completas.'),
           el('p', null, el('a', { class: 'botao', href: c.diario_oficial_url, target: '_blank', rel: 'noopener' }, 'Acessar o Diário Oficial', el('span', { class: 'sr' }, ' (abre em nova aba)')))]
         : el('p', null, 'Endereço do Diário Oficial ainda não informado.'),
-      el('p', null, 'Leis, decretos e portarias também podem ser pesquisados em ', el('a', { href: '#/publicacoes' }, 'Publicações oficiais'), '.'));
+      el('p', null, consorcio() ? 'Portarias e resoluções também podem ser pesquisadas em ' : 'Leis, decretos e portarias também podem ser pesquisados em ', el('a', { href: '#/publicacoes' }, 'Publicações oficiais'), '.'));
   };
 
   // ===================================================================
@@ -1698,7 +1708,7 @@
         el('form', { class: 'transp-busca', role: 'search', onsubmit: (e) => { e.preventDefault(); const q = campoBusca.value.trim(); if (q) location.hash = '#/busca?q=' + encodeURIComponent(q); } },
           el('label', { for: 'busca-transp', class: 'sr' }, 'Pesquisar no Portal da Transparência'), campoBusca, el('button', { type: 'submit' }, 'Pesquisar')),
         el('div', { class: 'transp-atalhos' }, el('span', null, 'Mais acessados:'),
-          [['Despesas', 'despesas'], ['Servidores', 'pessoal'], ['Licitações', 'licitacoes'], ['Contratos', 'contratos'], ['Planejamento e contas', 'planejamento'], ['Leis e decretos', 'publicacoes']].map(([t, k]) => [t, (S.destino(k) || {}).href])
+          [['Despesas', 'despesas'], ['Servidores', 'pessoal'], ['Licitações', 'licitacoes'], ['Contratos', 'contratos'], ['Planejamento e contas', 'planejamento'], [consorcio() ? 'Portarias e resoluções' : 'Leis e decretos', 'publicacoes']].map(([t, k]) => [t, (S.destino(k) || {}).href])
             .filter((x) => x[1]).map(([t, h]) => el('a', { href: h, target: externo(h) ? '_blank' : null, rel: externo(h) ? 'noopener' : null }, t))))),
       el('div', { class: 'transp-fundo' }, el('div', { class: 'limite pagina transp-corpo' },
         el('div', { class: 'transp-status' },

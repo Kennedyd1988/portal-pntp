@@ -19,7 +19,11 @@
   };
   const GRUPO_BASE = { lei_organica: 'leis', emenda_lei_organica: 'leis', lei_complementar: 'leis', lei: 'leis', decreto: 'decretos', portaria: 'portarias',
     resolucao: 'normas', instrucao_normativa: 'normas', decreto_legislativo: 'decretos', edital: 'editais', ato: 'outros', outro: 'outros' };
-  const ABAS = [['todas', 'Todas'], ['leis', 'Leis'], ['decretos', 'Decretos'], ['portarias', 'Portarias'], ['normas', 'Resoluções e instruções'], ['editais', 'Editais'], ['outros', 'Outros atos']];
+  const ABAS_TODAS = [['todas', 'Todas'], ['leis', 'Leis'], ['decretos', 'Decretos'], ['portarias', 'Portarias'], ['normas', 'Resoluções e instruções'], ['editais', 'Editais'], ['outros', 'Outros atos']];
+  // Consórcio público não edita leis nem decretos: essas abas e tipos não aparecem.
+  const SEM_LEIS = ['lei_organica', 'emenda_lei_organica', 'lei_complementar', 'lei', 'decreto', 'decreto_legislativo'];
+  const consorcio = () => P.estado.orgao && P.estado.orgao.tipo === 'consorcio';
+  let ABAS = ABAS_TODAS;
   let TIPOS = Object.assign({}, TIPOS_BASE), GRUPO = Object.assign({}, GRUPO_BASE), personalizados = [];
   let aba = 'todas';
   const tiposDaAba = () => Object.keys(TIPOS).filter((k) => aba === 'todas' || GRUPO[k] === aba);
@@ -27,6 +31,9 @@
     const { data, error } = await sb.from('publicacoes_tipos').select('*').eq('orgao_id', P.estado.orgao.id).order('nome');
     personalizados = error ? [] : data || [];   // sem o script 20, segue só com os tipos fixos
     TIPOS = Object.assign({}, TIPOS_BASE); GRUPO = Object.assign({}, GRUPO_BASE);
+    ABAS = consorcio() ? ABAS_TODAS.filter(([id]) => id !== 'leis' && id !== 'decretos') : ABAS_TODAS;
+    if (consorcio()) SEM_LEIS.forEach((k) => { delete TIPOS[k]; });
+    if (aba !== 'tipos' && !ABAS.some((x) => x[0] === aba)) aba = 'todas';
     for (const t of personalizados) { TIPOS[t.codigo] = t.nome; GRUPO[t.codigo] = t.grupo; }
   }
   const VIGENCIA = { vigente: 'Vigente', alterada: 'Alterada', revogada: 'Revogada', sem_efeito: 'Sem efeito' };
@@ -78,7 +85,7 @@
     const cfg = P.estado.orgao.configuracoes || {};
     const f = {
       tipo: el('select', null, el('option', { value: '' }, '— Escolha —'),
-        ABAS.slice(1).map(([g, rot]) => el('optgroup', { label: rot }, Object.keys(TIPOS).filter((k) => GRUPO[k] === g)
+        ABAS.slice(1).filter(([g]) => Object.keys(TIPOS).some((k) => GRUPO[k] === g)).map(([g, rot]) => el('optgroup', { label: rot }, Object.keys(TIPOS).filter((k) => GRUPO[k] === g)
           .map((k) => el('option', { value: k, selected: (x.tipo || (aba !== 'todas' && tiposDaAba().length === 1 ? tiposDaAba()[0] : '')) === k }, TIPOS[k]))))),
       numero: el('input', { type: 'text', maxlength: 20, value: x.numero || '', placeholder: 'Ex.: 012' }),
       data: el('input', { type: 'date', value: x.data_publicacao || '' }),
@@ -376,7 +383,7 @@
     conteiner.replaceChildren(...[
       el('div', { class: 'cabecalho-modulo' },
         el('div', null, el('h1', null, 'Publicações oficiais e atos normativos'),
-          el('p', { class: 'sub' }, 'Leis, decretos, portarias e demais atos. Cada um com PDF ou link para o documento oficial.')),
+          el('p', { class: 'sub' }, (consorcio() ? 'Portarias, resoluções e demais atos do consórcio.' : 'Leis, decretos, portarias e demais atos.') + ' Cada um com PDF ou link para o documento oficial.')),
         el('div', { class: 'botoes-cabecalho' },
           perm.editar ? el('button', { type: 'button', class: 'btn btn-claro', disabled: true, title: 'O layout da planilha de importação será definido numa próxima etapa.' }, 'Importar planilha (em breve)') : null,
           perm.editar ? el('button', { type: 'button', class: 'btn btn-claro', onclick: () => lote(), title: 'Envie vários PDFs de uma vez: o sistema lê cada um e monta uma tabela para conferir' }, 'Enviar vários PDFs') : null,
@@ -454,7 +461,7 @@
 
   P.telas.publicacoes = async function (c, mod, p) {
     perm = p; conteiner = c;
-    { const q = P.abaDoEndereco(ABAS.map((x) => x[0]).concat('tipos')); if (q) { aba = q; filtros.tipo = ''; } }
+    { const q = P.abaDoEndereco(ABAS_TODAS.map((x) => x[0]).concat('tipos')); if (q) { aba = q; filtros.tipo = ''; } }
     c.replaceChildren(el('h1', null, 'Publicações oficiais e atos normativos'), el('p', { class: 'sub' }, 'Carregando…'));
     try {
       const [u, o] = await Promise.all([
