@@ -986,8 +986,11 @@
     const topo = filhos(null);
     // Aba "Unidades" (0.52.0): as marcadas como principais no painel, na ordem do organograma;
     // sem nenhuma marcada, as do topo do organograma.
-    const naOrdem = (lista) => lista.flatMap((u) => [u, ...naOrdem(filhos(u.id))]);
-    const marcadas = naOrdem(topo).filter((u) => u.destaque);
+    // Na ordem do campo "ordem" do painel (empate: nome), descendo pelo organograma.
+    const porOrdem = (pai) => ativas.filter((u) => (u.unidade_pai_id || null) === pai)
+      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0) || a.nome.localeCompare(b.nome, 'pt-BR'));
+    const naOrdem = (lista) => lista.flatMap((u) => [u, ...naOrdem(porOrdem(u.id))]);
+    const marcadas = naOrdem(porOrdem(null)).filter((u) => u.destaque);
     const principais = marcadas.length ? marcadas : topo;
     const grade = el('div', { class: 'grade g2 est-grade' }, principais.map(cartao));
     const total = el('span', { class: 'meta', role: 'status' }, principais.length + ' unidades principais · ' + ativas.length + ' no total');
