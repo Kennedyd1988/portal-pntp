@@ -118,7 +118,30 @@
     else q = q.eq('dominio', location.hostname.replace(/^www\./, '').toLowerCase());
     const { data, error } = await q.limit(1).maybeSingle();
     if (error) throw error;
-    return data;
+    return data || (chave ? await orgaoDeTeste(chave) : null);
+  }
+
+  // Órgão de teste (0.51.0, script 56): some para o público. Só abre quando quem está no navegador
+  // entrou no painel como Desenvolvedor; a sessão do painel serve só para achar o órgão — o conteúdo
+  // continua lido como visitante (só o publicado).
+  async function orgaoDeTeste(chave) {
+    let token = null;
+    try {
+      const ref = new URL(cfg.supabaseUrl).hostname.split('.')[0];
+      const sessao = JSON.parse(localStorage.getItem('sb-' + ref + '-auth-token') || 'null');
+      token = sessao && sessao.access_token;
+    } catch (e) { return null; }
+    if (!token) return null;
+    const dev = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseChave, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'pntp-site-dev' },
+      global: { headers: { Authorization: 'Bearer ' + token } }
+    });
+    let q = dev.from('orgaos').select('id, nome, sigla, tipo, cnpj, dominio, configuracoes').eq('somente_desenvolvedor', true);
+    if (/^[0-9a-f-]{36}$/i.test(chave)) q = q.eq('id', chave);
+    else if (/^\d{14}$/.test(chave.replace(/\D/g, ''))) q = q.eq('cnpj', formatarCnpj(chave.replace(/\D/g, '')));
+    else return null;
+    const { data } = await q.limit(1).maybeSingle();
+    return data || null;
   }
 
   // Mistura a cor com preto (para hover/escura) ou branco (fundo claro).

@@ -549,6 +549,7 @@
     if (falha) { toast(traduzirErro(falha), true); mostrarForm('form-login'); return; }
 
     estado.usuario = ficha.data || { nome: '', email: user.email };
+    await marcarDesenvolvedor();
     estado.orgaos = orgaos.data || [];
     estado.modulos = modulos.data || [];
 
@@ -708,7 +709,14 @@
     ]);
     if (ficha.error || orgaos.error) return;
     if (ficha.data) estado.usuario = ficha.data;
+    await marcarDesenvolvedor();
     estado.orgaos = orgaos.data || [];
+  }
+  // Desenvolvedor (0.51.0, script 56): só ele vê órgãos de teste e dá/tira a marca Suporte SOFT+.
+  async function marcarDesenvolvedor() {
+    if (!estado.usuario) return;
+    const r = await sb.rpc('e_desenvolvedor');
+    estado.usuario.desenvolvedor = !r.error && r.data === true;
   }
   $('btn-trocar-orgao').addEventListener('click', async (ev) => {
     const btn = ev.currentTarget;

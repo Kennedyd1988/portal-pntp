@@ -13,12 +13,18 @@
   const UFS = 'AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' ');
 
   let lista = [];
+  let testes = new Set();   // órgãos de teste (script 56); só o Desenvolvedor enxerga
   let conteiner = null;
 
   async function carregar() {
     const { data, error } = await sb.rpc('orgaos_plataforma');
     if (error) throw error;
     lista = data || [];
+    testes = new Set();
+    if (P.estado.usuario && P.estado.usuario.desenvolvedor) {
+      const t = await sb.from('orgaos').select('id').eq('somente_desenvolvedor', true);
+      if (!t.error) testes = new Set((t.data || []).map((x) => x.id));
+    }
   }
 
   function desenhar() {
@@ -37,7 +43,8 @@
           return el('tr', null,
             el('td', null, el('strong', null, o.nome), el('span', { class: 'sub-linha' }, (o.cnpj || 'sem CNPJ') + ' · ' + (o.municipio || '') + '/' + (o.uf || '')),
               pai ? el('span', { class: 'sub-linha' }, 'Subsite de ' + pai.nome) : null,
-              o.ativo ? null : el('span', { class: 'etiqueta etiqueta-inativo mt-05' }, 'Inativo')),
+              o.ativo ? null : el('span', { class: 'etiqueta etiqueta-inativo mt-05' }, 'Inativo'),
+              testes.has(o.id) ? el('span', { class: 'etiqueta etiqueta-inativo mt-05' }, 'Teste · só Desenvolvedor') : null),
             el('td', null, TIPOS[o.tipo] || o.tipo),
             el('td', null, o.dominio || el('span', { class: 'falta-leve' }, 'provisório (?orgao=' + String(o.cnpj || '').replace(/\D/g, '') + ')')),
             el('td', { class: 'num' }, o.usuarios + ' (' + o.administradores + ' adm.)'),
@@ -68,8 +75,10 @@
       pai: el('select', null, el('option', { value: '' }, 'Não: é um órgão principal'),
         lista.filter((x) => !x.orgao_pai_id && x.id !== o.id).map((x) => el('option', { value: x.id, selected: o.orgao_pai_id === x.id }, 'Subsite de: ' + x.nome))),
       email: txt('', { type: 'email', maxlength: 120 }), telefone: txt('', { maxlength: 30 }),
-      ativo: el('input', { type: 'checkbox', checked: novo || o.ativo })
+      ativo: el('input', { type: 'checkbox', checked: novo || o.ativo }),
+      teste: el('input', { type: 'checkbox', checked: testes.has(o.id) })
     };
+    const dev = !!(P.estado.usuario && P.estado.usuario.desenvolvedor);
     const corpo = el('form', { class: 'form-dialogo', novalidate: true },
       el('div', { class: 'grade-campos' }, campo('og-tipo', 'Tipo', f.tipo, 'Define a matriz do PNTP que vale para o órgão.', true), campo('og-cnpj', 'CNPJ', f.cnpj, null, true)),
       campo('og-nome', 'Nome oficial', f.nome, null, true),
@@ -77,7 +86,8 @@
       campo('og-pai', 'Subsite?', f.pai, 'Subsite: IPREV, fundo ou secretaria com site próprio dentro do site do órgão principal.'),
       campo('og-dominio', 'Domínio oficial', f.dominio, 'Ex.: riachodacruz.rn.gov.br. Até apontar, o site abre pelo endereço provisório com ?orgao=CNPJ.'),
       novo ? el('div', { class: 'grade-campos' }, campo('og-email', 'E-mail institucional', f.email), campo('og-telefone', 'Telefone', f.telefone)) : null,
-      novo ? null : el('label', { class: 'checkbox' }, f.ativo, ' Órgão ativo (desativado: o site e o painel deixam de abrir para o órgão)'));
+      novo ? null : el('label', { class: 'checkbox' }, f.ativo, ' Órgão ativo (desativado: o site e o painel deixam de abrir para o órgão)'),
+      dev && !novo ? el('label', { class: 'checkbox' }, f.teste, ' Órgão de teste (só o Desenvolvedor vê, no painel e no site)') : null);
     const btn = el('button', { type: 'button', class: 'btn btn-primario' }, novo ? 'Cadastrar' : 'Salvar');
     const dlg = P.abrirDialogo(novo ? 'Cadastrar órgão' : 'Editar órgão', corpo, [
       el('button', { type: 'button', class: 'btn btn-claro', onclick: () => dlg.close() }, 'Cancelar'), btn]);
@@ -92,6 +102,10 @@
       try {
         const r = novo ? await sb.rpc('criar_orgao', { p: dados }) : await sb.rpc('alterar_orgao', { p_orgao: o.id, p: dados });
         if (r.error) throw r.error;
+        if (dev && !novo && f.teste.checked !== testes.has(o.id)) {
+          const t = await sb.rpc('definir_orgao_teste', { p_orgao: o.id, p_valor: f.teste.checked });
+          if (t.error) throw t.error;
+        }
         dlg.close();
         toast(novo ? 'Órgão cadastrado, com o menu padrão do site. Abra o órgão para convidar o administrador.' : 'Órgão atualizado.');
         await carregar(); desenhar();

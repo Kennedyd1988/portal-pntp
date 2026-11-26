@@ -49,7 +49,7 @@
     }
     d = { orgaos: og.data, vinculos: vi.data, pessoas: [...mapa.values()], perfis: pf.data.sort((a, b) => ordemAlfabetica(a.nome, b.nome)),
       permissoes: pp.data, unidades: un.data, euId: user.id,
-      suportes: new Set((sp.error ? [] : sp.data || []).map((x) => x.usuario_id)), suporteDisponivel: souSuporte && !sp.error };
+      suportes: new Set((sp.error ? [] : sp.data || []).map((x) => x.usuario_id)), suporteDisponivel: souSuporte && !sp.error && !!P.estado.usuario.desenvolvedor };
     if (!orgPerfis || !d.orgaos.some((o) => o.id === orgPerfis)) {
       orgPerfis = (d.orgaos.find((o) => o.id === P.estado.orgao.id) || d.orgaos[0] || {}).id || null;
     }
@@ -403,12 +403,12 @@
     });
   }
 
-  // Suporte SOFT+ (script 38): só quem já é Suporte marca ou tira a marca de outra pessoa.
+  // Suporte SOFT+ (scripts 38 e 56): só o Desenvolvedor marca ou tira a marca de outra pessoa.
   async function alternarSuporte(p, depois) {
     const tirar = d.suportes.has(p.usuario_id);
     const ok = await P.confirmar(tirar ? 'Tirar do Suporte SOFT+' : 'Tornar Suporte SOFT+',
       tirar ? (p.nome || p.email) + ' deixa de ver os órgãos da plataforma e fica só com os acessos de cada órgão (abaixo).'
-        : (p.nome || p.email) + ' passa a ver e alterar TODOS os órgãos da plataforma, criar órgãos, editar os perfis padrão e marcar outros Suportes. Dê só a quem é da equipe SOFT+.',
+        : (p.nome || p.email) + ' passa a ver e alterar TODOS os órgãos da plataforma, criar órgãos e editar os perfis padrão (órgãos de teste continuam só do Desenvolvedor). Dê só a quem é da equipe SOFT+.',
       tirar ? 'Tirar' : 'Tornar Suporte', tirar);
     if (!ok) return;
     const { error } = await sb.rpc('definir_suporte_softplus', { p_usuario: p.usuario_id, p_valor: !tirar });
