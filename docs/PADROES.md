@@ -1,6 +1,6 @@
 # SOFT+ GOV — Manual de padrões reutilizáveis
 
-Versão do sistema: 0.51.0 · Atualizado em 25/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
+Versão do sistema: 0.52.0 · Atualizado em 25/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
 
 > Cópia do manual mantida no repositório. A cada publicação no ar, o manual (documento e esta cópia) é atualizado junto com as notas da versão. Veja o "Histórico de atualizações" no fim.
 
@@ -100,6 +100,7 @@ Cada componente existe pronto em `site/site.css` (blocos "REDESENHO 0.46" no fim
 - Títulos vindos em CAIXA ALTA aparecem em formato normal só na exibição (`S.semCaixaAlta`), preservando siglas e o nome do município.
 - Fundo das seções alterna branco e cinza-azulado (`.secao-cinza`) para dar ritmo.
 - Página com um só destino externo abre direto; com vários, mostra o quadro "Onde consultar".
+- Estrutura organizacional: a aba "Unidades" mostra como cartões as unidades marcadas como principais (`unidades.destaque`), na ordem do organograma; sem nenhuma marcada, as do topo. A aba "Organograma" mostra sempre a árvore completa.
 
 ## 4. Padrões do painel
 
@@ -701,6 +702,7 @@ Trocou a logo → arquivos com nome novo (`-v2`) e o manifesto apontando para el
 
 | Data | Versão | O que mudou nos padrões |
 | --- | --- | --- |
+| 25/11/2026 | 0.52.0 | Unidades principais escolhidas pelo órgão na aba "Unidades" da Estrutura organizacional, independentes do organograma (`unidades.destaque`, seção 3) |
 | 25/11/2026 | 0.51.0 | Marca Desenvolvedor separada do Suporte SOFT+: só ele vê órgãos de teste (`somente_desenvolvedor`, `orgao_liberado`, política RESTRICTIVE) e dá/tira a marca Suporte (seção 6) |
 | 25/11/2026 | 0.50.0 | Fluxo de homologação: alterações acumuladas no ramo `homologacao`, conferidas no órgão de teste e publicadas no `main` só com autorização; scripts que mudam o comportamento do que está no ar rodam no dia da publicação (seção 10). Situação derivada de período ("em exercício" pela legislatura, com exceção manual "afastado" e recálculo diário por `pg_cron`) |
 | 19/11/2026 | 0.48.0 | Padrão de vários clientes donos dos dados num mesmo schema (isolamento por política RESTRICTIVE, papel dono, cascas públicas com `?c=SIGLA`, migração com cópia e teste desfeito) e integração Gestão de Consórcio ↔ Portal por item (seção 8) |
