@@ -984,15 +984,20 @@
         el('a', { class: 'est-mais', href: '#/unidade/' + u.id }, 'Competências, gestores e serviços →', el('span', { class: 'sr' }, ' de ' + u.nome)));
     };
     const topo = filhos(null);
-    const grade = el('div', { class: 'grade g2 est-grade' }, topo.map(cartao));
-    const total = el('span', { class: 'meta', role: 'status' }, topo.length + ' unidades principais · ' + ativas.length + ' no total');
+    // Aba "Unidades" (0.52.0): as marcadas como principais no painel, na ordem do organograma;
+    // sem nenhuma marcada, as do topo do organograma.
+    const naOrdem = (lista) => lista.flatMap((u) => [u, ...naOrdem(filhos(u.id))]);
+    const marcadas = naOrdem(topo).filter((u) => u.destaque);
+    const principais = marcadas.length ? marcadas : topo;
+    const grade = el('div', { class: 'grade g2 est-grade' }, principais.map(cartao));
+    const total = el('span', { class: 'meta', role: 'status' }, principais.length + ' unidades principais · ' + ativas.length + ' no total');
     const busca = el('input', { type: 'search', placeholder: 'Ex.: saúde, tributos, nome do secretário' });
     busca.addEventListener('input', () => {
       const t = normalizar(busca.value.trim());
       // Pesquisa em todas as unidades (inclusive as vinculadas), mostrando o cartão de cada uma.
-      const lista = t ? ativas.filter((u) => normalizar([u.nome, u.sigla, u.competencias, (responsavel(u.id) || {}).nome].join(' ')).includes(t)) : topo;
+      const lista = t ? ativas.filter((u) => normalizar([u.nome, u.sigla, u.competencias, (responsavel(u.id) || {}).nome].join(' ')).includes(t)) : principais;
       grade.replaceChildren(...lista.map(cartao));
-      total.textContent = t ? lista.length + (lista.length === 1 ? ' unidade encontrada' : ' unidades encontradas') : topo.length + ' unidades principais · ' + ativas.length + ' no total';
+      total.textContent = t ? lista.length + (lista.length === 1 ? ' unidade encontrada' : ' unidades encontradas') : principais.length + ' unidades principais · ' + ativas.length + ' no total';
     });
     const painelCartoes = el('div', null,
       el('form', { class: 'filtros', role: 'search', onsubmit: (e) => e.preventDefault() }, el('label', null, 'Pesquisar unidade, competência ou responsável', busca)),

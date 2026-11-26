@@ -114,7 +114,8 @@
       competencias: areaTexto(u.competencias, 5),
       norma: entrada(u.norma_criacao, { placeholder: 'Ex.: Lei Complementar nº 001/2017' }),
       normaPdf: el('input', { type: 'file', accept: 'application/pdf' }),
-      ativo: el('input', { type: 'checkbox', checked: u.id ? u.ativo : true })
+      ativo: el('input', { type: 'checkbox', checked: u.id ? u.ativo : true }),
+      destaque: el('input', { type: 'checkbox', checked: !!u.destaque })
     };
     let normaUrl = u.norma_url || null;
     const linkNorma = el('span', { class: 'ajuda' }, normaUrl ? el('a', { href: normaUrl, target: '_blank', rel: 'noopener' }, 'Ver PDF atual') : 'Nenhum PDF enviado.');
@@ -126,7 +127,9 @@
           el('div', { class: 'grade-campos' },
             campo('un-sigla', 'Sigla', f.sigla),
             campo('un-pai', 'Fica dentro de', f.pai, 'Para montar o organograma')),
-          el('label', { class: 'checkbox' }, f.ativo, ' Unidade ativa (aparece no site)')]],
+          el('label', { class: 'checkbox' }, f.ativo, ' Unidade ativa (aparece no site)'),
+          el('label', { class: 'checkbox' }, f.destaque, ' Unidade principal (aparece como cartão na aba "Unidades" do site)'),
+          el('p', { class: 'ajuda' }, 'Sem nenhuma unidade principal marcada, a aba "Unidades" mostra as unidades do topo do organograma. O organograma não muda.')]],
         ['contato', 'Endereço e contato', [
           campo('un-endereco', 'Endereço', f.endereco),
           el('div', { class: 'grade-campos' },
@@ -157,12 +160,17 @@
         const pdf = await escolherPdf(f.normaPdf);
         const antigo = normaUrl;
         if (pdf) normaUrl = await P.enviarArquivo('institucional', pdf, 'pdf', 'application/pdf');
-        await gravar('unidades', {
+        const dadosUn = {
           nome: v('nome'), sigla: v('sigla') || null, unidade_pai_id: f.pai.value || null,
           endereco: v('endereco') || null, telefone: v('telefone') || null, email: v('email') || null,
           horario_atendimento: v('horario') || null, competencias: v('competencias') || null,
-          norma_criacao: v('norma') || null, norma_url: normaUrl, ativo: f.ativo.checked
-        }, u.id);
+          norma_criacao: v('norma') || null, norma_url: normaUrl, ativo: f.ativo.checked, destaque: f.destaque.checked
+        };
+        try { await gravar('unidades', dadosUn, u.id); }
+        catch (e) {   // script 57 ainda não rodado: grava sem a coluna nova
+          if (!/destaque/i.test((e && e.message) || '')) throw e;
+          delete dadosUn.destaque; await gravar('unidades', dadosUn, u.id);
+        }
         if (pdf && antigo) P.apagarArquivo(antigo);
         d.close();
         toast(u.id ? 'Unidade atualizada.' : 'Unidade cadastrada.');
