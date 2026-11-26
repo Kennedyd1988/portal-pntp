@@ -876,6 +876,8 @@
     raiz.setProperty('--cor-clara', misturar(cor, 'branco', 0.9));
     document.querySelector('meta[name="theme-color"]').setAttribute('content', cor);
     $('marca-nome').textContent = S.conf.nome_exibicao || o.nome;
+    // Nome longo (ex.: consórcios) quebra em até duas linhas com letra um pouco menor, em vez de passar por baixo da busca.
+    $('marca-nome').classList.toggle('nome-longo', ($('marca-nome').textContent || '').length > 45);
     $('marca-esfera').textContent = TIPO_ORGAO[o.tipo] || '';
     if (S.conf.brasao_url) { const b = $('marca-brasao'); b.src = S.conf.brasao_url; b.alt = 'Brasão'; b.hidden = false; }
     // Ícone da aba do navegador: o escolhido em Aparência; sem ele, o brasão.

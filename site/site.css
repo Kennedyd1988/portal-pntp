@@ -779,6 +779,7 @@ tr.pag-oculta { display: none; }
 .barra-redes { display: none; }
 .cabecalho { border-bottom: 1px solid #e8edf2; }
 .marca-nome { color: var(--navy); font-weight: 800; letter-spacing: -.025em; }
+.marca-nome.nome-longo { text-wrap: balance; }
 .marca-esfera { color: #64788d; letter-spacing: .1em; }
 .busca-topo input { border: 1px solid var(--linha); border-radius: 10px 0 0 10px; min-height: 44px; }
 .busca-topo button { background: var(--navy); border-radius: 0 10px 10px 0; }
@@ -800,6 +801,7 @@ tr.pag-oculta { display: none; }
   .cabecalho-int { min-height: 96px; padding-top: 14px; padding-bottom: 14px; gap: 26px; }
   .marca img { height: 68px; max-width: 150px; }
   .marca-nome { font-size: 1.38rem; white-space: nowrap; }
+  .marca-nome.nome-longo { font-size: 1.18rem; white-space: normal; text-wrap: balance; line-height: 1.18; }
   .busca-topo { flex: 0 1 250px; }
   .selos-cabecalho { display: flex; gap: 8px; margin: 0 0 0 -8px; padding: 0 0 0 18px; border-left: 1px solid #e3e9f0; justify-content: flex-start; }
   .selos-cabecalho .selo-marca { width: 40px; height: 40px; box-shadow: none; }

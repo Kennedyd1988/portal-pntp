@@ -1,7 +1,8 @@
 {
-  "versao": "0.53.0",
+  "versao": "0.53.1",
   "data": "2026-11-26",
   "notas": [
+    "Topo do site: nome do órgão muito longo (como o dos consórcios) não fica mais cortado por baixo da busca; ele quebra em até duas linhas, com a letra um pouco menor. Nomes curtos continuam numa linha só.",
     "Consórcios: Publicações oficiais sem as abas e os tipos de Lei e Decreto (consórcio público não edita leis nem decretos), no painel e no site. No site, a página inicial mostra as abas Portarias e Resoluções nas Últimas publicações, e os textos passam a falar em \"Portarias e resoluções\" (acesso rápido, Portal da Transparência e Diário Oficial). Os demais órgãos não mudam.",
     "Correção: incluir, trocar ou excluir anexos de uma publicação no painel dava \"permission denied\" em todos os órgãos. Corrigido no banco (script 58, já aplicado).",
     "Estrutura organizacional: as unidades principais da aba \"Unidades\" seguem a ordem definida no painel (campo \"Ordem\"), e não mais a ordem alfabética.",
