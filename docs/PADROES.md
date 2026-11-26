@@ -1,6 +1,6 @@
 # SOFT+ GOV — Manual de padrões reutilizáveis
 
-Versão do sistema: 0.52.0 · Atualizado em 25/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
+Versão do sistema: 0.53.0 · Atualizado em 26/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
 
 > Cópia do manual mantida no repositório. A cada publicação no ar, o manual (documento e esta cópia) é atualizado junto com as notas da versão. Veja o "Histórico de atualizações" no fim.
 
@@ -249,6 +249,7 @@ As regras de dados ficam no PostgreSQL (gatilhos e políticas RLS), para valerem
 **Segurança (scripts 01, 03, 06)**
 
 - RLS ligado em todas as tabelas; "Automatically expose new tables" desligada; cada tabela só aparece na API com `grant` explícito.
+- Toda política `to authenticated` precisa do `grant` correspondente para `authenticated` no mesmo script (sem ele dá "permission denied" para todos, mesmo com a política certa). Conferir com `has_table_privilege` depois de criar a tabela.
 - Leitura pública só do que está publicado (`situacao = 'publicado'`); o membro do órgão vê também os rascunhos (`e_membro(orgao_id)`).
 - Inclusão, edição e exclusão exigem `tem_permissao(orgao, módulo, ação)` e `no_alcance(orgao, unidade)`.
 - Tabelas "filhas" herdam a leitura da tabela mãe e um gatilho confere que filho e mãe são do mesmo órgão.
@@ -302,6 +303,8 @@ As regras de dados ficam no PostgreSQL (gatilhos e políticas RLS), para valerem
 A tela Aparência é genérica; destinos externos, declarações, autoavaliação e Kit de evidências são próprios de portais públicos, mas a ideia pode ser adaptada.
 
 **Aparência (genérico)** — abas: Identidade, Contatos e redes, Destinos das páginas, Diário Oficial e sistemas, Selos e Radar ("Faixa desenhada (padrão)" ou "Imagem oficial"; link do Radar). Tudo grava em `orgaos.configuracoes` por `mesclar_configuracoes`; imagens trocadas são apagadas do armazenamento.
+
+**Conteúdo por tipo de órgão (específico)** — o que não existe no tipo some do painel e do site, em vez de aparecer vazio. Ex.: consórcio não edita leis nem decretos, então Publicações oficiais fica sem as abas e os tipos de Lei e Decreto, as Últimas publicações da página inicial mostram Portarias e Resoluções, e os textos falam em "Portarias e resoluções" (`consorcio()` / `SEM_LEIS` em `site/paginas.js` e `painel/modulo-publicacoes.js`).
 
 **Destinos externos (específico, adaptável)**
 
@@ -702,6 +705,7 @@ Trocou a logo → arquivos com nome novo (`-v2`) e o manifesto apontando para el
 
 | Data | Versão | O que mudou nos padrões |
 | --- | --- | --- |
+| 26/11/2026 | 0.53.0 | Conteúdo por tipo de órgão: consórcio sem abas e tipos de Lei e Decreto em Publicações oficiais (seção 9); toda política `to authenticated` exige o `grant` correspondente (seção 8, script 58) |
 | 25/11/2026 | 0.52.0 | Unidades principais escolhidas pelo órgão na aba "Unidades" da Estrutura organizacional, independentes do organograma (`unidades.destaque`, seção 3) |
 | 25/11/2026 | 0.51.0 | Marca Desenvolvedor separada do Suporte SOFT+: só ele vê órgãos de teste (`somente_desenvolvedor`, `orgao_liberado`, política RESTRICTIVE) e dá/tira a marca Suporte (seção 6) |
 | 25/11/2026 | 0.50.0 | Fluxo de homologação: alterações acumuladas no ramo `homologacao`, conferidas no órgão de teste e publicadas no `main` só com autorização; scripts que mudam o comportamento do que está no ar rodam no dia da publicação (seção 10). Situação derivada de período ("em exercício" pela legislatura, com exceção manual "afastado" e recálculo diário por `pg_cron`) |
