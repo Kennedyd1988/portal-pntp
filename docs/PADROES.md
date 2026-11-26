@@ -1,6 +1,6 @@
 # SOFT+ GOV — Manual de padrões reutilizáveis
 
-Versão do sistema: 0.48.0 · Atualizado em 19/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
+Versão do sistema: 0.50.0 · Atualizado em 25/11/2026 · Documento editável: https://claude.ai/artifact/8d3P4o1ADXNVEMDsbDV1Za
 
 > Cópia do manual mantida no repositório. A cada publicação no ar, o manual (documento e esta cópia) é atualizado junto com as notas da versão. Veja o "Histórico de atualizações" no fim.
 
@@ -699,6 +699,7 @@ Trocou a logo → arquivos com nome novo (`-v2`) e o manifesto apontando para el
 
 | Data | Versão | O que mudou nos padrões |
 | --- | --- | --- |
+| 25/11/2026 | 0.50.0 | Fluxo de homologação: alterações acumuladas no ramo `homologacao`, conferidas no órgão de teste e publicadas no `main` só com autorização; scripts que mudam o comportamento do que está no ar rodam no dia da publicação (seção 10). Situação derivada de período ("em exercício" pela legislatura, com exceção manual "afastado" e recálculo diário por `pg_cron`) |
 | 19/11/2026 | 0.48.0 | Padrão de vários clientes donos dos dados num mesmo schema (isolamento por política RESTRICTIVE, papel dono, cascas públicas com `?c=SIGLA`, migração com cópia e teste desfeito) e integração Gestão de Consórcio ↔ Portal por item (seção 8) |
 | 18/11/2026 | 0.47.2 | "Incluir outro ao salvar" em todas as janelas abertas por "+", botão "Duplicar" nas listas (`P.copiaNova`, `P.botaoDuplicar`) e ementa sugerida no formato de ementa e envio em lote de PDFs (`P.loteDePdfs`) em Publicações e Diárias (seção 4) |
 | 18/11/2026 | 0.47.1 | "Preencher pelo PDF" no formulário comum (`lerPdf`) e campo `pdfurl` (PDF ou link na mesma coluna); primeiro uso em Diárias (seção 4) |
